@@ -1,8 +1,8 @@
-# Design
+# Architecture Compliance
 
 
 ## Context
-This page tracks bootstrap decisions for design during steady build work.
+This page tracks bootstrap decisions for architecture compliance during steady build work.
 
 ## Usage
 - Made the the main flow assumptions easier to check later.
