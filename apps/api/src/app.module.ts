@@ -6,3 +6,8 @@ export function createDatabaseSummary() {
 export function databaseTask() {
   return { scope: "database", status: "ready" };
 }
+
+// current lane: react
+export function reactTask() {
+  return { scope: "react", status: "ready" };
+}
