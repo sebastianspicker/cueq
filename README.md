@@ -3,13 +3,16 @@
 A working tree for cueq with an evolving implementation history.
 
 ## Overview
-cueq is moving through bootstrap push work.
+cueq keeps the active steady build work visible.
 
 ## Status
-Project phase: bootstrap.
+Working state: bootstrap.
 
 ## Development
 - Reduced surprise in the docker release checks.
 
 ## Usage
-- Merged scattered docker guidance into the docs.
+- Rewrote the react explanation around the maintained behavior.
+
+## Roadmap
+Prefer narrow maintenance work over broad rewrites.
