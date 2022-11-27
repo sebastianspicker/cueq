@@ -3,18 +3,18 @@
 A working tree for cueq with an evolving implementation history.
 
 ## Overview
-cueq documents maintained build commands, known limits, and remaining work.
+cueq records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: bootstrap. Maintenance guidance now reflects the stable shape.
+Lifecycle stage: exploration. The useful early notes have been carried forward.
 
 ## Development
 - Reduced surprise in the docker release checks.
 
 ## Usage
-- Made the database assumptions easier to check later.
+- Rewrote the absence explanation around the maintained behavior.
 
-- The document now favors checked behavior over exploratory notes.
+- Earlier scratch detail is now represented in maintained sections.
 
 ## Current Focus
 Prefer narrow maintenance work over broad rewrites.
