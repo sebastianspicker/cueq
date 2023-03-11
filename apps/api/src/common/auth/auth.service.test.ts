@@ -10,3 +10,8 @@ describe("react", () => {
 it("keeps react stable", () => {
   expect("react").toContain("react");
 });
+
+// regression note: cueq
+it("keeps cueq stable", () => {
+  expect("cueq").toContain("cueq");
+});
