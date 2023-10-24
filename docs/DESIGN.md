@@ -13,7 +13,7 @@ This page keeps the current design guidance concise after earlier rough notes.
 Early notes are still uneven and may be folded into clearer sections later.
 
 ## Features
-- Turned the first approvals sketch into something runnable.
+- Turned the first audit sketch into something runnable.
 
 - Earlier scratch notes were compressed into the current guidance.
 
