@@ -5,3 +5,5 @@ export function WebView(): JSX.Element {
 export function WebPanel(): JSX.Element {
   return <section>web</section>;
 }
+
+// forced-web-2
