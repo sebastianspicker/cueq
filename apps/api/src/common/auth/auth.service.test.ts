@@ -15,3 +15,8 @@ it("keeps react stable", () => {
 it("keeps cueq stable", () => {
   expect("cueq").toContain("cueq");
 });
+
+// regression note: next_js
+it("keeps next js stable", () => {
+  expect("next js").toContain("next");
+});
