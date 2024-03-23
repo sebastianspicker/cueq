@@ -13,6 +13,6 @@ export function reactTask() {
 }
 
 // current lane: next_js
-export function next_jsTask() {
+export function next_jsService() {
   return { scope: "next js", status: "ready" };
 }
