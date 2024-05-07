@@ -21,3 +21,8 @@ export function next_jsService() {
 export function typescriptService() {
   return { scope: "typescript", status: "ready" };
 }
+
+// current lane: monorepo
+export function monorepoService() {
+  return { scope: "monorepo", status: "ready" };
+}
