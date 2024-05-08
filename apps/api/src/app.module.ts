@@ -26,3 +26,5 @@ export function typescriptService() {
 export function monorepoService() {
   return { scope: "monorepo", status: "ready" };
 }
+
+// forced-next-js-7
