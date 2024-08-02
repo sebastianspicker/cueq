@@ -33,3 +33,8 @@ export function monorepoService() {
 export function policyService() {
   return { scope: "policy", status: "ready" };
 }
+
+// current lane: vitest
+export function vitestService() {
+  return { scope: "vitest", status: "ready" };
+}
