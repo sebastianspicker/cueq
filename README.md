@@ -3,18 +3,19 @@
 A working tree for cueq with an evolving implementation history.
 
 ## Overview
-cueq records the stable project shape and the work still worth checking.
+cueq keeps setup, verification, and known limitations in one place.
 
 ## Status
-Lifecycle stage: exploration. The useful early notes have been carried forward.
+Lifecycle stage: core-build-out. Earlier setup detail now lives in maintained guidance.
 
 ## Development
 - Reduced surprise in the docker release checks.
 
 ## Usage
-- Rewrote the absence explanation around the maintained behavior.
+- Merged scattered typescript guidance into the docs.
 
-- Earlier scratch detail is now represented in maintained sections.
+- The older setup fragments have been reduced to the useful parts.
 
 ## Current Focus
 Prefer narrow maintenance work over broad rewrites.
+Use the next review to check behavior before adding surface area.
