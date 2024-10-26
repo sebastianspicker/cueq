@@ -5,7 +5,7 @@
 This page keeps the current design guidance concise after earlier rough notes.
 
 ## Usage
-- Rewrote the vitest explanation around the maintained behavior.
+- Merged scattered github actions guidance into the docs.
 
 - Earlier scratch notes were compressed into the current guidance.
 
