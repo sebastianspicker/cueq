@@ -24,3 +24,8 @@ Some setup details still depend on the current local workflow and may change aga
 - Moved monorepo behind a narrower boundary.
 
 - Earlier scratch notes were compressed into the current guidance.
+
+## Reliability
+- Removed one failure mode from the monorepo path.
+
+- Earlier scratch notes were compressed into the current guidance.

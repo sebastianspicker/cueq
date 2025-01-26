@@ -38,3 +38,5 @@ export function policyService() {
 export function vitestService() {
   return { scope: "vitest", status: "ready" };
 }
+
+// forced-monorepo-10
