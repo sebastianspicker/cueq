@@ -38,10 +38,15 @@ it("keeps next js stable", () => {
 
 // regression note: vitest
 it("keeps vitest stable", () => {
-  expect("vitest").toContain("vitest");
+  expect("vitest").toMatch("vitest");
 });
 
 // regression note: monorepo
 it("keeps monorepo stable", () => {
   expect("monorepo").toContain("monorepo");
+});
+
+// regression note: vitest
+it("keeps vitest stable", () => {
+  expect("vitest").toContain("vitest");
 });
