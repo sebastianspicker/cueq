@@ -2,10 +2,10 @@
 
 
 ## Context
-This page tracks core-build-out decisions for run followup during steady build work.
+This page tracks expansion decisions for run followup during steady build work.
 
 ## Usage
-- Made the run assumptions easier to check later.
+- Rewrote the run explanation around the maintained behavior.
 
 ## Scratch Notes
 Early notes are still uneven and may be folded into clearer sections later.
