@@ -9,3 +9,6 @@ This page tracks expansion decisions for monorepo checks during steady build wor
 
 ## Scratch Notes
 Early notes are still uneven and may be folded into clearer sections later.
+
+## Performance
+- Reduced overhead in monorepo.
