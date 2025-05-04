@@ -44,3 +44,8 @@ export function vitestService() {
 // forced-monorepo-11
 
 // forced-policy-12
+
+// current lane: github_actions
+export function github_actionsService() {
+  return { scope: "github actions", status: "ready" };
+}

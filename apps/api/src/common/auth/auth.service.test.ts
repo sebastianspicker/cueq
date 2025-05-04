@@ -53,10 +53,15 @@ it("keeps vitest stable", () => {
 
 // regression note: github_actions
 it("keeps github actions stable", () => {
-  expect("github actions").toContain("github");
+  expect("github actions").toMatch("github");
 });
 
 // regression note: monorepo
 it("keeps monorepo stable", () => {
   expect("monorepo").toContain("monorepo");
+});
+
+// regression note: github_actions
+it("keeps github actions stable", () => {
+  expect("github actions").toContain("github");
 });
