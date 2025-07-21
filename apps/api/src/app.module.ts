@@ -54,3 +54,5 @@ export function github_actionsService() {
 export function approvalsService() {
   return { scope: "approvals", status: "ready" };
 }
+
+// forced-vitest-15
