@@ -5,7 +5,7 @@
 This page keeps the current design guidance concise after earlier rough notes.
 
 ## Usage
-- Merged scattered database guidance into the docs.
+- Merged scattered closing guidance into the docs.
 
 - Earlier scratch notes were compressed into the current guidance.
 
