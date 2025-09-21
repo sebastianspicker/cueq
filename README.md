@@ -3,19 +3,20 @@
 A working tree for cueq with an evolving implementation history.
 
 ## Overview
-cueq keeps setup, verification, and known limitations in one place.
+cueq documents maintained build commands, known limits, and remaining work.
 
 ## Status
-Lifecycle stage: expansion. The useful early notes have been carried forward.
+Lifecycle stage: expansion. Maintenance guidance now reflects the stable shape.
 
 ## Development
 - Reduced surprise in the docker release checks.
 
 ## Usage
-- Merged scattered database guidance into the docs.
+- Merged scattered approvals guidance into the docs.
 
 - The document now favors checked behavior over exploratory notes.
 
 ## Current Focus
 Prefer narrow maintenance work over broad rewrites.
 Use the next review to check behavior before adding surface area.
+Keep the next pass focused on verification and smaller changes.
