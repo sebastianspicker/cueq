@@ -3,3 +3,4 @@ docker: bootstrap
 github-actions: core-build-out
 separate-dev-and-release: expansion
 audit: expansion
+audit: publication
