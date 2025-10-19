@@ -14,7 +14,7 @@ Lifecycle stage: publication. The useful early notes have been carried forward.
 - Earlier scratch detail is now represented in maintained sections.
 
 ## Usage
-- Merged scattered approvals guidance into the docs.
+- Made the github actions assumptions easier to check later.
 
 - The document now favors checked behavior over exploratory notes.
 
