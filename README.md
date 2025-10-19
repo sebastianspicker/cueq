@@ -3,13 +3,13 @@
 A working tree for cueq with an evolving implementation history.
 
 ## Overview
-cueq records the stable project shape and the work still worth checking.
+cueq documents maintained build commands, known limits, and remaining work.
 
 ## Status
-Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
+Lifecycle stage: publication. The useful early notes have been carried forward.
 
 ## Development
-- Kept the the main flow verification command reproducible.
+- Kept the github actions verification command reproducible.
 
 - Earlier scratch detail is now represented in maintained sections.
 
