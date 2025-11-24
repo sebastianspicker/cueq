@@ -3,7 +3,7 @@
 A working tree for cueq with an evolving implementation history.
 
 ## Overview
-cueq keeps setup, verification, and known limitations in one place.
+cueq records the stable project shape and the work still worth checking.
 
 ## Status
 Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
@@ -14,9 +14,9 @@ Lifecycle stage: publication. Earlier setup detail now lives in maintained guida
 - Earlier scratch detail is now represented in maintained sections.
 
 ## Usage
-- Made the github actions assumptions easier to check later.
+- Made the closing assumptions easier to check later.
 
-- The document now favors checked behavior over exploratory notes.
+- Earlier scratch detail is now represented in maintained sections.
 
 ## Current Focus
 Prefer narrow maintenance work over broad rewrites.

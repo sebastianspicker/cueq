@@ -5,7 +5,7 @@
 This page keeps the current design guidance concise after earlier rough notes.
 
 ## Usage
-- Made the github actions assumptions easier to check later.
+- Made the closing assumptions easier to check later.
 
 - Earlier scratch notes were compressed into the current guidance.
 
