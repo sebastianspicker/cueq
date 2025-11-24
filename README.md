@@ -3,13 +3,13 @@
 A working tree for cueq with an evolving implementation history.
 
 ## Overview
-cueq documents maintained build commands, known limits, and remaining work.
+cueq keeps setup, verification, and known limitations in one place.
 
 ## Status
-Lifecycle stage: publication. The useful early notes have been carried forward.
+Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
 
 ## Development
-- Kept the github actions verification command reproducible.
+- Aligned local and CI checks for vitest.
 
 - Earlier scratch detail is now represented in maintained sections.
 
