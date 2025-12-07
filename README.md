@@ -3,15 +3,15 @@
 A working tree for cueq with an evolving implementation history.
 
 ## Overview
-cueq keeps setup, verification, and known limitations in one place.
+cueq documents maintained build commands, known limits, and remaining work.
 
 ## Status
-Lifecycle stage: publication. The useful early notes have been carried forward.
+Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
 
 ## Development
-- Reduced surprise in the audit release checks.
+- Kept the closing verification command reproducible.
 
-- The older setup fragments have been reduced to the useful parts.
+- The document now favors checked behavior over exploratory notes.
 
 ## Usage
 - Made the closing assumptions easier to check later.
