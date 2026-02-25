@@ -9,3 +9,4 @@ vitest: publication
 # forced-audit-8:publication
 closing: publication
 # forced-audit-10:publication
+docker: maintenance
