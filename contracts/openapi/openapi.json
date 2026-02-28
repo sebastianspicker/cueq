@@ -1,0 +1,63 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy"
+          }
+        },
+        "summary": "Health check",
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "cueq API",
+    "description": "Integrated time-tracking, absence-management, and shift-planning API for a German university (NRW / TV-L)",
+    "version": "0.0.1",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Health check endpoints"
+    },
+    {
+      "name": "bookings",
+      "description": "Time booking endpoints"
+    },
+    {
+      "name": "absences",
+      "description": "Absence and leave endpoints"
+    },
+    {
+      "name": "roster",
+      "description": "Shift planning endpoints"
+    },
+    {
+      "name": "workflows",
+      "description": "Approval workflow endpoints"
+    },
+    {
+      "name": "closing",
+      "description": "Monthly closing endpoints"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/audit-entry.schema.json",
+  "title": "AuditEntry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "timestamp", "actorId", "action", "entityType", "entityId"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "timestamp": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "actorId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "action": {
+      "type": "string"
+    },
+    "entityType": {
+      "type": "string"
+    },
+    "entityId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "before": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    },
+    "after": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    },
+    "reason": {
+      "type": ["string", "null"]
+    },
+    "ipAddress": {
+      "type": ["string", "null"]
+    }
+  }
+}

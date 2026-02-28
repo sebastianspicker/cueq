@@ -5,6 +5,7 @@
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
+SCRIPTS := ./scripts
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -12,17 +13,7 @@ SHELL := /bin/bash
 
 .PHONY: setup
 setup: ## Install dependencies, start Docker, generate Prisma client
-	@echo "📦 Installing dependencies..."
-	pnpm install
-	@echo "🐳 Starting Docker services..."
-	docker-compose up -d
-	@echo "⏳ Waiting for PostgreSQL..."
-	@sleep 3
-	@echo "🔧 Generating Prisma client..."
-	pnpm db:generate
-	@echo "🗄️  Pushing schema to database..."
-	pnpm db:push
-	@echo "✅ Setup complete. Run 'make dev' to start development."
+	$(SCRIPTS)/setup.sh
 
 # ---------------------------------------------------------------------------
 # Development
@@ -30,35 +21,48 @@ setup: ## Install dependencies, start Docker, generate Prisma client
 
 .PHONY: dev
 dev: ## Start development servers (API + Web) with hot reload
-	pnpm dev
+	$(SCRIPTS)/pnpm.sh dev
 
 # ---------------------------------------------------------------------------
 # Quality Checks
 # ---------------------------------------------------------------------------
 
 .PHONY: check
-check: lint typecheck test ## Full validation: lint + typecheck + tests
+check: ## Full validation: lint + format + typecheck + schemas + tests + openapi-check
+	$(SCRIPTS)/check.sh
 
 .PHONY: lint
 lint: ## Run linters in check mode (no auto-fix)
-	pnpm lint
+	$(SCRIPTS)/pnpm.sh lint
 
 .PHONY: lint-fix
 lint-fix: ## Auto-fix lint + formatting issues
-	pnpm lint:fix
-	pnpm format:fix
+	$(SCRIPTS)/pnpm.sh lint:fix
+	$(SCRIPTS)/pnpm.sh format:fix
 
 .PHONY: typecheck
 typecheck: ## TypeScript type checking (no emit)
-	pnpm typecheck
+	$(SCRIPTS)/pnpm.sh typecheck
 
 .PHONY: format
 format: ## Check code formatting
-	pnpm format
+	$(SCRIPTS)/pnpm.sh format
 
 .PHONY: format-fix
 format-fix: ## Auto-fix formatting
-	pnpm format:fix
+	$(SCRIPTS)/pnpm.sh format:fix
+
+.PHONY: schemas
+schemas: ## Validate JSON Schemas and fixture contracts
+	$(SCRIPTS)/schemas.sh
+
+.PHONY: generate
+generate: ## Generate Prisma client, OpenAPI snapshot, and generated docs
+	$(SCRIPTS)/generate.sh
+
+.PHONY: openapi-check
+openapi-check: ## Validate committed OpenAPI snapshot against generated document
+	$(SCRIPTS)/openapi-check.sh
 
 # ---------------------------------------------------------------------------
 # Tests
@@ -66,15 +70,27 @@ format-fix: ## Auto-fix formatting
 
 .PHONY: test
 test: ## Run all tests
-	pnpm test
+	$(SCRIPTS)/pnpm.sh test
 
 .PHONY: test-unit
 test-unit: ## Run unit tests only (fast, <10s target)
-	pnpm test:unit
+	$(SCRIPTS)/pnpm.sh test:unit
 
 .PHONY: test-integration
 test-integration: ## Run integration tests (requires Docker)
-	pnpm test:integration
+	$(SCRIPTS)/pnpm.sh test:integration
+
+.PHONY: test-acceptance
+test-acceptance: ## Run acceptance tests (full stack)
+	$(SCRIPTS)/pnpm.sh test:acceptance
+
+.PHONY: test-compliance
+test-compliance: ## Run GDPR/audit compliance tests
+	$(SCRIPTS)/pnpm.sh test:compliance
+
+.PHONY: test-all
+test-all: ## Run all test suites
+	$(SCRIPTS)/pnpm.sh test:all
 
 # ---------------------------------------------------------------------------
 # Database
@@ -82,15 +98,15 @@ test-integration: ## Run integration tests (requires Docker)
 
 .PHONY: db-generate
 db-generate: ## Generate Prisma client from schema
-	pnpm db:generate
+	$(SCRIPTS)/pnpm.sh db:generate
 
 .PHONY: db-push
 db-push: ## Push schema to database (development)
-	pnpm db:push
+	$(SCRIPTS)/pnpm.sh db:push
 
 .PHONY: db-migrate
 db-migrate: ## Run database migrations
-	pnpm db:migrate
+	$(SCRIPTS)/pnpm.sh db:migrate
 
 # ---------------------------------------------------------------------------
 # Build
@@ -98,7 +114,7 @@ db-migrate: ## Run database migrations
 
 .PHONY: build
 build: ## Build all packages and apps
-	pnpm build
+	$(SCRIPTS)/pnpm.sh build
 
 # ---------------------------------------------------------------------------
 # Cleanup
@@ -106,7 +122,7 @@ build: ## Build all packages and apps
 
 .PHONY: clean
 clean: ## Remove build artifacts, stop Docker, prune volumes
-	pnpm clean
+	$(SCRIPTS)/pnpm.sh clean
 	docker-compose down -v
 	rm -rf node_modules .turbo
 

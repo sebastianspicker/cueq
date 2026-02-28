@@ -12,6 +12,8 @@
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
     "test:unit": "vitest run",
+    "test:acceptance": "vitest run --passWithNoTests",
+    "test:compliance": "vitest run --passWithNoTests",
     "clean": "rm -rf dist node_modules/.cache"
   },
   "dependencies": {

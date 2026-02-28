@@ -8,6 +8,7 @@
 ## 1. Summary
 
 Most time-tracking systems model on-call as a generic "time type". CueQ treats it as a **dedicated subdomain** with:
+
 - Rotation scheduling (weekly, daily, custom)
 - Deployment/incident entries with optional ticket and event references
 - Compliance checks (rest time after deployments)
@@ -16,13 +17,17 @@ Most time-tracking systems model on-call as a generic "time type". CueQ treats i
 ## 2. Data Model
 
 ### On-Call Rotation
+
 An assignment of a person to an on-call period:
+
 - `personId`, `organizationUnitId`
 - `startTime`, `endTime` (typically week or day boundaries)
 - `rotationType`: WEEKLY, DAILY, CUSTOM
 
 ### On-Call Deployment / Einsatz
+
 An individual callout during a rotation:
+
 - `rotationId`, `personId`
 - `startTime`, `endTime`
 - `remote`: boolean (at-site vs. remote resolution)
@@ -31,19 +36,22 @@ An individual callout during a rotation:
 - `description`: free-text summary
 
 ### Compliance Check
+
 Automated check for rest periods after deployments:
+
 - After a night deployment, was the required 11h rest observed?
 - If not, generate a policy violation
 
 ## 3. Key Use Cases
 
-| # | Use Case | Source |
-|---|---|---|
+| #    | Use Case                                              | Source              |
+| ---- | ----------------------------------------------------- | ------------------- |
 | UC-3 | System checks rest period compliance after deployment | CueQ differentiator |
 
 ## 4. Zod Schemas
 
 Defined in [`packages/shared/src/schemas/oncall.ts`](../../packages/shared/src/schemas/oncall.ts):
+
 - `OnCallRotationSchema`
 - `OnCallDeploymentSchema`
 - `CreateOnCallDeploymentSchema`

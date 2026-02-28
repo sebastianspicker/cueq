@@ -15,9 +15,11 @@ _Why is this needed now? Link to product spec, ADR, or issue._
 ## Scope
 
 ### In Scope
+
 - ...
 
 ### Out of Scope
+
 - ...
 
 ## Tasks
@@ -36,14 +38,14 @@ _Why is this needed now? Link to product spec, ADR, or issue._
 ## Linked PRs / Issues
 
 | PR/Issue | Description | Status |
-|---|---|---|
-| — | — | — |
+| -------- | ----------- | ------ |
+| —        | —           | —      |
 
 ## Risks / Blockers
 
 | Risk | Mitigation | Status |
-|---|---|---|
-| — | — | — |
+| ---- | ---------- | ------ |
+| —    | —          | —      |
 
 ## Notes
 

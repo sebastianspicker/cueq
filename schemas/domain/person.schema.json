@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/person.schema.json",
+  "title": "Person",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "firstName", "lastName", "email", "role", "organizationUnitId"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "externalId": {
+      "type": ["string", "null"]
+    },
+    "firstName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lastName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "email": {
+      "$ref": "./_defs/common.schema.json#/$defs/email"
+    },
+    "role": {
+      "enum": [
+        "EMPLOYEE",
+        "TEAM_LEAD",
+        "SHIFT_PLANNER",
+        "HR",
+        "PAYROLL",
+        "ADMIN",
+        "DATA_PROTECTION",
+        "WORKS_COUNCIL"
+      ]
+    },
+    "organizationUnitId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "supervisorId": {
+      "type": ["string", "null"]
+    },
+    "workTimeModelId": {
+      "type": ["string", "null"]
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

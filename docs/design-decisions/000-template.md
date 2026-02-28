@@ -17,19 +17,22 @@ _What is the change that we're proposing and/or doing?_
 ## Consequences
 
 ### Positive
+
 - ...
 
 ### Negative
+
 - ...
 
 ### Neutral
+
 - ...
 
 ## Alternatives Considered
 
 | Alternative | Pros | Cons | Why Not |
-|---|---|---|---|
-| ... | ... | ... | ... |
+| ----------- | ---- | ---- | ------- |
+| ...         | ...  | ...  | ...     |
 
 ## References
 

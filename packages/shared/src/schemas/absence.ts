@@ -18,12 +18,7 @@ export const AbsenceTypeSchema = z.enum([
 ]);
 export type AbsenceType = z.infer<typeof AbsenceTypeSchema>;
 
-export const AbsenceStatusSchema = z.enum([
-  'REQUESTED',
-  'APPROVED',
-  'REJECTED',
-  'CANCELLED',
-]);
+export const AbsenceStatusSchema = z.enum(['REQUESTED', 'APPROVED', 'REJECTED', 'CANCELLED']);
 export type AbsenceStatus = z.infer<typeof AbsenceStatusSchema>;
 
 /** Schema for requesting a new absence / leave */

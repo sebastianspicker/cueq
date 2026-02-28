@@ -19,22 +19,22 @@ stateDiagram-v2
     Review --> Approved: All checklists green + lead/HR sign-off
     Approved --> Exported: Export run completed
     Exported --> [*]: Period archived
-    
+
     Review --> Open: Re-open (HR only, audited)
     Exported --> Review: Post-close correction (HR workflow)
 ```
 
 ## 3. Checklist Items (auto-generated)
 
-| Check | Severity | Description |
-|---|---|---|
-| Missing bookings | 🔴 Error | Days with no clock-in/out and no absence |
-| Booking gaps | 🟡 Warning | Periods between bookings exceeding threshold |
-| Open correction requests | 🔴 Error | Unapproved workflow instances |
-| Open leave requests | 🟡 Warning | Pending approval; may affect balances |
-| Rule violations | 🔴 Error | Rest period, max hours, or break violations |
-| Roster mismatches | 🟡 Warning | Plan-vs-actual discrepancies not acknowledged |
-| Balance anomalies | 🟡 Warning | Balance exceeding configured cap |
+| Check                    | Severity   | Description                                   |
+| ------------------------ | ---------- | --------------------------------------------- |
+| Missing bookings         | 🔴 Error   | Days with no clock-in/out and no absence      |
+| Booking gaps             | 🟡 Warning | Periods between bookings exceeding threshold  |
+| Open correction requests | 🔴 Error   | Unapproved workflow instances                 |
+| Open leave requests      | 🟡 Warning | Pending approval; may affect balances         |
+| Rule violations          | 🔴 Error   | Rest period, max hours, or break violations   |
+| Roster mismatches        | 🟡 Warning | Plan-vs-actual discrepancies not acknowledged |
+| Balance anomalies        | 🟡 Warning | Balance exceeding configured cap              |
 
 ## 4. Approval Gates
 
@@ -46,6 +46,7 @@ stateDiagram-v2
 ## 5. Export Run Log
 
 Each export produces an `ExportRun` record with:
+
 - Timestamp, format (CSV/XML), record count, SHA-256 checksum
 - Idempotent: re-running with unchanged data produces identical output
 - Logged in audit trail with full metadata
@@ -53,6 +54,7 @@ Each export produces an `ExportRun` record with:
 ## 6. UI Skeleton (Future)
 
 The Closing Console will be a dedicated view at `/closing` with:
+
 - Month selector with status badges (Open / Review / Approved / Exported)
 - Checklist panel with drill-down to individual items
 - Approval buttons with confirmation dialogs

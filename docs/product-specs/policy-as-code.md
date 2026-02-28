@@ -16,12 +16,12 @@ Unlike traditional time-tracking systems where rules are buried in configuration
 
 ## 2. Rule Categories
 
-| Category | Package Path | Description |
-|---|---|---|
-| Break rules | `packages/policy/src/rules/break-rules.ts` | ArbZG §4: mandatory breaks after 6h/9h work |
-| Rest rules | `packages/policy/src/rules/rest-rules.ts` | ArbZG §5: 11h minimum rest; cross-midnight handling |
-| Max hours | `packages/policy/src/rules/max-hours-rules.ts` | ArbZG §3: 8h/day (10h extended), 48h/week |
-| Leave rules | `packages/policy/src/rules/leave-rules.ts` | TV-L §26: 30 days, pro-rata, carry-over, forfeiture |
+| Category    | Package Path                                   | Description                                         |
+| ----------- | ---------------------------------------------- | --------------------------------------------------- |
+| Break rules | `packages/policy/src/rules/break-rules.ts`     | ArbZG §4: mandatory breaks after 6h/9h work         |
+| Rest rules  | `packages/policy/src/rules/rest-rules.ts`      | ArbZG §5: 11h minimum rest; cross-midnight handling |
+| Max hours   | `packages/policy/src/rules/max-hours-rules.ts` | ArbZG §3: 8h/day (10h extended), 48h/week           |
+| Leave rules | `packages/policy/src/rules/leave-rules.ts`     | TV-L §26: 30 days, pro-rata, carry-over, forfeiture |
 
 ## 3. Golden-Case Test Suite
 

@@ -12,11 +12,13 @@ In a works-council (Personalrat) environment, reporting that enables individual 
 ## 2. Design Principles
 
 ### Default: Aggregation
+
 - All standard reports default to **aggregated** views (team, OE, or organization level)
 - Individual-level reports require explicit role authorization AND are logged in the audit trail
 - Minimum group size for aggregated statistics: **configurable, default ≥5 people** to prevent re-identification
 
 ### Review Gate for New Reports
+
 Any PR that adds a new report or modifies report visibility must include:
 
 - [ ] **Privacy Impact Assessment**: What data is shown? To whom? Can it identify individuals?
@@ -28,38 +30,43 @@ Any PR that adds a new report or modifies report visibility must include:
 This checklist should be part of the PR template for any change touching `reporting/` paths.
 
 ### Forbidden Patterns
+
 The following report types are **explicitly prohibited** unless approved by works council:
 
-| Pattern | Why Forbidden |
-|---|---|
-| Individual overtime ranking | Enables performance comparison |
-| Individual break-time analysis | Behavior monitoring |
-| Individual correction frequency | Implies "problem" employees |
-| Response-time tracking per person | Performance metric |
-| Login/logout pattern analysis | Surveillance |
+| Pattern                           | Why Forbidden                  |
+| --------------------------------- | ------------------------------ |
+| Individual overtime ranking       | Enables performance comparison |
+| Individual break-time analysis    | Behavior monitoring            |
+| Individual correction frequency   | Implies "problem" employees    |
+| Response-time tracking per person | Performance metric             |
+| Login/logout pattern analysis     | Surveillance                   |
 
 ### Allowed Patterns
-| Pattern | Conditions |
-|---|---|
-| Team absence calendar | Shows "absent" only; no reason for non-authorized roles |
-| OE-level overtime summary | Aggregated; min group size enforced |
-| Closing completion rate per OE | Process metric, not individual |
-| Violation summary per OE | Aggregated; individual drill-down only for HR |
-| Export audit log | System activity; no individual performance data |
+
+| Pattern                        | Conditions                                              |
+| ------------------------------ | ------------------------------------------------------- |
+| Team absence calendar          | Shows "absent" only; no reason for non-authorized roles |
+| OE-level overtime summary      | Aggregated; min group size enforced                     |
+| Closing completion rate per OE | Process metric, not individual                          |
+| Violation summary per OE       | Aggregated; individual drill-down only for HR           |
+| Export audit log               | System activity; no individual performance data         |
 
 ## 3. Technical Guardrails
 
 ### Query-Level Enforcement
+
 - Reporting queries should enforce `GROUP BY` at the OE level by default
 - A `HAVING COUNT(*) >= :minGroupSize` clause should be standard
 - Individual breakdowns require a separate code path with explicit role check
 
 ### API-Level Enforcement
+
 - Report endpoints check `role` before returning data
 - Individual-level drill-down endpoints require `HR` or `ADMIN` role
 - All report access is logged to the audit trail
 
 ### UI-Level Enforcement
+
 - Reports show a privacy notice banner explaining what data is visible and why
 - Individual data views show a warning: "This view shows individual data and is logged"
 
@@ -69,6 +76,7 @@ Add to `.github/PULL_REQUEST_TEMPLATE.md` (or report-specific template):
 
 ```markdown
 ## Privacy Impact (required for report changes)
+
 - [ ] Report defaults to aggregated view
 - [ ] Minimum group size enforced (≥5)
 - [ ] Role-based access check implemented

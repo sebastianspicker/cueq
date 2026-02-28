@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/workflow.schema.json",
+  "title": "WorkflowInstance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "status",
+    "requesterId",
+    "entityType",
+    "entityId",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "type": {
+      "enum": [
+        "LEAVE_REQUEST",
+        "BOOKING_CORRECTION",
+        "SHIFT_SWAP",
+        "OVERTIME_APPROVAL",
+        "POST_CLOSE_CORRECTION"
+      ]
+    },
+    "status": {
+      "enum": ["PENDING", "APPROVED", "REJECTED", "ESCALATED", "CANCELLED"]
+    },
+    "requesterId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "approverId": {
+      "type": ["string", "null"]
+    },
+    "entityType": {
+      "type": "string"
+    },
+    "entityId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "reason": {
+      "type": ["string", "null"]
+    },
+    "decidedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

@@ -42,13 +42,13 @@ When a new employee is provisioned via HR/IdM master data import and logs in for
 
 ## 5. Acceptance Criteria
 
-| # | Criterion | Testable? |
-|---|---|---|
-| AC-1 | SSO login succeeds and maps to correct role + OE | ✅ Integration test |
-| AC-2 | Dashboard shows correct work-time model name and daily target | ✅ Unit test (model lookup) + UI test |
-| AC-3 | First booking creates a `Booking` entity with correct `TimeType` and timestamp | ✅ Unit test + acceptance test |
-| AC-4 | Audit trail records the booking creation with user ID and timestamp | ✅ Compliance test |
-| AC-5 | Dashboard language defaults to German; English selectable | ✅ UI test |
+| #    | Criterion                                                                      | Testable?                             |
+| ---- | ------------------------------------------------------------------------------ | ------------------------------------- |
+| AC-1 | SSO login succeeds and maps to correct role + OE                               | ✅ Integration test                   |
+| AC-2 | Dashboard shows correct work-time model name and daily target                  | ✅ Unit test (model lookup) + UI test |
+| AC-3 | First booking creates a `Booking` entity with correct `TimeType` and timestamp | ✅ Unit test + acceptance test        |
+| AC-4 | Audit trail records the booking creation with user ID and timestamp            | ✅ Compliance test                    |
+| AC-5 | Dashboard language defaults to German; English selectable                      | ✅ UI test                            |
 
 ---
 

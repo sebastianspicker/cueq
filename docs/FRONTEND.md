@@ -18,31 +18,31 @@ The cueq frontend is a web application providing self-service time tracking, lea
 
 ## 2. Tech Stack
 
-> **TODO: confirm** — Final stack decision in ADR-001. The following is the assumed default.
+Tech stack decision is accepted in [ADR-001](design-decisions/001-tech-stack.md).
 
-| Concern | Assumed Choice | Rationale |
-|---|---|---|
-| Framework | React (or equivalent) | Component model, ecosystem, a11y tooling |
-| Language | TypeScript (strict) | Type safety, shared types with backend |
-| Styling | CSS Modules or Tailwind | Scoped styles, no global conflicts |
-| i18n | Library TBD (e.g., react-intl, i18next) | Externalized strings, pluralization, date formatting |
-| State | Server-state library (e.g., TanStack Query) | API-driven; minimize client-side state |
-| Testing | Vitest + Testing Library + axe-core | Unit, component, a11y |
+| Concern   | Choice                                      | Rationale                                            |
+| --------- | ------------------------------------------- | ---------------------------------------------------- |
+| Framework | Next.js App Router + React                  | SSR/SSG flexibility, large ecosystem, a11y tooling   |
+| Language  | TypeScript (strict)                         | Type safety, shared types with backend               |
+| Styling   | CSS Modules or Tailwind                     | Scoped styles, no global conflicts                   |
+| i18n      | Library TBD (e.g., react-intl, i18next)     | Externalized strings, pluralization, date formatting |
+| State     | Server-state library (e.g., TanStack Query) | API-driven; minimize client-side state               |
+| Testing   | Vitest + Testing Library + axe-core         | Unit, component, a11y                                |
 
 ---
 
 ## 3. Key Views
 
-| View | Primary Persona | Description |
-|---|---|---|
-| **Dashboard** | Employee | Today's Soll/Ist, running balance, quick actions (clock in/out, request leave) |
-| **My Bookings** | Employee | List/calendar of own bookings; correction request flow |
-| **Leave Request** | Employee | Submit leave; see remaining quota; conflict warnings |
-| **Team Calendar** | Team Lead | Privacy-filtered absence overview; coverage indicators |
-| **Roster View** | Shift Employee / Planner | Published shift plan; plan-vs-actual; swap request |
-| **Approval Inbox** | Team Lead / HR | Pending requests with approve/reject; delegation indicator |
-| **Monthly Closing** | HR / Team Lead | Checklist, missing items, approval, export trigger |
-| **Admin / Config** | Admin | Roles, OE structure, rule sets, terminal status |
+| View                | Primary Persona          | Description                                                                    |
+| ------------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| **Dashboard**       | Employee                 | Today's Soll/Ist, running balance, quick actions (clock in/out, request leave) |
+| **My Bookings**     | Employee                 | List/calendar of own bookings; correction request flow                         |
+| **Leave Request**   | Employee                 | Submit leave; see remaining quota; conflict warnings                           |
+| **Team Calendar**   | Team Lead                | Privacy-filtered absence overview; coverage indicators                         |
+| **Roster View**     | Shift Employee / Planner | Published shift plan; plan-vs-actual; swap request                             |
+| **Approval Inbox**  | Team Lead / HR           | Pending requests with approve/reject; delegation indicator                     |
+| **Monthly Closing** | HR / Team Lead           | Checklist, missing items, approval, export trigger                             |
+| **Admin / Config**  | Admin                    | Roles, OE structure, rule sets, terminal status                                |
 
 ---
 
@@ -94,14 +94,14 @@ src/ui/
 
 The UI enforces role-based visibility at the component level:
 
-| Data | Employee | Team Lead | HR | Admin |
-|---|---|---|---|---|
-| Own bookings | ✅ | ✅ | ✅ | ✅ |
-| Own balance | ✅ | ✅ | ✅ | ✅ |
-| Team absence (reason) | ❌ | ✅ | ✅ | ❌ |
-| Team absence (status only: "absent") | ✅ | ✅ | ✅ | ✅ |
-| Others' bookings | ❌ | ❌ | ✅ (audit) | ❌ |
-| Aggregated reports | ❌ | Team only | All | ❌ |
+| Data                                 | Employee | Team Lead | HR         | Admin |
+| ------------------------------------ | -------- | --------- | ---------- | ----- |
+| Own bookings                         | ✅       | ✅        | ✅         | ✅    |
+| Own balance                          | ✅       | ✅        | ✅         | ✅    |
+| Team absence (reason)                | ❌       | ✅        | ✅         | ❌    |
+| Team absence (status only: "absent") | ✅       | ✅        | ✅         | ✅    |
+| Others' bookings                     | ❌       | ❌        | ✅ (audit) | ❌    |
+| Aggregated reports                   | ❌       | Team only | All        | ❌    |
 
 The API enforces these rules server-side; the UI reflects them via conditional rendering.
 
@@ -109,9 +109,7 @@ The API enforces these rules server-side; the UI reflects them via conditional r
 
 ## 6. TODO: Confirm
 
-- [ ] Final frontend framework selection (React? SolidJS? Other?)
 - [ ] Design system / component library (build from scratch vs. adopt e.g. Radix, shadcn)
-- [ ] Hosting: SPA with API backend, or SSR framework (Next.js, Remix)?
 - [ ] Mobile-responsive design requirements for MVP
 
 ---

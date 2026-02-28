@@ -1,6 +1,5 @@
 # SECURITY.md — Security Design
 
-
 ---
 
 ## 1. Security Principles
@@ -15,13 +14,13 @@
 
 ## 2. Authentication
 
-| Aspect | Design |
-|---|---|
-| Protocol | SAML 2.0 or OIDC (configurable) |
-| Identity provider | University IdM (AD / Azure AD / Keycloak) |
-| Session management | Signed tokens (JWT) with short expiry + refresh; or server-side sessions |
-| Multi-factor | Deferred to IdP configuration (university controls MFA policy) |
-| Service accounts | Separate credentials for terminal gateway and HR import; scoped to minimal permissions |
+| Aspect             | Design                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| Protocol           | SAML 2.0 or OIDC (configurable)                                                        |
+| Identity provider  | University IdM (AD / Azure AD / Keycloak)                                              |
+| Session management | Signed tokens (JWT) with short expiry + refresh; or server-side sessions               |
+| Multi-factor       | Deferred to IdP configuration (university controls MFA policy)                         |
+| Service accounts   | Separate credentials for terminal gateway and HR import; scoped to minimal permissions |
 
 ---
 
@@ -29,32 +28,31 @@
 
 ### Roles
 
-
-| Role | Access Level |
-|---|---|
-| `Mitarbeitende` (Employee) | Own bookings, own balance, own leave, team absence view ("absent" only) |
-| `Teamleitung` (Team Lead) | Team bookings (read), approvals, team absence (with reason), team reports |
-| `Dienstplaner` (Shift Planner) | Roster planning for assigned OEs, shift swap approvals |
-| `HR` (Personalstelle) | All bookings (read/correct), rule configuration, monthly closing, cross-OE reports |
-| `Payroll` (Bezügestelle) | Export data (read), export configuration |
-| `Admin` | System configuration, role management, terminal management, monitoring |
-| `Datenschutz` (Data Protection) | Audit trail (read), GDPR reports |
-| `Personalrat` (Works Council) | Aggregated reports only (no individual data); configurable read access |
+| Role                            | Access Level                                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------------- |
+| `Mitarbeitende` (Employee)      | Own bookings, own balance, own leave, team absence view ("absent" only)            |
+| `Teamleitung` (Team Lead)       | Team bookings (read), approvals, team absence (with reason), team reports          |
+| `Dienstplaner` (Shift Planner)  | Roster planning for assigned OEs, shift swap approvals                             |
+| `HR` (Personalstelle)           | All bookings (read/correct), rule configuration, monthly closing, cross-OE reports |
+| `Payroll` (Bezügestelle)        | Export data (read), export configuration                                           |
+| `Admin`                         | System configuration, role management, terminal management, monitoring             |
+| `Datenschutz` (Data Protection) | Audit trail (read), GDPR reports                                                   |
+| `Personalrat` (Works Council)   | Aggregated reports only (no individual data); configurable read access             |
 
 ### Permission Matrix
 
-| Resource | Employee | Lead | Planner | HR | Payroll | Admin | PR |
-|---|---|---|---|---|---|---|---|
-| Own bookings | RW | R | — | RW | — | — | — |
-| Team bookings | — | R | R | RW | — | — | — |
-| Absence reason | — | R (team) | — | R (all) | — | — | — |
-| Absence status | R (team) | R (team) | R (assigned) | R (all) | — | — | — |
-| Roster | R | R | RW | R | — | — | — |
-| Approvals | Submit | Decide | Decide (shifts) | Decide (post-close) | — | — | — |
-| Reports (individual) | Own | Team | — | All | — | — | — |
-| Reports (aggregate) | — | Team | — | All | Export | — | Agg. only |
-| Audit trail | — | — | — | R | — | R | R |
-| System config | — | — | — | — | — | RW | — |
+| Resource             | Employee | Lead     | Planner         | HR                  | Payroll | Admin | PR        |
+| -------------------- | -------- | -------- | --------------- | ------------------- | ------- | ----- | --------- |
+| Own bookings         | RW       | R        | —               | RW                  | —       | —     | —         |
+| Team bookings        | —        | R        | R               | RW                  | —       | —     | —         |
+| Absence reason       | —        | R (team) | —               | R (all)             | —       | —     | —         |
+| Absence status       | R (team) | R (team) | R (assigned)    | R (all)             | —       | —     | —         |
+| Roster               | R        | R        | RW              | R                   | —       | —     | —         |
+| Approvals            | Submit   | Decide   | Decide (shifts) | Decide (post-close) | —       | —     | —         |
+| Reports (individual) | Own      | Team     | —               | All                 | —       | —     | —         |
+| Reports (aggregate)  | —        | Team     | —               | All                 | Export  | —     | Agg. only |
+| Audit trail          | —        | —        | —               | R                   | —       | R     | R         |
+| System config        | —        | —        | —               | —                   | —       | RW    | —         |
 
 **Key**: R = Read, W = Write, RW = Read+Write, — = No access
 
@@ -64,14 +62,14 @@
 
 ### Data Classification
 
-| Category | Examples | Sensitivity | Retention |
-|---|---|---|---|
-| Time bookings | Clock in/out, pauses | Personal | Configurable (default: 3 years per labor law) |
-| Absence records | Leave dates, sick dates | Sensitive (health) | Configurable (default: deletion after retention period) |
-| Absence reasons | "Sick", "Special leave for wedding" | Highly sensitive | Visible only to authorized roles; deleted with record |
-| Salary-relevant data | Surcharges, overtime hours | Personal | Per payroll retention requirements |
-| Audit trail | Who changed what | System/personal | Configurable (minimum: legal retention period) |
-| Aggregated reports | Team absence %, shift coverage | Low | No deletion needed (anonymized) |
+| Category             | Examples                            | Sensitivity        | Retention                                               |
+| -------------------- | ----------------------------------- | ------------------ | ------------------------------------------------------- |
+| Time bookings        | Clock in/out, pauses                | Personal           | Configurable (default: 3 years per labor law)           |
+| Absence records      | Leave dates, sick dates             | Sensitive (health) | Configurable (default: deletion after retention period) |
+| Absence reasons      | "Sick", "Special leave for wedding" | Highly sensitive   | Visible only to authorized roles; deleted with record   |
+| Salary-relevant data | Surcharges, overtime hours          | Personal           | Per payroll retention requirements                      |
+| Audit trail          | Who changed what                    | System/personal    | Configurable (minimum: legal retention period)          |
+| Aggregated reports   | Team absence %, shift coverage      | Low                | No deletion needed (anonymized)                         |
 
 ### Data Minimization
 
@@ -93,6 +91,7 @@
 ### DPIA (DSFA) Support
 
 The system provides:
+
 - Data flow documentation (which data, where, why)
 - Processing register entries
 - Technical and organizational measures (TOMs) documentation
@@ -100,7 +99,6 @@ The system provides:
 ---
 
 ## 5. Works Council (Personalrat) Compliance
-
 
 ### Constraints
 
@@ -112,6 +110,7 @@ The system provides:
 ### Works Council Access
 
 The `Personalrat` role provides:
+
 - Read access to aggregated reports (no individual data)
 - Read access to audit trail (to verify system behavior)
 - No access to individual bookings, balances, or absence reasons
@@ -120,26 +119,26 @@ The `Personalrat` role provides:
 
 ## 6. Threat Model (High-Level)
 
-| Threat | Impact | Mitigation |
-|---|---|---|
-| Unauthorized access to absence data | Privacy violation; works council complaint | RBAC, API-level checks, UI-level filtering |
-| Audit trail tampering | Loss of legal compliance; cover-up | Append-only design; DB-level write restrictions; integrity checks |
-| Terminal spoofing | Fraudulent bookings | Terminal authentication (badge/PIN); device registration; anomaly detection |
-| Credential theft | Unauthorized system access | SSO with IdP-managed MFA; short session lifetimes |
-| SQL injection | Data breach | Parameterized queries; ORM; input validation |
-| XSS | Session hijacking | CSP headers; output encoding; framework protections |
-| Insider threat (admin) | Mass data access | Audit all admin actions; rotate admin credentials; principle of least privilege |
-| Data exfiltration via export | Unauthorized payroll data access | Export requires explicit role; logged; review by HR |
+| Threat                              | Impact                                     | Mitigation                                                                      |
+| ----------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| Unauthorized access to absence data | Privacy violation; works council complaint | RBAC, API-level checks, UI-level filtering                                      |
+| Audit trail tampering               | Loss of legal compliance; cover-up         | Append-only design; DB-level write restrictions; integrity checks               |
+| Terminal spoofing                   | Fraudulent bookings                        | Terminal authentication (badge/PIN); device registration; anomaly detection     |
+| Credential theft                    | Unauthorized system access                 | SSO with IdP-managed MFA; short session lifetimes                               |
+| SQL injection                       | Data breach                                | Parameterized queries; ORM; input validation                                    |
+| XSS                                 | Session hijacking                          | CSP headers; output encoding; framework protections                             |
+| Insider threat (admin)              | Mass data access                           | Audit all admin actions; rotate admin credentials; principle of least privilege |
+| Data exfiltration via export        | Unauthorized payroll data access           | Export requires explicit role; logged; review by HR                             |
 
 ---
 
 ## 7. Encryption
 
-| Layer | Standard |
-|---|---|
-| In transit | TLS 1.2+ (enforce HTTPS everywhere) |
-| At rest | AES-256 for database volumes (managed DB default) |
-| Backups | Encrypted at rest; access restricted to ops role |
+| Layer        | Standard                                              |
+| ------------ | ----------------------------------------------------- |
+| In transit   | TLS 1.2+ (enforce HTTPS everywhere)                   |
+| At rest      | AES-256 for database volumes (managed DB default)     |
+| Backups      | Encrypted at rest; access restricted to ops role      |
 | Tokens (JWT) | Signed with RS256 or EdDSA; secrets rotated regularly |
 
 ---

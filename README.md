@@ -13,6 +13,7 @@
 ### The Problem
 
 Universities have diverse workforce models under one roof:
+
 - **Office administration** — flextime (Gleitzeit) with core hours
 - **Security desk (Pforte)** — 24/7 shift operations with minimum staffing
 - **IT department** — regular hours plus on-call rotations (Rufbereitschaft) with callout events
@@ -25,16 +26,16 @@ Each group has different rules for working time, surcharges, leave quotas, and s
 
 cueq provides:
 
-| Capability | Description |
-|---|---|
-| **Time Recording** | Honeywell terminal integration (badge in/out) + web self-service for corrections, remote work, on-call deployments |
-| **Rule Engine** | Configurable rules for pause enforcement, rest periods, maximum hours, overtime — per employee group |
-| **Shift Planning** | Roster creation with templates, rotations, minimum staffing, qualification requirements, and plan-vs-actual comparison |
+| Capability             | Description                                                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Time Recording**     | Honeywell terminal integration (badge in/out) + web self-service for corrections, remote work, on-call deployments               |
+| **Rule Engine**        | Configurable rules for pause enforcement, rest periods, maximum hours, overtime — per employee group                             |
+| **Shift Planning**     | Roster creation with templates, rotations, minimum staffing, qualification requirements, and plan-vs-actual comparison           |
 | **Absence Management** | Leave requests with quota tracking (pro-rata, carry-over, forfeiture), sick-leave recording, team calendar with privacy controls |
-| **Approval Workflows** | Configurable approval chains with delegation, escalation, and automatic deputy routing |
-| **Monthly Closing** | Structured end-of-month process: checklists, locking, HR corrections, and payroll export |
-| **Audit Trail** | Immutable, append-only log of every change, decision, and export — required for legal compliance |
-| **GDPR Compliance** | Role-based data access, configurable retention/deletion, no individual performance monitoring |
+| **Approval Workflows** | Configurable approval chains with delegation, escalation, and automatic deputy routing                                           |
+| **Monthly Closing**    | Structured end-of-month process: checklists, locking, HR corrections, and payroll export                                         |
+| **Audit Trail**        | Immutable, append-only log of every change, decision, and export — required for legal compliance                                 |
+| **GDPR Compliance**    | Role-based data access, configurable retention/deletion, no individual performance monitoring                                    |
 
 ### Key Constraints
 
@@ -117,7 +118,7 @@ sequenceDiagram
     E-->>A: Violations / warnings
     A->>D: Store booking + account update
     A->>X: Append audit entry
-    
+
     Note over A,X: Monthly Closing
     A->>E: Generate checklists
     A->>D: Lock period
@@ -136,12 +137,12 @@ graph TD
             API["api/<br/>NestJS API Server<br/>Port 3001"]
             WEB["web/<br/>Next.js Frontend<br/>Port 3000"]
         end
-        
+
         subgraph Packages ["packages/"]
             DB["database/<br/>Prisma Schema + Client<br/>@cueq/database"]
             SH["shared/<br/>Zod Schemas + Types<br/>@cueq/shared"]
         end
-        
+
         subgraph Docs ["docs/"]
             DD[design-docs/]
             ADR[design-decisions/]
@@ -150,7 +151,7 @@ graph TD
             GEN[generated/]
         end
     end
-    
+
     API --> DB
     API --> SH
     WEB --> SH
@@ -165,7 +166,7 @@ graph BT
     SH["@cueq/shared<br/>(Zod schemas)"]
     API["@cueq/api<br/>(NestJS)"]
     WEB["@cueq/web<br/>(Next.js)"]
-    
+
     API --> DB
     API --> SH
     WEB --> SH
@@ -225,7 +226,25 @@ cueq/
 │   └── SECURITY.md             # Threat model, GDPR, RBAC
 │
 │
-├── .github/workflows/ci.yml   # CI: lint → typecheck → test → build
+├── schemas/                    # JSON Schema source-of-truth contracts
+│   ├── domain/                 # Domain entity schemas (Person, Booking, Absence, ...)
+│   └── fixtures/               # Fixture schema contracts
+│
+├── fixtures/                   # Synthetic reference calculation fixtures
+│   └── reference-calculations/
+│
+├── contracts/                  # Checked-in API/schema contracts
+│   └── openapi/
+│       └── openapi.json        # Committed OpenAPI snapshot
+│
+├── scripts/                    # Harness scripts used by Makefile/CI
+│   ├── setup.sh
+│   ├── check.sh
+│   ├── schemas.sh
+│   ├── generate.sh
+│   └── openapi-check.sh
+│
+├── .github/workflows/ci.yml   # CI: harness validation + fresh-clone smoke
 ├── docker-compose.yml          # PostgreSQL 16 for local dev
 ├── Makefile                    # Standard commands interface
 ├── turbo.json                  # Turborepo build pipeline
@@ -244,17 +263,17 @@ cueq/
 
 ## Tech Stack
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| **Monorepo** | pnpm + Turborepo | Workspace management, parallel builds, caching |
-| **Backend** | NestJS (TypeScript) | Modular API framework with built-in OpenAPI support |
-| **Frontend** | Next.js 15 + React 19 | Server-rendered UI with App Router |
-| **Database** | PostgreSQL 16 + Prisma | Type-safe ORM with migration management |
-| **Validation** | Zod | Runtime validation shared across API + UI |
-| **API Docs** | @nestjs/swagger | OpenAPI spec generated from decorators |
-| **Testing** | Vitest | Fast, TypeScript-native test runner |
-| **CI/CD** | GitHub Actions | Automated lint, typecheck, test, build |
-| **Dev Tools** | Docker Compose | Local PostgreSQL, reproducible environment |
+| Layer          | Technology             | Purpose                                             |
+| -------------- | ---------------------- | --------------------------------------------------- |
+| **Monorepo**   | pnpm + Turborepo       | Workspace management, parallel builds, caching      |
+| **Backend**    | NestJS (TypeScript)    | Modular API framework with built-in OpenAPI support |
+| **Frontend**   | Next.js 15 + React 19  | Server-rendered UI with App Router                  |
+| **Database**   | PostgreSQL 16 + Prisma | Type-safe ORM with migration management             |
+| **Validation** | Zod                    | Runtime validation shared across API + UI           |
+| **API Docs**   | @nestjs/swagger        | OpenAPI spec generated from decorators              |
+| **Testing**    | Vitest                 | Fast, TypeScript-native test runner                 |
+| **CI/CD**      | GitHub Actions         | Automated lint, typecheck, test, build              |
+| **Dev Tools**  | Docker Compose         | Local PostgreSQL, reproducible environment          |
 
 See [ADR-001: Tech Stack](docs/design-decisions/001-tech-stack.md) for the full rationale.
 
@@ -284,19 +303,23 @@ make dev
 
 Run `make help` for a full list. Key commands:
 
-| Command | Description |
-|---|---|
-| `make setup` | Install dependencies, start Docker, generate Prisma client, push schema |
-| `make dev` | Start API + Web with hot reload |
-| `make check` | Full validation: lint + typecheck + tests |
-| `make lint` | Run linters (check mode) |
-| `make lint-fix` | Auto-fix lint + format |
-| `make typecheck` | TypeScript type checking |
-| `make test` | Run all tests |
-| `make build` | Build all packages and apps |
-| `make db-generate` | Regenerate Prisma client after schema change |
-| `make db-migrate` | Run database migrations |
-| `make clean` | Stop Docker, remove artifacts |
+| Command              | Description                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| `make setup`         | Install dependencies, start Docker, generate Prisma client, push schema               |
+| `make dev`           | Start API + Web with hot reload                                                       |
+| `make check`         | Full validation: lint + format + typecheck + schemas/fixtures + tests + OpenAPI drift |
+| `make lint`          | Run linters (check mode)                                                              |
+| `make lint-fix`      | Auto-fix lint + format                                                                |
+| `make typecheck`     | TypeScript type checking                                                              |
+| `make schemas`       | Validate JSON Schemas and fixture contracts                                           |
+| `make generate`      | Generate Prisma client, OpenAPI snapshot, and generated schema docs                   |
+| `make openapi-check` | Compare generated OpenAPI spec against committed snapshot                             |
+| `make test`          | Run all tests                                                                         |
+| `make test-all`      | Run all test suites (unit + integration + acceptance + compliance)                    |
+| `make build`         | Build all packages and apps                                                           |
+| `make db-generate`   | Regenerate Prisma client after schema change                                          |
+| `make db-migrate`    | Run database migrations                                                               |
+| `make clean`         | Stop Docker, remove artifacts                                                         |
 
 ---
 
@@ -312,17 +335,17 @@ erDiagram
     Person }o--|| OrganizationUnit : "belongs to"
     Person }o--o| WorkTimeModel : "works under"
     Person }o--o| Person : "supervised by"
-    
+
     Booking }o--|| TimeType : "categorized as"
     Booking }o--o| Shift : "matched to"
-    
+
     Roster ||--o{ Shift : "contains"
     Roster }o--|| OrganizationUnit : "planned for"
-    
+
     ClosingPeriod ||--o{ ExportRun : "produces"
-    
+
     WorkflowInstance ||--|| Person : "requested by"
-    
+
     AuditEntry }o--|| Person : "performed by"
 ```
 
@@ -330,19 +353,19 @@ erDiagram
 
 ## Documentation Map
 
-| Document | Description | Audience |
-|---|---|---|
-| [AGENTS.md](AGENTS.md) | Contributor guide, conventions, security constraints | Developers, AI agents |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | C4-level system overview, service descriptions | Developers, architects |
-| [docs/DESIGN.md](docs/DESIGN.md) | DDD patterns, hexagonal architecture, testing strategy | Developers |
-| [docs/PLANS.md](docs/PLANS.md) | Phase 0–3 execution plan with DoD | Project management |
-| [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md) | Personas, success metrics, trade-offs | Product, stakeholders |
-| [docs/SECURITY.md](docs/SECURITY.md) | Threat model, RBAC matrix, GDPR compliance | Security, DPO, Personalrat |
-| [docs/RELIABILITY.md](docs/RELIABILITY.md) | Availability, backup, failover, monitoring | Operations |
-| [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md) | Coverage targets, test performance budgets | QA, CI |
-| [docs/FRONTEND.md](docs/FRONTEND.md) | UI architecture, i18n, accessibility, privacy | Frontend developers |
-| [docs/design-docs/core-beliefs.md](docs/design-docs/core-beliefs.md) | Design principles + full domain glossary (50 terms) | Everyone |
-| [docs/product-specs/](docs/product-specs/index.md) | Product specifications | Product, developers |
+| Document                                                             | Description                                            | Audience                   |
+| -------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------- |
+| [AGENTS.md](AGENTS.md)                                               | Contributor guide, conventions, security constraints   | Developers, AI agents      |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                                   | C4-level system overview, service descriptions         | Developers, architects     |
+| [docs/DESIGN.md](docs/DESIGN.md)                                     | DDD patterns, hexagonal architecture, testing strategy | Developers                 |
+| [docs/PLANS.md](docs/PLANS.md)                                       | Phase 0–3 execution plan with DoD                      | Project management         |
+| [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md)                       | Personas, success metrics, trade-offs                  | Product, stakeholders      |
+| [docs/SECURITY.md](docs/SECURITY.md)                                 | Threat model, RBAC matrix, GDPR compliance             | Security, DPO, Personalrat |
+| [docs/RELIABILITY.md](docs/RELIABILITY.md)                           | Availability, backup, failover, monitoring             | Operations                 |
+| [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md)                       | Coverage targets, test performance budgets             | QA, CI                     |
+| [docs/FRONTEND.md](docs/FRONTEND.md)                                 | UI architecture, i18n, accessibility, privacy          | Frontend developers        |
+| [docs/design-docs/core-beliefs.md](docs/design-docs/core-beliefs.md) | Design principles + full domain glossary (50 terms)    | Everyone                   |
+| [docs/product-specs/](docs/product-specs/index.md)                   | Product specifications                                 | Product, developers        |
 
 ---
 

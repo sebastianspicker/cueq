@@ -1,13 +1,13 @@
 # Design Documents — Index
 
-> Design documents capture the *why* behind cueq's architecture and implementation choices. For the overall architecture, see [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
+> Design documents capture the _why_ behind cueq's architecture and implementation choices. For the overall architecture, see [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
 
 ---
 
 ## Core Documents
 
-| Document | Description |
-|---|---|
+| Document                        | Description                                                        |
+| ------------------------------- | ------------------------------------------------------------------ |
 | [Core Beliefs](core-beliefs.md) | Design principles, domain glossary, and non-negotiable constraints |
 
 ## Architecture Decision Records (ADRs)

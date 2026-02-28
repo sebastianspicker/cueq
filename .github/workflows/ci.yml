@@ -17,11 +17,12 @@ concurrency:
 
 env:
   NODE_ENV: test
+  SKIP_DOCKER: 1
   DATABASE_URL: postgresql://cueq:cueq_ci_password@localhost:5432/cueq?schema=public
 
 jobs:
   validate:
-    name: Lint, Typecheck & Test
+    name: Harness Validation
     runs-on: ubuntu-latest
 
     services:
@@ -45,6 +46,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -55,26 +58,53 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma client
-        run: pnpm db:generate
+      - name: Setup
+        run: make setup
 
-      - name: Push schema to DB
-        run: pnpm db:push
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Format check
-        run: pnpm format
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        run: pnpm test
-
-      - name: Golden-case policy tests
-        run: pnpm --filter @cueq/policy test:golden
+      - name: Check
+        run: make check
 
       - name: Build
-        run: pnpm build
+        run: make build
+
+  fresh-clone-smoke:
+    name: Fresh Clone Smoke
+    runs-on: ubuntu-latest
+    needs: validate
+    env:
+      NODE_ENV: test
+      SKIP_DOCKER: 1
+      DATABASE_URL: postgresql://cueq:cueq_ci_password@localhost:5432/cueq?schema=public
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cueq
+          POSTGRES_USER: cueq
+          POSTGRES_PASSWORD: cueq_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cueq"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Fresh clone setup and check
+        run: |
+          make setup
+          make check

@@ -8,18 +8,18 @@
 
 **Goal**: Make the repo safe to receive code. Every future PR will be validated by CI, schemas, and tests.
 
-**Status**: 🟡 In Progress
+**Status**: 🟡 In Progress (implementation complete on branch; pending default-branch CI confirmation)
 
 ---
 
 ## Phase Overview
 
-| Phase | Name | Goal | Status |
-|---|---|---|---|
-| **Phase 0** | Harness Foundation | CI, schemas, config, scripts, docs skeleton | 🟡 In Progress |
-| **Phase 1** | Domain Core | Pure logic (time engine, absence, workflow, roster, closing, audit) with full unit tests | ⏳ Planned |
-| **Phase 2** | Services + UI | API, adapters, frontend; 7/8 acceptance tests green | ⏳ Planned |
-| **Phase 3** | Integrations + Ops | Terminal gateway, HR import, payroll export, backup/restore; pilot-ready | ⏳ Planned |
+| Phase       | Name               | Goal                                                                                     | Status                                    |
+| ----------- | ------------------ | ---------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **Phase 0** | Harness Foundation | CI, schemas, config, scripts, docs skeleton                                              | 🟡 In Progress (pending merge validation) |
+| **Phase 1** | Domain Core        | Pure logic (time engine, absence, workflow, roster, closing, audit) with full unit tests | ⏳ Planned                                |
+| **Phase 2** | Services + UI      | API, adapters, frontend; 7/8 acceptance tests green                                      | ⏳ Planned                                |
+| **Phase 3** | Integrations + Ops | Terminal gateway, HR import, payroll export, backup/restore; pilot-ready                 | ⏳ Planned                                |
 
 ---
 
@@ -27,26 +27,26 @@
 
 ### Deliverables
 
-| # | Deliverable | Status |
-|---|---|---|
-| 0.1 | Root config files (`tsconfig.json`, linter, formatter, `Makefile`, `docker-compose.yml`) | ⏳ Planned |
-| 0.2 | CI pipeline (`.github/workflows/ci.yml`) | ⏳ Planned |
-| 0.3 | JSON Schema stubs for all domain entities | ⏳ Planned |
-| 0.4 | OpenAPI stub with health endpoint | ⏳ Planned |
-| 0.5 | Fixture stubs (reference calculations) | ⏳ Planned |
-| 0.6 | Test scaffolding (runner config, placeholder tests) | ⏳ Planned |
-| 0.7 | Script stubs (`scripts/*.sh`) | ⏳ Planned |
-| 0.8 | Documentation foundation (this PR: AGENTS.md, ARCHITECTURE.md, docs/) | 🟡 In Progress |
-| 0.9 | Issue/PR templates | ⏳ Planned |
-| 0.10 | ADR-001: Tech stack decision | ⏳ Planned |
+| #    | Deliverable                                                                              | Status      |
+| ---- | ---------------------------------------------------------------------------------------- | ----------- |
+| 0.1  | Root config files (`tsconfig.json`, linter, formatter, `Makefile`, `docker-compose.yml`) | ✅ Complete |
+| 0.2  | CI pipeline (`.github/workflows/ci.yml`)                                                 | ✅ Complete |
+| 0.3  | JSON Schema stubs for all domain entities                                                | ✅ Complete |
+| 0.4  | OpenAPI stub with health endpoint                                                        | ✅ Complete |
+| 0.5  | Fixture stubs (reference calculations)                                                   | ✅ Complete |
+| 0.6  | Test scaffolding (runner config, placeholder tests)                                      | ✅ Complete |
+| 0.7  | Script stubs (`scripts/*.sh`)                                                            | ✅ Complete |
+| 0.8  | Documentation foundation (this PR: AGENTS.md, ARCHITECTURE.md, docs/)                    | ✅ Complete |
+| 0.9  | Issue/PR templates                                                                       | ✅ Complete |
+| 0.10 | ADR-001: Tech stack decision                                                             | ✅ Complete |
 
 ### Definition of Done (Phase 0)
 
-- [ ] `make check` passes on a fresh clone
-- [ ] CI runs green on the default branch
-- [ ] All schemas pass validation
-- [ ] ADR-001 is written and merged
-- [ ] A new contributor can run `make setup && make check` successfully
+- [ ] `make check` passes on a fresh clone (validated by CI smoke job after merge)
+- [ ] CI runs green on the default branch (pending merge)
+- [x] All schemas pass validation
+- [x] ADR-001 is written and merged
+- [ ] A new contributor can run `make setup && make check` successfully (validated by CI smoke job after merge)
 
 ---
 
@@ -62,7 +62,7 @@
 - `src/core/audit/`: audit entry builder (append-only)
 - Full JSON Schemas and type generation
 - Reference calculation fixtures with real data
-- >90% unit test coverage on `src/core/`
+- > 90% unit test coverage on `src/core/`
 
 ### Definition of Done (Phase 1)
 

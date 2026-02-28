@@ -19,7 +19,7 @@ cueq is an integrated time-tracking, absence-management, and shift-planning syst
 ## 2. Architecture Principles
 
 1. **Domain-first.** Core business logic has zero I/O dependencies. All rules, calculations, and state machines live in `src/core/` and are testable in isolation.
-2. **Schema-driven contracts.** Every entity, API endpoint, event, and export format is defined in JSON Schema / OpenAPI *before* implementation. Types are generated, not hand-written.
+2. **Schema-driven contracts.** Every entity, API endpoint, event, and export format is defined in JSON Schema / OpenAPI _before_ implementation. Types are generated, not hand-written.
 3. **Hexagonal / Ports & Adapters.** The core domain is surrounded by adapters (DB, terminals, SSO, exports) that can be swapped or mocked independently.
 4. **Append-only audit.** The audit trail is structurally immutable. No code path may update or delete audit entries.
 5. **Privacy by design.** Data minimization, role-based visibility, and configurable retention are architectural constraints, not afterthoughts.
@@ -61,7 +61,7 @@ cueq is an integrated time-tracking, absence-management, and shift-planning syst
 ## 4. Core Services
 
 | Service | Responsibility | Source of Truth |
-|---|---|---|
+| ------- | -------------- | --------------- |
 
 ---
 
@@ -69,20 +69,20 @@ cueq is an integrated time-tracking, absence-management, and shift-planning syst
 
 Key entities (detailed model in [`docs/generated/db-schema.md`](docs/generated/db-schema.md)):
 
-| Entity | Description |
-|---|---|
-| `Person` | Employee record (synced from HR/IdM) |
-| `OrganizationUnit` | Department / team / cost center |
-| `WorkTimeModel` | Flextime / fixed / shift configuration per employee group |
-| `Shift` | A scheduled time slot in a roster |
-| `Roster` | Published shift plan for an OE and period |
-| `Booking` | An actual time entry (terminal or self-service) |
-| `TimeType` | Category of a booking (work, pause, on-call, deployment, etc.) |
-| `TimeAccount` | Running balance (daily/weekly/monthly) |
-| `Absence` | Leave / sick / special absence record |
-| `WorkflowInstance` | Approval request with state + decision chain |
-| `ExportRun` | Record of a payroll export (timestamp, scope, hash) |
-| `AuditEntry` | Immutable log entry (who, what, when, why) |
+| Entity             | Description                                                    |
+| ------------------ | -------------------------------------------------------------- |
+| `Person`           | Employee record (synced from HR/IdM)                           |
+| `OrganizationUnit` | Department / team / cost center                                |
+| `WorkTimeModel`    | Flextime / fixed / shift configuration per employee group      |
+| `Shift`            | A scheduled time slot in a roster                              |
+| `Roster`           | Published shift plan for an OE and period                      |
+| `Booking`          | An actual time entry (terminal or self-service)                |
+| `TimeType`         | Category of a booking (work, pause, on-call, deployment, etc.) |
+| `TimeAccount`      | Running balance (daily/weekly/monthly)                         |
+| `Absence`          | Leave / sick / special absence record                          |
+| `WorkflowInstance` | Approval request with state + decision chain                   |
+| `ExportRun`        | Record of a payroll export (timestamp, scope, hash)            |
+| `AuditEntry`       | Immutable log entry (who, what, when, why)                     |
 
 ### Data Flow
 
@@ -101,13 +101,13 @@ Web Self-Service ──→ API ──→ Booking ──→ Time Engine ──→
 
 ## 6. Integration Points
 
-| System | Direction | Protocol | Notes |
-|---|---|---|---|
-| **Honeywell Terminals** | Inbound | File import / CSV (presumed) | Offline buffering; batch sync with conflict resolution |
-| **SSO / IdM** | Bidirectional | SAML 2.0 / OIDC | Authentication + role mapping |
-| **HR Master Data** | Inbound | File import / API | Person, OE, work-time model, supervisor relationships |
-| **Payroll / Bezügestelle** | Outbound | CSV / XML (schema-defined) | Monthly export with protocol and idempotency |
-| **Calendar (optional)** | Outbound | ICS | Privacy-filtered ("absent" only, no reason) |
+| System                     | Direction     | Protocol                     | Notes                                                  |
+| -------------------------- | ------------- | ---------------------------- | ------------------------------------------------------ |
+| **Honeywell Terminals**    | Inbound       | File import / CSV (presumed) | Offline buffering; batch sync with conflict resolution |
+| **SSO / IdM**              | Bidirectional | SAML 2.0 / OIDC              | Authentication + role mapping                          |
+| **HR Master Data**         | Inbound       | File import / API            | Person, OE, work-time model, supervisor relationships  |
+| **Payroll / Bezügestelle** | Outbound      | CSV / XML (schema-defined)   | Monthly export with protocol and idempotency           |
+| **Calendar (optional)**    | Outbound      | ICS                          | Privacy-filtered ("absent" only, no reason)            |
 
 > **TODO: confirm** — Exact Honeywell terminal protocol (file-based vs. real-time) must be clarified during Phase 0.
 
@@ -118,6 +118,7 @@ Web Self-Service ──→ API ──→ Booking ──→ Time Engine ──→
 See [`docs/SECURITY.md`](docs/SECURITY.md) for the full threat model.
 
 **Key constraints:**
+
 - TLS everywhere (in transit)
 - Encryption at rest for PII
 - Role-based authorization on every endpoint and view
@@ -131,6 +132,7 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the full threat model.
 > **TODO: confirm** — On-premises vs. managed cloud to be decided in ADR-002.
 
 **Assumed baseline:**
+
 - Docker-compose for local development
 - PostgreSQL as the primary database
 - Reverse proxy (nginx/traefik) for TLS termination

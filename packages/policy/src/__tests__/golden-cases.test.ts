@@ -45,17 +45,13 @@ describe('Golden Cases: Policy Rule Schema Validation', () => {
 
 describe('Golden Cases: Break Rule Constraints', () => {
   it('requires at least 30min break after 6h of work', () => {
-    const sixHourThreshold = DEFAULT_BREAK_RULE.thresholds.find(
-      (t) => t.workedHoursMin === 6,
-    );
+    const sixHourThreshold = DEFAULT_BREAK_RULE.thresholds.find((t) => t.workedHoursMin === 6);
     expect(sixHourThreshold).toBeDefined();
     expect(sixHourThreshold!.requiredBreakMinutes).toBeGreaterThanOrEqual(30);
   });
 
   it('requires at least 45min break after 9h of work', () => {
-    const nineHourThreshold = DEFAULT_BREAK_RULE.thresholds.find(
-      (t) => t.workedHoursMin === 9,
-    );
+    const nineHourThreshold = DEFAULT_BREAK_RULE.thresholds.find((t) => t.workedHoursMin === 9);
     expect(nineHourThreshold).toBeDefined();
     expect(nineHourThreshold!.requiredBreakMinutes).toBeGreaterThanOrEqual(45);
   });

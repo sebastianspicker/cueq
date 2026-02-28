@@ -31,6 +31,14 @@
       "dependsOn": ["^build"],
       "cache": false
     },
+    "test:acceptance": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "test:compliance": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "db:generate": {
       "cache": false
     },

@@ -1,0 +1,23 @@
+{
+  "id": "flextime-basic-week",
+  "scenario": "Flextime week with one overtime day",
+  "description": "Synthetic reference case for weekly balance rollup.",
+  "policyVersion": 1,
+  "input": {
+    "personCode": "EMP_SYN_001",
+    "week": "2026-W10",
+    "targetHours": 39.83,
+    "bookings": [
+      { "day": "2026-03-02", "workedHours": 8.0 },
+      { "day": "2026-03-03", "workedHours": 8.5 },
+      { "day": "2026-03-04", "workedHours": 7.8 },
+      { "day": "2026-03-05", "workedHours": 8.0 },
+      { "day": "2026-03-06", "workedHours": 8.0 }
+    ]
+  },
+  "expected": {
+    "actualHours": 40.3,
+    "deltaHours": 0.47,
+    "violations": []
+  }
+}

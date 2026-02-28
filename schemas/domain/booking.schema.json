@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/booking.schema.json",
+  "title": "Booking",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "personId", "timeTypeId", "startTime", "source"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "personId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "timeTypeId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "startTime": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "endTime": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "source": {
+      "enum": ["TERMINAL", "WEB", "MOBILE", "IMPORT", "MANUAL", "CORRECTION"]
+    },
+    "note": {
+      "type": ["string", "null"]
+    },
+    "shiftId": {
+      "type": ["string", "null"]
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

@@ -19,20 +19,20 @@ cueq is a greenfield project that needs a technology stack suitable for:
 
 ### Accepted Stack
 
-| Concern | Choice | Rationale |
-|---|---|---|
-| **Monorepo tooling** | pnpm workspaces + Turborepo | Fast installs, efficient disk usage, parallel builds, single lockfile |
-| **Backend framework** | NestJS | TypeScript-native, modular, built-in OpenAPI/Swagger, dependency injection, proven enterprise patterns |
-| **Frontend framework** | Next.js (App Router) | SSR/SSG flexibility, React ecosystem, excellent TypeScript support, built-in routing |
-| **Database** | PostgreSQL 16 | Proven for transactional + audit workloads; university IT experience; open source |
-| **ORM** | Prisma | Type-safe schema-first ORM; migration tooling; Prisma Studio for debugging |
-| **Validation** | Zod | Runtime validation shared across API + UI; TypeScript type inference; composable schemas |
-| **API design** | OpenAPI via @nestjs/swagger | Generated from decorators; Swagger UI for dev/testing; CI-verifiable spec |
-| **Auth** | NestJS Guards + Passport (SAML/OIDC) | Flexible; supports university IdP; role-based guards |
-| **Testing** | Vitest | Fast; Vite-native; modern; good TypeScript support |
-| **CI** | GitHub Actions | Already in use for the repo; excellent pnpm/turborepo caching support |
-| **Containerization** | Docker + docker-compose | Standard dev setup; PostgreSQL in development; production-compatible |
-| **Code quality** | ESLint + Prettier | Industry standard; enforced in CI |
+| Concern                | Choice                               | Rationale                                                                                              |
+| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| **Monorepo tooling**   | pnpm workspaces + Turborepo          | Fast installs, efficient disk usage, parallel builds, single lockfile                                  |
+| **Backend framework**  | NestJS                               | TypeScript-native, modular, built-in OpenAPI/Swagger, dependency injection, proven enterprise patterns |
+| **Frontend framework** | Next.js (App Router)                 | SSR/SSG flexibility, React ecosystem, excellent TypeScript support, built-in routing                   |
+| **Database**           | PostgreSQL 16                        | Proven for transactional + audit workloads; university IT experience; open source                      |
+| **ORM**                | Prisma                               | Type-safe schema-first ORM; migration tooling; Prisma Studio for debugging                             |
+| **Validation**         | Zod                                  | Runtime validation shared across API + UI; TypeScript type inference; composable schemas               |
+| **API design**         | OpenAPI via @nestjs/swagger          | Generated from decorators; Swagger UI for dev/testing; CI-verifiable spec                              |
+| **Auth**               | NestJS Guards + Passport (SAML/OIDC) | Flexible; supports university IdP; role-based guards                                                   |
+| **Testing**            | Vitest                               | Fast; Vite-native; modern; good TypeScript support                                                     |
+| **CI**                 | GitHub Actions                       | Already in use for the repo; excellent pnpm/turborepo caching support                                  |
+| **Containerization**   | Docker + docker-compose              | Standard dev setup; PostgreSQL in development; production-compatible                                   |
+| **Code quality**       | ESLint + Prettier                    | Industry standard; enforced in CI                                                                      |
 
 ### Monorepo Structure
 
@@ -43,12 +43,14 @@ cueq/
 │   └── web/          # Next.js frontend
 ├── packages/
 │   ├── database/     # Prisma schema + client
-│   └── shared/       # Zod schemas + shared types
+│   ├── shared/       # Zod schemas + shared types
+│   └── policy/       # Policy-as-code rule definitions + golden tests
 ```
 
 ## Consequences
 
 ### Positive
+
 - Single language (TypeScript) across frontend, backend, and shared packages
 - Zod schemas are the single source of truth for validation — shared between NestJS DTOs and Next.js forms
 - Prisma provides type-safe database access with automatic migration management
@@ -56,22 +58,24 @@ cueq/
 - NestJS modules map naturally to the domain's bounded contexts (BookingsModule, AbsenceModule, etc.)
 
 ### Negative
+
 - NestJS decorator-heavy style has a learning curve
 - Prisma has some limitations with complex queries (raw SQL escape hatch available)
 - Next.js App Router is relatively new; some ecosystem libraries still catching up
 
 ### Neutral
+
 - pnpm `workspace:*` protocol requires all packages to be built before consumers can use them (Turborepo handles ordering)
 - OpenAPI spec is generated from NestJS decorators rather than spec-first; CI validation of the generated spec against a checked-in snapshot ensures contract stability
 
 ## Alternatives Considered
 
-| Alternative | Pros | Cons | Why Not |
-|---|---|---|---|
-| Express (instead of NestJS) | Simpler, lighter | No structure, no DI, no built-in Swagger | Too unstructured for a compliance-heavy domain |
-| Drizzle ORM (instead of Prisma) | Closer to SQL, lighter | Less mature migration tooling, smaller community | Prisma's schema-first approach better fits our workflow |
-| tRPC (instead of REST + OpenAPI) | End-to-end type safety | No standard API contract for non-TS consumers (terminals, export) | Need OpenAPI for external integrations |
-| SolidJS / Svelte (instead of React/Next.js) | Smaller bundle, simpler mental model | Smaller ecosystem, fewer a11y tools | React has the largest pool of available developers |
+| Alternative                                 | Pros                                 | Cons                                                              | Why Not                                                 |
+| ------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------- |
+| Express (instead of NestJS)                 | Simpler, lighter                     | No structure, no DI, no built-in Swagger                          | Too unstructured for a compliance-heavy domain          |
+| Drizzle ORM (instead of Prisma)             | Closer to SQL, lighter               | Less mature migration tooling, smaller community                  | Prisma's schema-first approach better fits our workflow |
+| tRPC (instead of REST + OpenAPI)            | End-to-end type safety               | No standard API contract for non-TS consumers (terminals, export) | Need OpenAPI for external integrations                  |
+| SolidJS / Svelte (instead of React/Next.js) | Smaller bundle, simpler mental model | Smaller ecosystem, fewer a11y tools                               | React has the largest pool of available developers      |
 
 ## References
 

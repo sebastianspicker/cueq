@@ -27,30 +27,30 @@ CueQ's API is not an implementation detail — it is a **product surface**. Exte
     # Fail if different (forces explicit update)
 ```
 
-> **TODO**: Implement the spec-snapshot comparison script once endpoints exist.
+OpenAPI snapshot comparison is implemented in `scripts/openapi-check.sh` and enforced in CI.
 
 ## 3. Webhook / Event Patterns
 
 CueQ will emit domain events for key state changes, enabling downstream integrations:
 
-| Event | Trigger | Payload |
-|---|---|---|
-| `leave.approved` | Leave request approved | `{ absenceId, personId, type, startDate, endDate }` |
-| `closing.completed` | Monthly close finalized | `{ closingPeriodId, ouId, period, status }` |
-| `export.ready` | Payroll export generated | `{ exportRunId, format, recordCount, checksum }` |
-| `booking.created` | New time booking | `{ bookingId, personId, timeType, source }` |
-| `roster.published` | Shift plan published | `{ rosterId, ouId, period }` |
-| `violation.detected` | Policy violation found | `{ ruleId, personId, severity, message }` |
+| Event                | Trigger                  | Payload                                             |
+| -------------------- | ------------------------ | --------------------------------------------------- |
+| `leave.approved`     | Leave request approved   | `{ absenceId, personId, type, startDate, endDate }` |
+| `closing.completed`  | Monthly close finalized  | `{ closingPeriodId, ouId, period, status }`         |
+| `export.ready`       | Payroll export generated | `{ exportRunId, format, recordCount, checksum }`    |
+| `booking.created`    | New time booking         | `{ bookingId, personId, timeType, source }`         |
+| `roster.published`   | Shift plan published     | `{ rosterId, ouId, period }`                        |
+| `violation.detected` | Policy violation found   | `{ ruleId, personId, severity, message }`           |
 
 ### Event Envelope Schema
 
 ```typescript
 {
-  eventId: string;      // Unique event ID
-  eventType: string;    // e.g. "leave.approved"
-  timestamp: string;    // ISO 8601
-  version: number;      // Schema version
-  source: string;       // "cueq-api"
+  eventId: string; // Unique event ID
+  eventType: string; // e.g. "leave.approved"
+  timestamp: string; // ISO 8601
+  version: number; // Schema version
+  source: string; // "cueq-api"
   payload: Record<string, unknown>;
 }
 ```
