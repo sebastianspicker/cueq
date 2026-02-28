@@ -26,6 +26,15 @@ function seedData(script: 'db:seed:phase2' | 'db:seed:phase3') {
     process.env.DATABASE_URL ??
     'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public';
 
+  execSync('pnpm --filter @cueq/database exec prisma db push --force-reset --skip-generate', {
+    cwd,
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+    },
+  });
+
   execSync(`pnpm --filter @cueq/database ${script}`, {
     cwd,
     stdio: 'inherit',

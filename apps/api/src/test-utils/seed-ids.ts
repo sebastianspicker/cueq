@@ -18,6 +18,7 @@ export const SEED_IDS = {
   timeTypeDeployment: cuidFor(203),
   rosterCurrent: cuidFor(300),
   shiftNight: cuidFor(301),
+  onCallRotation: cuidFor(901),
   closingPeriod: cuidFor(700),
 };
 

@@ -7,7 +7,9 @@
       "dashboard": "Dashboard",
       "teamCalendar": "Team-Kalender",
       "roster": "Dienstplan",
-      "approvals": "Freigaben"
+      "approvals": "Freigaben",
+      "closing": "Monatsabschluss",
+      "reports": "Berichte"
     }
   },
   "pages": {
@@ -26,6 +28,23 @@
     "approvals": {
       "title": "Freigabe-Postfach",
       "description": "Anträge prüfen und entscheiden"
+    },
+    "closing": {
+      "title": "Monatsabschluss",
+      "description": "Checkliste, Freigaben und Exportläufe pro Zeitraum",
+      "periodLabel": "Zeitraum",
+      "stateLabel": "Status",
+      "actionsTitle": "Aktionen",
+      "checklistTitle": "Checkliste",
+      "exportsTitle": "Exportläufe"
+    },
+    "reports": {
+      "title": "Berichte",
+      "description": "Aggregierte Auswertungen mit Datenschutz-Guardrails",
+      "privacyNotice": "Hinweis: Diese Berichte zeigen nur aggregierte Daten und werden protokolliert.",
+      "teamAbsence": "Team-Abwesenheit",
+      "oeOvertime": "OE-Überstunden",
+      "closingCompletion": "Abschlussquote"
     }
   }
 }

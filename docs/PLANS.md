@@ -122,7 +122,7 @@ Active and completed execution plans are tracked in:
 
 - **Active**: [`exec-plans/active/`](exec-plans/active/) — use the [template](exec-plans/active/000-template.md)
 - **Completed**: [`exec-plans/completed/`](exec-plans/completed/) — moved here with linked PRs
-  - Latest: [`003-phase-3-integrations-ops.md`](exec-plans/completed/003-phase-3-integrations-ops.md)
+  - Latest: [`004-differentiators-ae.md`](exec-plans/completed/004-differentiators-ae.md)
 - **Tech Debt**: [`exec-plans/tech-debt-tracker.md`](exec-plans/tech-debt-tracker.md)
 
 ---

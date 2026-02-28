@@ -16,6 +16,9 @@ import { HrImportController } from './controllers/hr-import.controller';
 import { TerminalGatewayService } from './terminal-gateway.service';
 import { HrImportService } from './hr-import.service';
 import { StubHrMasterProvider } from './hr-master-provider.port';
+import { PoliciesController } from './controllers/policies.controller';
+import { IntegrationsController } from './controllers/integrations.controller';
+import { ReportsController } from './controllers/reports.controller';
 
 @Module({
   providers: [Phase2Service, TerminalGatewayService, HrImportService, StubHrMasterProvider],
@@ -33,6 +36,9 @@ import { StubHrMasterProvider } from './hr-master-provider.port';
     TerminalSyncController,
     TerminalIntegrationController,
     HrImportController,
+    PoliciesController,
+    IntegrationsController,
+    ReportsController,
   ],
   exports: [Phase2Service, TerminalGatewayService, HrImportService],
 })

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -10,6 +10,29 @@ import type { Response } from 'express';
 @Controller('v1/closing-periods')
 export class ClosingController {
   constructor(@Inject(Phase2Service) private readonly phase2Service: Phase2Service) {}
+
+  @Get()
+  @ApiOperation({ summary: 'List closing periods' })
+  list(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('organizationUnitId') organizationUnitId?: string,
+  ) {
+    return this.phase2Service.listClosingPeriods(user, from, to, organizationUnitId);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get closing period details' })
+  detail(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+    return this.phase2Service.getClosingPeriod(user, closingPeriodId);
+  }
+
+  @Post(':id/start-review')
+  @ApiOperation({ summary: 'Transition closing period from open to review' })
+  startReview(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+    return this.phase2Service.startClosingReview(user, closingPeriodId);
+  }
 
   @Get(':id/checklist')
   @ApiOperation({ summary: 'Generate checklist for closing period' })
@@ -53,5 +76,11 @@ export class ClosingController {
     @Body() payload: { reason?: string },
   ) {
     return this.phase2Service.postCloseCorrection(user, closingPeriodId, payload?.reason);
+  }
+
+  @Post(':id/reopen')
+  @ApiOperation({ summary: 'Re-open closing period from review state (HR only)' })
+  reopen(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+    return this.phase2Service.reopenClosing(user, closingPeriodId);
   }
 }

@@ -36,6 +36,7 @@ model Person {
   bookings          Booking[]
   absences          Absence[]
   timeAccounts      TimeAccount[]
+  onCallRotations   OnCallRotation[]
   onCallDeployments OnCallDeployment[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -62,6 +63,7 @@ model OrganizationUnit {
   children  OrganizationUnit[] @relation("OUHierarchy")
   persons   Person[]
   rosters   Roster[]
+  onCallRotations OnCallRotation[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -235,11 +237,37 @@ model Absence {
   @@map("absences")
 }
 
+model OnCallRotation {
+  id                 String   @id @default(cuid())
+  personId           String
+  person             Person   @relation(fields: [personId], references: [id])
+  organizationUnitId String
+  organizationUnit   OrganizationUnit @relation(fields: [organizationUnitId], references: [id])
+  startTime          DateTime
+  endTime            DateTime
+  rotationType       OnCallRotationType
+  note               String?
+  deployments        OnCallDeployment[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([personId, startTime])
+  @@index([organizationUnitId, startTime])
+  @@map("oncall_rotations")
+}
+
+enum OnCallRotationType {
+  WEEKLY
+  DAILY
+  CUSTOM
+}
+
 model OnCallDeployment {
   id              String   @id @default(cuid())
   personId        String
   person          Person   @relation(fields: [personId], references: [id])
-  rotationId      String?
+  rotationId      String
+  rotation        OnCallRotation @relation(fields: [rotationId], references: [id])
   startTime       DateTime
   endTime         DateTime
   remote          Boolean  @default(true)
@@ -348,6 +376,70 @@ model ExportRun {
   exportedById    String
 
   @@map("export_runs")
+}
+
+model DomainEventOutbox {
+  id            String   @id @default(cuid())
+  eventType     String
+  aggregateType String
+  aggregateId   String
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime?
+  lastError     String?
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+  deliveries    WebhookDelivery[]
+
+  @@index([status, nextAttemptAt, createdAt])
+  @@map("domain_event_outbox")
+}
+
+enum OutboxStatus {
+  PENDING
+  FAILED
+  DELIVERED
+}
+
+model WebhookEndpoint {
+  id               String   @id @default(cuid())
+  name             String
+  url              String
+  secretRef        String?
+  isActive         Boolean  @default(true)
+  subscribedEvents String[]
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deliveries       WebhookDelivery[]
+
+  @@index([isActive])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id           String   @id @default(cuid())
+  outboxEventId String
+  outboxEvent  DomainEventOutbox @relation(fields: [outboxEventId], references: [id])
+  endpointId   String
+  endpoint     WebhookEndpoint @relation(fields: [endpointId], references: [id])
+  attempt      Int      @default(1)
+  status       WebhookDeliveryStatus @default(PENDING)
+  httpStatus   Int?
+  responseBody String?
+  error        String?
+  deliveredAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([outboxEventId, endpointId, attempt])
+  @@map("webhook_deliveries")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }
 
 model TerminalDevice {

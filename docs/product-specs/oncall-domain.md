@@ -1,7 +1,7 @@
 # Product Spec: On-Call Domain
 
 > **CueQ Differentiator C** — On-call is a first-class domain, not just "time types".
-> **Status:** 📝 Scaffold | **Schemas:** `@cueq/shared` `oncall.ts`
+> **Status:** ✅ MVP Implemented | **Schemas:** `@cueq/shared` `oncall.ts`
 
 ---
 

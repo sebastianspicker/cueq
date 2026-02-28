@@ -7,7 +7,9 @@
       "dashboard": "Dashboard",
       "teamCalendar": "Team Calendar",
       "roster": "Roster",
-      "approvals": "Approvals"
+      "approvals": "Approvals",
+      "closing": "Closing",
+      "reports": "Reports"
     }
   },
   "pages": {
@@ -26,6 +28,23 @@
     "approvals": {
       "title": "Approval Inbox",
       "description": "Review and decide pending requests"
+    },
+    "closing": {
+      "title": "Monthly Closing",
+      "description": "Checklist, approvals, and export runs per period",
+      "periodLabel": "Period",
+      "stateLabel": "Status",
+      "actionsTitle": "Actions",
+      "checklistTitle": "Checklist",
+      "exportsTitle": "Export runs"
+    },
+    "reports": {
+      "title": "Reports",
+      "description": "Aggregated views with built-in privacy guardrails",
+      "privacyNotice": "Notice: Reports are aggregated and every access is audited.",
+      "teamAbsence": "Team Absence",
+      "oeOvertime": "OU Overtime",
+      "closingCompletion": "Closing Completion"
     }
   }
 }

@@ -1,7 +1,7 @@
 # Product Spec: Policy-as-Code
 
 > **CueQ Differentiator A** — Rules are versioned, testable, reviewable, and rollback-capable.
-> **Status:** 📝 Scaffold | **Package:** `@cueq/policy`
+> **Status:** ✅ MVP Implemented | **Package:** `@cueq/policy`
 
 ---
 

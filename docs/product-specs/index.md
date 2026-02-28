@@ -6,13 +6,13 @@
 
 These specs define what makes CueQ uniquely better than alternatives like NovaTime:
 
-| #   | Spec                                                            | Differentiator                                    | Package/Location        | Status      |
-| --- | --------------------------------------------------------------- | ------------------------------------------------- | ----------------------- | ----------- |
-| A   | [Policy-as-Code](policy-as-code.md)                             | Versioned, testable, reviewable rules             | `@cueq/policy`          | 📝 Scaffold |
-| B   | [Closing Console](closing-console.md)                           | Audit-ready monthly close as first-class workflow | `apps/api` + `apps/web` | 📝 Scaffold |
-| C   | [On-Call Domain](oncall-domain.md)                              | First-class on-call rotations + deployments       | `@cueq/shared`          | 📝 Scaffold |
-| D   | [API-First Integration](api-first-integration.md)               | OpenAPI contract + webhooks + terminal gateway    | `apps/api`              | 📝 Scaffold |
-| E   | [Privacy Reporting Guardrails](privacy-reporting-guardrails.md) | Default aggregation; no accidental surveillance   | Cross-cutting           | 📝 Scaffold |
+| #   | Spec                                                            | Differentiator                                    | Package/Location        | Status             |
+| --- | --------------------------------------------------------------- | ------------------------------------------------- | ----------------------- | ------------------ |
+| A   | [Policy-as-Code](policy-as-code.md)                             | Versioned, testable, reviewable rules             | `@cueq/policy`          | ✅ MVP Implemented |
+| B   | [Closing Console](closing-console.md)                           | Audit-ready monthly close as first-class workflow | `apps/api` + `apps/web` | ✅ MVP Implemented |
+| C   | [On-Call Domain](oncall-domain.md)                              | First-class on-call rotations + deployments       | `@cueq/shared`          | ✅ MVP Implemented |
+| D   | [API-First Integration](api-first-integration.md)               | OpenAPI contract + webhooks + terminal gateway    | `apps/api`              | ✅ MVP Implemented |
+| E   | [Privacy Reporting Guardrails](privacy-reporting-guardrails.md) | Default aggregation; no accidental surveillance   | Cross-cutting           | ✅ MVP Implemented |
 
 ## Parity Specifications
 

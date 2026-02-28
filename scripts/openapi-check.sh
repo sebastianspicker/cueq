@@ -13,8 +13,8 @@ if [[ ! -f "${SNAPSHOT_FILE}" ]]; then
   exit 1
 fi
 
-run_pnpm --filter @cueq/api build
-node "${SCRIPT_DIR}/../apps/api/dist/openapi-export.js" "${GENERATED_FILE}"
+run_pnpm --filter @cueq/api exec tsc --project tsconfig.json --incremental false
+run_pnpm --filter @cueq/api exec node ../../scripts/export-openapi.mjs "${GENERATED_FILE}"
 
 if ! diff -u "${SNAPSHOT_FILE}" "${GENERATED_FILE}"; then
   echo ""

@@ -31,6 +31,15 @@
 - [ ] No PII added in fixtures or docs
 - [ ] Role-based visibility and GDPR constraints reviewed
 
+## Privacy Impact (required for report changes)
+
+- [ ] Report defaults to aggregated view
+- [ ] Minimum group size enforced (>=5)
+- [ ] Role-based access check implemented
+- [ ] Audit logging for report access
+- [ ] No individual performance/behavior metrics exposed
+- [ ] Works council compatibility confirmed
+
 ## Scope Guardrails
 
 - [ ] One concern per PR

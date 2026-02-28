@@ -7,7 +7,11 @@ describe('@cueq/database acceptance', () => {
     expect(prisma.booking).toBeDefined();
     expect(prisma.workflowInstance).toBeDefined();
     expect(prisma.closingPeriod).toBeDefined();
+    expect(prisma.onCallRotation).toBeDefined();
     expect(prisma.onCallDeployment).toBeDefined();
+    expect(prisma.domainEventOutbox).toBeDefined();
+    expect(prisma.webhookEndpoint).toBeDefined();
+    expect(prisma.webhookDelivery).toBeDefined();
     expect(prisma.terminalSyncBatch).toBeDefined();
     expect(prisma.terminalDevice).toBeDefined();
     expect(prisma.terminalHeartbeat).toBeDefined();

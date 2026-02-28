@@ -22,7 +22,7 @@ export function configureSuiteDatabase(schema: string) {
 
   process.env.DATABASE_URL = suiteDatabaseUrl;
 
-  execSync('pnpm --filter @cueq/database exec prisma db push --skip-generate', {
+  execSync('pnpm --filter @cueq/database exec prisma db push --force-reset --skip-generate', {
     cwd,
     stdio: 'inherit',
     env: {

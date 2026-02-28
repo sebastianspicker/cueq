@@ -19,6 +19,47 @@ export const OnCallRotationSchema = z.object({
 });
 export type OnCallRotation = z.infer<typeof OnCallRotationSchema>;
 
+export const CreateOnCallRotationSchema = z
+  .object({
+    personId: IdSchema,
+    organizationUnitId: IdSchema,
+    startTime: DateTimeSchema,
+    endTime: DateTimeSchema,
+    rotationType: z.enum(['WEEKLY', 'DAILY', 'CUSTOM']),
+    note: z.string().max(1000).optional(),
+  })
+  .refine((input) => input.startTime < input.endTime, {
+    message: 'startTime must be before endTime',
+    path: ['endTime'],
+  });
+export type CreateOnCallRotation = z.infer<typeof CreateOnCallRotationSchema>;
+
+export const UpdateOnCallRotationSchema = z
+  .object({
+    startTime: DateTimeSchema.optional(),
+    endTime: DateTimeSchema.optional(),
+    rotationType: z.enum(['WEEKLY', 'DAILY', 'CUSTOM']).optional(),
+    note: z.string().max(1000).nullable().optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (input.startTime && input.endTime && input.startTime >= input.endTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'startTime must be before endTime',
+        path: ['endTime'],
+      });
+    }
+  });
+export type UpdateOnCallRotation = z.infer<typeof UpdateOnCallRotationSchema>;
+
+export const ListOnCallRotationsQuerySchema = z.object({
+  personId: IdSchema.optional(),
+  organizationUnitId: IdSchema.optional(),
+  from: DateTimeSchema.optional(),
+  to: DateTimeSchema.optional(),
+});
+export type ListOnCallRotationsQuery = z.infer<typeof ListOnCallRotationsQuerySchema>;
+
 /** An individual deployment/callout during on-call */
 export const OnCallDeploymentSchema = z.object({
   id: IdSchema,

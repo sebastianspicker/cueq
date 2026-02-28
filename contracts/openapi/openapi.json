@@ -102,14 +102,7 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -129,14 +122,7 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -156,14 +142,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -318,14 +297,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -365,6 +337,73 @@
         "summary": "Compute plan-vs-actual compliance for roster",
         "tags": [
           "roster"
+        ]
+      }
+    },
+    "/v1/oncall/rotations": {
+      "post": {
+        "operationId": "OncallController_createRotation",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create on-call rotation entry",
+        "tags": [
+          "oncall"
+        ]
+      },
+      "get": {
+        "operationId": "OncallController_listRotations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List on-call rotations",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/oncall/rotations/{id}": {
+      "patch": {
+        "operationId": "OncallController_updateRotation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update on-call rotation entry",
+        "tags": [
+          "oncall"
         ]
       }
     },
@@ -422,6 +461,109 @@
         "summary": "Evaluate on-call rest compliance",
         "tags": [
           "oncall"
+        ]
+      }
+    },
+    "/v1/closing-periods": {
+      "get": {
+        "operationId": "ClosingController_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationUnitId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List closing periods",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}": {
+      "get": {
+        "operationId": "ClosingController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get closing period details",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/start-review": {
+      "post": {
+        "operationId": "ClosingController_startReview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Transition closing period from open to review",
+        "tags": [
+          "closing"
         ]
       }
     },
@@ -578,6 +720,35 @@
         ]
       }
     },
+    "/v1/closing-periods/{id}/reopen": {
+      "post": {
+        "operationId": "ClosingController_reopen",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Re-open closing period from review state (HR only)",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
     "/v1/terminal/sync/batches": {
       "post": {
         "operationId": "TerminalSyncController_importBatch",
@@ -613,14 +784,7 @@
         ],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -670,14 +834,7 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "summary": "Run HR master data import (file/API, integration token required)",
@@ -701,19 +858,210 @@
         ],
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "summary": "Get HR import run by id (integration token required)",
         "tags": [
           "hr-import"
+        ]
+      }
+    },
+    "/v1/policies": {
+      "get": {
+        "operationId": "PoliciesController_bundle",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Resolve active policy bundle for a given date",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/v1/policies/history": {
+      "get": {
+        "operationId": "PoliciesController_history",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List policy catalog history entries",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/v1/integrations/webhooks/endpoints": {
+      "post": {
+        "operationId": "IntegrationsController_createEndpoint",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Register a webhook endpoint",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "get": {
+        "operationId": "IntegrationsController_listEndpoints",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List webhook endpoints",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/events/outbox": {
+      "get": {
+        "operationId": "IntegrationsController_outbox",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List outbox domain events",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/webhooks/dispatch": {
+      "post": {
+        "operationId": "IntegrationsController_dispatch",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Dispatch pending outbox events to subscribed endpoints",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/webhooks/deliveries": {
+      "get": {
+        "operationId": "IntegrationsController_deliveries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List webhook delivery attempts",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/reports/team-absence": {
+      "get": {
+        "operationId": "ReportsController_teamAbsence",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Team absence report with privacy suppression guardrails",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/oe-overtime": {
+      "get": {
+        "operationId": "ReportsController_oeOvertime",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Organization-unit overtime report with privacy suppression guardrails",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/closing-completion": {
+      "get": {
+        "operationId": "ReportsController_closingCompletion",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Closing completion report by status",
+        "tags": [
+          "reports"
         ]
       }
     }
@@ -772,6 +1120,18 @@
     {
       "name": "hr-import",
       "description": "HR master data import endpoints"
+    },
+    {
+      "name": "policy",
+      "description": "Policy catalog and introspection endpoints"
+    },
+    {
+      "name": "integrations",
+      "description": "Event outbox and webhook delivery endpoints"
+    },
+    {
+      "name": "reports",
+      "description": "Privacy-preserving aggregated reporting endpoints"
     }
   ],
   "servers": [],

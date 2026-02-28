@@ -1,7 +1,7 @@
 # Product Spec: Closing Console
 
 > **CueQ Differentiator B** — Audit-ready monthly close as a first-class workflow.
-> **Status:** 📝 Scaffold
+> **Status:** ✅ MVP Implemented
 
 ---
 

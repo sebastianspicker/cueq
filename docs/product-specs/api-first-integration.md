@@ -1,7 +1,7 @@
 # Product Spec: API-First Integration
 
 > **CueQ Differentiator D** — Integration as a product surface.
-> **Status:** 📝 Scaffold
+> **Status:** ✅ MVP Implemented
 
 ---
 

@@ -42,10 +42,14 @@ async function snapshot(prisma) {
     shifts,
     bookings,
     absences,
+    onCallRotations,
     onCallDeployments,
     workflowInstances,
     closingPeriods,
     exportRuns,
+    domainEventOutbox,
+    webhookEndpoints,
+    webhookDeliveries,
     terminalDevices,
     terminalHeartbeats,
     terminalSyncBatches,
@@ -61,10 +65,14 @@ async function snapshot(prisma) {
     prisma.shift.findMany(),
     prisma.booking.findMany(),
     prisma.absence.findMany(),
+    prisma.onCallRotation.findMany(),
     prisma.onCallDeployment.findMany(),
     prisma.workflowInstance.findMany(),
     prisma.closingPeriod.findMany(),
     prisma.exportRun.findMany(),
+    prisma.domainEventOutbox.findMany(),
+    prisma.webhookEndpoint.findMany(),
+    prisma.webhookDelivery.findMany(),
     prisma.terminalDevice.findMany(),
     prisma.terminalHeartbeat.findMany(),
     prisma.terminalSyncBatch.findMany(),
@@ -82,10 +90,14 @@ async function snapshot(prisma) {
     shifts: sortById(shifts),
     bookings: sortById(bookings),
     absences: sortById(absences),
+    onCallRotations: sortById(onCallRotations),
     onCallDeployments: sortById(onCallDeployments),
     workflowInstances: sortById(workflowInstances),
     closingPeriods: sortById(closingPeriods),
     exportRuns: sortById(exportRuns),
+    domainEventOutbox: sortById(domainEventOutbox),
+    webhookEndpoints: sortById(webhookEndpoints),
+    webhookDeliveries: sortById(webhookDeliveries),
     terminalDevices: sortById(terminalDevices),
     terminalHeartbeats: sortById(terminalHeartbeats),
     terminalSyncBatches: sortById(terminalSyncBatches),
@@ -128,6 +140,12 @@ async function restoreDataset(prisma, dataset) {
   if (dataset.absences.length) {
     await prisma.absence.createMany({ data: dataset.absences, skipDuplicates: true });
   }
+  if (dataset.onCallRotations.length) {
+    await prisma.onCallRotation.createMany({
+      data: dataset.onCallRotations,
+      skipDuplicates: true,
+    });
+  }
   if (dataset.onCallDeployments.length) {
     await prisma.onCallDeployment.createMany({
       data: dataset.onCallDeployments,
@@ -145,6 +163,24 @@ async function restoreDataset(prisma, dataset) {
   }
   if (dataset.exportRuns.length) {
     await prisma.exportRun.createMany({ data: dataset.exportRuns, skipDuplicates: true });
+  }
+  if (dataset.domainEventOutbox.length) {
+    await prisma.domainEventOutbox.createMany({
+      data: dataset.domainEventOutbox,
+      skipDuplicates: true,
+    });
+  }
+  if (dataset.webhookEndpoints.length) {
+    await prisma.webhookEndpoint.createMany({
+      data: dataset.webhookEndpoints,
+      skipDuplicates: true,
+    });
+  }
+  if (dataset.webhookDeliveries.length) {
+    await prisma.webhookDelivery.createMany({
+      data: dataset.webhookDeliveries,
+      skipDuplicates: true,
+    });
   }
   if (dataset.terminalDevices.length) {
     await prisma.terminalDevice.createMany({ data: dataset.terminalDevices, skipDuplicates: true });

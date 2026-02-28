@@ -7,12 +7,18 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
   test('serves default German dashboard and English locale route', async ({ request }) => {
     const de = await request.get('http://localhost:3000/de/dashboard');
     const en = await request.get('http://localhost:3000/en/dashboard');
+    const closing = await request.get('http://localhost:3000/de/closing');
+    const reports = await request.get('http://localhost:3000/de/reports');
 
     expect(de.status()).toBe(200);
     expect(en.status()).toBe(200);
+    expect(closing.status()).toBe(200);
+    expect(reports.status()).toBe(200);
 
     expect(await de.text()).toContain('Soll/Ist');
     expect(await en.text()).toContain('Target/actual');
+    expect(await closing.text()).toContain('Monatsabschluss');
+    expect(await reports.text()).toContain('Berichte');
   });
 
   test('serves authenticated API identity endpoint', async ({ request }) => {

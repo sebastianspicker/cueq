@@ -12,5 +12,8 @@ export * from './schemas/absence';
 export * from './schemas/time-type';
 export * from './schemas/workflow';
 export * from './schemas/oncall';
+export * from './schemas/policy';
+export * from './schemas/events';
+export * from './schemas/reporting';
 export * from './schemas/common';
 export * from './generated/core-schema-types';

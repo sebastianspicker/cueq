@@ -1,7 +1,7 @@
 # Product Spec: Privacy-by-Design Reporting Guardrails
 
 > **CueQ Differentiator E** — Default to aggregation; prevent accidental surveillance.
-> **Status:** 📝 Scaffold
+> **Status:** ✅ MVP Implemented
 
 ---
 

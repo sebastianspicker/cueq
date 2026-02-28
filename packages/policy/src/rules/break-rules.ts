@@ -27,7 +27,7 @@ export const DEFAULT_BREAK_RULE: BreakRule = {
   version: 1,
   effectiveFrom: '2024-01-01',
   effectiveTo: null,
-  createdAt: new Date().toISOString(),
+  createdAt: '2026-01-01T00:00:00.000Z',
   createdBy: 'system',
   type: 'BREAK_RULE',
   thresholds: [

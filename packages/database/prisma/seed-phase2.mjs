@@ -10,6 +10,7 @@ import {
   WorkflowStatus,
   RosterStatus,
   ClosingStatus,
+  OnCallRotationType,
 } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -47,15 +48,20 @@ const IDs = {
   exportRun: cuidFor(701),
   timeAccountEmployee: cuidFor(800),
   onCallDeployment: cuidFor(900),
+  onCallRotation: cuidFor(901),
 };
 
 async function reset() {
+  await prisma.webhookDelivery.deleteMany();
+  await prisma.webhookEndpoint.deleteMany();
+  await prisma.domainEventOutbox.deleteMany();
   await prisma.auditEntry.deleteMany();
   await prisma.terminalSyncBatch.deleteMany();
   await prisma.exportRun.deleteMany();
   await prisma.closingPeriod.deleteMany();
   await prisma.workflowInstance.deleteMany();
   await prisma.onCallDeployment.deleteMany();
+  await prisma.onCallRotation.deleteMany();
   await prisma.absence.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.shift.deleteMany();
@@ -260,11 +266,23 @@ async function seed() {
     ],
   });
 
+  await prisma.onCallRotation.create({
+    data: {
+      id: IDs.onCallRotation,
+      personId: IDs.personItOncall,
+      organizationUnitId: IDs.ouIt,
+      startTime: new Date('2026-03-09T00:00:00.000Z'),
+      endTime: new Date('2026-03-15T23:59:59.000Z'),
+      rotationType: OnCallRotationType.WEEKLY,
+      note: 'Synthetic rotation for deterministic tests',
+    },
+  });
+
   await prisma.onCallDeployment.create({
     data: {
       id: IDs.onCallDeployment,
       personId: IDs.personItOncall,
-      rotationId: 'rotation-2026w11',
+      rotationId: IDs.onCallRotation,
       startTime: new Date('2026-03-14T01:10:00.000Z'),
       endTime: new Date('2026-03-14T02:20:00.000Z'),
       remote: true,

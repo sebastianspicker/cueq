@@ -7,7 +7,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@cueq/database';
-import { BookingSource, ClosingStatus, Role, WorkflowStatus, WorkflowType } from '@cueq/database';
+import {
+  BookingSource,
+  ClosingStatus,
+  OutboxStatus,
+  Role,
+  WorkflowStatus,
+  WorkflowType,
+} from '@cueq/database';
 import {
   applyCutoffLock,
   buildAuditEntry,
@@ -20,11 +27,23 @@ import {
   shouldEscalate,
   transitionWorkflow,
 } from '@cueq/core';
+import { getActivePolicyBundle, getPolicyHistory, type PolicyRuleType } from '@cueq/policy';
 import {
   BookingCorrectionSchema,
+  ClosingCompletionQuerySchema,
   CreateAbsenceSchema,
   CreateBookingSchema,
   CreateOnCallDeploymentSchema,
+  CreateOnCallRotationSchema,
+  CreateWebhookEndpointSchema,
+  DeliveryQuerySchema,
+  ListOnCallRotationsQuerySchema,
+  OeOvertimeQuerySchema,
+  OutboxQuerySchema,
+  PolicyBundleQuerySchema,
+  PolicyHistoryQuerySchema,
+  TeamAbsenceQuerySchema,
+  UpdateOnCallRotationSchema,
   WorkflowDecisionSchema,
 } from '@cueq/shared';
 import { PrismaService } from '../persistence/prisma.service';
@@ -33,6 +52,13 @@ import { TerminalGatewayService } from './terminal-gateway.service';
 
 const HR_LIKE_ROLES = new Set<Role>([Role.HR, Role.ADMIN]);
 const APPROVAL_ROLES = new Set<Role>([Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN]);
+const REPORT_ALLOWED_ROLES = new Set<Role>([
+  Role.TEAM_LEAD,
+  Role.HR,
+  Role.ADMIN,
+  Role.DATA_PROTECTION,
+  Role.WORKS_COUNCIL,
+]);
 
 type ClosingActorRole = 'EMPLOYEE' | 'TEAM_LEAD' | 'HR' | 'ADMIN';
 type CoreClosingStatus = 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED';
@@ -147,6 +173,69 @@ export class Phase2Service {
     });
   }
 
+  private minGroupSize(): number {
+    const parsed = Number(process.env.REPORT_MIN_GROUP_SIZE ?? '5');
+    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 5;
+  }
+
+  private webhookBatchSize(): number {
+    const parsed = Number(process.env.WEBHOOK_DISPATCH_BATCH_SIZE ?? '50');
+    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 50;
+  }
+
+  private webhookMaxAttempts(): number {
+    const parsed = Number(process.env.WEBHOOK_MAX_ATTEMPTS ?? '5');
+    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 5;
+  }
+
+  private webhookTimeoutMs(): number {
+    const parsed = Number(process.env.WEBHOOK_REQUEST_TIMEOUT_MS ?? '5000');
+    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 5000;
+  }
+
+  private assertCanReadReports(user: AuthenticatedIdentity) {
+    if (!REPORT_ALLOWED_ROLES.has(user.role)) {
+      throw new ForbiddenException('Role does not permit report access.');
+    }
+  }
+
+  private async enqueueDomainEvent(input: {
+    eventType: 'booking.created' | 'closing.completed' | 'export.ready' | 'violation.detected';
+    aggregateType: string;
+    aggregateId: string;
+    payload: Record<string, unknown>;
+  }) {
+    return this.prisma.domainEventOutbox.create({
+      data: {
+        eventType: input.eventType,
+        aggregateType: input.aggregateType,
+        aggregateId: input.aggregateId,
+        payload: input.payload as Prisma.InputJsonValue,
+        status: OutboxStatus.PENDING,
+        attempts: 0,
+      },
+    });
+  }
+
+  private parseMonthToRange(month: string) {
+    const [yearString, monthString] = month.split('-');
+    const year = Number(yearString);
+    const monthNumber = Number(monthString);
+
+    if (
+      !Number.isInteger(year) ||
+      !Number.isInteger(monthNumber) ||
+      monthNumber < 1 ||
+      monthNumber > 12
+    ) {
+      throw new BadRequestException('Month must be in YYYY-MM format.');
+    }
+
+    const from = new Date(Date.UTC(year, monthNumber - 1, 1, 0, 0, 0));
+    const to = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59));
+    return { from, to };
+  }
+
   async me(user: AuthenticatedIdentity) {
     const person = await this.personForUser(user);
 
@@ -245,6 +334,17 @@ export class Phase2Service {
         timeTypeId: booking.timeTypeId,
         startTime: booking.startTime.toISOString(),
         endTime: booking.endTime?.toISOString() ?? null,
+        source: booking.source,
+      },
+    });
+
+    await this.enqueueDomainEvent({
+      eventType: 'booking.created',
+      aggregateType: 'Booking',
+      aggregateId: booking.id,
+      payload: {
+        personId: booking.personId,
+        timeTypeCode: booking.timeType.code,
         source: booking.source,
       },
     });
@@ -582,15 +682,151 @@ export class Phase2Service {
     };
   }
 
+  async createOnCallRotation(user: AuthenticatedIdentity, payload: unknown) {
+    const actor = await this.personForUser(user);
+    if (!APPROVAL_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only approval-capable roles can manage on-call rotations.');
+    }
+
+    const parsed = CreateOnCallRotationSchema.parse(payload);
+    if (user.role === Role.TEAM_LEAD && parsed.organizationUnitId !== actor.organizationUnitId) {
+      throw new ForbiddenException('Team leads can only create rotations in their own unit.');
+    }
+
+    const rotation = await this.prisma.onCallRotation.create({
+      data: {
+        personId: parsed.personId,
+        organizationUnitId: parsed.organizationUnitId,
+        startTime: new Date(parsed.startTime),
+        endTime: new Date(parsed.endTime),
+        rotationType: parsed.rotationType,
+        note: parsed.note,
+      },
+    });
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'ONCALL_ROTATION_CREATED',
+      entityType: 'OnCallRotation',
+      entityId: rotation.id,
+      after: {
+        personId: rotation.personId,
+        organizationUnitId: rotation.organizationUnitId,
+        startTime: rotation.startTime.toISOString(),
+        endTime: rotation.endTime.toISOString(),
+        rotationType: rotation.rotationType,
+      },
+    });
+
+    return rotation;
+  }
+
+  async listOnCallRotations(user: AuthenticatedIdentity, query: unknown) {
+    const actor = await this.personForUser(user);
+    if (!APPROVAL_ROLES.has(user.role) && user.role !== Role.EMPLOYEE) {
+      throw new ForbiddenException('Role does not permit reading rotations.');
+    }
+
+    const parsed = ListOnCallRotationsQuerySchema.parse(query ?? {});
+    const where: Prisma.OnCallRotationWhereInput = {
+      personId: parsed.personId,
+      organizationUnitId: parsed.organizationUnitId,
+      startTime: parsed.from ? { gte: new Date(parsed.from) } : undefined,
+      endTime: parsed.to ? { lte: new Date(parsed.to) } : undefined,
+    };
+
+    if (user.role === Role.EMPLOYEE) {
+      where.personId = actor.id;
+    } else if (user.role === Role.TEAM_LEAD) {
+      where.organizationUnitId = actor.organizationUnitId;
+    }
+
+    return this.prisma.onCallRotation.findMany({
+      where,
+      orderBy: { startTime: 'asc' },
+    });
+  }
+
+  async updateOnCallRotation(user: AuthenticatedIdentity, rotationId: string, payload: unknown) {
+    const actor = await this.personForUser(user);
+    if (!APPROVAL_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only approval-capable roles can update on-call rotations.');
+    }
+
+    const existing = await this.prisma.onCallRotation.findUnique({ where: { id: rotationId } });
+    if (!existing) {
+      throw new NotFoundException('On-call rotation not found.');
+    }
+
+    if (user.role === Role.TEAM_LEAD && existing.organizationUnitId !== actor.organizationUnitId) {
+      throw new ForbiddenException('Team leads can only update rotations in their own unit.');
+    }
+
+    const parsed = UpdateOnCallRotationSchema.parse(payload);
+    const nextStartTime = parsed.startTime ? new Date(parsed.startTime) : existing.startTime;
+    const nextEndTime = parsed.endTime ? new Date(parsed.endTime) : existing.endTime;
+    if (nextStartTime >= nextEndTime) {
+      throw new BadRequestException('startTime must be before endTime.');
+    }
+
+    const updated = await this.prisma.onCallRotation.update({
+      where: { id: existing.id },
+      data: {
+        startTime: parsed.startTime ? new Date(parsed.startTime) : undefined,
+        endTime: parsed.endTime ? new Date(parsed.endTime) : undefined,
+        rotationType: parsed.rotationType,
+        note: parsed.note,
+      },
+    });
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'ONCALL_ROTATION_UPDATED',
+      entityType: 'OnCallRotation',
+      entityId: updated.id,
+      before: {
+        startTime: existing.startTime.toISOString(),
+        endTime: existing.endTime.toISOString(),
+        rotationType: existing.rotationType,
+      },
+      after: {
+        startTime: updated.startTime.toISOString(),
+        endTime: updated.endTime.toISOString(),
+        rotationType: updated.rotationType,
+      },
+    });
+
+    return updated;
+  }
+
   async createOnCallDeployment(user: AuthenticatedIdentity, payload: unknown) {
     const actor = await this.personForUser(user);
     const parsed = CreateOnCallDeploymentSchema.parse(payload);
 
     this.assertCanActForPerson(user, actor.id, parsed.personId);
 
+    const rotation = await this.prisma.onCallRotation.findUnique({
+      where: { id: parsed.rotationId },
+    });
+    if (!rotation) {
+      throw new BadRequestException('Referenced on-call rotation does not exist.');
+    }
+
+    if (rotation.personId !== parsed.personId) {
+      throw new BadRequestException('Rotation personId does not match deployment personId.');
+    }
+
+    const deploymentStart = new Date(parsed.startTime);
+    if (deploymentStart < rotation.startTime || deploymentStart > rotation.endTime) {
+      throw new BadRequestException('Deployment start time must be within rotation window.');
+    }
+
     const endTime = parsed.endTime
       ? new Date(parsed.endTime)
       : new Date(new Date(parsed.startTime).getTime() + 60 * 60 * 1000);
+    if (endTime > rotation.endTime) {
+      throw new BadRequestException('Deployment end time must be within rotation window.');
+    }
 
     const deployment = await this.prisma.onCallDeployment.create({
       data: {
@@ -648,6 +884,11 @@ export class Phase2Service {
       throw new BadRequestException('nextShiftStart query parameter is required.');
     }
 
+    const shiftStart = new Date(nextShiftStart);
+    if (Number.isNaN(shiftStart.getTime())) {
+      throw new BadRequestException('nextShiftStart must be a valid ISO datetime.');
+    }
+
     const deployments = await this.prisma.onCallDeployment.findMany({
       where: {
         personId: targetPersonId,
@@ -656,9 +897,24 @@ export class Phase2Service {
       take: 20,
     });
 
+    const activeRotation = await this.prisma.onCallRotation.findFirst({
+      where: {
+        personId: targetPersonId,
+        startTime: { lte: shiftStart },
+        endTime: { gte: shiftStart },
+      },
+      orderBy: { startTime: 'desc' },
+    });
+
     const result = evaluateOnCallRestCompliance({
-      rotationStart: deployments[deployments.length - 1]?.startTime.toISOString() ?? nextShiftStart,
-      rotationEnd: deployments[0]?.endTime.toISOString() ?? nextShiftStart,
+      rotationStart:
+        activeRotation?.startTime.toISOString() ??
+        deployments[deployments.length - 1]?.startTime.toISOString() ??
+        nextShiftStart,
+      rotationEnd:
+        activeRotation?.endTime.toISOString() ??
+        deployments[0]?.endTime.toISOString() ??
+        nextShiftStart,
       nextShiftStart,
       deployments: deployments.map((deployment) => ({
         start: deployment.startTime.toISOString(),
@@ -668,7 +924,174 @@ export class Phase2Service {
 
     return {
       personId: targetPersonId,
+      rotationId: activeRotation?.id ?? null,
       ...result,
+    };
+  }
+
+  async listClosingPeriods(
+    user: AuthenticatedIdentity,
+    fromMonth?: string,
+    toMonth?: string,
+    organizationUnitId?: string,
+  ) {
+    const actor = await this.personForUser(user);
+    if (!APPROVAL_ROLES.has(user.role)) {
+      throw new ForbiddenException('Role does not permit reading closing periods.');
+    }
+
+    if (
+      user.role === Role.TEAM_LEAD &&
+      organizationUnitId &&
+      organizationUnitId !== actor.organizationUnitId
+    ) {
+      throw new ForbiddenException('Team leads can only access closing periods in their own unit.');
+    }
+
+    const from = fromMonth
+      ? this.parseMonthToRange(fromMonth).from
+      : new Date('2026-01-01T00:00:00.000Z');
+    const to = toMonth ? this.parseMonthToRange(toMonth).to : new Date('2030-12-31T23:59:59.000Z');
+    const targetOuId = user.role === Role.TEAM_LEAD ? actor.organizationUnitId : organizationUnitId;
+
+    const periods = await this.prisma.closingPeriod.findMany({
+      where: {
+        organizationUnitId: targetOuId,
+        periodStart: { lte: to },
+        periodEnd: { gte: from },
+      },
+      include: {
+        exportRuns: {
+          orderBy: { exportedAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { periodStart: 'desc' },
+    });
+
+    return periods.map((period) => ({
+      id: period.id,
+      organizationUnitId: period.organizationUnitId,
+      periodStart: period.periodStart.toISOString(),
+      periodEnd: period.periodEnd.toISOString(),
+      status: toCoreClosingStatus(period.status),
+      exportRuns: period.exportRuns,
+      closedAt: period.closedAt?.toISOString() ?? null,
+      closedById: period.closedById,
+      createdAt: period.createdAt.toISOString(),
+      updatedAt: period.updatedAt.toISOString(),
+    }));
+  }
+
+  async getClosingPeriod(user: AuthenticatedIdentity, closingPeriodId: string) {
+    const actor = await this.personForUser(user);
+    if (!APPROVAL_ROLES.has(user.role)) {
+      throw new ForbiddenException('Role does not permit reading closing periods.');
+    }
+
+    const period = await this.prisma.closingPeriod.findUnique({
+      where: { id: closingPeriodId },
+      include: { exportRuns: { orderBy: { exportedAt: 'desc' } } },
+    });
+    if (!period) {
+      throw new NotFoundException('Closing period not found.');
+    }
+
+    if (user.role === Role.TEAM_LEAD && period.organizationUnitId !== actor.organizationUnitId) {
+      throw new ForbiddenException('Team leads can only access closing periods in their own unit.');
+    }
+
+    return {
+      id: period.id,
+      organizationUnitId: period.organizationUnitId,
+      periodStart: period.periodStart.toISOString(),
+      periodEnd: period.periodEnd.toISOString(),
+      status: toCoreClosingStatus(period.status),
+      exportRuns: period.exportRuns,
+      closedAt: period.closedAt?.toISOString() ?? null,
+      closedById: period.closedById,
+      createdAt: period.createdAt.toISOString(),
+      updatedAt: period.updatedAt.toISOString(),
+    };
+  }
+
+  async startClosingReview(user: AuthenticatedIdentity, closingPeriodId: string) {
+    const actor = await this.personForUser(user);
+    if (!APPROVAL_ROLES.has(user.role)) {
+      throw new ForbiddenException('Role does not permit closing review transitions.');
+    }
+
+    const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
+    if (!period) {
+      throw new NotFoundException('Closing period not found.');
+    }
+
+    const transition = applyCutoffLock({
+      currentStatus: toCoreClosingStatus(period.status),
+      action: 'ADVANCE_TO_REVIEW',
+      actorRole: toClosingActorRole(actor.role),
+      checklistHasErrors: false,
+    });
+
+    if (transition.violations.length > 0) {
+      throw new BadRequestException(transition.violations);
+    }
+
+    const updated = await this.prisma.closingPeriod.update({
+      where: { id: period.id },
+      data: { status: toPersistenceClosingStatus(transition.nextStatus) },
+    });
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'CLOSING_REVIEW_STARTED',
+      entityType: 'ClosingPeriod',
+      entityId: updated.id,
+      before: { status: period.status },
+      after: { status: updated.status },
+    });
+
+    return {
+      ...updated,
+      status: toCoreClosingStatus(updated.status),
+    };
+  }
+
+  async reopenClosing(user: AuthenticatedIdentity, closingPeriodId: string) {
+    const actor = await this.personForUser(user);
+    const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
+    if (!period) {
+      throw new NotFoundException('Closing period not found.');
+    }
+
+    const transition = applyCutoffLock({
+      currentStatus: toCoreClosingStatus(period.status),
+      action: 'REOPEN',
+      actorRole: toClosingActorRole(actor.role),
+      checklistHasErrors: false,
+    });
+
+    if (transition.violations.length > 0) {
+      throw new BadRequestException(transition.violations);
+    }
+
+    const updated = await this.prisma.closingPeriod.update({
+      where: { id: period.id },
+      data: { status: toPersistenceClosingStatus(transition.nextStatus) },
+    });
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'CLOSING_REOPENED',
+      entityType: 'ClosingPeriod',
+      entityId: updated.id,
+      before: { status: period.status },
+      after: { status: updated.status },
+    });
+
+    return {
+      ...updated,
+      status: toCoreClosingStatus(updated.status),
     };
   }
 
@@ -780,9 +1203,26 @@ export class Phase2Service {
       balanceAnomalies,
     });
 
+    if (checklist.hasErrors) {
+      const openErrors = checklist.items
+        .filter((item) => item.severity === 'ERROR' && item.status === 'OPEN')
+        .map((item) => item.code);
+
+      await this.enqueueDomainEvent({
+        eventType: 'violation.detected',
+        aggregateType: 'ClosingPeriod',
+        aggregateId: period.id,
+        payload: {
+          checklistCodes: openErrors,
+          periodStart: period.periodStart.toISOString(),
+          periodEnd: period.periodEnd.toISOString(),
+        },
+      });
+    }
+
     return {
       closingPeriodId: period.id,
-      status: period.status,
+      status: toCoreClosingStatus(period.status),
       hasErrors: checklist.hasErrors,
       items: checklist.items,
     };
@@ -826,7 +1266,20 @@ export class Phase2Service {
       after: { status: updated.status },
     });
 
-    return updated;
+    await this.enqueueDomainEvent({
+      eventType: 'closing.completed',
+      aggregateType: 'ClosingPeriod',
+      aggregateId: updated.id,
+      payload: {
+        status: toCoreClosingStatus(updated.status),
+        organizationUnitId: updated.organizationUnitId,
+      },
+    });
+
+    return {
+      ...updated,
+      status: toCoreClosingStatus(updated.status),
+    };
   }
 
   async exportClosing(user: AuthenticatedIdentity, closingPeriodId: string) {
@@ -928,6 +1381,18 @@ export class Phase2Service {
       },
     });
 
+    await this.enqueueDomainEvent({
+      eventType: 'export.ready',
+      aggregateType: 'ExportRun',
+      aggregateId: exportRun.id,
+      payload: {
+        closingPeriodId,
+        format: exportRun.format,
+        recordCount: exportRun.recordCount,
+        checksum: exportRun.checksum,
+      },
+    });
+
     return {
       exportRun,
       checksum,
@@ -1013,6 +1478,535 @@ export class Phase2Service {
     });
 
     return workflow;
+  }
+
+  async policyBundle(query: unknown) {
+    const parsed = PolicyBundleQuerySchema.parse(query ?? {});
+    const asOf = parsed.asOf ?? new Date().toISOString().slice(0, 10);
+    const policies = getActivePolicyBundle(asOf).map((entry) => {
+      const {
+        type,
+        id,
+        name,
+        description,
+        version,
+        effectiveFrom,
+        effectiveTo,
+        createdAt,
+        createdBy,
+        ...payload
+      } = entry;
+      return {
+        type,
+        id,
+        name,
+        description,
+        version,
+        effectiveFrom,
+        effectiveTo,
+        createdAt,
+        createdBy,
+        payload,
+      };
+    });
+
+    return {
+      asOf,
+      policies,
+    };
+  }
+
+  async policyHistory(query: unknown) {
+    const parsed = PolicyHistoryQuerySchema.parse(query ?? {});
+    const entries = getPolicyHistory(parsed.type as PolicyRuleType | undefined).map((entry) => {
+      const {
+        type,
+        id,
+        name,
+        description,
+        version,
+        effectiveFrom,
+        effectiveTo,
+        createdAt,
+        createdBy,
+        ...payload
+      } = entry;
+      return {
+        type,
+        id,
+        name,
+        description,
+        version,
+        effectiveFrom,
+        effectiveTo,
+        createdAt,
+        createdBy,
+        payload,
+      };
+    });
+
+    return {
+      total: entries.length,
+      entries,
+    };
+  }
+
+  async createWebhookEndpoint(user: AuthenticatedIdentity, payload: unknown) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can configure webhooks.');
+    }
+
+    const actor = await this.personForUser(user);
+    const parsed = CreateWebhookEndpointSchema.parse(payload);
+    const endpoint = await this.prisma.webhookEndpoint.create({
+      data: {
+        name: parsed.name,
+        url: parsed.url,
+        subscribedEvents: parsed.subscribedEvents,
+        secretRef: parsed.secretRef,
+        createdById: actor.id,
+        isActive: true,
+      },
+    });
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'WEBHOOK_ENDPOINT_CREATED',
+      entityType: 'WebhookEndpoint',
+      entityId: endpoint.id,
+      after: {
+        url: endpoint.url,
+        subscribedEvents: endpoint.subscribedEvents,
+        isActive: endpoint.isActive,
+      },
+    });
+
+    return endpoint;
+  }
+
+  async listWebhookEndpoints(user: AuthenticatedIdentity) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can read webhook endpoints.');
+    }
+
+    return this.prisma.webhookEndpoint.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async listOutboxEvents(user: AuthenticatedIdentity, query: unknown) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can read outbox events.');
+    }
+
+    const parsed = OutboxQuerySchema.parse(query ?? {});
+    const events = await this.prisma.domainEventOutbox.findMany({
+      where: parsed.status ? { status: parsed.status } : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+
+    return events.map((event) => ({
+      id: event.id,
+      eventType: event.eventType,
+      aggregateType: event.aggregateType,
+      aggregateId: event.aggregateId,
+      payload: event.payload,
+      status: event.status,
+      attempts: event.attempts,
+      nextAttemptAt: event.nextAttemptAt?.toISOString() ?? null,
+      lastError: event.lastError,
+      processedAt: event.processedAt?.toISOString() ?? null,
+      createdAt: event.createdAt.toISOString(),
+    }));
+  }
+
+  async listWebhookDeliveries(user: AuthenticatedIdentity, query: unknown) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can read webhook deliveries.');
+    }
+
+    const parsed = DeliveryQuerySchema.parse(query ?? {});
+    const deliveries = await this.prisma.webhookDelivery.findMany({
+      where: parsed.eventId ? { outboxEventId: parsed.eventId } : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+
+    return deliveries.map((delivery) => ({
+      id: delivery.id,
+      outboxEventId: delivery.outboxEventId,
+      endpointId: delivery.endpointId,
+      attempt: delivery.attempt,
+      status: delivery.status,
+      httpStatus: delivery.httpStatus,
+      responseBody: delivery.responseBody,
+      error: delivery.error,
+      deliveredAt: delivery.deliveredAt?.toISOString() ?? null,
+      createdAt: delivery.createdAt.toISOString(),
+    }));
+  }
+
+  async dispatchWebhooks(user: AuthenticatedIdentity) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can dispatch webhooks.');
+    }
+
+    const actor = await this.personForUser(user);
+    const now = new Date();
+    const batchSize = this.webhookBatchSize();
+    const maxAttempts = this.webhookMaxAttempts();
+    const timeoutMs = this.webhookTimeoutMs();
+
+    const pendingEvents = await this.prisma.domainEventOutbox.findMany({
+      where: {
+        status: { in: [OutboxStatus.PENDING, OutboxStatus.FAILED] },
+        attempts: { lt: maxAttempts },
+        OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
+      },
+      orderBy: { createdAt: 'asc' },
+      take: batchSize,
+    });
+
+    let processed = 0;
+    let delivered = 0;
+    let failed = 0;
+    let skipped = 0;
+
+    for (const event of pendingEvents) {
+      processed += 1;
+      const endpoints = await this.prisma.webhookEndpoint.findMany({
+        where: { isActive: true, subscribedEvents: { has: event.eventType } },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const attempt = event.attempts + 1;
+      const payloadObject =
+        typeof event.payload === 'object' && event.payload !== null
+          ? (event.payload as Record<string, unknown>)
+          : { payload: event.payload };
+
+      if (endpoints.length === 0) {
+        skipped += 1;
+        await this.prisma.domainEventOutbox.update({
+          where: { id: event.id },
+          data: {
+            status: OutboxStatus.DELIVERED,
+            attempts: attempt,
+            processedAt: now,
+            lastError: null,
+            nextAttemptAt: null,
+          },
+        });
+        continue;
+      }
+
+      const envelope = {
+        eventId: event.id,
+        eventType: event.eventType,
+        timestamp: event.createdAt.toISOString(),
+        version: 1,
+        source: 'cueq-api',
+        aggregateType: event.aggregateType,
+        aggregateId: event.aggregateId,
+        payload: payloadObject,
+      };
+
+      let eventFailed = false;
+      let lastError: string | null = null;
+
+      for (const endpoint of endpoints) {
+        let status: 'SUCCESS' | 'FAILED' = 'SUCCESS';
+        let httpStatus: number | null = null;
+        let responseBody: string | null = null;
+        let error: string | null = null;
+        let deliveredAt: Date | null = null;
+
+        try {
+          const response = await fetch(endpoint.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Cueq-Event-Type': event.eventType,
+            },
+            body: JSON.stringify(envelope),
+            signal: AbortSignal.timeout(timeoutMs),
+          });
+
+          httpStatus = response.status;
+          responseBody = await response.text();
+          if (response.ok) {
+            deliveredAt = new Date();
+          } else {
+            status = 'FAILED';
+            error = `HTTP ${response.status}`;
+          }
+        } catch (dispatchError) {
+          status = 'FAILED';
+          error = dispatchError instanceof Error ? dispatchError.message : 'Unknown dispatch error';
+        }
+
+        if (status === 'FAILED') {
+          eventFailed = true;
+          lastError = error ?? 'Webhook delivery failed';
+        }
+
+        await this.prisma.webhookDelivery.create({
+          data: {
+            outboxEventId: event.id,
+            endpointId: endpoint.id,
+            attempt,
+            status,
+            httpStatus,
+            responseBody,
+            error,
+            deliveredAt,
+          },
+        });
+      }
+
+      if (!eventFailed) {
+        delivered += 1;
+        await this.prisma.domainEventOutbox.update({
+          where: { id: event.id },
+          data: {
+            status: OutboxStatus.DELIVERED,
+            attempts: attempt,
+            processedAt: new Date(),
+            lastError: null,
+            nextAttemptAt: null,
+          },
+        });
+      } else {
+        failed += 1;
+        const retryDelayMinutes = 2 ** Math.min(attempt, 6);
+        await this.prisma.domainEventOutbox.update({
+          where: { id: event.id },
+          data: {
+            status: OutboxStatus.FAILED,
+            attempts: attempt,
+            processedAt: null,
+            lastError,
+            nextAttemptAt:
+              attempt >= maxAttempts ? null : new Date(now.getTime() + retryDelayMinutes * 60_000),
+          },
+        });
+      }
+    }
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'WEBHOOK_DISPATCH_RUN',
+      entityType: 'DomainEventOutbox',
+      entityId: `dispatch-${now.toISOString()}`,
+      after: { processed, delivered, failed, skipped },
+    });
+
+    return {
+      processed,
+      delivered,
+      failed,
+      skipped,
+      batchSize,
+      maxAttempts,
+      timeoutMs,
+    };
+  }
+
+  async reportTeamAbsence(user: AuthenticatedIdentity, query: unknown) {
+    this.assertCanReadReports(user);
+    const actor = await this.personForUser(user);
+    const parsed = TeamAbsenceQuerySchema.parse(query ?? {});
+    const targetOuId = parsed.organizationUnitId ?? actor.organizationUnitId;
+
+    if (user.role === Role.TEAM_LEAD && targetOuId !== actor.organizationUnitId) {
+      throw new ForbiddenException('Team leads can only access reports for their own unit.');
+    }
+
+    const from = new Date(`${parsed.from}T00:00:00.000Z`);
+    const to = new Date(`${parsed.to}T23:59:59.000Z`);
+
+    const population = await this.prisma.person.count({
+      where: {
+        organizationUnitId: targetOuId,
+        role: { in: [Role.EMPLOYEE, Role.TEAM_LEAD, Role.SHIFT_PLANNER] },
+      },
+    });
+    const minGroupSize = this.minGroupSize();
+    const suppressed = population < minGroupSize;
+
+    let totals = { requests: 0, days: 0 };
+    let buckets: Array<{ type: string; requests: number; days: number }> = [];
+
+    if (!suppressed) {
+      const absences = await this.prisma.absence.findMany({
+        where: {
+          person: { organizationUnitId: targetOuId },
+          startDate: { lte: to },
+          endDate: { gte: from },
+        },
+      });
+
+      const byType = new Map<string, { requests: number; days: number }>();
+      for (const absence of absences) {
+        const type = absence.type;
+        const current = byType.get(type) ?? { requests: 0, days: 0 };
+        current.requests += 1;
+        current.days += Number(absence.days);
+        byType.set(type, current);
+      }
+
+      totals = {
+        requests: absences.length,
+        days: Number(absences.reduce((sum, absence) => sum + Number(absence.days), 0).toFixed(2)),
+      };
+      buckets = [...byType.entries()].map(([type, value]) => ({
+        type,
+        requests: value.requests,
+        days: Number(value.days.toFixed(2)),
+      }));
+    }
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'REPORT_ACCESSED',
+      entityType: 'Report',
+      entityId: `team-absence:${targetOuId}:${parsed.from}:${parsed.to}`,
+      after: {
+        report: 'team-absence',
+        organizationUnitId: targetOuId,
+        suppressed,
+      },
+    });
+
+    return {
+      organizationUnitId: targetOuId,
+      from: parsed.from,
+      to: parsed.to,
+      suppression: {
+        suppressed,
+        minGroupSize,
+        population,
+      },
+      totals,
+      buckets,
+    };
+  }
+
+  async reportOeOvertime(user: AuthenticatedIdentity, query: unknown) {
+    this.assertCanReadReports(user);
+    const actor = await this.personForUser(user);
+    const parsed = OeOvertimeQuerySchema.parse(query ?? {});
+    const targetOuId = parsed.organizationUnitId ?? actor.organizationUnitId;
+
+    if (user.role === Role.TEAM_LEAD && targetOuId !== actor.organizationUnitId) {
+      throw new ForbiddenException('Team leads can only access reports for their own unit.');
+    }
+
+    const from = new Date(`${parsed.from}T00:00:00.000Z`);
+    const to = new Date(`${parsed.to}T23:59:59.000Z`);
+    const minGroupSize = this.minGroupSize();
+
+    const accounts = await this.prisma.timeAccount.findMany({
+      where: {
+        person: { organizationUnitId: targetOuId },
+        periodStart: { lte: to },
+        periodEnd: { gte: from },
+      },
+      select: { personId: true, balance: true, overtimeHours: true },
+    });
+
+    const distinctPeople = new Set(accounts.map((account) => account.personId));
+    const population = distinctPeople.size;
+    const suppressed = population < minGroupSize;
+
+    const totalBalanceHours = suppressed
+      ? 0
+      : Number(accounts.reduce((sum, account) => sum + Number(account.balance), 0).toFixed(2));
+    const totalOvertimeHours = suppressed
+      ? 0
+      : Number(
+          accounts.reduce((sum, account) => sum + Number(account.overtimeHours), 0).toFixed(2),
+        );
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'REPORT_ACCESSED',
+      entityType: 'Report',
+      entityId: `oe-overtime:${targetOuId}:${parsed.from}:${parsed.to}`,
+      after: {
+        report: 'oe-overtime',
+        organizationUnitId: targetOuId,
+        suppressed,
+      },
+    });
+
+    return {
+      organizationUnitId: targetOuId,
+      from: parsed.from,
+      to: parsed.to,
+      suppression: {
+        suppressed,
+        minGroupSize,
+        population,
+      },
+      totals: {
+        people: suppressed ? 0 : population,
+        totalBalanceHours,
+        totalOvertimeHours,
+        avgBalanceHours:
+          suppressed || population === 0 ? 0 : Number((totalBalanceHours / population).toFixed(2)),
+      },
+    };
+  }
+
+  async reportClosingCompletion(user: AuthenticatedIdentity, query: unknown) {
+    this.assertCanReadReports(user);
+    const actor = await this.personForUser(user);
+    const parsed = ClosingCompletionQuerySchema.parse(query ?? {});
+    const from = new Date(`${parsed.from}T00:00:00.000Z`);
+    const to = new Date(`${parsed.to}T23:59:59.000Z`);
+
+    const periods = await this.prisma.closingPeriod.findMany({
+      where: {
+        periodStart: { lte: to },
+        periodEnd: { gte: from },
+      },
+      select: { status: true },
+    });
+
+    const totals = {
+      periods: periods.length,
+      exported: periods.filter((period) => period.status === ClosingStatus.EXPORTED).length,
+      approved: periods.filter((period) => period.status === ClosingStatus.CLOSED).length,
+      review: periods.filter((period) => period.status === ClosingStatus.REVIEW).length,
+      open: periods.filter((period) => period.status === ClosingStatus.OPEN).length,
+      completionRate:
+        periods.length === 0
+          ? 0
+          : Number(
+              (
+                periods.filter((period) => period.status === ClosingStatus.EXPORTED).length /
+                periods.length
+              ).toFixed(4),
+            ),
+    };
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'REPORT_ACCESSED',
+      entityType: 'Report',
+      entityId: `closing-completion:${parsed.from}:${parsed.to}`,
+      after: {
+        report: 'closing-completion',
+      },
+    });
+
+    return {
+      from: parsed.from,
+      to: parsed.to,
+      totals,
+    };
   }
 
   async importTerminalBatch(user: AuthenticatedIdentity, payload: unknown) {

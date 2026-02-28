@@ -40,4 +40,4 @@ make generate
 make schemas
 ```
 
-Last generated: 2026-02-28T15:38:39.597Z
+Last generated: 2026-02-28T17:24:52.217Z
