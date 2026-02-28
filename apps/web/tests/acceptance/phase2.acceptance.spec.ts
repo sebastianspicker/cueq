@@ -12,6 +12,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     const de = await request.get('http://localhost:3000/de/dashboard');
     const en = await request.get('http://localhost:3000/en/dashboard');
     const closing = await request.get('http://localhost:3000/de/closing');
+    const approvals = await request.get('http://localhost:3000/de/approvals');
     const reports = await request.get('http://localhost:3000/de/reports');
     const timeEngineDe = await request.get('http://localhost:3000/de/time-engine');
     const timeEngineEn = await request.get('http://localhost:3000/en/time-engine');
@@ -19,6 +20,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     expect(de.status()).toBe(200);
     expect(en.status()).toBe(200);
     expect(closing.status()).toBe(200);
+    expect(approvals.status()).toBe(200);
     expect(reports.status()).toBe(200);
     expect(timeEngineDe.status()).toBe(200);
     expect(timeEngineEn.status()).toBe(200);
@@ -26,6 +28,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     expect(await de.text()).toContain('Soll/Ist');
     expect(await en.text()).toContain('Target/actual');
     expect(await closing.text()).toContain('Monatsabschluss');
+    expect(await approvals.text()).toContain('Freigabe-Postfach');
     expect(await reports.text()).toContain('Berichte');
     expect(await timeEngineDe.text()).toContain('Time-Engine-Evaluator');
     expect(await timeEngineEn.text()).toContain('Time Engine Evaluator');
@@ -107,5 +110,46 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     await page.getByLabel('Bearer-Token').fill(leadToken);
     await page.getByRole('button', { name: 'Kalender laden' }).click();
     await expect(page.getByText('REQUESTED')).toBeVisible();
+  });
+
+  test('approvals inbox supports delegation and overdue indicator rendering', async ({ page }) => {
+    const leadToken = mockToken({
+      sub: 'c000000000000000000000101',
+      email: 'lead@cueq.local',
+      role: 'TEAM_LEAD',
+      organizationUnitId: 'c000000000000000000000001',
+    });
+    const hrToken = mockToken({
+      sub: 'c000000000000000000000103',
+      email: 'hr@cueq.local',
+      role: 'HR',
+      organizationUnitId: 'c000000000000000000000001',
+    });
+
+    await page.goto('http://localhost:3000/de/approvals');
+    await page.getByLabel('Bearer-Token').fill(leadToken);
+    await page.getByRole('button', { name: 'Postfach laden' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Postfach', exact: true })).toBeVisible();
+    const bookingCorrectionItem = page
+      .getByRole('listitem')
+      .filter({ hasText: 'BOOKING_CORRECTION' })
+      .first();
+    await expect(bookingCorrectionItem).toBeVisible();
+    await expect(bookingCorrectionItem.getByText('Überfällig: Nein')).toBeVisible();
+
+    await bookingCorrectionItem.getByRole('button', { name: 'Details' }).click();
+    const detailsArticle = page
+      .locator('article')
+      .filter({ has: page.getByRole('heading', { name: 'Details', exact: true }) });
+    await detailsArticle.getByRole('combobox').first().selectOption('DELEGATE');
+    await page.getByLabel('Delegieren an Person-ID').fill('c000000000000000000000103');
+    await page.getByLabel('Aktionsbegründung').fill('Playwright delegation');
+    await page.getByRole('button', { name: 'Aktion ausführen' }).click();
+    await expect(page.getByText('Workflow-Aktion ausgeführt.')).toBeVisible();
+
+    await page.getByLabel('Bearer-Token').fill(hrToken);
+    await page.getByRole('button', { name: 'Postfach laden' }).click();
+    await expect(page.getByRole('list').getByText('BOOKING_CORRECTION')).toBeVisible();
   });
 });

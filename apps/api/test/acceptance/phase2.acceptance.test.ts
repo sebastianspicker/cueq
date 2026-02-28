@@ -62,13 +62,56 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
       });
 
     expect(createCorrection.status).toBe(201);
+    expect(createCorrection.body.status).toBe('PENDING');
+    expect(createCorrection.body).toHaveProperty('dueAt');
 
-    const inbox = await request(app.getHttpServer())
+    const initialApproverId = createCorrection.body.approverId as string | null;
+    expect(initialApproverId).toBeTruthy();
+
+    const initialApproverToken =
+      initialApproverId === SEED_IDS.personLead
+        ? TOKENS.lead
+        : initialApproverId === SEED_IDS.personHr
+          ? TOKENS.hr
+          : TOKENS.admin;
+
+    const initialInbox = await request(app.getHttpServer())
       .get('/v1/workflows/inbox')
-      .set('Authorization', `Bearer ${TOKENS.lead}`);
+      .query({ type: 'BOOKING_CORRECTION' })
+      .set('Authorization', `Bearer ${initialApproverToken}`);
 
-    expect(inbox.status).toBe(200);
-    expect(inbox.body.length).toBeGreaterThan(0);
+    expect(initialInbox.status).toBe(200);
+    const workflow = initialInbox.body.find(
+      (entry: { id: string }) => entry.id === createCorrection.body.id,
+    );
+    expect(workflow).toBeDefined();
+    expect(workflow?.availableActions).toContain('DELEGATE');
+
+    const delegateToId =
+      initialApproverId === SEED_IDS.personLead ? SEED_IDS.personHr : SEED_IDS.personLead;
+    const delegatedInboxToken = delegateToId === SEED_IDS.personLead ? TOKENS.lead : TOKENS.hr;
+
+    const delegated = await request(app.getHttpServer())
+      .post(`/v1/workflows/${createCorrection.body.id}/decision`)
+      .set('Authorization', `Bearer ${initialApproverToken}`)
+      .send({
+        action: 'DELEGATE',
+        delegateToId,
+        reason: 'Delegate for approval continuity',
+      });
+
+    expect(delegated.status).toBe(201);
+    expect(delegated.body.approverId).toBe(delegateToId);
+
+    const delegatedInbox = await request(app.getHttpServer())
+      .get('/v1/workflows/inbox')
+      .query({ type: 'BOOKING_CORRECTION' })
+      .set('Authorization', `Bearer ${delegatedInboxToken}`);
+    const delegatedWorkflow = delegatedInbox.body.find(
+      (entry: { id: string }) => entry.id === createCorrection.body.id,
+    );
+    expect(delegatedWorkflow).toBeDefined();
+    expect(delegatedWorkflow?.isOverdue).toBe(false);
   });
 
   it('AT-03 roster plan-vs-actual is computable', async () => {
@@ -146,7 +189,7 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
   it('AT-06 closing export and HR post-close correction', async () => {
     const resolveCorrection = await request(app.getHttpServer())
       .post('/v1/workflows/c000000000000000000000600/decision')
-      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
       .send({ decision: 'APPROVED', reason: 'Resolved before close' });
 
     expect(resolveCorrection.status).toBe(201);

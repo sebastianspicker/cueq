@@ -32,7 +32,9 @@
 | `TimeAccount` | `schemas/domain/time-account.schema.json` | 10 |
 | `TimeType` | `schemas/domain/time-type.schema.json` | 8 |
 | `WorkTimeModel` | `schemas/domain/work-time-model.schema.json` | 11 |
-| `WorkflowInstance` | `schemas/domain/workflow.schema.json` | 11 |
+| `WorkflowDelegationRule` | `schemas/domain/workflow-delegation-rule.schema.json` | 12 |
+| `WorkflowPolicy` | `schemas/domain/workflow-policy.schema.json` | 8 |
+| `WorkflowInstance` | `schemas/domain/workflow.schema.json` | 18 |
 
 ---
 
@@ -43,4 +45,4 @@ make generate
 make schemas
 ```
 
-Last generated: 2026-02-28T19:27:06.284Z
+Last generated: 2026-02-28T20:36:21.660Z

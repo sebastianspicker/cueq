@@ -15,13 +15,21 @@ export const WorkflowTypeSchema = z.enum([
 export type WorkflowType = z.infer<typeof WorkflowTypeSchema>;
 
 export const WorkflowStatusSchema = z.enum([
+  'DRAFT',
+  'SUBMITTED',
   'PENDING',
+  'ESCALATED',
   'APPROVED',
   'REJECTED',
-  'ESCALATED',
   'CANCELLED',
 ]);
 export type WorkflowStatus = z.infer<typeof WorkflowStatusSchema>;
+
+export const WorkflowActionSchema = z.enum(['SUBMIT', 'APPROVE', 'REJECT', 'DELEGATE', 'CANCEL']);
+export type WorkflowAction = z.infer<typeof WorkflowActionSchema>;
+
+export const WorkflowEscalationActionSchema = z.enum(['ESCALATE']);
+export type WorkflowEscalationAction = z.infer<typeof WorkflowEscalationActionSchema>;
 
 /** Schema for a workflow instance (read) */
 export const WorkflowInstanceSchema = z.object({
@@ -33,16 +41,135 @@ export const WorkflowInstanceSchema = z.object({
   entityType: z.string(),
   entityId: IdSchema,
   reason: z.string().nullable(),
+  decisionReason: z.string().nullable().optional(),
+  submittedAt: DateTimeSchema.nullable().optional(),
+  dueAt: DateTimeSchema.nullable().optional(),
+  escalatedAt: DateTimeSchema.nullable().optional(),
+  escalationLevel: z.number().int().nonnegative().default(0),
+  requestPayload: z.unknown().nullable().optional(),
+  delegationTrail: z.array(z.string()).nullable().optional(),
   decidedAt: DateTimeSchema.nullable(),
   createdAt: DateTimeSchema,
   updatedAt: DateTimeSchema,
 });
 export type WorkflowInstance = z.infer<typeof WorkflowInstanceSchema>;
 
-/** Schema for approving or rejecting a workflow */
-export const WorkflowDecisionSchema = z.object({
-  workflowId: IdSchema,
-  decision: z.enum(['APPROVED', 'REJECTED']),
-  reason: z.string().max(1000).optional(),
+/** Schema for workflow action command with legacy decision compatibility */
+export const WorkflowDecisionCommandSchema = z
+  .object({
+    workflowId: IdSchema,
+    action: WorkflowActionSchema.optional(),
+    decision: z.enum(['APPROVED', 'REJECTED']).optional(),
+    reason: z.string().max(1000).optional(),
+    delegateToId: IdSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.action && !value.decision) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'action or decision is required',
+        path: ['action'],
+      });
+    }
+
+    if (value.action === 'DELEGATE' && !value.delegateToId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'delegateToId is required for DELEGATE action',
+        path: ['delegateToId'],
+      });
+    }
+  });
+export type WorkflowDecisionCommand = z.infer<typeof WorkflowDecisionCommandSchema>;
+
+export const WorkflowInboxQuerySchema = z.object({
+  status: WorkflowStatusSchema.optional(),
+  type: WorkflowTypeSchema.optional(),
+  overdueOnly: z
+    .union([z.literal('true'), z.literal('false')])
+    .transform((value) => value === 'true')
+    .optional(),
 });
-export type WorkflowDecision = z.infer<typeof WorkflowDecisionSchema>;
+export type WorkflowInboxQuery = z.infer<typeof WorkflowInboxQuerySchema>;
+
+export const WorkflowInboxItemSchema = WorkflowInstanceSchema.extend({
+  isOverdue: z.boolean(),
+  availableActions: z.array(WorkflowActionSchema),
+});
+export type WorkflowInboxItem = z.infer<typeof WorkflowInboxItemSchema>;
+
+export const WorkflowApproverRoleSchema = z.enum(['TEAM_LEAD', 'SHIFT_PLANNER', 'HR', 'ADMIN']);
+export type WorkflowApproverRole = z.infer<typeof WorkflowApproverRoleSchema>;
+
+export const WorkflowPolicySchema = z.object({
+  id: IdSchema,
+  type: WorkflowTypeSchema,
+  escalationDeadlineHours: z.number().int().positive(),
+  escalationRoles: z.array(WorkflowApproverRoleSchema).min(1).max(5),
+  maxDelegationDepth: z.number().int().min(1).max(10),
+  activeFrom: DateTimeSchema,
+  createdAt: DateTimeSchema,
+  updatedAt: DateTimeSchema,
+});
+export type WorkflowPolicy = z.infer<typeof WorkflowPolicySchema>;
+
+export const WorkflowPolicyUpsertSchema = z.object({
+  escalationDeadlineHours: z.number().int().positive(),
+  escalationRoles: z.array(WorkflowApproverRoleSchema).min(1).max(5),
+  maxDelegationDepth: z.number().int().min(1).max(10).default(5),
+  activeFrom: DateTimeSchema.optional(),
+});
+export type WorkflowPolicyUpsert = z.infer<typeof WorkflowPolicyUpsertSchema>;
+
+export const WorkflowDelegationRuleSchema = z.object({
+  id: IdSchema,
+  delegatorId: IdSchema,
+  delegateId: IdSchema,
+  workflowType: WorkflowTypeSchema.nullable(),
+  organizationUnitId: IdSchema.nullable(),
+  activeFrom: DateTimeSchema,
+  activeTo: DateTimeSchema.nullable(),
+  isActive: z.boolean(),
+  priority: z.number().int().nonnegative(),
+  createdById: IdSchema.nullable(),
+  createdAt: DateTimeSchema,
+  updatedAt: DateTimeSchema,
+});
+export type WorkflowDelegationRule = z.infer<typeof WorkflowDelegationRuleSchema>;
+
+export const CreateWorkflowDelegationRuleSchema = z
+  .object({
+    delegatorId: IdSchema,
+    delegateId: IdSchema,
+    workflowType: WorkflowTypeSchema.optional(),
+    organizationUnitId: IdSchema.optional(),
+    activeFrom: DateTimeSchema,
+    activeTo: DateTimeSchema.optional(),
+    isActive: z.boolean().optional(),
+    priority: z.number().int().nonnegative().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.delegatorId === value.delegateId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'delegator and delegate must differ',
+        path: ['delegateId'],
+      });
+    }
+  });
+export type CreateWorkflowDelegationRule = z.infer<typeof CreateWorkflowDelegationRuleSchema>;
+
+export const UpdateWorkflowDelegationRuleSchema = z.object({
+  delegateId: IdSchema.optional(),
+  workflowType: WorkflowTypeSchema.optional().nullable(),
+  organizationUnitId: IdSchema.optional().nullable(),
+  activeFrom: DateTimeSchema.optional(),
+  activeTo: DateTimeSchema.optional().nullable(),
+  isActive: z.boolean().optional(),
+  priority: z.number().int().nonnegative().optional(),
+});
+export type UpdateWorkflowDelegationRule = z.infer<typeof UpdateWorkflowDelegationRuleSchema>;
+
+/** Backward-compat alias for legacy call sites */
+export const WorkflowDecisionSchema = WorkflowDecisionCommandSchema;
+export type WorkflowDecision = WorkflowDecisionCommand;

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/workflow-delegation-rule.schema.json",
+  "title": "WorkflowDelegationRule",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "delegatorId",
+    "delegateId",
+    "activeFrom",
+    "isActive",
+    "priority",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "delegatorId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "delegateId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "workflowType": {
+      "type": ["string", "null"],
+      "enum": [
+        "LEAVE_REQUEST",
+        "BOOKING_CORRECTION",
+        "SHIFT_SWAP",
+        "OVERTIME_APPROVAL",
+        "POST_CLOSE_CORRECTION",
+        null
+      ]
+    },
+    "organizationUnitId": {
+      "type": ["string", "null"]
+    },
+    "activeFrom": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "activeTo": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "isActive": {
+      "type": "boolean"
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "createdById": {
+      "type": ["string", "null"]
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

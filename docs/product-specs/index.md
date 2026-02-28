@@ -26,7 +26,7 @@ These specs ensure CueQ matches baseline functionality (time, leave, roster, exp
 | [Time Engine Rules](time-engine-rules.md)                       | Rule evaluation: pauses, rest, max-hours, surcharges | PRD FR-200   | ✅ Implemented |
 | [Roster & Shift Planning](roster-shift-planning.md)             | Shift creation, min-staffing, plan-vs-actual         | PRD FR-300   | ✅ Implemented |
 | [Absence & Leave](absence-leave.md)                             | Leave quotas, carry-over, forfeiture, team calendar  | PRD FR-400   | ✅ Implemented |
-| Workflows & Approvals                                           | State machine, delegation, escalation                | PRD FR-500   | 🔜 Planned     |
+| [Workflows & Approvals](workflows-approvals.md)                 | State machine, delegation, escalation                | PRD FR-500   | ✅ Implemented |
 | Monthly Closing                                                 | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | 🔜 Planned     |
 | Reports & Export                                                | Payroll export, audit reports, compliance reports    | PRD FR-700   | 🔜 Planned     |
 

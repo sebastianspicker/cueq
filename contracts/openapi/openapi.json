@@ -415,7 +415,32 @@
     "/v1/workflows/inbox": {
       "get": {
         "operationId": "WorkflowsController_inbox",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "overdueOnly",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -427,6 +452,195 @@
           }
         ],
         "summary": "List workflow inbox for authenticated approver/requester",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/policies": {
+      "get": {
+        "operationId": "WorkflowsController_policies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List workflow policies (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/policies/{type}": {
+      "put": {
+        "operationId": "WorkflowsController_upsertPolicy",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create or update workflow policy (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/delegations": {
+      "get": {
+        "operationId": "WorkflowsController_delegations",
+        "parameters": [
+          {
+            "name": "delegatorId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workflowType",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List workflow delegation rules (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      },
+      "post": {
+        "operationId": "WorkflowsController_createDelegation",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create workflow delegation rule (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/delegations/{id}": {
+      "patch": {
+        "operationId": "WorkflowsController_updateDelegation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update workflow delegation rule (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkflowsController_deleteDelegation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete workflow delegation rule (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/{id}": {
+      "get": {
+        "operationId": "WorkflowsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get workflow detail",
         "tags": [
           "workflows"
         ]
@@ -455,7 +669,7 @@
             "bearer": []
           }
         ],
-        "summary": "Approve or reject workflow instance",
+        "summary": "Apply workflow action (approve/reject/delegate/cancel)",
         "tags": [
           "workflows"
         ]

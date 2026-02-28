@@ -77,7 +77,7 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
   it('exports canonical payroll CSV and allows csv download', async () => {
     const resolveCorrection = await request(app.getHttpServer())
       .post('/v1/workflows/c000000000000000000000600/decision')
-      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
       .send({ decision: 'APPROVED', reason: 'Resolved before close' });
     expect(resolveCorrection.status).toBe(201);
 

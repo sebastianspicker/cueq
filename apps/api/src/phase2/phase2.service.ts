@@ -30,9 +30,6 @@ import {
   evaluateTimeRules as evaluateTimeRulesCore,
   evaluateOnCallRestCompliance,
   generateClosingChecklist,
-  resolveDelegation,
-  shouldEscalate,
-  transitionWorkflow,
 } from '@cueq/core';
 import {
   DEFAULT_LEAVE_RULE,
@@ -63,12 +60,18 @@ import {
   TimeRuleEvaluationRequestSchema,
   UpdateShiftSchema,
   UpdateOnCallRotationSchema,
-  WorkflowDecisionSchema,
+  WorkflowDecisionCommandSchema,
+  WorkflowInboxQuerySchema,
+  WorkflowPolicyUpsertSchema,
+  WorkflowTypeSchema,
+  CreateWorkflowDelegationRuleSchema,
+  UpdateWorkflowDelegationRuleSchema,
   AssignShiftSchema,
 } from '@cueq/shared';
 import { PrismaService } from '../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../common/auth/auth.types';
 import { TerminalGatewayService } from './terminal-gateway.service';
+import { WorkflowRuntimeService } from './workflow-runtime.service';
 
 const HR_LIKE_ROLES = new Set<Role>([Role.HR, Role.ADMIN]);
 const APPROVAL_ROLES = new Set<Role>([Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN]);
@@ -151,6 +154,7 @@ export class Phase2Service {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TerminalGatewayService) private readonly terminalGatewayService: TerminalGatewayService,
+    @Inject(WorkflowRuntimeService) private readonly workflowRuntimeService: WorkflowRuntimeService,
   ) {}
 
   private async personForUser(user: AuthenticatedIdentity) {
@@ -761,33 +765,31 @@ export class Phase2Service {
     });
 
     if (status === AbsenceStatus.REQUESTED && ABSENCE_TYPES_WITH_APPROVAL.has(requestedType)) {
-      const teamLead = await this.prisma.person.findFirst({
-        where: {
-          organizationUnitId: targetPerson.organizationUnitId,
-          role: Role.TEAM_LEAD,
-        },
-      });
-
-      const fallbackCandidates = [
-        ...(teamLead ? [{ approverId: teamLead.id, isAvailable: true }] : []),
-        { approverId: actor.id, isAvailable: HR_LIKE_ROLES.has(user.role) },
-      ];
-      const delegated = resolveDelegation({
+      const assignment = await this.workflowRuntimeService.buildWorkflowAssignment({
+        type: WorkflowType.LEAVE_REQUEST,
         requesterId: targetPerson.id,
-        primaryApproverId: targetPerson.supervisorId ?? teamLead?.id ?? actor.id,
-        fallbackChain: fallbackCandidates,
-        at: new Date().toISOString(),
+        requesterOrganizationUnitId: targetPerson.organizationUnitId,
+        preferredApproverId: targetPerson.supervisorId ?? undefined,
       });
 
       const workflow = await this.prisma.workflowInstance.create({
         data: {
           type: WorkflowType.LEAVE_REQUEST,
-          status: WorkflowStatus.PENDING,
+          status: assignment.status,
           requesterId: targetPerson.id,
-          approverId: delegated.approverId,
+          approverId: assignment.approverId,
           entityType: 'Absence',
           entityId: absence.id,
           reason: parsed.note,
+          requestPayload: {
+            type: parsed.type,
+            startDate: parsed.startDate,
+            endDate: parsed.endDate,
+          },
+          submittedAt: assignment.submittedAt,
+          dueAt: assignment.dueAt,
+          escalationLevel: assignment.escalationLevel,
+          delegationTrail: assignment.delegationTrail,
         },
       });
 
@@ -802,6 +804,8 @@ export class Phase2Service {
           approverId: workflow.approverId,
           entityType: workflow.entityType,
           entityId: workflow.entityId,
+          dueAt: workflow.dueAt?.toISOString() ?? null,
+          traversedApprovers: assignment.traversedApprovers,
         },
         reason: parsed.note,
       });
@@ -859,12 +863,13 @@ export class Phase2Service {
         entityType: 'Absence',
         entityId: absence.id,
         status: {
-          in: [WorkflowStatus.PENDING, WorkflowStatus.ESCALATED],
+          in: [WorkflowStatus.SUBMITTED, WorkflowStatus.PENDING, WorkflowStatus.ESCALATED],
         },
       },
       data: {
         status: WorkflowStatus.CANCELLED,
         approverId: actor.id,
+        decisionReason: 'absence cancelled by requester',
         decidedAt: new Date(),
       },
     });
@@ -1098,34 +1103,32 @@ export class Phase2Service {
 
     this.assertCanActForPerson(user, requester.id, booking.personId);
 
-    const teamLead = await this.prisma.person.findFirst({
-      where: {
-        organizationUnitId: requester.organizationUnitId,
-        role: Role.TEAM_LEAD,
-      },
-    });
-
-    const fallbackCandidates = [
-      ...(teamLead ? [{ approverId: teamLead.id, isAvailable: true }] : []),
-      { approverId: requester.id, isAvailable: false },
-    ];
-
-    const delegated = resolveDelegation({
+    const assignment = await this.workflowRuntimeService.buildWorkflowAssignment({
+      type: WorkflowType.BOOKING_CORRECTION,
       requesterId: requester.id,
-      primaryApproverId: requester.supervisorId ?? teamLead?.id ?? requester.id,
-      fallbackChain: fallbackCandidates,
-      at: new Date().toISOString(),
+      requesterOrganizationUnitId: requester.organizationUnitId,
+      preferredApproverId: requester.supervisorId ?? undefined,
     });
 
     const workflow = await this.prisma.workflowInstance.create({
       data: {
         type: WorkflowType.BOOKING_CORRECTION,
-        status: WorkflowStatus.PENDING,
+        status: assignment.status,
         requesterId: requester.id,
-        approverId: delegated.approverId,
+        approverId: assignment.approverId,
         entityType: 'Booking',
         entityId: booking.id,
         reason: parsed.reason,
+        requestPayload: {
+          bookingId: parsed.bookingId,
+          startTime: parsed.startTime,
+          endTime: parsed.endTime,
+          timeTypeId: parsed.timeTypeId,
+        },
+        submittedAt: assignment.submittedAt,
+        dueAt: assignment.dueAt,
+        escalationLevel: assignment.escalationLevel,
+        delegationTrail: assignment.delegationTrail,
       },
     });
 
@@ -1138,133 +1141,180 @@ export class Phase2Service {
         type: workflow.type,
         status: workflow.status,
         approverId: workflow.approverId,
+        dueAt: workflow.dueAt?.toISOString() ?? null,
+        traversedApprovers: assignment.traversedApprovers,
       },
       reason: parsed.reason,
     });
 
     return {
       ...workflow,
-      escalated: delegated.escalated,
-      traversedApprovers: delegated.traversed,
+      escalated: assignment.escalated,
+      traversedApprovers: assignment.traversedApprovers,
     };
   }
 
-  async workflowInbox(user: AuthenticatedIdentity) {
+  async workflowInbox(user: AuthenticatedIdentity, query?: unknown) {
     const person = await this.personForUser(user);
+    const parsed = WorkflowInboxQuerySchema.parse(query ?? {});
 
-    const where: Prisma.WorkflowInstanceWhereInput = APPROVAL_ROLES.has(user.role)
-      ? user.role === Role.HR || user.role === Role.ADMIN
-        ? { status: { in: [WorkflowStatus.PENDING, WorkflowStatus.ESCALATED] } }
-        : {
-            status: { in: [WorkflowStatus.PENDING, WorkflowStatus.ESCALATED] },
-            approverId: person.id,
-          }
-      : { requesterId: person.id };
+    return this.workflowRuntimeService.listInbox(
+      {
+        id: person.id,
+        role: user.role,
+        organizationUnitId: person.organizationUnitId,
+      },
+      parsed,
+    );
+  }
 
-    const workflows = await this.prisma.workflowInstance.findMany({
-      where,
-      orderBy: { createdAt: 'asc' },
+  async workflowDetail(user: AuthenticatedIdentity, workflowId: string) {
+    const person = await this.personForUser(user);
+    return this.workflowRuntimeService.getDetail(
+      {
+        id: person.id,
+        role: user.role,
+        organizationUnitId: person.organizationUnitId,
+      },
+      workflowId,
+    );
+  }
+
+  async listWorkflowPolicies(user: AuthenticatedIdentity) {
+    this.assertHrLikeRole(user);
+    return this.workflowRuntimeService.listPolicies();
+  }
+
+  async upsertWorkflowPolicy(user: AuthenticatedIdentity, type: string, payload: unknown) {
+    this.assertHrLikeRole(user);
+    const parsedType = WorkflowTypeSchema.parse(type);
+    const parsedPayload = WorkflowPolicyUpsertSchema.parse(payload);
+    return this.workflowRuntimeService.upsertPolicy(parsedType as WorkflowType, parsedPayload);
+  }
+
+  async listWorkflowDelegations(
+    user: AuthenticatedIdentity,
+    query: { delegatorId?: string; workflowType?: string },
+  ) {
+    this.assertHrLikeRole(user);
+    const workflowType = query.workflowType
+      ? (WorkflowTypeSchema.parse(query.workflowType) as WorkflowType)
+      : undefined;
+    return this.workflowRuntimeService.listDelegations({
+      delegatorId: query.delegatorId,
+      workflowType,
     });
+  }
 
-    return workflows.map((workflow) => ({
-      ...workflow,
-      shouldEscalate: shouldEscalate({
-        currentStatus: workflow.status as
-          | 'PENDING'
-          | 'APPROVED'
-          | 'REJECTED'
-          | 'ESCALATED'
-          | 'CANCELLED',
-        submittedAt: workflow.createdAt.toISOString(),
-        now: new Date().toISOString(),
-        escalationDeadlineHours: 48,
-      }),
-    }));
+  async createWorkflowDelegation(user: AuthenticatedIdentity, payload: unknown) {
+    this.assertHrLikeRole(user);
+    const actor = await this.personForUser(user);
+    const parsed = CreateWorkflowDelegationRuleSchema.parse(payload);
+    return this.workflowRuntimeService.createDelegation(actor.id, {
+      delegatorId: parsed.delegatorId,
+      delegateId: parsed.delegateId,
+      workflowType: parsed.workflowType as WorkflowType | undefined,
+      organizationUnitId: parsed.organizationUnitId,
+      activeFrom: parsed.activeFrom,
+      activeTo: parsed.activeTo,
+      isActive: parsed.isActive,
+      priority: parsed.priority,
+    });
+  }
+
+  async updateWorkflowDelegation(user: AuthenticatedIdentity, id: string, payload: unknown) {
+    this.assertHrLikeRole(user);
+    const actor = await this.personForUser(user);
+    const parsed = UpdateWorkflowDelegationRuleSchema.parse(payload);
+    return this.workflowRuntimeService.updateDelegation(actor.id, id, {
+      delegateId: parsed.delegateId,
+      workflowType: parsed.workflowType as WorkflowType | null | undefined,
+      organizationUnitId: parsed.organizationUnitId,
+      activeFrom: parsed.activeFrom,
+      activeTo: parsed.activeTo,
+      isActive: parsed.isActive,
+      priority: parsed.priority,
+    });
+  }
+
+  async deleteWorkflowDelegation(user: AuthenticatedIdentity, id: string) {
+    this.assertHrLikeRole(user);
+    const actor = await this.personForUser(user);
+    await this.workflowRuntimeService.deleteDelegation(actor.id, id);
+    return { deleted: true, id };
   }
 
   async decideWorkflow(user: AuthenticatedIdentity, workflowId: string, payload: unknown) {
     const actor = await this.personForUser(user);
-    if (!APPROVAL_ROLES.has(user.role)) {
-      throw new ForbiddenException('Only approval-capable roles can decide workflows.');
-    }
-
-    const parsed = WorkflowDecisionSchema.parse({
+    const parsed = WorkflowDecisionCommandSchema.parse({
       ...(payload as Record<string, unknown>),
       workflowId,
     });
 
-    const workflow = await this.prisma.workflowInstance.findUnique({
-      where: { id: parsed.workflowId },
-    });
-    if (!workflow) {
-      throw new NotFoundException('Workflow not found.');
-    }
-
-    const transition = transitionWorkflow({
-      workflowId: workflow.id,
-      actorId: actor.id,
-      reason: parsed.reason,
-      currentStatus: workflow.status,
-      decision: parsed.decision === 'APPROVED' ? 'APPROVE' : 'REJECT',
-      at: new Date().toISOString(),
-    });
-
-    if (!transition.ok) {
-      throw new BadRequestException(transition.violations);
-    }
-
-    const updated = await this.prisma.workflowInstance.update({
-      where: { id: workflow.id },
-      data: {
-        status: transition.nextStatus,
-        approverId: actor.id,
-        decidedAt: new Date(transition.decidedAt),
-        reason: parsed.reason ?? workflow.reason,
+    const decision = await this.workflowRuntimeService.decide(
+      {
+        id: actor.id,
+        role: user.role,
+        organizationUnitId: actor.organizationUnitId,
       },
-    });
+      parsed,
+    );
 
-    await this.appendAudit({
-      actorId: actor.id,
-      action: 'WORKFLOW_DECIDED',
-      entityType: 'WorkflowInstance',
-      entityId: updated.id,
-      before: { status: workflow.status, approverId: workflow.approverId },
-      after: { status: updated.status, approverId: updated.approverId },
-      reason: parsed.reason,
-    });
-
-    if (workflow.type === WorkflowType.LEAVE_REQUEST && workflow.entityType === 'Absence') {
+    if (
+      decision.updated.type === WorkflowType.LEAVE_REQUEST &&
+      decision.updated.entityType === 'Absence'
+    ) {
       const nextAbsenceStatus =
-        parsed.decision === 'APPROVED' ? AbsenceStatus.APPROVED : AbsenceStatus.REJECTED;
-      const result = await this.prisma.absence.updateMany({
-        where: {
-          id: workflow.entityId,
-          status: AbsenceStatus.REQUESTED,
-        },
-        data: {
-          status: nextAbsenceStatus,
-        },
-      });
+        decision.action === 'APPROVE'
+          ? AbsenceStatus.APPROVED
+          : decision.action === 'REJECT'
+            ? AbsenceStatus.REJECTED
+            : decision.action === 'CANCEL'
+              ? AbsenceStatus.CANCELLED
+              : null;
 
-      if (result.count > 0) {
-        await this.appendAudit({
-          actorId: actor.id,
-          action:
-            nextAbsenceStatus === AbsenceStatus.APPROVED ? 'ABSENCE_APPROVED' : 'ABSENCE_REJECTED',
-          entityType: 'Absence',
-          entityId: workflow.entityId,
-          before: {
-            status: AbsenceStatus.REQUESTED,
+      if (nextAbsenceStatus) {
+        const currentAbsence = await this.prisma.absence.findUnique({
+          where: { id: decision.updated.entityId },
+          select: { status: true },
+        });
+        const result = await this.prisma.absence.updateMany({
+          where: {
+            id: decision.updated.entityId,
+            status:
+              nextAbsenceStatus === AbsenceStatus.CANCELLED
+                ? { in: [AbsenceStatus.REQUESTED, AbsenceStatus.APPROVED] }
+                : AbsenceStatus.REQUESTED,
           },
-          after: {
+          data: {
             status: nextAbsenceStatus,
           },
-          reason: parsed.reason,
         });
+
+        if (result.count > 0) {
+          await this.appendAudit({
+            actorId: actor.id,
+            action:
+              nextAbsenceStatus === AbsenceStatus.APPROVED
+                ? 'ABSENCE_APPROVED'
+                : nextAbsenceStatus === AbsenceStatus.REJECTED
+                  ? 'ABSENCE_REJECTED'
+                  : 'ABSENCE_CANCELLED',
+            entityType: 'Absence',
+            entityId: decision.updated.entityId,
+            before: {
+              status: currentAbsence?.status ?? null,
+            },
+            after: {
+              status: nextAbsenceStatus,
+            },
+            reason: parsed.reason,
+          });
+        }
       }
     }
 
-    return updated;
+    return decision.updated;
   }
 
   async createRoster(user: AuthenticatedIdentity, payload: unknown) {
@@ -2403,7 +2453,9 @@ export class Phase2Service {
     const openCorrectionRequests = await this.prisma.workflowInstance.count({
       where: {
         type: WorkflowType.BOOKING_CORRECTION,
-        status: { in: [WorkflowStatus.PENDING, WorkflowStatus.ESCALATED] },
+        status: {
+          in: [WorkflowStatus.SUBMITTED, WorkflowStatus.PENDING, WorkflowStatus.ESCALATED],
+        },
       },
     });
 
@@ -2703,15 +2755,28 @@ export class Phase2Service {
       throw new BadRequestException(transition.violations);
     }
 
+    const assignment = await this.workflowRuntimeService.buildWorkflowAssignment({
+      type: WorkflowType.POST_CLOSE_CORRECTION,
+      requesterId: actor.id,
+      requesterOrganizationUnitId: actor.organizationUnitId,
+    });
+
     const workflow = await this.prisma.workflowInstance.create({
       data: {
         type: WorkflowType.POST_CLOSE_CORRECTION,
-        status: WorkflowStatus.PENDING,
+        status: assignment.status,
         requesterId: actor.id,
-        approverId: actor.id,
+        approverId: assignment.approverId,
         entityType: 'ClosingPeriod',
         entityId: period.id,
         reason,
+        requestPayload: {
+          closingPeriodId,
+        },
+        submittedAt: assignment.submittedAt,
+        dueAt: assignment.dueAt,
+        escalationLevel: assignment.escalationLevel,
+        delegationTrail: assignment.delegationTrail,
       },
     });
 
@@ -2725,6 +2790,10 @@ export class Phase2Service {
       action: 'POST_CLOSE_CORRECTION_CREATED',
       entityType: 'WorkflowInstance',
       entityId: workflow.id,
+      after: {
+        approverId: workflow.approverId,
+        dueAt: workflow.dueAt?.toISOString() ?? null,
+      },
       reason,
     });
 

@@ -74,7 +74,7 @@ export class ClosingController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Param('id') closingPeriodId: string,
     @Body() payload: { reason?: string },
-  ) {
+  ): Promise<unknown> {
     return this.phase2Service.postCloseCorrection(user, closingPeriodId, payload?.reason);
   }
 

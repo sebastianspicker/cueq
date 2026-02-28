@@ -13,10 +13,18 @@
       "properties": {
         "workflowId": { "$ref": "./_defs/common.schema.json#/$defs/id" },
         "currentStatus": {
-          "enum": ["PENDING", "APPROVED", "REJECTED", "ESCALATED", "CANCELLED"]
+          "enum": [
+            "DRAFT",
+            "SUBMITTED",
+            "PENDING",
+            "ESCALATED",
+            "APPROVED",
+            "REJECTED",
+            "CANCELLED"
+          ]
         },
         "decision": {
-          "enum": ["APPROVE", "REJECT", "ESCALATE", "CANCEL"]
+          "enum": ["SUBMIT", "APPROVE", "REJECT", "ESCALATE", "DELEGATE", "CANCEL"]
         },
         "actorId": { "$ref": "./_defs/common.schema.json#/$defs/id" },
         "reason": { "type": "string" }
@@ -29,7 +37,15 @@
       "properties": {
         "ok": { "type": "boolean" },
         "nextStatus": {
-          "enum": ["PENDING", "APPROVED", "REJECTED", "ESCALATED", "CANCELLED"]
+          "enum": [
+            "DRAFT",
+            "SUBMITTED",
+            "PENDING",
+            "ESCALATED",
+            "APPROVED",
+            "REJECTED",
+            "CANCELLED"
+          ]
         },
         "decidedAt": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" },
         "violations": {

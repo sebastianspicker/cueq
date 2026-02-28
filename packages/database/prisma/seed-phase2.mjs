@@ -44,6 +44,10 @@ const IDs = {
   absenceAnnual: cuidFor(500),
   absenceSick: cuidFor(501),
   workflowCorrection: cuidFor(600),
+  workflowPolicyLeave: cuidFor(610),
+  workflowPolicyCorrection: cuidFor(611),
+  workflowPolicyPostClose: cuidFor(612),
+  delegationLeadToHr: cuidFor(620),
   closingPeriod: cuidFor(700),
   exportRun: cuidFor(701),
   timeAccountEmployee: cuidFor(800),
@@ -56,6 +60,8 @@ async function reset() {
   await prisma.webhookEndpoint.deleteMany();
   await prisma.domainEventOutbox.deleteMany();
   await prisma.auditEntry.deleteMany();
+  await prisma.workflowDelegationRule.deleteMany();
+  await prisma.workflowPolicy.deleteMany();
   await prisma.terminalSyncBatch.deleteMany();
   await prisma.exportRun.deleteMany();
   await prisma.closingPeriod.deleteMany();
@@ -332,6 +338,49 @@ async function seed() {
     ],
   });
 
+  await prisma.workflowPolicy.createMany({
+    data: [
+      {
+        id: IDs.workflowPolicyLeave,
+        type: WorkflowType.LEAVE_REQUEST,
+        escalationDeadlineHours: 48,
+        escalationRoles: ['HR', 'ADMIN'],
+        maxDelegationDepth: 5,
+        activeFrom: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      {
+        id: IDs.workflowPolicyCorrection,
+        type: WorkflowType.BOOKING_CORRECTION,
+        escalationDeadlineHours: 48,
+        escalationRoles: ['HR', 'ADMIN'],
+        maxDelegationDepth: 5,
+        activeFrom: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      {
+        id: IDs.workflowPolicyPostClose,
+        type: WorkflowType.POST_CLOSE_CORRECTION,
+        escalationDeadlineHours: 24,
+        escalationRoles: ['HR', 'ADMIN'],
+        maxDelegationDepth: 5,
+        activeFrom: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ],
+  });
+
+  await prisma.workflowDelegationRule.create({
+    data: {
+      id: IDs.delegationLeadToHr,
+      delegatorId: IDs.personLead,
+      delegateId: IDs.personHr,
+      workflowType: WorkflowType.BOOKING_CORRECTION,
+      organizationUnitId: IDs.ouAdmin,
+      activeFrom: new Date('2026-01-01T00:00:00.000Z'),
+      isActive: true,
+      priority: 1,
+      createdById: IDs.personAdmin,
+    },
+  });
+
   await prisma.workflowInstance.create({
     data: {
       id: IDs.workflowCorrection,
@@ -342,6 +391,10 @@ async function seed() {
       entityType: 'Booking',
       entityId: IDs.bookingEmployeeIn,
       reason: 'Bitte Startzeit korrigieren',
+      submittedAt: new Date('2026-03-03T09:00:00.000Z'),
+      dueAt: new Date('2026-03-05T09:00:00.000Z'),
+      escalationLevel: 0,
+      delegationTrail: ['c000000000000000000000101'],
       createdAt: new Date('2026-03-03T09:00:00.000Z'),
     },
   });

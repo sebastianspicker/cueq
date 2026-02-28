@@ -2,23 +2,61 @@ import { describe, expect, it } from 'vitest';
 import { resolveDelegation, shouldEscalate, transitionWorkflow } from '..';
 
 describe('transitionWorkflow', () => {
-  it('allows valid transitions', () => {
+  it('advances DRAFT to SUBMITTED', () => {
     const result = transitionWorkflow({
       workflowId: 'wf-1',
+      currentStatus: 'DRAFT',
+      decision: 'SUBMIT',
+      actorId: 'employee-1',
+      at: '2026-03-01T10:00:00.000Z',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.nextStatus).toBe('SUBMITTED');
+  });
+
+  it('advances SUBMITTED to PENDING', () => {
+    const result = transitionWorkflow({
+      workflowId: 'wf-2',
+      currentStatus: 'SUBMITTED',
+      decision: 'SUBMIT',
+      actorId: 'employee-1',
+      at: '2026-03-01T10:00:00.000Z',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.nextStatus).toBe('PENDING');
+  });
+
+  it('keeps status for delegation decision', () => {
+    const result = transitionWorkflow({
+      workflowId: 'wf-3',
       currentStatus: 'PENDING',
-      decision: 'APPROVE',
+      decision: 'DELEGATE',
       actorId: 'lead-1',
       at: '2026-03-01T10:00:00.000Z',
     });
 
     expect(result.ok).toBe(true);
-    expect(result.nextStatus).toBe('APPROVED');
-    expect(result.violations).toEqual([]);
+    expect(result.nextStatus).toBe('PENDING');
+  });
+
+  it('escalates pending workflow', () => {
+    const result = transitionWorkflow({
+      workflowId: 'wf-4',
+      currentStatus: 'PENDING',
+      decision: 'ESCALATE',
+      actorId: 'system',
+      at: '2026-03-01T10:00:00.000Z',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.nextStatus).toBe('ESCALATED');
   });
 
   it('rejects invalid transitions deterministically', () => {
     const result = transitionWorkflow({
-      workflowId: 'wf-2',
+      workflowId: 'wf-5',
       currentStatus: 'APPROVED',
       decision: 'REJECT',
       actorId: 'lead-1',
@@ -32,9 +70,9 @@ describe('transitionWorkflow', () => {
 
   it('sets decidedAt when at is omitted for valid transitions', () => {
     const result = transitionWorkflow({
-      workflowId: 'wf-3',
+      workflowId: 'wf-6',
       currentStatus: 'PENDING',
-      decision: 'ESCALATE',
+      decision: 'APPROVE',
       actorId: 'lead-2',
     });
 
@@ -44,7 +82,7 @@ describe('transitionWorkflow', () => {
 
   it('sets decidedAt when at is omitted for invalid transitions', () => {
     const result = transitionWorkflow({
-      workflowId: 'wf-4',
+      workflowId: 'wf-7',
       currentStatus: 'CANCELLED',
       decision: 'APPROVE',
       actorId: 'lead-2',
@@ -77,7 +115,9 @@ describe('resolveDelegation', () => {
 
     expect(result.approverId).toBe('lead-deputy');
     expect(result.escalated).toBe(true);
-    expect(result.traversed).toEqual(['lead-primary', 'lead-primary', 'lead-deputy']);
+    expect(result.traversed).toEqual(['lead-primary', 'lead-deputy']);
+    expect(result.cycleDetected).toBe(true);
+    expect(result.maxDepthReached).toBe(false);
   });
 
   it('falls back to primary approver when no candidate is available', () => {
@@ -110,14 +150,14 @@ describe('resolveDelegation', () => {
       at: '2026-03-01T10:00:00.000Z',
       fallbackChain: [
         {
-          approverId: 'lead-primary',
+          approverId: 'lead-deputy',
           isAvailable: true,
         },
       ],
     });
 
-    expect(result.approverId).toBe('lead-primary');
-    expect(result.escalated).toBe(false);
+    expect(result.approverId).toBe('lead-deputy');
+    expect(result.escalated).toBe(true);
   });
 
   it('treats missing activeTo as open-ended', () => {
@@ -154,6 +194,28 @@ describe('resolveDelegation', () => {
 
     expect(result.approverId).toBe('lead-deputy');
     expect(result.escalated).toBe(true);
+  });
+
+  it('stops traversal when max depth is reached', () => {
+    const result = resolveDelegation({
+      requesterId: 'employee-1',
+      primaryApproverId: 'lead-primary',
+      at: '2026-03-01T10:00:00.000Z',
+      maxDepth: 2,
+      fallbackChain: [
+        {
+          approverId: 'lead-2',
+          isAvailable: false,
+        },
+        {
+          approverId: 'lead-3',
+          isAvailable: true,
+        },
+      ],
+    });
+
+    expect(result.approverId).toBe('lead-primary');
+    expect(result.maxDepthReached).toBe(true);
   });
 });
 

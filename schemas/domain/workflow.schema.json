@@ -11,6 +11,7 @@
     "requesterId",
     "entityType",
     "entityId",
+    "escalationLevel",
     "createdAt",
     "updatedAt"
   ],
@@ -28,7 +29,7 @@
       ]
     },
     "status": {
-      "enum": ["PENDING", "APPROVED", "REJECTED", "ESCALATED", "CANCELLED"]
+      "enum": ["DRAFT", "SUBMITTED", "PENDING", "ESCALATED", "APPROVED", "REJECTED", "CANCELLED"]
     },
     "requesterId": {
       "$ref": "./_defs/common.schema.json#/$defs/id"
@@ -45,9 +46,37 @@
     "reason": {
       "type": ["string", "null"]
     },
+    "decisionReason": {
+      "type": ["string", "null"]
+    },
     "decidedAt": {
       "type": ["string", "null"],
       "format": "date-time"
+    },
+    "submittedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "dueAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "escalatedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "escalationLevel": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "requestPayload": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    },
+    "delegationTrail": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      }
     },
     "createdAt": {
       "$ref": "./_defs/common.schema.json#/$defs/dateTime"

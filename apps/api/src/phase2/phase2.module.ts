@@ -21,9 +21,18 @@ import { PoliciesController } from './controllers/policies.controller';
 import { IntegrationsController } from './controllers/integrations.controller';
 import { ReportsController } from './controllers/reports.controller';
 import { TimeEngineController } from './controllers/time-engine.controller';
+import { WorkflowRuntimeService } from './workflow-runtime.service';
+import { WorkflowEscalationService } from './workflow-escalation.service';
 
 @Module({
-  providers: [Phase2Service, TerminalGatewayService, HrImportService, StubHrMasterProvider],
+  providers: [
+    Phase2Service,
+    TerminalGatewayService,
+    HrImportService,
+    StubHrMasterProvider,
+    WorkflowRuntimeService,
+    WorkflowEscalationService,
+  ],
   controllers: [
     MeController,
     DashboardController,
@@ -44,6 +53,6 @@ import { TimeEngineController } from './controllers/time-engine.controller';
     ReportsController,
     TimeEngineController,
   ],
-  exports: [Phase2Service, TerminalGatewayService, HrImportService],
+  exports: [Phase2Service, TerminalGatewayService, HrImportService, WorkflowRuntimeService],
 })
 export class Phase2Module {}

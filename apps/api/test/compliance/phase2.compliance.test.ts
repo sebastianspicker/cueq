@@ -28,6 +28,61 @@ describe('Phase 2 compliance', () => {
     expect(response.status).toBe(403);
   });
 
+  it('denies non-assignee HR decisions on team-lead assigned leave workflow', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/v1/absences')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .send({
+        personId: SEED_IDS.personEmployee,
+        type: 'ANNUAL_LEAVE',
+        startDate: '2026-04-24',
+        endDate: '2026-04-24',
+      });
+    expect(created.status).toBe(201);
+
+    const leadInbox = await request(app.getHttpServer())
+      .get('/v1/workflows/inbox')
+      .set('Authorization', `Bearer ${TOKENS.lead}`);
+    const workflow = leadInbox.body.find(
+      (entry: { type: string; entityId: string }) =>
+        entry.type === 'LEAVE_REQUEST' && entry.entityId === created.body.id,
+    );
+    expect(workflow).toBeDefined();
+    if (!workflow) {
+      throw new Error('Expected leave workflow');
+    }
+
+    const hrDecision = await request(app.getHttpServer())
+      .post(`/v1/workflows/${workflow.id}/decision`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({ action: 'APPROVE', reason: 'Should be blocked for non-assignee' });
+
+    expect(hrDecision.status).toBe(403);
+  });
+
+  it('denies team lead approval on post-close correction workflow', async () => {
+    const created = await prisma.workflowInstance.create({
+      data: {
+        type: 'POST_CLOSE_CORRECTION',
+        status: 'PENDING',
+        requesterId: SEED_IDS.personHr,
+        approverId: SEED_IDS.personHr,
+        entityType: 'ClosingPeriod',
+        entityId: SEED_IDS.closingPeriod,
+        reason: 'Compliance post-close check',
+        submittedAt: new Date('2026-03-31T10:00:00.000Z'),
+        dueAt: new Date('2026-04-01T10:00:00.000Z'),
+      },
+    });
+
+    const leadDecision = await request(app.getHttpServer())
+      .post(`/v1/workflows/${created.id}/decision`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
+      .send({ action: 'APPROVE', reason: 'Lead cannot approve post-close' });
+
+    expect(leadDecision.status).toBe(403);
+  });
+
   it('denies non-planner roster write access', async () => {
     const payload = {
       organizationUnitId: SEED_IDS.ouSecurity,
