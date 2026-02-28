@@ -1,0 +1,28 @@
+import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Phase2Service } from '../phase2.service';
+
+@ApiTags('oncall')
+@ApiBearerAuth()
+@Controller('v1/oncall')
+export class OncallController {
+  constructor(@Inject(Phase2Service) private readonly phase2Service: Phase2Service) {}
+
+  @Post('deployments')
+  @ApiOperation({ summary: 'Create on-call deployment entry' })
+  createDeployment(@CurrentUser() user: AuthenticatedIdentity, @Body() payload: unknown) {
+    return this.phase2Service.createOnCallDeployment(user, payload);
+  }
+
+  @Get('compliance')
+  @ApiOperation({ summary: 'Evaluate on-call rest compliance' })
+  compliance(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Query('personId') personId?: string,
+    @Query('nextShiftStart') nextShiftStart?: string,
+  ) {
+    return this.phase2Service.onCallCompliance(user, personId, nextShiftStart);
+  }
+}

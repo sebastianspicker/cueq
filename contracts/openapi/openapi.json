@@ -15,6 +15,587 @@
           "health"
         ]
       }
+    },
+    "/v1/me": {
+      "get": {
+        "operationId": "MeController_getMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get current authenticated user profile",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/dashboard/me": {
+      "get": {
+        "operationId": "DashboardController_getDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get dashboard summary for the authenticated employee",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/v1/bookings/me": {
+      "get": {
+        "operationId": "BookingsController_listMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List bookings for the authenticated user",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/v1/bookings": {
+      "post": {
+        "operationId": "BookingsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/v1/absences": {
+      "post": {
+        "operationId": "AbsencesController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create absence request",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/absences/prorated-target": {
+      "post": {
+        "operationId": "AbsencesController_proratedTarget",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Calculate prorated monthly target for part-time transitions",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/absences/me": {
+      "get": {
+        "operationId": "AbsencesController_listMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List authenticated user absences",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/leave-balance/me": {
+      "get": {
+        "operationId": "LeaveBalanceController_getMe",
+        "parameters": [
+          {
+            "name": "year",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get leave balance for the authenticated user",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/calendar/team": {
+      "get": {
+        "operationId": "CalendarController_teamCalendar",
+        "parameters": [
+          {
+            "name": "start",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get team absence calendar with role-based redaction",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/v1/workflows/booking-corrections": {
+      "post": {
+        "operationId": "WorkflowsController_createCorrection",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create booking correction workflow request",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/inbox": {
+      "get": {
+        "operationId": "WorkflowsController_inbox",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List workflow inbox for authenticated approver/requester",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/{id}/decision": {
+      "post": {
+        "operationId": "WorkflowsController_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Approve or reject workflow instance",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/rosters/current": {
+      "get": {
+        "operationId": "RostersController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get currently active roster for authenticated user organization unit",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/plan-vs-actual": {
+      "get": {
+        "operationId": "RostersController_planVsActual",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Compute plan-vs-actual compliance for roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/oncall/deployments": {
+      "post": {
+        "operationId": "OncallController_createDeployment",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create on-call deployment entry",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/oncall/compliance": {
+      "get": {
+        "operationId": "OncallController_compliance",
+        "parameters": [
+          {
+            "name": "personId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nextShiftStart",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Evaluate on-call rest compliance",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/checklist": {
+      "get": {
+        "operationId": "ClosingController_checklist",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate checklist for closing period",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/approve": {
+      "post": {
+        "operationId": "ClosingController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Approve closing period",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/export": {
+      "post": {
+        "operationId": "ClosingController_exportRun",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export closing period run with deterministic checksum",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/post-close-corrections": {
+      "post": {
+        "operationId": "ClosingController_postCloseCorrection",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create post-close correction workflow",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/terminal/sync/batches": {
+      "post": {
+        "operationId": "TerminalSyncController_importBatch",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import terminal offline-sync batch (CSV adapter v0)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/sync/batches/{id}": {
+      "get": {
+        "operationId": "TerminalSyncController_getBatch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get imported terminal batch by id",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
     }
   },
   "info": {
@@ -29,12 +610,24 @@
       "description": "Health check endpoints"
     },
     {
+      "name": "auth",
+      "description": "Authentication and identity endpoints"
+    },
+    {
+      "name": "dashboard",
+      "description": "Employee dashboard endpoints"
+    },
+    {
       "name": "bookings",
       "description": "Time booking endpoints"
     },
     {
       "name": "absences",
       "description": "Absence and leave endpoints"
+    },
+    {
+      "name": "calendar",
+      "description": "Team calendar endpoints"
     },
     {
       "name": "roster",
@@ -45,8 +638,16 @@
       "description": "Approval workflow endpoints"
     },
     {
+      "name": "oncall",
+      "description": "On-call deployments and compliance endpoints"
+    },
+    {
       "name": "closing",
       "description": "Monthly closing endpoints"
+    },
+    {
+      "name": "terminal-sync",
+      "description": "Terminal offline sync endpoints"
     }
   ],
   "servers": [],

@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "description": "Policy-as-Code: versioned, testable, reviewable rules for time models, leave, compliance, and closing",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
@@ -12,9 +12,10 @@
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
     "test:unit": "vitest run",
+    "test:integration": "vitest run src/__tests__/policy.integration.test.ts",
     "test:golden": "vitest run --config vitest.golden.config.ts",
-    "test:acceptance": "vitest run --passWithNoTests",
-    "test:compliance": "vitest run --passWithNoTests",
+    "test:acceptance": "vitest run src/__tests__/policy.acceptance.test.ts",
+    "test:compliance": "vitest run src/__tests__/policy.compliance.test.ts",
     "clean": "rm -rf dist node_modules/.cache"
   },
   "dependencies": {

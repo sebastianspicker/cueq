@@ -9,11 +9,16 @@ export function buildOpenApiDocument(app: INestApplication) {
     )
     .setVersion('0.0.1')
     .addTag('health', 'Health check endpoints')
+    .addTag('auth', 'Authentication and identity endpoints')
+    .addTag('dashboard', 'Employee dashboard endpoints')
     .addTag('bookings', 'Time booking endpoints')
     .addTag('absences', 'Absence and leave endpoints')
+    .addTag('calendar', 'Team calendar endpoints')
     .addTag('roster', 'Shift planning endpoints')
     .addTag('workflows', 'Approval workflow endpoints')
+    .addTag('oncall', 'On-call deployments and compliance endpoints')
     .addTag('closing', 'Monthly closing endpoints')
+    .addTag('terminal-sync', 'Terminal offline sync endpoints')
     .addBearerAuth()
     .build();
 

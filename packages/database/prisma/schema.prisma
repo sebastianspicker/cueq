@@ -36,6 +36,7 @@ model Person {
   bookings          Booking[]
   absences          Absence[]
   timeAccounts      TimeAccount[]
+  onCallDeployments OnCallDeployment[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -234,6 +235,24 @@ model Absence {
   @@map("absences")
 }
 
+model OnCallDeployment {
+  id              String   @id @default(cuid())
+  personId        String
+  person          Person   @relation(fields: [personId], references: [id])
+  rotationId      String?
+  startTime       DateTime
+  endTime         DateTime
+  remote          Boolean  @default(true)
+  ticketReference String?
+  eventReference  String?
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([personId, startTime])
+  @@map("oncall_deployments")
+}
+
 enum AbsenceType {
   ANNUAL_LEAVE    /// Erholungsurlaub
   SICK            /// Krankheit
@@ -327,6 +346,19 @@ model ExportRun {
   exportedById    String
 
   @@map("export_runs")
+}
+
+model TerminalSyncBatch {
+  id            String   @id @default(cuid())
+  terminalId    String
+  sourceFile    String?
+  importedAt    DateTime @default(now())
+  importedById  String?
+  rawPayload    Json
+  resultPayload Json
+
+  @@index([terminalId, importedAt])
+  @@map("terminal_sync_batches")
 }
 
 // ---------------------------------------------------------------------------

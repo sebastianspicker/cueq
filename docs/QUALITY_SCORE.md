@@ -32,7 +32,7 @@
 
 | #     | Test                             | Phase Target |
 | ----- | -------------------------------- | ------------ |
-| AT-01 | Terminal offline → sync          | Phase 3      |
+| AT-01 | Terminal offline → sync          | Phase 2      |
 | AT-02 | Correction → delegation chain    | Phase 2      |
 | AT-03 | Roster plan-vs-actual            | Phase 2      |
 | AT-04 | Leave part-time carry-over       | Phase 2      |

@@ -1,0 +1,31 @@
+{
+  "app": {
+    "title": "cueq",
+    "subtitle": "Integriertes Zeiterfassungs-, Abwesenheits- und Dienstplansystem",
+    "localeSwitch": "Sprache",
+    "nav": {
+      "dashboard": "Dashboard",
+      "teamCalendar": "Team-Kalender",
+      "roster": "Dienstplan",
+      "approvals": "Freigaben"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Soll/Ist, Kontostand und Schnellaktionen"
+    },
+    "teamCalendar": {
+      "title": "Team-Kalender",
+      "description": "Datenschutzgerechte Abwesenheitsansicht"
+    },
+    "roster": {
+      "title": "Dienstplan",
+      "description": "Plan-Ist-Abgleich und Schichtübersicht"
+    },
+    "approvals": {
+      "title": "Freigabe-Postfach",
+      "description": "Anträge prüfen und entscheiden"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "app": {
+    "title": "cueq",
+    "subtitle": "Integrated time-tracking, absence, and roster planning",
+    "localeSwitch": "Language",
+    "nav": {
+      "dashboard": "Dashboard",
+      "teamCalendar": "Team Calendar",
+      "roster": "Roster",
+      "approvals": "Approvals"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Target/actual, balance and quick actions"
+    },
+    "teamCalendar": {
+      "title": "Team Calendar",
+      "description": "Privacy-safe absence overview"
+    },
+    "roster": {
+      "title": "Roster",
+      "description": "Plan-vs-actual and shift overview"
+    },
+    "approvals": {
+      "title": "Approval Inbox",
+      "description": "Review and decide pending requests"
+    }
+  }
+}

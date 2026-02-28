@@ -1,5 +1,9 @@
+import 'reflect-metadata';
 import { Module } from '@nestjs/common';
 import { HealthController } from './health/health.controller';
+import { AuthModule } from './common/auth/auth.module';
+import { PrismaModule } from './persistence/prisma.module';
+import { Phase2Module } from './phase2/phase2.module';
 
 /**
  * Root application module.
@@ -13,7 +17,7 @@ import { HealthController } from './health/health.controller';
  * - AuthModule (Phase 2)
  */
 @Module({
-  imports: [],
+  imports: [PrismaModule, AuthModule, Phase2Module],
   controllers: [HealthController],
   providers: [],
 })

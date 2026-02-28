@@ -12,15 +12,16 @@
     "lint": "eslint src/ test/",
     "lint:fix": "eslint src/ test/ --fix",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run test/health.smoke.test.ts",
     "test:unit": "vitest run",
-    "test:integration": "vitest run --passWithNoTests",
-    "test:acceptance": "vitest run --passWithNoTests",
-    "test:compliance": "vitest run --passWithNoTests",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:acceptance": "vitest run --config vitest.acceptance.config.ts",
+    "test:compliance": "vitest run --config vitest.compliance.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "clean": "rm -rf dist node_modules/.cache"
   },
   "dependencies": {
+    "@cueq/core": "workspace:*",
     "@cueq/database": "workspace:*",
     "@cueq/policy": "workspace:*",
     "@cueq/shared": "workspace:*",
@@ -28,6 +29,7 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/swagger": "^11.0.0",
+    "jose": "^6.1.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "zod": "^3.24.0"
@@ -37,6 +39,8 @@
     "@nestjs/testing": "^11.0.0",
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.1",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   }
