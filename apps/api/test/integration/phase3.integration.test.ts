@@ -154,6 +154,132 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
     ]);
   });
 
+  it('supports draft roster lifecycle, assignments, publish gate and plan-vs-actual metrics', async () => {
+    const createRoster = await request(app.getHttpServer())
+      .post('/v1/rosters')
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        organizationUnitId: SEED_IDS.ouSecurity,
+        periodStart: '2026-04-01T00:00:00.000Z',
+        periodEnd: '2026-04-30T23:59:59.000Z',
+      });
+
+    expect(createRoster.status).toBe(201);
+
+    const rosterId = createRoster.body.id as string;
+    const detail = await request(app.getHttpServer())
+      .get(`/v1/rosters/${rosterId}`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    expect(detail.status).toBe(200);
+    expect(Array.isArray(detail.body.members)).toBe(true);
+
+    const shift = await request(app.getHttpServer())
+      .post(`/v1/rosters/${rosterId}/shifts`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        startTime: '2026-04-05T08:00:00.000Z',
+        endTime: '2026-04-05T16:00:00.000Z',
+        shiftType: 'EARLY',
+        minStaffing: 2,
+      });
+    expect(shift.status).toBe(201);
+
+    const updatedShift = await request(app.getHttpServer())
+      .patch(`/v1/rosters/${rosterId}/shifts/${shift.body.id}`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        shiftType: 'DAY',
+      });
+    expect(updatedShift.status).toBe(200);
+    expect(updatedShift.body.shiftType).toBe('DAY');
+
+    const shiftToDelete = await request(app.getHttpServer())
+      .post(`/v1/rosters/${rosterId}/shifts`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        startTime: '2026-04-06T08:00:00.000Z',
+        endTime: '2026-04-06T16:00:00.000Z',
+        shiftType: 'EARLY',
+        minStaffing: 1,
+      });
+    expect(shiftToDelete.status).toBe(201);
+
+    const deletedShift = await request(app.getHttpServer())
+      .delete(`/v1/rosters/${rosterId}/shifts/${shiftToDelete.body.id}`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    expect(deletedShift.status).toBe(200);
+    expect(deletedShift.body.deleted).toBe(true);
+
+    const assign = await request(app.getHttpServer())
+      .post(`/v1/rosters/${rosterId}/shifts/${shift.body.id}/assignments`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        personId: SEED_IDS.personPlanner,
+      });
+    expect(assign.status).toBe(201);
+
+    const unassign = await request(app.getHttpServer())
+      .delete(`/v1/rosters/${rosterId}/shifts/${shift.body.id}/assignments/${assign.body.id}`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    expect(unassign.status).toBe(200);
+    expect(unassign.body.deleted).toBe(true);
+
+    const reassign = await request(app.getHttpServer())
+      .post(`/v1/rosters/${rosterId}/shifts/${shift.body.id}/assignments`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        personId: SEED_IDS.personPlanner,
+      });
+    expect(reassign.status).toBe(201);
+
+    const publishBlocked = await request(app.getHttpServer())
+      .post(`/v1/rosters/${rosterId}/publish`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    expect(publishBlocked.status).toBe(400);
+    const shortfalls =
+      publishBlocked.body.shortfalls ?? publishBlocked.body.message?.shortfalls ?? [];
+    expect(Array.isArray(shortfalls)).toBe(true);
+    expect(shortfalls[0]?.shortfall).toBe(1);
+
+    const reduceMinStaffing = await request(app.getHttpServer())
+      .patch(`/v1/rosters/${rosterId}/shifts/${shift.body.id}`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        minStaffing: 1,
+      });
+    expect(reduceMinStaffing.status).toBe(200);
+
+    const overlapBooking = await request(app.getHttpServer())
+      .post('/v1/bookings')
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        personId: SEED_IDS.personPlanner,
+        timeTypeId: SEED_IDS.timeTypeWork,
+        startTime: '2026-04-05T08:15:00.000Z',
+        endTime: '2026-04-05T15:45:00.000Z',
+        source: 'WEB',
+        shiftId: shift.body.id,
+      });
+    expect(overlapBooking.status).toBe(201);
+
+    const publish = await request(app.getHttpServer())
+      .post(`/v1/rosters/${rosterId}/publish`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    expect(publish.status).toBe(201);
+    expect(publish.body.status).toBe('PUBLISHED');
+
+    const planVsActual = await request(app.getHttpServer())
+      .get(`/v1/rosters/${rosterId}/plan-vs-actual`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    expect(planVsActual.status).toBe(200);
+    expect(planVsActual.body.totalSlots).toBe(1);
+    expect(planVsActual.body.mismatchedSlots).toBe(0);
+    expect(planVsActual.body.understaffedSlots).toBe(0);
+    expect(planVsActual.body.coverageRate).toBe(1);
+    expect(planVsActual.body.slots[0].plannedHeadcount).toBe(1);
+    expect(planVsActual.body.slots[0].actualHeadcount).toBe(1);
+  });
+
   it('creates and updates on-call rotations and enforces rotation-bound deployment', async () => {
     const createRotation = await request(app.getHttpServer())
       .post('/v1/oncall/rotations')

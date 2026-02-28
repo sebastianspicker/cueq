@@ -11,6 +11,7 @@ export * from './schemas/booking';
 export * from './schemas/absence';
 export * from './schemas/time-type';
 export * from './schemas/workflow';
+export * from './schemas/roster';
 export * from './schemas/oncall';
 export * from './schemas/policy';
 export * from './schemas/events';

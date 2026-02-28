@@ -24,6 +24,7 @@
 | `PayrollCsvRow` | `schemas/domain/payroll-csv-row.schema.json` | 4 |
 | `Person` | `schemas/domain/person.schema.json` | 11 |
 | `Roster` | `schemas/domain/roster.schema.json` | 8 |
+| `ShiftAssignment` | `schemas/domain/shift-assignment.schema.json` | 5 |
 | `Shift` | `schemas/domain/shift.schema.json` | 9 |
 | `TerminalHealth` | `schemas/domain/terminal-health.schema.json` | 2 |
 | `TerminalHeartbeat` | `schemas/domain/terminal-heartbeat.schema.json` | 5 |
@@ -41,4 +42,4 @@ make generate
 make schemas
 ```
 
-Last generated: 2026-02-28T18:02:08.640Z
+Last generated: 2026-02-28T18:38:27.191Z

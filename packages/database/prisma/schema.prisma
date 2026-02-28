@@ -36,6 +36,7 @@ model Person {
   bookings          Booking[]
   absences          Absence[]
   timeAccounts      TimeAccount[]
+  shiftAssignments  ShiftAssignment[]
   onCallRotations   OnCallRotation[]
   onCallDeployments OnCallDeployment[]
   createdAt         DateTime @default(now())
@@ -204,16 +205,31 @@ model Shift {
   id          String   @id @default(cuid())
   rosterId    String
   roster      Roster   @relation(fields: [rosterId], references: [id])
-  personId    String?  /// Assigned person (null = unassigned)
+  personId    String?  /// Deprecated compatibility field (single assignee)
   startTime   DateTime
   endTime     DateTime
   shiftType   String   /// e.g. "EARLY", "LATE", "NIGHT"
   minStaffing Int      @default(1)
   bookings    Booking[]
+  assignments ShiftAssignment[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("shifts")
+}
+
+model ShiftAssignment {
+  id        String   @id @default(cuid())
+  shiftId   String
+  shift     Shift    @relation(fields: [shiftId], references: [id])
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shiftId, personId])
+  @@index([personId, shiftId])
+  @@map("shift_assignments")
 }
 
 // ---------------------------------------------------------------------------

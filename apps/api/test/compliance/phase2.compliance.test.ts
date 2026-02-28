@@ -28,6 +28,45 @@ describe('Phase 2 compliance', () => {
     expect(response.status).toBe(403);
   });
 
+  it('denies non-planner roster write access', async () => {
+    const payload = {
+      organizationUnitId: SEED_IDS.ouSecurity,
+      periodStart: '2026-04-01T00:00:00.000Z',
+      periodEnd: '2026-04-30T23:59:59.000Z',
+    };
+
+    const employee = await request(app.getHttpServer())
+      .post('/v1/rosters')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .send(payload);
+    expect(employee.status).toBe(403);
+
+    const lead = await request(app.getHttpServer())
+      .post('/v1/rosters')
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
+      .send(payload);
+    expect(lead.status).toBe(403);
+
+    const hr = await request(app.getHttpServer())
+      .post('/v1/rosters')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send(payload);
+    expect(hr.status).toBe(403);
+  });
+
+  it('denies planner roster writes outside own organization unit', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/v1/rosters')
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        organizationUnitId: SEED_IDS.ouAdmin,
+        periodStart: '2026-04-01T00:00:00.000Z',
+        periodEnd: '2026-04-30T23:59:59.000Z',
+      });
+
+    expect(response.status).toBe(403);
+  });
+
   it('redacts absence reason for employee team-calendar view', async () => {
     const response = await request(app.getHttpServer())
       .get('/v1/calendar/team')
@@ -87,5 +126,29 @@ describe('Phase 2 compliance', () => {
 
     expect(latestAudit).not.toBeNull();
     expect(latestAudit?.entityType).toBe('Report');
+  });
+
+  it('writes audit entries for roster mutations', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/v1/rosters')
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        organizationUnitId: SEED_IDS.ouSecurity,
+        periodStart: '2026-04-01T00:00:00.000Z',
+        periodEnd: '2026-04-30T23:59:59.000Z',
+      });
+
+    expect(created.status).toBe(201);
+
+    const audit = await prisma.auditEntry.findFirst({
+      where: {
+        action: 'ROSTER_CREATED',
+        entityType: 'Roster',
+        entityId: created.body.id,
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    expect(audit).not.toBeNull();
   });
 });

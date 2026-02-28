@@ -291,6 +291,26 @@
         ]
       }
     },
+    "/v1/rosters": {
+      "post": {
+        "operationId": "RostersController_createRoster",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
     "/v1/rosters/current": {
       "get": {
         "operationId": "RostersController_current",
@@ -306,6 +326,247 @@
           }
         ],
         "summary": "Get currently active roster for authenticated user organization unit",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}": {
+      "get": {
+        "operationId": "RostersController_byId",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get roster detail with shifts and assignments",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts": {
+      "post": {
+        "operationId": "RostersController_createShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts/{shiftId}": {
+      "patch": {
+        "operationId": "RostersController_updateShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      },
+      "delete": {
+        "operationId": "RostersController_deleteShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete shift from draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts/{shiftId}/assignments": {
+      "post": {
+        "operationId": "RostersController_assignShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign person to shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts/{shiftId}/assignments/{assignmentId}": {
+      "delete": {
+        "operationId": "RostersController_unassignShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assignmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove person assignment from shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/publish": {
+      "post": {
+        "operationId": "RostersController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Publish draft roster after min-staffing checks",
         "tags": [
           "roster"
         ]

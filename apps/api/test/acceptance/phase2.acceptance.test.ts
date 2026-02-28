@@ -77,7 +77,21 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
       .set('Authorization', `Bearer ${TOKENS.planner}`);
 
     expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('complianceRate');
+    expect(response.body.totalSlots).toBe(1);
+    expect(response.body.mismatchedSlots).toBe(1);
+    expect(response.body.understaffedSlots).toBe(1);
+    expect(response.body.complianceRate).toBe(0);
+    expect(response.body.coverageRate).toBe(0);
+    expect(Array.isArray(response.body.slots)).toBe(true);
+    expect(response.body.slots[0]).toMatchObject({
+      shiftId: SEED_IDS.shiftNight,
+      minStaffing: 1,
+      assignedHeadcount: 1,
+      plannedHeadcount: 1,
+      actualHeadcount: 0,
+      delta: -1,
+      compliant: false,
+    });
   });
 
   it('AT-04 part-time prorated target uses deterministic segments', async () => {

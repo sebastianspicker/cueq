@@ -140,3 +140,114 @@ export function comparePlanVsActual(slots: PlanVsActualSlot[]): PlanVsActualResu
     complianceRate: roundToTwo((slots.length - mismatchedSlots) / slots.length),
   };
 }
+
+export interface PlanVsActualCoverageSlot {
+  shiftId: string;
+  startTime: string;
+  endTime: string;
+  shiftType: string;
+  minStaffing: number;
+  assignedPersonIds: string[];
+}
+
+export interface PlanVsActualBooking {
+  personId: string;
+  startTime: string;
+  endTime: string;
+  timeTypeCategory: string;
+}
+
+export interface PlanVsActualCoverageSlotResult {
+  shiftId: string;
+  startTime: string;
+  endTime: string;
+  shiftType: string;
+  minStaffing: number;
+  assignedHeadcount: number;
+  plannedHeadcount: number;
+  actualHeadcount: number;
+  delta: number;
+  compliant: boolean;
+}
+
+export interface PlanVsActualCoverageResult extends PlanVsActualResult {
+  understaffedSlots: number;
+  coverageRate: number;
+  slots: PlanVsActualCoverageSlotResult[];
+}
+
+function overlaps(startA: string, endA: string, startB: string, endB: string): boolean {
+  const aStart = new Date(startA).getTime();
+  const aEnd = new Date(endA).getTime();
+  const bStart = new Date(startB).getTime();
+  const bEnd = new Date(endB).getTime();
+
+  // Half-open interval overlap: [start, end)
+  return aStart < bEnd && bStart < aEnd;
+}
+
+export function evaluatePlanVsActualCoverage(
+  slots: PlanVsActualCoverageSlot[],
+  bookings: PlanVsActualBooking[],
+): PlanVsActualCoverageResult {
+  if (slots.length === 0) {
+    return {
+      totalSlots: 0,
+      mismatchedSlots: 0,
+      complianceRate: 1,
+      understaffedSlots: 0,
+      coverageRate: 1,
+      slots: [],
+    };
+  }
+
+  const allowedCategories = new Set(['WORK', 'DEPLOYMENT']);
+
+  const slotResults = slots.map((slot): PlanVsActualCoverageSlotResult => {
+    const assignedHeadcount = new Set(slot.assignedPersonIds).size;
+    const plannedHeadcount = Math.max(slot.minStaffing, assignedHeadcount);
+
+    const actualPersons = new Set(
+      bookings
+        .filter((booking) => allowedCategories.has(booking.timeTypeCategory))
+        .filter((booking) =>
+          overlaps(slot.startTime, slot.endTime, booking.startTime, booking.endTime),
+        )
+        .map((booking) => booking.personId),
+    );
+
+    const actualHeadcount = actualPersons.size;
+
+    return {
+      shiftId: slot.shiftId,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      shiftType: slot.shiftType,
+      minStaffing: slot.minStaffing,
+      assignedHeadcount,
+      plannedHeadcount,
+      actualHeadcount,
+      delta: actualHeadcount - plannedHeadcount,
+      compliant: actualHeadcount >= plannedHeadcount,
+    };
+  });
+
+  const summary = comparePlanVsActual(
+    slotResults.map((slot) => ({
+      slotId: slot.shiftId,
+      plannedHeadcount: slot.plannedHeadcount,
+      actualHeadcount: slot.actualHeadcount,
+    })),
+  );
+
+  const understaffedSlots = slotResults.filter(
+    (slot) => slot.actualHeadcount < slot.minStaffing,
+  ).length;
+
+  return {
+    ...summary,
+    understaffedSlots,
+    coverageRate: roundToTwo((slotResults.length - understaffedSlots) / slotResults.length),
+    slots: slotResults,
+  };
+}

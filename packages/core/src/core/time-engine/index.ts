@@ -4,7 +4,13 @@ import {
   DEFAULT_REST_RULE,
   DEFAULT_SURCHARGE_RULE,
 } from '@cueq/policy';
-import type { BreakRule, MaxHoursRule, RestRule, SurchargeCategory, SurchargeRule } from '@cueq/policy';
+import type {
+  BreakRule,
+  MaxHoursRule,
+  RestRule,
+  SurchargeCategory,
+  SurchargeRule,
+} from '@cueq/policy';
 import type {
   CoreFlextimeCalculationContract,
   CoreOnCallRestContract,
@@ -186,7 +192,10 @@ export type TimeRuleEvaluationInput = CoreTimeRuleEvaluationContract['input'] & 
   personCode?: string;
 };
 
-export type TimeRuleEvaluationResult = Omit<CoreTimeRuleEvaluationContract['output'], 'violations' | 'warnings'> & {
+export type TimeRuleEvaluationResult = Omit<
+  CoreTimeRuleEvaluationContract['output'],
+  'violations' | 'warnings'
+> & {
   violations: RuleViolation[];
   warnings: DomainWarning[];
 };

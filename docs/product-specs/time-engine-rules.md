@@ -56,19 +56,19 @@ The implementation is request-driven and policy-backed, with no DB migration req
 
 ## 4. Acceptance Matrix
 
-| Case | Coverage |
-| --- | --- |
-| Pause deficit after threshold | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts` |
-| Rest deficit across adjacent work intervals | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts` |
-| Max daily warning and extended-limit violation | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts` |
-| Max weekly violation | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts` |
-| Weekend/night overlap uses highest-only category | `fixtures/reference-calculations/time-engine-surcharge-weekend-night.json` + fixture parity |
-| Holiday outranks weekend/night | `fixtures/reference-calculations/time-engine-surcharge-holiday-overlap.json` + fixture parity |
-| Cross-midnight night classification | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts` |
-| API role restriction for endpoint | `apps/api/test/compliance/phase2.compliance.test.ts` |
-| API endpoint behavior and surcharge response | `apps/api/test/integration/phase3.integration.test.ts` |
-| OpenAPI includes endpoint path | `apps/api/test/integration/openapi.contract.test.ts` |
-| Web route availability (`/de` + `/en`) | `apps/web/tests/acceptance/phase2.acceptance.spec.ts` |
+| Case                                             | Coverage                                                                                      |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Pause deficit after threshold                    | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
+| Rest deficit across adjacent work intervals      | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
+| Max daily warning and extended-limit violation   | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
+| Max weekly violation                             | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
+| Weekend/night overlap uses highest-only category | `fixtures/reference-calculations/time-engine-surcharge-weekend-night.json` + fixture parity   |
+| Holiday outranks weekend/night                   | `fixtures/reference-calculations/time-engine-surcharge-holiday-overlap.json` + fixture parity |
+| Cross-midnight night classification              | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
+| API role restriction for endpoint                | `apps/api/test/compliance/phase2.compliance.test.ts`                                          |
+| API endpoint behavior and surcharge response     | `apps/api/test/integration/phase3.integration.test.ts`                                        |
+| OpenAPI includes endpoint path                   | `apps/api/test/integration/openapi.contract.test.ts`                                          |
+| Web route availability (`/de` + `/en`)           | `apps/web/tests/acceptance/phase2.acceptance.spec.ts`                                         |
 
 ## 5. Out of Scope
 

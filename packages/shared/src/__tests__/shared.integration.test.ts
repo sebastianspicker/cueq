@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CreateBookingSchema } from '../schemas/booking';
+import { CreateRosterSchema } from '../schemas/roster';
 import { TimeRuleEvaluationRequestSchema } from '../schemas/time-engine';
 
 describe('@cueq/shared integration', () => {
@@ -30,5 +31,15 @@ describe('@cueq/shared integration', () => {
     };
 
     expect(TimeRuleEvaluationRequestSchema.parse(payload)).toMatchObject(payload);
+  });
+
+  it('validates create roster payloads', () => {
+    const payload = {
+      organizationUnitId: 'c00000000000000000000001',
+      periodStart: '2026-03-01T00:00:00.000Z',
+      periodEnd: '2026-03-31T23:59:59.000Z',
+    };
+
+    expect(CreateRosterSchema.parse(payload)).toMatchObject(payload);
   });
 });

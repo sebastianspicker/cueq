@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { comparePlanVsActual, evaluateMinStaffing, evaluateShiftCompliance } from '..';
+import {
+  comparePlanVsActual,
+  evaluateMinStaffing,
+  evaluatePlanVsActualCoverage,
+  evaluateShiftCompliance,
+} from '..';
 
 describe('evaluateShiftCompliance', () => {
   it('detects impossible shift intervals', () => {
@@ -71,5 +76,135 @@ describe('comparePlanVsActual', () => {
     expect(result.totalSlots).toBe(0);
     expect(result.mismatchedSlots).toBe(0);
     expect(result.complianceRate).toBe(1);
+  });
+});
+
+describe('evaluatePlanVsActualCoverage', () => {
+  it('derives planned coverage from max(minStaffing, assignments)', () => {
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'shift-1',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T16:00:00.000Z',
+          shiftType: 'EARLY',
+          minStaffing: 2,
+          assignedPersonIds: ['p1'],
+        },
+      ],
+      [
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T08:30:00.000Z',
+          endTime: '2026-03-10T15:30:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+      ],
+    );
+
+    expect(result.totalSlots).toBe(1);
+    expect(result.mismatchedSlots).toBe(1);
+    expect(result.understaffedSlots).toBe(1);
+    expect(result.slots[0]?.plannedHeadcount).toBe(2);
+    expect(result.slots[0]?.actualHeadcount).toBe(1);
+    expect(result.slots[0]?.delta).toBe(-1);
+    expect(result.slots[0]?.compliant).toBe(false);
+  });
+
+  it('counts overlapping bookings by unique person only', () => {
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'shift-2',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T16:00:00.000Z',
+          shiftType: 'EARLY',
+          minStaffing: 1,
+          assignedPersonIds: ['p1'],
+        },
+      ],
+      [
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T12:00:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T12:30:00.000Z',
+          endTime: '2026-03-10T15:00:00.000Z',
+          timeTypeCategory: 'DEPLOYMENT',
+        },
+      ],
+    );
+
+    expect(result.slots[0]?.actualHeadcount).toBe(1);
+    expect(result.mismatchedSlots).toBe(0);
+  });
+
+  it('treats boundary-touching intervals as non-overlapping', () => {
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'shift-3',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T16:00:00.000Z',
+          shiftType: 'EARLY',
+          minStaffing: 1,
+          assignedPersonIds: ['p1'],
+        },
+      ],
+      [
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T06:00:00.000Z',
+          endTime: '2026-03-10T08:00:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+        {
+          personId: 'p2',
+          startTime: '2026-03-10T16:00:00.000Z',
+          endTime: '2026-03-10T18:00:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+      ],
+    );
+
+    expect(result.slots[0]?.actualHeadcount).toBe(0);
+    expect(result.understaffedSlots).toBe(1);
+  });
+
+  it('handles cross-midnight overlap and filters non-work categories', () => {
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'shift-4',
+          startTime: '2026-03-10T22:00:00.000Z',
+          endTime: '2026-03-11T06:00:00.000Z',
+          shiftType: 'NIGHT',
+          minStaffing: 1,
+          assignedPersonIds: ['p1'],
+        },
+      ],
+      [
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T23:00:00.000Z',
+          endTime: '2026-03-11T01:00:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+        {
+          personId: 'p2',
+          startTime: '2026-03-10T23:30:00.000Z',
+          endTime: '2026-03-11T00:30:00.000Z',
+          timeTypeCategory: 'PAUSE',
+        },
+      ],
+    );
+
+    expect(result.slots[0]?.actualHeadcount).toBe(1);
+    expect(result.mismatchedSlots).toBe(0);
+    expect(result.coverageRate).toBe(1);
   });
 });

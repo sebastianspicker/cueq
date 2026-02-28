@@ -64,6 +64,7 @@ async function reset() {
   await prisma.onCallRotation.deleteMany();
   await prisma.absence.deleteMany();
   await prisma.booking.deleteMany();
+  await prisma.shiftAssignment.deleteMany();
   await prisma.shift.deleteMany();
   await prisma.roster.deleteMany();
   await prisma.timeAccount.deleteMany();
@@ -234,6 +235,13 @@ async function seed() {
       endTime: new Date('2026-03-09T06:00:00.000Z'),
       shiftType: 'NIGHT',
       minStaffing: 1,
+    },
+  });
+
+  await prisma.shiftAssignment.create({
+    data: {
+      shiftId: IDs.shiftNight,
+      personId: IDs.personPlanner,
     },
   });
 

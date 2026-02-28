@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/shift-assignment.schema.json",
+  "title": "ShiftAssignment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "shiftId", "personId", "createdAt", "updatedAt"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "shiftId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "personId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

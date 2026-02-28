@@ -10,5 +10,6 @@ describe('@cueq/shared smoke test', () => {
     expect(shared.DomainEventEnvelopeSchema).toBeDefined();
     expect(shared.TeamAbsenceReportSchema).toBeDefined();
     expect(shared.TimeRuleEvaluationRequestSchema).toBeDefined();
+    expect(shared.CreateRosterSchema).toBeDefined();
   });
 });
