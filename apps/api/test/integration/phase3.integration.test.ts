@@ -113,7 +113,7 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       .query({ asOf: '2026-03-15' });
 
     expect(bundle.status).toBe(200);
-    expect(bundle.body.policies).toHaveLength(4);
+    expect(bundle.body.policies).toHaveLength(5);
 
     const history = await request(app.getHttpServer())
       .get('/v1/policies/history')
@@ -123,6 +123,35 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
     expect(history.status).toBe(200);
     expect(history.body.total).toBe(1);
     expect(history.body.entries[0].type).toBe('REST_RULE');
+  });
+
+  it('evaluates time-engine rules and returns surcharge classification', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/v1/time-engine/evaluate')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        week: '2026-W10',
+        targetHours: 0,
+        timezone: 'Europe/Berlin',
+        holidayDates: [],
+        intervals: [
+          {
+            start: '2026-03-07T21:00:00.000Z',
+            end: '2026-03-07T22:00:00.000Z',
+            type: 'WORK',
+          },
+        ],
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.actualHours).toBe(1);
+    expect(response.body.surchargeMinutes).toEqual([
+      {
+        category: 'WEEKEND',
+        ratePercent: 50,
+        minutes: 60,
+      },
+    ]);
   });
 
   it('creates and updates on-call rotations and enforces rotation-bound deployment', async () => {

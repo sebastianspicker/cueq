@@ -19,6 +19,8 @@ import {
   DEFAULT_MAX_HOURS_RULE,
   LeaveRuleSchema,
   DEFAULT_LEAVE_RULE,
+  SurchargeRuleSchema,
+  DEFAULT_SURCHARGE_RULE,
 } from '../index';
 
 describe('Golden Cases: Policy Rule Schema Validation', () => {
@@ -39,6 +41,11 @@ describe('Golden Cases: Policy Rule Schema Validation', () => {
 
   it('DEFAULT_LEAVE_RULE passes schema validation', () => {
     const result = LeaveRuleSchema.safeParse(DEFAULT_LEAVE_RULE);
+    expect(result.success).toBe(true);
+  });
+
+  it('DEFAULT_SURCHARGE_RULE passes schema validation', () => {
+    const result = SurchargeRuleSchema.safeParse(DEFAULT_SURCHARGE_RULE);
     expect(result.success).toBe(true);
   });
 });

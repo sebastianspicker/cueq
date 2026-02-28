@@ -2,10 +2,16 @@ import { DEFAULT_BREAK_RULE, type BreakRule } from './rules/break-rules';
 import { DEFAULT_LEAVE_RULE, type LeaveRule } from './rules/leave-rules';
 import { DEFAULT_MAX_HOURS_RULE, type MaxHoursRule } from './rules/max-hours-rules';
 import { DEFAULT_REST_RULE, type RestRule } from './rules/rest-rules';
+import { DEFAULT_SURCHARGE_RULE, type SurchargeRule } from './rules/surcharge-rules';
 
-export type PolicyRuleType = 'BREAK_RULE' | 'REST_RULE' | 'MAX_HOURS_RULE' | 'LEAVE_RULE';
+export type PolicyRuleType =
+  | 'BREAK_RULE'
+  | 'REST_RULE'
+  | 'MAX_HOURS_RULE'
+  | 'LEAVE_RULE'
+  | 'SURCHARGE_RULE';
 
-export type PolicyCatalogRule = BreakRule | RestRule | MaxHoursRule | LeaveRule;
+export type PolicyCatalogRule = BreakRule | RestRule | MaxHoursRule | LeaveRule | SurchargeRule;
 
 function parseDate(date: string): number {
   return new Date(`${date}T00:00:00.000Z`).getTime();
@@ -30,6 +36,7 @@ export const POLICY_HISTORY: ReadonlyArray<PolicyCatalogRule> = Object.freeze([
   DEFAULT_REST_RULE,
   DEFAULT_MAX_HOURS_RULE,
   DEFAULT_LEAVE_RULE,
+  DEFAULT_SURCHARGE_RULE,
 ]);
 
 export function getPolicyHistory(type?: PolicyRuleType): PolicyCatalogRule[] {

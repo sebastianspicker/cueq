@@ -22,4 +22,5 @@ export * from './rules/break-rules';
 export * from './rules/rest-rules';
 export * from './rules/max-hours-rules';
 export * from './rules/leave-rules';
+export * from './rules/surcharge-rules';
 export * from './catalog';

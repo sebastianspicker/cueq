@@ -8,6 +8,7 @@
       "teamCalendar": "Team-Kalender",
       "roster": "Dienstplan",
       "approvals": "Freigaben",
+      "timeEngine": "Time Engine",
       "closing": "Monatsabschluss",
       "reports": "Berichte"
     }
@@ -45,6 +46,22 @@
       "teamAbsence": "Team-Abwesenheit",
       "oeOvertime": "OE-Überstunden",
       "closingCompletion": "Abschlussquote"
+    },
+    "timeEngine": {
+      "title": "Time-Engine-Evaluator",
+      "description": "Sandbox-Endpunkt zur Bewertung von Pausen-, Ruhezeit-, Maximalstunden- und Zuschlagsregeln.",
+      "apiBaseLabel": "API-Basis-URL",
+      "tokenLabel": "Bearer-Token",
+      "payloadLabel": "Evaluations-Payload (JSON)",
+      "execute": "Auswerten",
+      "executing": "Wird ausgewertet...",
+      "resultTitle": "Ergebnis",
+      "violations": "Verstöße",
+      "warnings": "Warnungen",
+      "surcharge": "Zuschlagsminuten",
+      "emptyResult": "Noch kein Auswertungsergebnis vorhanden.",
+      "invalidJson": "Payload muss gültiges JSON sein.",
+      "requestFailed": "Anfrage fehlgeschlagen."
     }
   }
 }

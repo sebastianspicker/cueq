@@ -21,6 +21,7 @@ import {
   calculateLeaveQuota,
   calculateProratedMonthlyTarget,
   comparePlanVsActual,
+  evaluateTimeRules as evaluateTimeRulesCore,
   evaluateOnCallRestCompliance,
   generateClosingChecklist,
   resolveDelegation,
@@ -43,6 +44,7 @@ import {
   PolicyBundleQuerySchema,
   PolicyHistoryQuerySchema,
   TeamAbsenceQuerySchema,
+  TimeRuleEvaluationRequestSchema,
   UpdateOnCallRotationSchema,
   WorkflowDecisionSchema,
 } from '@cueq/shared';
@@ -58,6 +60,12 @@ const REPORT_ALLOWED_ROLES = new Set<Role>([
   Role.ADMIN,
   Role.DATA_PROTECTION,
   Role.WORKS_COUNCIL,
+]);
+const TIME_ENGINE_ALLOWED_ROLES = new Set<Role>([
+  Role.TEAM_LEAD,
+  Role.SHIFT_PLANNER,
+  Role.HR,
+  Role.ADMIN,
 ]);
 
 type ClosingActorRole = 'EMPLOYEE' | 'TEAM_LEAD' | 'HR' | 'ADMIN';
@@ -927,6 +935,33 @@ export class Phase2Service {
       rotationId: activeRotation?.id ?? null,
       ...result,
     };
+  }
+
+  async timeEngineEvaluate(user: AuthenticatedIdentity, payload: unknown) {
+    if (!TIME_ENGINE_ALLOWED_ROLES.has(user.role)) {
+      throw new ForbiddenException('Role does not permit time-engine rule evaluation.');
+    }
+
+    const actor = await this.personForUser(user);
+    const parsed = TimeRuleEvaluationRequestSchema.parse(payload ?? {});
+    const result = evaluateTimeRulesCore(parsed);
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'TIME_RULES_EVALUATED',
+      entityType: 'TimeRuleEvaluation',
+      entityId: `${parsed.week}:${new Date().toISOString()}`,
+      after: {
+        week: parsed.week,
+        timezone: parsed.timezone ?? 'Europe/Berlin',
+        intervalCount: parsed.intervals.length,
+        violations: result.violations.length,
+        warnings: result.warnings.length,
+        surchargeLines: result.surchargeMinutes,
+      },
+    });
+
+    return result;
   }
 
   async listClosingPeriods(

@@ -10,12 +10,13 @@ describe('@cueq/policy integration', () => {
 
   it('resolves active policy bundle by as-of date', () => {
     const bundle = getActivePolicyBundle('2026-03-15');
-    expect(bundle).toHaveLength(4);
+    expect(bundle).toHaveLength(5);
     expect(bundle.map((entry) => entry.type)).toEqual([
       'BREAK_RULE',
       'LEAVE_RULE',
       'MAX_HOURS_RULE',
       'REST_RULE',
+      'SURCHARGE_RULE',
     ]);
   });
 

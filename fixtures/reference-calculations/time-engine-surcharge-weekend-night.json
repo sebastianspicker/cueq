@@ -1,0 +1,32 @@
+{
+  "id": "time-engine-surcharge-weekend-night",
+  "scenario": "Weekend night overlap uses highest-only surcharge",
+  "description": "Synthetic rule-engine case for weekend/night overlap precedence.",
+  "policyVersion": 1,
+  "input": {
+    "week": "2026-W10",
+    "targetHours": 0,
+    "timezone": "Europe/Berlin",
+    "holidayDates": [],
+    "intervals": [
+      {
+        "start": "2026-03-07T21:00:00.000Z",
+        "end": "2026-03-07T22:00:00.000Z",
+        "type": "WORK"
+      }
+    ]
+  },
+  "expected": {
+    "actualHours": 1,
+    "deltaHours": 1,
+    "violations": [],
+    "warnings": [],
+    "surchargeMinutes": [
+      {
+        "category": "WEEKEND",
+        "ratePercent": 50,
+        "minutes": 60
+      }
+    ]
+  }
+}

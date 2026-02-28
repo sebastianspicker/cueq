@@ -16,6 +16,7 @@
 | `CoreOnCallRestContract` | `schemas/domain/core-oncall-rest.schema.json` | 2 |
 | `CoreProratedTargetContract` | `schemas/domain/core-prorated-target.schema.json` | 2 |
 | `CoreShiftComplianceContract` | `schemas/domain/core-shift-compliance.schema.json` | 2 |
+| `CoreTimeRuleEvaluationContract` | `schemas/domain/core-time-rule-evaluation.schema.json` | 2 |
 | `CoreWorkflowTransitionContract` | `schemas/domain/core-workflow-transition.schema.json` | 2 |
 | `ExportRun` | `schemas/domain/export-run.schema.json` | 7 |
 | `HrImportRun` | `schemas/domain/hr-import-run.schema.json` | 12 |
@@ -40,4 +41,4 @@ make generate
 make schemas
 ```
 
-Last generated: 2026-02-28T17:24:52.217Z
+Last generated: 2026-02-28T18:02:08.640Z

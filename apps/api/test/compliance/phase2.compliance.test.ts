@@ -51,6 +51,25 @@ describe('Phase 2 compliance', () => {
     expect(response.status).toBe(403);
   });
 
+  it('denies employee access to time-engine evaluation endpoint', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/v1/time-engine/evaluate')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .send({
+        week: '2026-W10',
+        targetHours: 0,
+        intervals: [
+          {
+            start: '2026-03-03T07:00:00.000Z',
+            end: '2026-03-03T08:00:00.000Z',
+            type: 'WORK',
+          },
+        ],
+      });
+
+    expect(response.status).toBe(403);
+  });
+
   it('logs report access in append-only audit trail', async () => {
     const report = await request(app.getHttpServer())
       .get('/v1/reports/closing-completion')

@@ -1064,6 +1064,26 @@
           "reports"
         ]
       }
+    },
+    "/v1/time-engine/evaluate": {
+      "post": {
+        "operationId": "TimeEngineController_evaluate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Evaluate time rules (break, rest, max-hours, surcharges)",
+        "tags": [
+          "time-engine"
+        ]
+      }
     }
   },
   "info": {
@@ -1124,6 +1144,10 @@
     {
       "name": "policy",
       "description": "Policy catalog and introspection endpoints"
+    },
+    {
+      "name": "time-engine",
+      "description": "Rule evaluation endpoints for breaks, rest, max-hours, and surcharges"
     },
     {
       "name": "integrations",

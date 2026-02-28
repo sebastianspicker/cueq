@@ -5,6 +5,7 @@ export const PolicyRuleTypeSchema = z.enum([
   'REST_RULE',
   'MAX_HOURS_RULE',
   'LEAVE_RULE',
+  'SURCHARGE_RULE',
 ]);
 export type PolicyRuleType = z.infer<typeof PolicyRuleTypeSchema>;
 

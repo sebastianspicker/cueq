@@ -25,6 +25,7 @@ describe('Phase 3 integration: OpenAPI contract', () => {
       '/v1/me',
       '/v1/policies',
       '/v1/policies/history',
+      '/v1/time-engine/evaluate',
       '/v1/dashboard/me',
       '/v1/bookings/me',
       '/v1/bookings',

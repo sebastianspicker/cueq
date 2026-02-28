@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateFlextimeWeek,
   calculateProratedMonthlyTarget,
+  evaluateTimeRules,
   evaluateOnCallRestCompliance,
   evaluateShiftCompliance,
 } from '../..';
@@ -26,7 +27,7 @@ describe('reference fixture parity', () => {
     const fixtureFiles = (await readdir(fixturesDir))
       .filter((file) => file.endsWith('.json'))
       .sort();
-    expect(fixtureFiles.length).toBe(4);
+    expect(fixtureFiles.length).toBe(6);
 
     for (const file of fixtureFiles) {
       const fixture = await readFixture(resolve(fixturesDir, file));
@@ -61,6 +62,26 @@ describe('reference fixture parity', () => {
         expect(result.minimumRestHours).toBe(fixture.expected.minimumRestHours);
         expect(result.compliant).toBe(fixture.expected.compliant);
         expect(result.violations).toEqual(fixture.expected.violations);
+        continue;
+      }
+
+      if (fixture.id === 'time-engine-surcharge-weekend-night') {
+        const result = evaluateTimeRules(fixture.input as never);
+        expect(result.actualHours).toBe(fixture.expected.actualHours);
+        expect(result.deltaHours).toBe(fixture.expected.deltaHours);
+        expect(result.violations).toEqual(fixture.expected.violations);
+        expect(result.warnings).toEqual(fixture.expected.warnings);
+        expect(result.surchargeMinutes).toEqual(fixture.expected.surchargeMinutes);
+        continue;
+      }
+
+      if (fixture.id === 'time-engine-surcharge-holiday-overlap') {
+        const result = evaluateTimeRules(fixture.input as never);
+        expect(result.actualHours).toBe(fixture.expected.actualHours);
+        expect(result.deltaHours).toBe(fixture.expected.deltaHours);
+        expect(result.violations).toEqual(fixture.expected.violations);
+        expect(result.warnings).toEqual(fixture.expected.warnings);
+        expect(result.surchargeMinutes).toEqual(fixture.expected.surchargeMinutes);
         continue;
       }
 

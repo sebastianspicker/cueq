@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateFlextimeWeek, evaluateOnCallRestCompliance } from '..';
+import { calculateFlextimeWeek, evaluateOnCallRestCompliance, evaluateTimeRules } from '..';
 
 describe('calculateFlextimeWeek', () => {
   it('detects break deficits', () => {
@@ -120,5 +120,92 @@ describe('evaluateOnCallRestCompliance', () => {
 
     expect(result.compliant).toBe(true);
     expect(result.violations).toEqual([]);
+  });
+});
+
+describe('evaluateTimeRules', () => {
+  it('detects break and max-hour deficits from interval inputs', () => {
+    const result = evaluateTimeRules({
+      week: '2026-W10',
+      targetHours: 39.83,
+      timezone: 'Europe/Berlin',
+      intervals: [
+        { start: '2026-03-03T07:00:00.000Z', end: '2026-03-03T18:30:00.000Z', type: 'WORK' },
+        { start: '2026-03-03T12:00:00.000Z', end: '2026-03-03T12:15:00.000Z', type: 'PAUSE' },
+      ],
+      holidayDates: [],
+    });
+
+    expect(result.violations.some((violation) => violation.code === 'BREAK_DEFICIT')).toBe(true);
+    expect(
+      result.violations.some((violation) => violation.code === 'MAX_DAILY_HOURS_EXCEEDED'),
+    ).toBe(true);
+  });
+
+  it('classifies surcharge minutes using highest-only overlap precedence', () => {
+    const result = evaluateTimeRules({
+      week: '2026-W10',
+      targetHours: 39.83,
+      timezone: 'Europe/Berlin',
+      intervals: [
+        {
+          start: '2026-03-07T21:00:00.000Z',
+          end: '2026-03-07T22:00:00.000Z',
+          type: 'WORK',
+        },
+      ],
+      holidayDates: [],
+    });
+
+    expect(result.surchargeMinutes.some((line) => line.category === 'WEEKEND')).toBe(true);
+    expect(result.surchargeMinutes.some((line) => line.category === 'NIGHT')).toBe(false);
+  });
+
+  it('prefers holiday surcharge over weekend and night when all overlap', () => {
+    const result = evaluateTimeRules({
+      week: '2026-W14',
+      targetHours: 0,
+      timezone: 'Europe/Berlin',
+      intervals: [
+        {
+          start: '2026-04-05T20:00:00.000Z',
+          end: '2026-04-05T21:00:00.000Z',
+          type: 'WORK',
+        },
+      ],
+      holidayDates: ['2026-04-05'],
+    });
+
+    expect(result.surchargeMinutes).toEqual([
+      {
+        category: 'HOLIDAY',
+        ratePercent: 100,
+        minutes: 60,
+      },
+    ]);
+  });
+
+  it('classifies cross-midnight minutes into the night surcharge bucket', () => {
+    const result = evaluateTimeRules({
+      week: '2026-W10',
+      targetHours: 0,
+      timezone: 'Europe/Berlin',
+      intervals: [
+        {
+          start: '2026-03-03T22:30:00.000Z',
+          end: '2026-03-04T01:30:00.000Z',
+          type: 'WORK',
+        },
+      ],
+      holidayDates: [],
+    });
+
+    expect(result.surchargeMinutes).toEqual([
+      {
+        category: 'NIGHT',
+        ratePercent: 25,
+        minutes: 180,
+      },
+    ]);
   });
 });

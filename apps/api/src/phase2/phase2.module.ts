@@ -19,6 +19,7 @@ import { StubHrMasterProvider } from './hr-master-provider.port';
 import { PoliciesController } from './controllers/policies.controller';
 import { IntegrationsController } from './controllers/integrations.controller';
 import { ReportsController } from './controllers/reports.controller';
+import { TimeEngineController } from './controllers/time-engine.controller';
 
 @Module({
   providers: [Phase2Service, TerminalGatewayService, HrImportService, StubHrMasterProvider],
@@ -39,6 +40,7 @@ import { ReportsController } from './controllers/reports.controller';
     PoliciesController,
     IntegrationsController,
     ReportsController,
+    TimeEngineController,
   ],
   exports: [Phase2Service, TerminalGatewayService, HrImportService],
 })

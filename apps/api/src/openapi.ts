@@ -21,6 +21,7 @@ export function buildOpenApiDocument(app: INestApplication) {
     .addTag('terminal-sync', 'Terminal offline sync endpoints')
     .addTag('hr-import', 'HR master data import endpoints')
     .addTag('policy', 'Policy catalog and introspection endpoints')
+    .addTag('time-engine', 'Rule evaluation endpoints for breaks, rest, max-hours, and surcharges')
     .addTag('integrations', 'Event outbox and webhook delivery endpoints')
     .addTag('reports', 'Privacy-preserving aggregated reporting endpoints')
     .addBearerAuth()

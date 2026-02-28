@@ -8,6 +8,7 @@
       "teamCalendar": "Team Calendar",
       "roster": "Roster",
       "approvals": "Approvals",
+      "timeEngine": "Time Engine",
       "closing": "Closing",
       "reports": "Reports"
     }
@@ -45,6 +46,22 @@
       "teamAbsence": "Team Absence",
       "oeOvertime": "OU Overtime",
       "closingCompletion": "Closing Completion"
+    },
+    "timeEngine": {
+      "title": "Time Engine Evaluator",
+      "description": "Sandbox endpoint for break, rest, max-hours and surcharge rule evaluation.",
+      "apiBaseLabel": "API base URL",
+      "tokenLabel": "Bearer token",
+      "payloadLabel": "Evaluation payload (JSON)",
+      "execute": "Evaluate",
+      "executing": "Evaluating...",
+      "resultTitle": "Result",
+      "violations": "Violations",
+      "warnings": "Warnings",
+      "surcharge": "Surcharge Minutes",
+      "emptyResult": "No evaluation result yet.",
+      "invalidJson": "Payload must be valid JSON.",
+      "requestFailed": "Request failed."
     }
   }
 }
