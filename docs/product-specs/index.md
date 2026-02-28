@@ -18,16 +18,17 @@ These specs define what makes CueQ uniquely better than alternatives like NovaTi
 
 These specs ensure CueQ matches baseline functionality (time, leave, roster, export, org):
 
-| Spec                                                            | Description                                          | Source       | Status     |
-| --------------------------------------------------------------- | ---------------------------------------------------- | ------------ | ---------- |
-| [New User Onboarding](new-user-onboarding.md)                   | First-time employee: SSO → dashboard → first booking | PRD §6 UJ1   | 📝 Draft   |
-| [Phase 2 Acceptance Scenarios](phase-2-acceptance-scenarios.md) | Canonical AT-01..AT-07 scenarios for phase gate      | Phase 2 Plan | 🟡 Active  |
-| Time Engine Rules                                               | Rule evaluation: pauses, rest, max-hours, surcharges | PRD FR-200   | 🔜 Planned |
-| Roster & Shift Planning                                         | Shift creation, min-staffing, plan-vs-actual         | PRD FR-300   | 🔜 Planned |
-| Absence & Leave                                                 | Leave quotas, carry-over, forfeiture, team calendar  | PRD FR-400   | 🔜 Planned |
-| Workflows & Approvals                                           | State machine, delegation, escalation                | PRD FR-500   | 🔜 Planned |
-| Monthly Closing                                                 | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | 🔜 Planned |
-| Reports & Export                                                | Payroll export, audit reports, compliance reports    | PRD FR-700   | 🔜 Planned |
+| Spec                                                            | Description                                          | Source       | Status      |
+| --------------------------------------------------------------- | ---------------------------------------------------- | ------------ | ----------- |
+| [New User Onboarding](new-user-onboarding.md)                   | First-time employee: SSO → dashboard → first booking | PRD §6 UJ1   | 📝 Draft    |
+| [Phase 2 Acceptance Scenarios](phase-2-acceptance-scenarios.md) | Canonical AT-01..AT-07 scenarios for phase gate      | Phase 2 Plan | 🟡 Active   |
+| [Phase 3 Acceptance Scenarios](phase-3-acceptance-scenarios.md) | Canonical AT-01..AT-08 scenarios for phase gate      | Phase 3 Plan | ✅ Complete |
+| Time Engine Rules                                               | Rule evaluation: pauses, rest, max-hours, surcharges | PRD FR-200   | 🔜 Planned  |
+| Roster & Shift Planning                                         | Shift creation, min-staffing, plan-vs-actual         | PRD FR-300   | 🔜 Planned  |
+| Absence & Leave                                                 | Leave quotas, carry-over, forfeiture, team calendar  | PRD FR-400   | 🔜 Planned  |
+| Workflows & Approvals                                           | State machine, delegation, escalation                | PRD FR-500   | 🔜 Planned  |
+| Monthly Closing                                                 | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | 🔜 Planned  |
+| Reports & Export                                                | Payroll export, audit reports, compliance reports    | PRD FR-700   | 🔜 Planned  |
 
 ## Traceability
 

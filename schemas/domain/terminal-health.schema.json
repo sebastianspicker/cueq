@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/terminal-health.schema.json",
+  "title": "TerminalHealth",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["terminals", "generatedAt"],
+  "properties": {
+    "generatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "terminals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "terminalId",
+          "isActive",
+          "lastSeenAt",
+          "heartbeatAgeSeconds",
+          "lastErrorCount"
+        ],
+        "properties": {
+          "terminalId": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "lastSeenAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "heartbeatAgeSeconds": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "lastErrorCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

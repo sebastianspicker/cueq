@@ -18,13 +18,14 @@
 
 ## 2. Test Suite Performance
 
-| Suite                                 | Max Duration | Notes                               |
-| ------------------------------------- | ------------ | ----------------------------------- |
-| Unit (`make test-unit`)               | <10 seconds  | Pure logic; no I/O                  |
-| Integration (`make test-integration`) | <60 seconds  | Docker-based; DB + mock SSO         |
-| Acceptance (`make test-acceptance`)   | <5 minutes   | Full stack; 8 MVP scenarios         |
-| Compliance (`make test-compliance`)   | <30 seconds  | Role visibility, audit immutability |
-| All (`make test-all`)                 | <7 minutes   | Sum of above                        |
+| Suite                                       | Max Duration | Notes                                |
+| ------------------------------------------- | ------------ | ------------------------------------ |
+| Unit (`make test-unit`)                     | <10 seconds  | Pure logic; no I/O                   |
+| Integration (`make test-integration`)       | <60 seconds  | Docker-based; DB + mock SSO          |
+| Acceptance (`make test-acceptance`)         | <5 minutes   | Full stack; 8 MVP scenarios          |
+| Backup/restore (`make test-backup-restore`) | <2 minutes   | Schema-isolated restore parity check |
+| Compliance (`make test-compliance`)         | <30 seconds  | Role visibility, audit immutability  |
+| All (`make test-all`)                       | <7 minutes   | Sum of above                         |
 
 ---
 
@@ -32,13 +33,13 @@
 
 | #     | Test                             | Phase Target |
 | ----- | -------------------------------- | ------------ |
-| AT-01 | Terminal offline → sync          | Phase 2      |
-| AT-02 | Correction → delegation chain    | Phase 2      |
-| AT-03 | Roster plan-vs-actual            | Phase 2      |
-| AT-04 | Leave part-time carry-over       | Phase 2      |
-| AT-05 | On-call + Sunday deployment      | Phase 2      |
-| AT-06 | Closing + export + HR correction | Phase 2      |
-| AT-07 | Role-based visibility            | Phase 2      |
+| AT-01 | Terminal offline → sync          | Phase 3      |
+| AT-02 | Correction → delegation chain    | Phase 3      |
+| AT-03 | Roster plan-vs-actual            | Phase 3      |
+| AT-04 | Leave part-time carry-over       | Phase 3      |
+| AT-05 | On-call + Sunday deployment      | Phase 3      |
+| AT-06 | Closing + export + HR correction | Phase 3      |
+| AT-07 | Role-based visibility            | Phase 3      |
 | AT-08 | Backup / restore                 | Phase 3      |
 
 **Quality gate**: No phase is complete until its designated acceptance tests pass.

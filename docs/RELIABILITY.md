@@ -59,6 +59,11 @@ The automated backup/restore test verifies:
 3. Restore to a clean environment
 4. Verify data integrity (row counts, checksums, audit trail intact)
 
+### Operational Commands
+
+- Local verification: `make test-backup-restore`
+- CI weekly drill: `.github/workflows/backup-restore-weekly.yml`
+
 ---
 
 ## 4. Monitoring & Alerting
@@ -74,6 +79,13 @@ The automated backup/restore test verifies:
 | Disk / resource usage | System metrics                   | >80% threshold                    |
 
 > **TODO: confirm** — Monitoring stack (Prometheus/Grafana, Datadog, or university-provided) to be decided.
+
+Health payload now includes operational snapshots for:
+
+- terminal last-seen/stale counts
+- latest HR import run
+- latest payroll export run
+- latest backup/restore verification audit event
 
 ---
 
@@ -124,3 +136,4 @@ The automated backup/restore test verifies:
 - [`SECURITY.md`](SECURITY.md) — Security controls and threat model
 - [`QUALITY_SCORE.md`](QUALITY_SCORE.md) — Operational quality targets
 - [`PLANS.md`](PLANS.md) — Phase 3 includes operational hardening
+- [`OPERATIONS_RUNBOOK.md`](OPERATIONS_RUNBOOK.md) — Day-2 operational procedures

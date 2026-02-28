@@ -8,6 +8,7 @@
 |---|---|---|
 | `Absence` | `schemas/domain/absence.schema.json` | 10 |
 | `AuditEntry` | `schemas/domain/audit-entry.schema.json` | 10 |
+| `BackupRestoreReport` | `schemas/domain/backup-restore-report.schema.json` | 4 |
 | `Booking` | `schemas/domain/booking.schema.json` | 10 |
 | `CoreAuditEntryDraftContract` | `schemas/domain/core-audit-entry-draft.schema.json` | 2 |
 | `CoreClosingContract` | `schemas/domain/core-closing.schema.json` | 3 |
@@ -17,10 +18,14 @@
 | `CoreShiftComplianceContract` | `schemas/domain/core-shift-compliance.schema.json` | 2 |
 | `CoreWorkflowTransitionContract` | `schemas/domain/core-workflow-transition.schema.json` | 2 |
 | `ExportRun` | `schemas/domain/export-run.schema.json` | 7 |
+| `HrImportRun` | `schemas/domain/hr-import-run.schema.json` | 12 |
 | `OrganizationUnit` | `schemas/domain/org-unit.schema.json` | 5 |
+| `PayrollCsvRow` | `schemas/domain/payroll-csv-row.schema.json` | 4 |
 | `Person` | `schemas/domain/person.schema.json` | 11 |
 | `Roster` | `schemas/domain/roster.schema.json` | 8 |
 | `Shift` | `schemas/domain/shift.schema.json` | 9 |
+| `TerminalHealth` | `schemas/domain/terminal-health.schema.json` | 2 |
+| `TerminalHeartbeat` | `schemas/domain/terminal-heartbeat.schema.json` | 5 |
 | `TimeAccount` | `schemas/domain/time-account.schema.json` | 10 |
 | `TimeType` | `schemas/domain/time-type.schema.json` | 8 |
 | `WorkTimeModel` | `schemas/domain/work-time-model.schema.json` | 11 |
@@ -35,4 +40,4 @@ make generate
 make schemas
 ```
 
-Last generated: 2026-02-28T15:00:42.057Z
+Last generated: 2026-02-28T15:38:39.597Z

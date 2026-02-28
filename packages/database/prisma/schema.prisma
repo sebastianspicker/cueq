@@ -342,15 +342,48 @@ model ExportRun {
   format          String   /// e.g. "CSV", "XML"
   recordCount     Int
   checksum        String   /// SHA-256 of export content
+  artifact        String?  /// Export payload artifact (e.g. canonical CSV body)
+  contentType     String?  /// e.g. "text/csv"
   exportedAt      DateTime @default(now())
   exportedById    String
 
   @@map("export_runs")
 }
 
+model TerminalDevice {
+  id             String   @id @default(cuid())
+  terminalId     String   @unique
+  name           String?
+  isActive       Boolean  @default(true)
+  lastSeenAt     DateTime?
+  lastErrorCount Int      @default(0)
+  heartbeats     TerminalHeartbeat[]
+  syncBatches    TerminalSyncBatch[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("terminal_devices")
+}
+
+model TerminalHeartbeat {
+  id               String   @id @default(cuid())
+  terminalDeviceId String
+  terminalDevice   TerminalDevice @relation(fields: [terminalDeviceId], references: [id])
+  observedAt       DateTime
+  bufferedRecords  Int      @default(0)
+  errorCount       Int      @default(0)
+  details          Json?
+  createdAt        DateTime @default(now())
+
+  @@index([terminalDeviceId, observedAt])
+  @@map("terminal_heartbeats")
+}
+
 model TerminalSyncBatch {
   id            String   @id @default(cuid())
   terminalId    String
+  terminalDeviceId String?
+  terminalDevice TerminalDevice? @relation(fields: [terminalDeviceId], references: [id])
   sourceFile    String?
   importedAt    DateTime @default(now())
   importedById  String?
@@ -358,7 +391,26 @@ model TerminalSyncBatch {
   resultPayload Json
 
   @@index([terminalId, importedAt])
+  @@index([terminalDeviceId])
   @@map("terminal_sync_batches")
+}
+
+model HrImportRun {
+  id            String   @id @default(cuid())
+  source        String   /// FILE|API
+  sourceFile    String?
+  status        String   /// SUCCEEDED|FAILED
+  totalRows     Int      @default(0)
+  createdRows   Int      @default(0)
+  updatedRows   Int      @default(0)
+  skippedRows   Int      @default(0)
+  errorCount    Int      @default(0)
+  summary       Json
+  importedById  String?
+  importedAt    DateTime @default(now())
+
+  @@index([importedAt])
+  @@map("hr_import_runs")
 }
 
 // ---------------------------------------------------------------------------

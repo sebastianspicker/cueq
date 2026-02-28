@@ -506,7 +506,44 @@
             "bearer": []
           }
         ],
-        "summary": "Export closing period run with deterministic checksum",
+        "summary": "Export closing period run with deterministic CSV checksum",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{closingPeriodId}/export-runs/{runId}/csv": {
+      "get": {
+        "operationId": "ClosingController_downloadCsv",
+        "parameters": [
+          {
+            "name": "closingPeriodId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Download canonical payroll CSV artifact for an export run",
         "tags": [
           "closing"
         ]
@@ -596,6 +633,89 @@
           "terminal-sync"
         ]
       }
+    },
+    "/v1/terminal/heartbeats": {
+      "post": {
+        "operationId": "TerminalIntegrationController_recordHeartbeat",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Record terminal heartbeat (integration token required)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/health": {
+      "get": {
+        "operationId": "TerminalIntegrationController_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read terminal health snapshot (integration token required)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/hr/import-runs": {
+      "post": {
+        "operationId": "HrImportController_runImport",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Run HR master data import (file/API, integration token required)",
+        "tags": [
+          "hr-import"
+        ]
+      }
+    },
+    "/v1/hr/import-runs/{id}": {
+      "get": {
+        "operationId": "HrImportController_getImportRun",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get HR import run by id (integration token required)",
+        "tags": [
+          "hr-import"
+        ]
+      }
     }
   },
   "info": {
@@ -648,6 +768,10 @@
     {
       "name": "terminal-sync",
       "description": "Terminal offline sync endpoints"
+    },
+    {
+      "name": "hr-import",
+      "description": "HR master data import endpoints"
     }
   ],
   "servers": [],

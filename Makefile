@@ -92,6 +92,10 @@ test-compliance: ## Run GDPR/audit compliance tests
 test-all: ## Run all test suites
 	$(SCRIPTS)/pnpm.sh test:all
 
+.PHONY: test-backup-restore
+test-backup-restore: ## Run backup/restore verification (AT-08)
+	node ./scripts/backup-restore-verify.mjs
+
 # ---------------------------------------------------------------------------
 # Database
 # ---------------------------------------------------------------------------

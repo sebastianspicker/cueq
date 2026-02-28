@@ -14,13 +14,14 @@
 
 ## 2. Authentication
 
-| Aspect             | Design                                                                                 |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| Protocol           | SAML 2.0 or OIDC (configurable)                                                        |
-| Identity provider  | University IdM (AD / Azure AD / Keycloak)                                              |
-| Session management | Signed tokens (JWT) with short expiry + refresh; or server-side sessions               |
-| Multi-factor       | Deferred to IdP configuration (university controls MFA policy)                         |
-| Service accounts   | Separate credentials for terminal gateway and HR import; scoped to minimal permissions |
+| Aspect             | Design                                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| Protocol           | SAML 2.0 or OIDC (configurable)                                                          |
+| Identity provider  | University IdM (AD / Azure AD / Keycloak)                                                |
+| Session management | Signed tokens (JWT) with short expiry + refresh; or server-side sessions                 |
+| Multi-factor       | Deferred to IdP configuration (university controls MFA policy)                           |
+| Service accounts   | Separate credentials for terminal gateway and HR import; scoped to minimal permissions   |
+| Integration tokens | `TERMINAL_GATEWAY_TOKEN` and `HR_IMPORT_TOKEN` required for machine-to-machine endpoints |
 
 ---
 
@@ -140,6 +141,8 @@ The `Personalrat` role provides:
 | At rest      | AES-256 for database volumes (managed DB default)     |
 | Backups      | Encrypted at rest; access restricted to ops role      |
 | Tokens (JWT) | Signed with RS256 or EdDSA; secrets rotated regularly |
+
+Integration tokens for terminal and HR endpoints must be rotated and delivered via secure secret injection (never committed to repo).
 
 ---
 

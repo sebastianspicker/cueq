@@ -19,6 +19,7 @@ export function buildOpenApiDocument(app: INestApplication) {
     .addTag('oncall', 'On-call deployments and compliance endpoints')
     .addTag('closing', 'Monthly closing endpoints')
     .addTag('terminal-sync', 'Terminal offline sync endpoints')
+    .addTag('hr-import', 'HR master data import endpoints')
     .addBearerAuth()
     .build();
 

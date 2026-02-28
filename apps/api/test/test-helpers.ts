@@ -20,15 +20,28 @@ export async function createTestApp(): Promise<INestApplication> {
   return app;
 }
 
-export function seedPhase2Data() {
+function seedData(script: 'db:seed:phase2' | 'db:seed:phase3') {
   const cwd = join(__dirname, '..', '..', '..');
-  execSync('pnpm --filter @cueq/database db:seed:phase2', {
+  const databaseUrl =
+    process.env.DATABASE_URL ??
+    'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public';
+
+  execSync(`pnpm --filter @cueq/database ${script}`, {
     cwd,
     stdio: 'inherit',
     env: {
       ...process.env,
+      DATABASE_URL: databaseUrl,
     },
   });
+}
+
+export function seedPhase2Data() {
+  seedData('db:seed:phase2');
+}
+
+export function seedPhase3Data() {
+  seedData('db:seed:phase3');
 }
 
 export const TOKENS = {

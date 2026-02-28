@@ -27,28 +27,12 @@ import {
   CreateOnCallDeploymentSchema,
   WorkflowDecisionSchema,
 } from '@cueq/shared';
-import { z } from 'zod';
 import { PrismaService } from '../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../common/auth/auth.types';
+import { TerminalGatewayService } from './terminal-gateway.service';
 
 const HR_LIKE_ROLES = new Set<Role>([Role.HR, Role.ADMIN]);
 const APPROVAL_ROLES = new Set<Role>([Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN]);
-
-const TerminalSyncBatchSchema = z.object({
-  terminalId: z.string().min(1),
-  sourceFile: z.string().optional(),
-  records: z.array(
-    z.object({
-      personId: z.string().cuid(),
-      timeTypeCode: z.string().min(1),
-      startTime: z.string().datetime(),
-      endTime: z.string().datetime().optional(),
-      note: z.string().max(1000).optional(),
-    }),
-  ),
-});
-
-type TerminalSyncBatchInput = z.infer<typeof TerminalSyncBatchSchema>;
 
 type ClosingActorRole = 'EMPLOYEE' | 'TEAM_LEAD' | 'HR' | 'ADMIN';
 type CoreClosingStatus = 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED';
@@ -95,7 +79,10 @@ function toPersistenceClosingStatus(status: CoreClosingStatus): ClosingStatus {
 
 @Injectable()
 export class Phase2Service {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(TerminalGatewayService) private readonly terminalGatewayService: TerminalGatewayService,
+  ) {}
 
   private async personForUser(user: AuthenticatedIdentity) {
     const person = await this.prisma.person.findFirst({
@@ -854,17 +841,6 @@ export class Phase2Service {
       throw new NotFoundException('Closing period not found.');
     }
 
-    const transition = applyCutoffLock({
-      currentStatus: toCoreClosingStatus(period.status),
-      action: 'EXPORT',
-      actorRole: toClosingActorRole(actor.role),
-      checklistHasErrors: false,
-    });
-
-    if (transition.violations.length > 0) {
-      throw new BadRequestException(transition.violations);
-    }
-
     const accounts = await this.prisma.timeAccount.findMany({
       where: {
         periodStart: { gte: period.periodStart },
@@ -873,33 +849,70 @@ export class Phase2Service {
       orderBy: { personId: 'asc' },
     });
 
-    const exportPayload = {
-      closingPeriodId,
-      generatedAt: new Date().toISOString(),
-      accounts: accounts.map((account) => ({
-        personId: account.personId,
-        targetHours: Number(account.targetHours),
-        actualHours: Number(account.actualHours),
-        balance: Number(account.balance),
-      })),
-    };
+    const normalizedRows = accounts.map((account) => ({
+      personId: account.personId,
+      targetHours: Number(Number(account.targetHours).toFixed(2)),
+      actualHours: Number(Number(account.actualHours).toFixed(2)),
+      balance: Number(Number(account.balance).toFixed(2)),
+    }));
 
-    const checksum = createHash('sha256').update(JSON.stringify(exportPayload)).digest('hex');
+    const header = 'personId,targetHours,actualHours,balance';
+    const body = normalizedRows
+      .map(
+        (row) =>
+          `${row.personId},${row.targetHours.toFixed(2)},${row.actualHours.toFixed(2)},${row.balance.toFixed(2)}`,
+      )
+      .join('\n');
+    const csv = `${header}\n${body}\n`;
+    const checksum = createHash('sha256').update(csv).digest('hex');
+
+    const existingRun = await this.prisma.exportRun.findFirst({
+      where: {
+        closingPeriodId,
+        format: 'CSV_V1',
+        checksum,
+      },
+      orderBy: { exportedAt: 'desc' },
+    });
+
+    if (existingRun?.artifact) {
+      return {
+        exportRun: existingRun,
+        checksum: existingRun.checksum,
+        csv: existingRun.artifact,
+        rows: normalizedRows,
+      };
+    }
+
+    if (period.status !== ClosingStatus.EXPORTED) {
+      const transition = applyCutoffLock({
+        currentStatus: toCoreClosingStatus(period.status),
+        action: 'EXPORT',
+        actorRole: toClosingActorRole(actor.role),
+        checklistHasErrors: false,
+      });
+
+      if (transition.violations.length > 0) {
+        throw new BadRequestException(transition.violations);
+      }
+
+      await this.prisma.closingPeriod.update({
+        where: { id: closingPeriodId },
+        data: {
+          status: toPersistenceClosingStatus(transition.nextStatus),
+        },
+      });
+    }
 
     const exportRun = await this.prisma.exportRun.create({
       data: {
         closingPeriodId,
-        format: 'JSON_V0',
-        recordCount: exportPayload.accounts.length,
+        format: 'CSV_V1',
+        recordCount: normalizedRows.length,
         checksum,
+        artifact: csv,
+        contentType: 'text/csv',
         exportedById: actor.id,
-      },
-    });
-
-    await this.prisma.closingPeriod.update({
-      where: { id: closingPeriodId },
-      data: {
-        status: toPersistenceClosingStatus(transition.nextStatus),
       },
     });
 
@@ -918,7 +931,36 @@ export class Phase2Service {
     return {
       exportRun,
       checksum,
-      payload: exportPayload,
+      csv,
+      rows: normalizedRows,
+    };
+  }
+
+  async getExportRunCsv(user: AuthenticatedIdentity, closingPeriodId: string, runId: string) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can download payroll export CSV.');
+    }
+
+    const exportRun = await this.prisma.exportRun.findFirst({
+      where: {
+        id: runId,
+        closingPeriodId,
+      },
+    });
+
+    if (!exportRun) {
+      throw new NotFoundException('Export run not found.');
+    }
+
+    if (!exportRun.artifact || exportRun.format !== 'CSV_V1') {
+      throw new BadRequestException('CSV artifact is unavailable for this export run.');
+    }
+
+    return {
+      filename: `payroll-export-${closingPeriodId}-${runId}.csv`,
+      csv: exportRun.artifact,
+      checksum: exportRun.checksum,
+      contentType: exportRun.contentType ?? 'text/csv',
     };
   }
 
@@ -979,115 +1021,11 @@ export class Phase2Service {
     }
 
     const actor = await this.personForUser(user);
-    const parsed = TerminalSyncBatchSchema.parse(payload) as TerminalSyncBatchInput;
-
-    const sorted = [...parsed.records].sort((left, right) =>
-      left.startTime.localeCompare(right.startTime),
-    );
-    const seen = new Set<string>();
-
-    let duplicates = 0;
-    let created = 0;
-    const conflictFlags: Array<{ personId: string; startTime: string; type: 'ABSENCE_CONFLICT' }> =
-      [];
-
-    for (const record of sorted) {
-      const dedupeKey = `${record.personId}:${record.timeTypeCode}:${record.startTime}:${record.endTime ?? ''}`;
-      if (seen.has(dedupeKey)) {
-        duplicates += 1;
-        continue;
-      }
-
-      seen.add(dedupeKey);
-
-      const timeType = await this.prisma.timeType.findFirst({
-        where: { code: record.timeTypeCode },
-      });
-      if (!timeType) {
-        continue;
-      }
-
-      const bookingStart = new Date(record.startTime);
-      const bookingEnd = new Date(record.endTime ?? record.startTime);
-
-      const absenceConflict = await this.prisma.absence.findFirst({
-        where: {
-          personId: record.personId,
-          status: 'APPROVED',
-          startDate: { lte: bookingEnd },
-          endDate: { gte: bookingStart },
-        },
-      });
-
-      if (absenceConflict) {
-        conflictFlags.push({
-          personId: record.personId,
-          startTime: record.startTime,
-          type: 'ABSENCE_CONFLICT',
-        });
-      }
-
-      await this.prisma.booking.create({
-        data: {
-          personId: record.personId,
-          timeTypeId: timeType.id,
-          startTime: bookingStart,
-          endTime: record.endTime ? bookingEnd : null,
-          source: BookingSource.IMPORT,
-          note: record.note,
-        },
-      });
-
-      created += 1;
-    }
-
-    const batch = await this.prisma.terminalSyncBatch.create({
-      data: {
-        terminalId: parsed.terminalId,
-        sourceFile: parsed.sourceFile,
-        importedById: actor.id,
-        rawPayload: parsed as Prisma.InputJsonValue,
-        resultPayload: {
-          totalRecords: parsed.records.length,
-          created,
-          duplicates,
-          conflictFlags,
-          sorted: true,
-        } as Prisma.InputJsonValue,
-      },
-    });
-
-    await this.appendAudit({
-      actorId: actor.id,
-      action: 'TERMINAL_BATCH_IMPORTED',
-      entityType: 'TerminalSyncBatch',
-      entityId: batch.id,
-      after: {
-        terminalId: parsed.terminalId,
-        created,
-        duplicates,
-        conflictFlags,
-      },
-    });
-
-    return {
-      batchId: batch.id,
-      terminalId: parsed.terminalId,
-      totalRecords: parsed.records.length,
-      created,
-      duplicates,
-      conflictFlags,
-      sorted: true,
-    };
+    return this.terminalGatewayService.importBatch(user, actor.id, payload);
   }
 
   async getTerminalBatch(batchId: string) {
-    const batch = await this.prisma.terminalSyncBatch.findUnique({ where: { id: batchId } });
-    if (!batch) {
-      throw new NotFoundException('Terminal batch not found.');
-    }
-
-    return batch;
+    return this.terminalGatewayService.getBatch(batchId);
   }
 
   async computeProratedTarget(payload: {

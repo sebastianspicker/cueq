@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/backup-restore-report.schema.json",
+  "title": "BackupRestoreReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ok", "source", "restored", "checksums"],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "tables"],
+      "properties": {
+        "schema": {
+          "type": "string"
+        },
+        "tables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "restored": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "tables"],
+      "properties": {
+        "schema": {
+          "type": "string"
+        },
+        "tables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "checksums": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "restored"],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "restored": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

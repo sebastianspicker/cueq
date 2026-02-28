@@ -4,22 +4,22 @@
 
 ---
 
-## Current Phase: Phase 1 — Domain Core
+## Current Phase: Phase 3 — Integrations + Operations
 
-**Goal**: Implement pure domain logic (time engine, absence, workflow, roster, closing, audit) with deterministic fixture coverage and >90% core unit coverage.
+**Goal**: Deliver pilot-ready integrations and operations hardening (terminal gateway ops, HR import, payroll CSV export, backup/restore verification).
 
-**Status**: 🟡 In Progress (Phase 1 implemented on branch; pending merge/default-branch confirmation)
+**Status**: ✅ Completed on branch (pending merge/default-branch confirmation)
 
 ---
 
 ## Phase Overview
 
-| Phase       | Name               | Goal                                                                                     | Status                                 |
-| ----------- | ------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------- |
-| **Phase 0** | Harness Foundation | CI, schemas, config, scripts, docs skeleton                                              | ✅ Complete                            |
-| **Phase 1** | Domain Core        | Pure logic (time engine, absence, workflow, roster, closing, audit) with full unit tests | 🟡 In Progress (implemented on branch) |
-| **Phase 2** | Services + UI      | API, adapters, frontend; 7/8 acceptance tests green                                      | ⏳ Planned                             |
-| **Phase 3** | Integrations + Ops | Terminal gateway, HR import, payroll export, backup/restore; pilot-ready                 | ⏳ Planned                             |
+| Phase       | Name               | Goal                                                                                     | Status                |
+| ----------- | ------------------ | ---------------------------------------------------------------------------------------- | --------------------- |
+| **Phase 0** | Harness Foundation | CI, schemas, config, scripts, docs skeleton                                              | ✅ Complete           |
+| **Phase 1** | Domain Core        | Pure logic (time engine, absence, workflow, roster, closing, audit) with full unit tests | ✅ Complete           |
+| **Phase 2** | Services + UI      | API, adapters, frontend; 7/8 acceptance tests green                                      | ✅ Complete           |
+| **Phase 3** | Integrations + Ops | Terminal gateway, HR import, payroll export, backup/restore; pilot-ready                 | ✅ Complete on branch |
 
 ---
 
@@ -77,7 +77,7 @@
 
 ## Phase 2 — Services + UI
 
-### Deliverables (Preview)
+### Deliverables
 
 - PostgreSQL persistence adapters
 - SSO adapter (SAML/OIDC) with mock in docker-compose
@@ -88,16 +88,16 @@
 
 ### Definition of Done (Phase 2)
 
-- [ ] OpenAPI spec and implementation match (contract-tested)
-- [ ] 7 of 8 MVP acceptance tests pass
-- [ ] UI passes axe-core a11y checks (no critical violations)
-- [ ] `make test-all` passes
+- [x] OpenAPI spec and implementation match (contract-tested)
+- [x] 7 of 8 MVP acceptance tests pass
+- [x] UI passes axe-core a11y checks (no critical violations)
+- [x] `make test-all` passes
 
 ---
 
 ## Phase 3 — Integrations + Operations
 
-### Deliverables (Preview)
+### Deliverables
 
 - Honeywell terminal gateway (import, offline buffer, sync)
 - HR master data import (file + optional API)
@@ -108,11 +108,11 @@
 
 ### Definition of Done (Phase 3)
 
-- [ ] All 8 acceptance tests pass
-- [ ] Terminal offline→sync works with simulated data
-- [ ] Export reproducibility verified
-- [ ] Backup/restore tested in CI
-- [ ] Pilot readiness checklist fully green
+- [x] All 8 acceptance tests pass
+- [x] Terminal offline→sync works with simulated data
+- [x] Export reproducibility verified
+- [x] Backup/restore tested in CI
+- [x] Pilot readiness checklist fully green
 
 ---
 
@@ -122,7 +122,7 @@ Active and completed execution plans are tracked in:
 
 - **Active**: [`exec-plans/active/`](exec-plans/active/) — use the [template](exec-plans/active/000-template.md)
 - **Completed**: [`exec-plans/completed/`](exec-plans/completed/) — moved here with linked PRs
-  - Latest: [`001-phase-1-domain-core.md`](exec-plans/completed/001-phase-1-domain-core.md)
+  - Latest: [`003-phase-3-integrations-ops.md`](exec-plans/completed/003-phase-3-integrations-ops.md)
 - **Tech Debt**: [`exec-plans/tech-debt-tracker.md`](exec-plans/tech-debt-tracker.md)
 
 ---

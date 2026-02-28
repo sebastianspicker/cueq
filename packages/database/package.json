@@ -20,6 +20,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed:phase2": "node prisma/seed-phase2.mjs seed",
     "db:reset:phase2": "node prisma/seed-phase2.mjs reset",
+    "db:seed:phase3": "node prisma/seed-phase3.mjs seed",
+    "db:reset:phase3": "node prisma/seed-phase3.mjs reset",
     "db:studio": "prisma studio",
     "clean": "rm -rf dist node_modules/.cache"
   },

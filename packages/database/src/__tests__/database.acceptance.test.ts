@@ -9,5 +9,8 @@ describe('@cueq/database acceptance', () => {
     expect(prisma.closingPeriod).toBeDefined();
     expect(prisma.onCallDeployment).toBeDefined();
     expect(prisma.terminalSyncBatch).toBeDefined();
+    expect(prisma.terminalDevice).toBeDefined();
+    expect(prisma.terminalHeartbeat).toBeDefined();
+    expect(prisma.hrImportRun).toBeDefined();
   });
 });

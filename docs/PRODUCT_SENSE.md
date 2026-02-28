@@ -70,7 +70,7 @@ In a works-council environment, privacy controls are not a constraint to work ar
 | Booking gaps after 2 weeks of pilot  | <5% of workdays   |
 | Median leave approval turnaround     | <2 workdays       |
 | Monthly closing without manual Excel | 100% of pilot OEs |
-| Acceptance tests passing             | 6/6 MVP gate      |
+| Acceptance tests passing             | 8/8 Phase-3 gate  |
 
 ---
 

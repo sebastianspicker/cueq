@@ -1,6 +1,6 @@
 # Exec Plan: Phase 2 Services + UI
 
-> **Status:** 🟡 Active | **Owner:** Services + UI Team | **Started:** 2026-02-28 | **Target:** 2026-05-31
+> **Status:** ✅ Completed | **Owner:** Services + UI Team | **Started:** 2026-02-28 | **Completed:** 2026-02-28
 
 ---
 
@@ -38,33 +38,33 @@ References:
 
 ## Task Sequence
 
-- [ ] Iteration 0: Plan/docs alignment + acceptance matrix sync
-- [ ] Iteration 1: test harness foundation (integration/acceptance/compliance executable)
-- [ ] Iteration 2: auth + RBAC + OIDC mock
-- [ ] Iteration 3: persistence adapters + audit append-only guardrails
-- [ ] Iteration 4: dashboard + bookings vertical slice
-- [ ] Iteration 5: absence + team calendar + privacy
-- [ ] Iteration 6: workflows corrections + delegation + inbox
-- [ ] Iteration 7: roster + plan-vs-actual
-- [ ] Iteration 8: on-call deployments + compliance
-- [ ] Iteration 9: closing + export + HR correction
-- [ ] Iteration 10: terminal offline→sync
-- [ ] Iteration 11: contract/a11y/i18n hardening + closeout
+- [x] Iteration 0: Plan/docs alignment + acceptance matrix sync
+- [x] Iteration 1: test harness foundation (integration/acceptance/compliance executable)
+- [x] Iteration 2: auth + RBAC + OIDC mock
+- [x] Iteration 3: persistence adapters + audit append-only guardrails
+- [x] Iteration 4: dashboard + bookings vertical slice
+- [x] Iteration 5: absence + team calendar + privacy
+- [x] Iteration 6: workflows corrections + delegation + inbox
+- [x] Iteration 7: roster + plan-vs-actual
+- [x] Iteration 8: on-call deployments + compliance
+- [x] Iteration 9: closing + export + HR correction
+- [x] Iteration 10: terminal offline→sync
+- [x] Iteration 11: contract/a11y/i18n hardening + closeout
 
 ## Definition of Done
 
-- [ ] OpenAPI implementation coverage complete for all `/v1` endpoints
-- [ ] AT-01..AT-07 pass in `make test-acceptance`
-- [ ] UI critical axe violations = 0 in acceptance checks
-- [ ] `make test-all` passes
-- [ ] `make openapi-check` passes
-- [ ] Phase status updated in [docs/PLANS.md](../../PLANS.md)
+- [x] OpenAPI implementation coverage complete for all `/v1` endpoints
+- [x] AT-01..AT-07 pass in `make test-acceptance`
+- [x] UI critical axe violations = 0 in acceptance checks
+- [x] `make test-all` passes
+- [x] `make openapi-check` passes
+- [x] Phase status updated in [docs/PLANS.md](../../PLANS.md)
 
 ## Linked PRs / Issues
 
-| PR/Issue | Description | Status |
-| -------- | ----------- | ------ |
-| —        | —           | —      |
+| PR/Issue                    | Description                          | Status         |
+| --------------------------- | ------------------------------------ | -------------- |
+| Local implementation bundle | Phase 2 services + UI implementation | ✅ Implemented |
 
 ## Risks / Blockers
 

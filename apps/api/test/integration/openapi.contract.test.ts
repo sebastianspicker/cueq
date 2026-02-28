@@ -3,7 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { createTestApp, seedPhase2Data } from '../test-helpers';
 import { buildOpenApiDocument } from '../../src/openapi';
 
-describe('Phase 2 integration: OpenAPI contract', () => {
+describe('Phase 3 integration: OpenAPI contract', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -17,7 +17,7 @@ describe('Phase 2 integration: OpenAPI contract', () => {
     }
   });
 
-  it('contains all required /v1 phase-2 paths', () => {
+  it('contains all required /v1 phase-3 paths', () => {
     const document = buildOpenApiDocument(app);
     const paths = Object.keys(document.paths ?? {});
 
@@ -41,8 +41,13 @@ describe('Phase 2 integration: OpenAPI contract', () => {
       '/v1/closing-periods/{id}/approve',
       '/v1/closing-periods/{id}/export',
       '/v1/closing-periods/{id}/post-close-corrections',
+      '/v1/closing-periods/{closingPeriodId}/export-runs/{runId}/csv',
       '/v1/terminal/sync/batches',
       '/v1/terminal/sync/batches/{id}',
+      '/v1/terminal/heartbeats',
+      '/v1/terminal/health',
+      '/v1/hr/import-runs',
+      '/v1/hr/import-runs/{id}',
     ];
 
     for (const path of required) {

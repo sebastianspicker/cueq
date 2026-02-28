@@ -11,9 +11,14 @@ import { RostersController } from './controllers/rosters.controller';
 import { OncallController } from './controllers/oncall.controller';
 import { ClosingController } from './controllers/closing.controller';
 import { TerminalSyncController } from './controllers/terminal-sync.controller';
+import { TerminalIntegrationController } from './controllers/terminal-integration.controller';
+import { HrImportController } from './controllers/hr-import.controller';
+import { TerminalGatewayService } from './terminal-gateway.service';
+import { HrImportService } from './hr-import.service';
+import { StubHrMasterProvider } from './hr-master-provider.port';
 
 @Module({
-  providers: [Phase2Service],
+  providers: [Phase2Service, TerminalGatewayService, HrImportService, StubHrMasterProvider],
   controllers: [
     MeController,
     DashboardController,
@@ -26,7 +31,9 @@ import { TerminalSyncController } from './controllers/terminal-sync.controller';
     OncallController,
     ClosingController,
     TerminalSyncController,
+    TerminalIntegrationController,
+    HrImportController,
   ],
-  exports: [Phase2Service],
+  exports: [Phase2Service, TerminalGatewayService, HrImportService],
 })
 export class Phase2Module {}

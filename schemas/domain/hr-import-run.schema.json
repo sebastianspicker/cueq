@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/hr-import-run.schema.json",
+  "title": "HrImportRun",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "source",
+    "status",
+    "totalRows",
+    "createdRows",
+    "updatedRows",
+    "skippedRows",
+    "errorCount",
+    "summary",
+    "importedAt"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "source": {
+      "enum": ["FILE", "API"]
+    },
+    "sourceFile": {
+      "type": ["string", "null"]
+    },
+    "status": {
+      "enum": ["SUCCEEDED", "FAILED"]
+    },
+    "totalRows": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "createdRows": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "updatedRows": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "skippedRows": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "errorCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "summary": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    },
+    "importedById": {
+      "type": ["string", "null"]
+    },
+    "importedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

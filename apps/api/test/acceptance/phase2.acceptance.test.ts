@@ -1,10 +1,12 @@
+import { execSync } from 'node:child_process';
+import { join } from 'node:path';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
 import { SEED_IDS } from '../../src/test-utils/seed-ids';
 
-describe('Phase 2 acceptance scenarios (AT-01..AT-07)', () => {
+describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -131,6 +133,27 @@ describe('Phase 2 acceptance scenarios (AT-01..AT-07)', () => {
 
     expect(exportRun.status).toBe(201);
     expect(exportRun.body).toHaveProperty('checksum');
+    expect(exportRun.body).toHaveProperty('exportRun.id');
+    expect(exportRun.body).toHaveProperty('csv');
+
+    const csvDownload = await request(app.getHttpServer())
+      .get(
+        `/v1/closing-periods/${SEED_IDS.closingPeriod}/export-runs/${exportRun.body.exportRun.id}/csv`,
+      )
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send();
+
+    expect(csvDownload.status).toBe(200);
+    expect(csvDownload.text).toContain('personId,targetHours,actualHours,balance');
+
+    const exportRunAgain = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send();
+
+    expect(exportRunAgain.status).toBe(201);
+    expect(exportRunAgain.body.checksum).toBe(exportRun.body.checksum);
+    expect(exportRunAgain.body.csv).toBe(exportRun.body.csv);
 
     const correction = await request(app.getHttpServer())
       .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/post-close-corrections`)
@@ -158,4 +181,24 @@ describe('Phase 2 acceptance scenarios (AT-01..AT-07)', () => {
     expect(employeeView.body[0]?.type).toBeUndefined();
     expect(leadView.body[0]?.type).toBeDefined();
   });
+
+  it('AT-08 backup and restore verification', async () => {
+    const cwd = join(__dirname, '..', '..', '..', '..');
+    const output = execSync('node scripts/backup-restore-verify.mjs --json', {
+      cwd,
+      env: {
+        ...process.env,
+        DATABASE_URL:
+          process.env.DATABASE_URL ??
+          'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public',
+      },
+    }).toString('utf8');
+
+    const report = JSON.parse(output) as {
+      ok: boolean;
+      source: { tables: Record<string, number> };
+    };
+    expect(report.ok).toBe(true);
+    expect(report.source.tables.auditEntries).toBeGreaterThan(0);
+  }, 20_000);
 });
