@@ -29,6 +29,30 @@ describe('transitionWorkflow', () => {
     expect(result.nextStatus).toBe('APPROVED');
     expect(result.violations[0]?.code).toBe('INVALID_TRANSITION');
   });
+
+  it('sets decidedAt when at is omitted for valid transitions', () => {
+    const result = transitionWorkflow({
+      workflowId: 'wf-3',
+      currentStatus: 'PENDING',
+      decision: 'ESCALATE',
+      actorId: 'lead-2',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.decidedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('sets decidedAt when at is omitted for invalid transitions', () => {
+    const result = transitionWorkflow({
+      workflowId: 'wf-4',
+      currentStatus: 'CANCELLED',
+      decision: 'APPROVE',
+      actorId: 'lead-2',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.decidedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
 });
 
 describe('resolveDelegation', () => {
@@ -77,6 +101,59 @@ describe('resolveDelegation', () => {
 
     expect(result.approverId).toBe('lead-primary');
     expect(result.escalated).toBe(false);
+  });
+
+  it('accepts an available candidate without active window bounds', () => {
+    const result = resolveDelegation({
+      requesterId: 'employee-1',
+      primaryApproverId: 'lead-primary',
+      at: '2026-03-01T10:00:00.000Z',
+      fallbackChain: [
+        {
+          approverId: 'lead-primary',
+          isAvailable: true,
+        },
+      ],
+    });
+
+    expect(result.approverId).toBe('lead-primary');
+    expect(result.escalated).toBe(false);
+  });
+
+  it('treats missing activeTo as open-ended', () => {
+    const result = resolveDelegation({
+      requesterId: 'employee-1',
+      primaryApproverId: 'lead-primary',
+      at: '2026-03-01T10:00:00.000Z',
+      fallbackChain: [
+        {
+          approverId: 'lead-deputy',
+          isAvailable: true,
+          activeFrom: '2026-02-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(result.approverId).toBe('lead-deputy');
+    expect(result.escalated).toBe(true);
+  });
+
+  it('treats missing activeFrom as active since epoch', () => {
+    const result = resolveDelegation({
+      requesterId: 'employee-1',
+      primaryApproverId: 'lead-primary',
+      at: '2026-03-01T10:00:00.000Z',
+      fallbackChain: [
+        {
+          approverId: 'lead-deputy',
+          isAvailable: true,
+          activeTo: '2026-12-31T23:59:59.999Z',
+        },
+      ],
+    });
+
+    expect(result.approverId).toBe('lead-deputy');
+    expect(result.escalated).toBe(true);
   });
 });
 
