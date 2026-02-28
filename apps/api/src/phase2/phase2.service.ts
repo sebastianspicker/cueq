@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   BadRequestException,
   ForbiddenException,
@@ -8,6 +10,8 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '@cueq/database';
 import {
+  AbsenceStatus,
+  AbsenceType,
   BookingSource,
   ClosingStatus,
   OutboxStatus,
@@ -19,7 +23,8 @@ import {
 import {
   applyCutoffLock,
   buildAuditEntry,
-  calculateLeaveQuota,
+  calculateAbsenceWorkingDays,
+  calculateLeaveLedger,
   calculateProratedMonthlyTarget,
   evaluatePlanVsActualCoverage,
   evaluateTimeRules as evaluateTimeRulesCore,
@@ -29,12 +34,18 @@ import {
   shouldEscalate,
   transitionWorkflow,
 } from '@cueq/core';
-import { getActivePolicyBundle, getPolicyHistory, type PolicyRuleType } from '@cueq/policy';
+import {
+  DEFAULT_LEAVE_RULE,
+  getActivePolicyBundle,
+  getPolicyHistory,
+  type PolicyRuleType,
+} from '@cueq/policy';
 import {
   BookingCorrectionSchema,
   ClosingCompletionQuerySchema,
   CreateAbsenceSchema,
   CreateBookingSchema,
+  CreateLeaveAdjustmentSchema,
   CreateOnCallDeploymentSchema,
   CreateOnCallRotationSchema,
   CreateRosterSchema,
@@ -42,11 +53,13 @@ import {
   CreateWebhookEndpointSchema,
   DeliveryQuerySchema,
   ListOnCallRotationsQuerySchema,
+  LeaveAdjustmentQuerySchema,
   OeOvertimeQuerySchema,
   OutboxQuerySchema,
   PolicyBundleQuerySchema,
   PolicyHistoryQuerySchema,
   TeamAbsenceQuerySchema,
+  TeamCalendarQuerySchema,
   TimeRuleEvaluationRequestSchema,
   UpdateShiftSchema,
   UpdateOnCallRotationSchema,
@@ -72,6 +85,21 @@ const TIME_ENGINE_ALLOWED_ROLES = new Set<Role>([
   Role.HR,
   Role.ADMIN,
 ]);
+const ABSENCE_TYPES_WITH_APPROVAL = new Set<AbsenceType>([
+  AbsenceType.ANNUAL_LEAVE,
+  AbsenceType.SPECIAL_LEAVE,
+  AbsenceType.TRAINING,
+  AbsenceType.TRAVEL,
+  AbsenceType.COMP_TIME,
+  AbsenceType.FLEX_DAY,
+  AbsenceType.UNPAID,
+]);
+const ABSENCE_TYPES_AUTO_APPROVED = new Set<AbsenceType>([AbsenceType.SICK, AbsenceType.PARENTAL]);
+const HOLIDAY_FIXTURE_PATHS = [
+  resolve(__dirname, '../../../../fixtures/calendars'),
+  resolve(process.cwd(), 'fixtures/calendars'),
+  resolve(process.cwd(), '../../fixtures/calendars'),
+];
 
 type ClosingActorRole = 'EMPLOYEE' | 'TEAM_LEAD' | 'HR' | 'ADMIN';
 type CoreClosingStatus = 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED';
@@ -118,6 +146,8 @@ function toPersistenceClosingStatus(status: CoreClosingStatus): ClosingStatus {
 
 @Injectable()
 export class Phase2Service {
+  private readonly holidayCache = new Map<number, Set<string>>();
+
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TerminalGatewayService) private readonly terminalGatewayService: TerminalGatewayService,
@@ -210,6 +240,86 @@ export class Phase2Service {
     if (!REPORT_ALLOWED_ROLES.has(user.role)) {
       throw new ForbiddenException('Role does not permit report access.');
     }
+  }
+
+  private assertHrLikeRole(user: AuthenticatedIdentity) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can perform this action.');
+    }
+  }
+
+  private loadHolidayDates(year: number): Set<string> {
+    const cached = this.holidayCache.get(year);
+    if (cached) {
+      return cached;
+    }
+
+    for (const basePath of HOLIDAY_FIXTURE_PATHS) {
+      const filePath = resolve(basePath, `nrw-holidays-${year}.json`);
+      try {
+        const raw = readFileSync(filePath, 'utf8');
+        const parsed = JSON.parse(raw) as {
+          holidays?: Array<{ date?: string }>;
+        };
+        const dates = new Set(
+          (parsed.holidays ?? []).map((entry) => entry.date).filter(Boolean) as string[],
+        );
+        this.holidayCache.set(year, dates);
+        return dates;
+      } catch {
+        // try next lookup location
+      }
+    }
+
+    const empty = new Set<string>();
+    this.holidayCache.set(year, empty);
+    return empty;
+  }
+
+  private holidayDatesBetween(start: string, end: string): string[] {
+    const startDate = new Date(`${start}T00:00:00.000Z`);
+    const endDate = new Date(`${end}T00:00:00.000Z`);
+    const holidays = new Set<string>();
+
+    for (let year = startDate.getUTCFullYear(); year <= endDate.getUTCFullYear(); year += 1) {
+      for (const holiday of this.loadHolidayDates(year)) {
+        holidays.add(holiday);
+      }
+    }
+
+    return [...holidays];
+  }
+
+  private defaultAsOfDate(targetYear: number): string {
+    const today = new Date();
+    const currentYear = today.getUTCFullYear();
+    if (targetYear === currentYear) {
+      return today.toISOString().slice(0, 10);
+    }
+
+    return `${targetYear}-12-31`;
+  }
+
+  private computeLeaveEntitlementCarryOver(input: {
+    year: number;
+    workTimeModelWeeklyHours: number;
+    employmentStartDate?: string;
+    employmentEndDate?: string;
+    usage: Array<{ date: string; days: number }>;
+    adjustments: Array<{ year: number; deltaDays: number }>;
+    priorYearCarryOverDays?: number;
+    asOfDate: string;
+  }) {
+    return calculateLeaveLedger({
+      year: input.year,
+      asOfDate: input.asOfDate,
+      workTimeModelWeeklyHours: input.workTimeModelWeeklyHours,
+      employmentStartDate: input.employmentStartDate,
+      employmentEndDate: input.employmentEndDate,
+      priorYearCarryOverDays: input.priorYearCarryOverDays ?? 0,
+      annualLeaveUsage: input.usage,
+      adjustments: input.adjustments,
+    });
   }
 
   private assertCanWriteRoster(
@@ -609,9 +719,34 @@ export class Phase2Service {
 
     this.assertCanActForPerson(user, actor.id, parsed.personId);
 
+    const targetPerson = await this.prisma.person.findUnique({
+      where: { id: parsed.personId },
+      select: {
+        id: true,
+        organizationUnitId: true,
+        supervisorId: true,
+      },
+    });
+    if (!targetPerson) {
+      throw new NotFoundException('Person not found.');
+    }
+
     const start = new Date(`${parsed.startDate}T00:00:00.000Z`);
     const end = new Date(`${parsed.endDate}T00:00:00.000Z`);
-    const daySpan = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
+    const holidayDates = this.holidayDatesBetween(parsed.startDate, parsed.endDate);
+    const daySpan = calculateAbsenceWorkingDays({
+      startDate: parsed.startDate,
+      endDate: parsed.endDate,
+      holidayDates,
+    });
+    if (daySpan <= 0) {
+      throw new BadRequestException('Absence range has no applicable working days.');
+    }
+
+    const requestedType = parsed.type as AbsenceType;
+    const status = ABSENCE_TYPES_AUTO_APPROVED.has(requestedType)
+      ? AbsenceStatus.APPROVED
+      : AbsenceStatus.REQUESTED;
 
     const absence = await this.prisma.absence.create({
       data: {
@@ -620,14 +755,61 @@ export class Phase2Service {
         startDate: start,
         endDate: end,
         days: daySpan,
-        status: 'REQUESTED',
+        status,
         note: parsed.note,
       },
     });
 
+    if (status === AbsenceStatus.REQUESTED && ABSENCE_TYPES_WITH_APPROVAL.has(requestedType)) {
+      const teamLead = await this.prisma.person.findFirst({
+        where: {
+          organizationUnitId: targetPerson.organizationUnitId,
+          role: Role.TEAM_LEAD,
+        },
+      });
+
+      const fallbackCandidates = [
+        ...(teamLead ? [{ approverId: teamLead.id, isAvailable: true }] : []),
+        { approverId: actor.id, isAvailable: HR_LIKE_ROLES.has(user.role) },
+      ];
+      const delegated = resolveDelegation({
+        requesterId: targetPerson.id,
+        primaryApproverId: targetPerson.supervisorId ?? teamLead?.id ?? actor.id,
+        fallbackChain: fallbackCandidates,
+        at: new Date().toISOString(),
+      });
+
+      const workflow = await this.prisma.workflowInstance.create({
+        data: {
+          type: WorkflowType.LEAVE_REQUEST,
+          status: WorkflowStatus.PENDING,
+          requesterId: targetPerson.id,
+          approverId: delegated.approverId,
+          entityType: 'Absence',
+          entityId: absence.id,
+          reason: parsed.note,
+        },
+      });
+
+      await this.appendAudit({
+        actorId: actor.id,
+        action: 'WORKFLOW_CREATED',
+        entityType: 'WorkflowInstance',
+        entityId: workflow.id,
+        after: {
+          type: workflow.type,
+          status: workflow.status,
+          approverId: workflow.approverId,
+          entityType: workflow.entityType,
+          entityId: workflow.entityId,
+        },
+        reason: parsed.note,
+      });
+    }
+
     await this.appendAudit({
       actorId: actor.id,
-      action: 'ABSENCE_REQUESTED',
+      action: status === AbsenceStatus.REQUESTED ? 'ABSENCE_REQUESTED' : 'ABSENCE_RECORDED',
       entityType: 'Absence',
       entityId: absence.id,
       after: {
@@ -651,52 +833,238 @@ export class Phase2Service {
     });
   }
 
-  async leaveBalance(user: AuthenticatedIdentity, year?: number) {
-    const person = await this.personForUser(user);
-    const targetYear = year ?? new Date().getUTCFullYear();
+  async cancelAbsence(user: AuthenticatedIdentity, absenceId: string) {
+    const actor = await this.personForUser(user);
+    const absence = await this.prisma.absence.findUnique({
+      where: { id: absenceId },
+    });
+    if (!absence) {
+      throw new NotFoundException('Absence not found.');
+    }
 
-    const from = new Date(Date.UTC(targetYear, 0, 1));
-    const to = new Date(Date.UTC(targetYear, 11, 31, 23, 59, 59));
+    this.assertCanActForPerson(user, actor.id, absence.personId);
 
-    const approvedAbsences = await this.prisma.absence.findMany({
+    if (absence.status !== AbsenceStatus.REQUESTED && absence.status !== AbsenceStatus.APPROVED) {
+      throw new BadRequestException('Only requested or approved absences can be cancelled.');
+    }
+
+    const updated = await this.prisma.absence.update({
+      where: { id: absence.id },
+      data: { status: AbsenceStatus.CANCELLED },
+    });
+
+    await this.prisma.workflowInstance.updateMany({
       where: {
-        personId: person.id,
-        status: 'APPROVED',
-        startDate: { gte: from },
-        endDate: { lte: to },
+        type: WorkflowType.LEAVE_REQUEST,
+        entityType: 'Absence',
+        entityId: absence.id,
+        status: {
+          in: [WorkflowStatus.PENDING, WorkflowStatus.ESCALATED],
+        },
+      },
+      data: {
+        status: WorkflowStatus.CANCELLED,
+        approverId: actor.id,
+        decidedAt: new Date(),
       },
     });
 
-    const usedDays = approvedAbsences.reduce((sum, absence) => sum + Number(absence.days), 0);
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'ABSENCE_CANCELLED',
+      entityType: 'Absence',
+      entityId: absence.id,
+      before: { status: absence.status },
+      after: { status: updated.status },
+    });
 
-    const calculation = calculateLeaveQuota({
+    return updated;
+  }
+
+  async leaveBalance(user: AuthenticatedIdentity, year?: number, asOfDate?: string) {
+    const person = await this.personForUser(user);
+    const targetYear = year ?? new Date().getUTCFullYear();
+    const resolvedAsOfDate = asOfDate ?? this.defaultAsOfDate(targetYear);
+    const asOf = new Date(`${resolvedAsOfDate}T00:00:00.000Z`);
+    if (Number.isNaN(asOf.getTime())) {
+      throw new BadRequestException('Invalid asOfDate.');
+    }
+    if (asOf.getUTCFullYear() !== targetYear) {
+      throw new BadRequestException('asOfDate must be within the requested year.');
+    }
+
+    const from = new Date(Date.UTC(targetYear, 0, 1));
+    const to = new Date(Date.UTC(targetYear, 11, 31, 23, 59, 59));
+    const previousYear = targetYear - 1;
+    const previousFrom = new Date(Date.UTC(previousYear, 0, 1));
+    const previousTo = new Date(Date.UTC(previousYear, 11, 31, 23, 59, 59));
+
+    const [annualLeaveAbsences, priorAnnualLeaveAbsences, adjustments] = await Promise.all([
+      this.prisma.absence.findMany({
+        where: {
+          personId: person.id,
+          status: AbsenceStatus.APPROVED,
+          type: AbsenceType.ANNUAL_LEAVE,
+          startDate: { gte: from },
+          endDate: { lte: to },
+        },
+        orderBy: { endDate: 'asc' },
+      }),
+      this.prisma.absence.findMany({
+        where: {
+          personId: person.id,
+          status: AbsenceStatus.APPROVED,
+          type: AbsenceType.ANNUAL_LEAVE,
+          startDate: { gte: previousFrom },
+          endDate: { lte: previousTo },
+        },
+        orderBy: { endDate: 'asc' },
+      }),
+      this.prisma.leaveAdjustment.findMany({
+        where: {
+          personId: person.id,
+          year: { in: [previousYear, targetYear] },
+        },
+      }),
+    ]);
+
+    const modelWeeklyHours = Number(
+      person.workTimeModel?.weeklyHours ?? DEFAULT_LEAVE_RULE.fullTimeWeeklyHours ?? 39.83,
+    );
+    const employmentStartDate = person.employmentStartDate?.toISOString().slice(0, 10);
+    const employmentEndDate = person.employmentEndDate?.toISOString().slice(0, 10);
+    const priorYearLedger = this.computeLeaveEntitlementCarryOver({
+      year: previousYear,
+      asOfDate: `${previousYear}-12-31`,
+      workTimeModelWeeklyHours: modelWeeklyHours,
+      employmentStartDate,
+      employmentEndDate,
+      usage: priorAnnualLeaveAbsences.map((absence) => ({
+        date: absence.endDate.toISOString().slice(0, 10),
+        days: Number(absence.days),
+      })),
+      adjustments: adjustments.map((entry) => ({
+        year: entry.year,
+        deltaDays: Number(entry.deltaDays),
+      })),
+      priorYearCarryOverDays: 0,
+    });
+    const priorYearCarryOverDays = Math.max(priorYearLedger.remainingDays, 0);
+
+    const calculation = this.computeLeaveEntitlementCarryOver({
       year: targetYear,
-      employmentFraction: 1,
-      usedDays,
-      carryOverDays: 0,
-      asOfDate: `${targetYear}-12-31`,
+      asOfDate: resolvedAsOfDate,
+      workTimeModelWeeklyHours: modelWeeklyHours,
+      employmentStartDate,
+      employmentEndDate,
+      usage: annualLeaveAbsences.map((absence) => ({
+        date: absence.endDate.toISOString().slice(0, 10),
+        days: Number(absence.days),
+      })),
+      adjustments: adjustments.map((entry) => ({
+        year: entry.year,
+        deltaDays: Number(entry.deltaDays),
+      })),
+      priorYearCarryOverDays,
     });
 
     return {
       personId: person.id,
       year: targetYear,
+      asOfDate: resolvedAsOfDate,
       entitlement: calculation.entitlementDays,
-      used: Number(usedDays.toFixed(2)),
+      used: calculation.usedDays,
       remaining: calculation.remainingDays,
       carriedOver: calculation.carriedOverDays,
+      carriedOverUsed: calculation.carriedOverUsedDays,
       forfeited: calculation.forfeitedDays,
+      adjustments: calculation.adjustmentsDays,
     };
+  }
+
+  async createLeaveAdjustment(user: AuthenticatedIdentity, payload: unknown) {
+    this.assertHrLikeRole(user);
+    const actor = await this.personForUser(user);
+    const parsed = CreateLeaveAdjustmentSchema.parse(payload);
+
+    const person = await this.prisma.person.findUnique({ where: { id: parsed.personId } });
+    if (!person) {
+      throw new NotFoundException('Person not found.');
+    }
+
+    const adjustment = await this.prisma.leaveAdjustment.create({
+      data: {
+        personId: parsed.personId,
+        year: parsed.year,
+        deltaDays: parsed.deltaDays,
+        reason: parsed.reason,
+        createdBy: actor.id,
+      },
+    });
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'LEAVE_ADJUSTMENT_CREATED',
+      entityType: 'LeaveAdjustment',
+      entityId: adjustment.id,
+      after: {
+        personId: adjustment.personId,
+        year: adjustment.year,
+        deltaDays: Number(adjustment.deltaDays),
+      },
+      reason: adjustment.reason,
+    });
+
+    return {
+      ...adjustment,
+      deltaDays: Number(adjustment.deltaDays),
+    };
+  }
+
+  async listLeaveAdjustments(user: AuthenticatedIdentity, query: unknown) {
+    this.assertHrLikeRole(user);
+    const parsed = LeaveAdjustmentQuerySchema.parse(query ?? {});
+
+    const adjustments = await this.prisma.leaveAdjustment.findMany({
+      where: {
+        personId: parsed.personId,
+        year: parsed.year,
+      },
+      orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    return adjustments.map((adjustment) => ({
+      ...adjustment,
+      deltaDays: Number(adjustment.deltaDays),
+    }));
   }
 
   async teamCalendar(user: AuthenticatedIdentity, start?: string, end?: string) {
     const person = await this.personForUser(user);
+    const query = TeamCalendarQuerySchema.parse({ start, end });
+    const today = new Date();
+    const startDate = query.start
+      ? new Date(query.start.includes('T') ? query.start : `${query.start}T00:00:00.000Z`)
+      : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1, 0, 0, 0, 0));
+    const endDate = query.end
+      ? new Date(query.end.includes('T') ? query.end : `${query.end}T23:59:59.999Z`)
+      : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0, 23, 59, 59, 999));
 
-    const startDate = start ? new Date(start) : new Date(Date.UTC(2026, 2, 1));
-    const endDate = end ? new Date(end) : new Date(Date.UTC(2026, 2, 31, 23, 59, 59));
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      throw new BadRequestException('Invalid start or end date.');
+    }
+    if (startDate > endDate) {
+      throw new BadRequestException('start must be on or before end.');
+    }
 
+    const includePending = user.role === Role.TEAM_LEAD || HR_LIKE_ROLES.has(user.role);
+    const visibleStatuses = includePending
+      ? [AbsenceStatus.REQUESTED, AbsenceStatus.APPROVED]
+      : [AbsenceStatus.APPROVED];
     const absences = await this.prisma.absence.findMany({
       where: {
         person: { organizationUnitId: person.organizationUnitId },
+        status: { in: visibleStatuses },
         startDate: { lte: endDate },
         endDate: { gte: startDate },
       },
@@ -712,7 +1080,8 @@ export class Phase2Service {
       personName: `${absence.person.firstName} ${absence.person.lastName}`,
       startDate: absence.startDate.toISOString().slice(0, 10),
       endDate: absence.endDate.toISOString().slice(0, 10),
-      status: 'ABSENT',
+      status: absence.status,
+      visibilityStatus: 'ABSENT' as const,
       type: maySeeReason ? absence.type : undefined,
       note: maySeeReason ? absence.note : undefined,
     }));
@@ -863,6 +1232,37 @@ export class Phase2Service {
       after: { status: updated.status, approverId: updated.approverId },
       reason: parsed.reason,
     });
+
+    if (workflow.type === WorkflowType.LEAVE_REQUEST && workflow.entityType === 'Absence') {
+      const nextAbsenceStatus =
+        parsed.decision === 'APPROVED' ? AbsenceStatus.APPROVED : AbsenceStatus.REJECTED;
+      const result = await this.prisma.absence.updateMany({
+        where: {
+          id: workflow.entityId,
+          status: AbsenceStatus.REQUESTED,
+        },
+        data: {
+          status: nextAbsenceStatus,
+        },
+      });
+
+      if (result.count > 0) {
+        await this.appendAudit({
+          actorId: actor.id,
+          action:
+            nextAbsenceStatus === AbsenceStatus.APPROVED ? 'ABSENCE_APPROVED' : 'ABSENCE_REJECTED',
+          entityType: 'Absence',
+          entityId: workflow.entityId,
+          before: {
+            status: AbsenceStatus.REQUESTED,
+          },
+          after: {
+            status: nextAbsenceStatus,
+          },
+          reason: parsed.reason,
+        });
+      }
+    }
 
     return updated;
   }

@@ -17,6 +17,7 @@
     "test:acceptance": "turbo run test:acceptance",
     "test:compliance": "turbo run test:compliance",
     "test:backup-restore": "node ./scripts/backup-restore-verify.mjs",
+    "backfill:leave-adjustments": "node ./scripts/backfill-leave-adjustments.mjs",
     "test:all": "turbo run test test:acceptance test:compliance",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",

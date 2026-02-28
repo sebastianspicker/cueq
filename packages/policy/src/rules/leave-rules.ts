@@ -10,6 +10,7 @@ import { PolicyRuleMetaSchema } from '../types';
 export const LeaveRuleSchema = PolicyRuleMetaSchema.extend({
   type: z.literal('LEAVE_RULE'),
   annualEntitlementDays: z.number().positive(),
+  fullTimeWeeklyHours: z.number().positive(),
   workDaysPerWeek: z.number().int().positive(),
   proRataOnEntry: z.boolean(),
   proRataOnExit: z.boolean(),
@@ -32,6 +33,7 @@ export const DEFAULT_LEAVE_RULE: LeaveRule = {
   createdBy: 'system',
   type: 'LEAVE_RULE',
   annualEntitlementDays: 30,
+  fullTimeWeeklyHours: 39.83,
   workDaysPerWeek: 5,
   proRataOnEntry: true,
   proRataOnExit: true,

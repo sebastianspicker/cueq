@@ -38,6 +38,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <nav style={{ display: 'flex', gap: '1rem' }}>
           <Link href={`/${locale}/dashboard`}>{messages.app.nav.dashboard}</Link>
           <Link href={`/${locale}/team-calendar`}>{messages.app.nav.teamCalendar}</Link>
+          <Link href={`/${locale}/leave`}>{messages.app.nav.leave}</Link>
           <Link href={`/${locale}/roster`}>{messages.app.nav.roster}</Link>
           <Link href={`/${locale}/approvals`}>{messages.app.nav.approvals}</Link>
           <Link href={`/${locale}/time-engine`}>{messages.app.nav.timeEngine}</Link>

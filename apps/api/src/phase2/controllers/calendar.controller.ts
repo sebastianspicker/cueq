@@ -1,8 +1,9 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Phase2Service } from '../phase2.service';
+import { TeamCalendarEntryDto } from '../dto/absence.dto';
 
 @ApiTags('calendar')
 @ApiBearerAuth()
@@ -12,6 +13,9 @@ export class CalendarController {
 
   @Get('team')
   @ApiOperation({ summary: 'Get team absence calendar with role-based redaction' })
+  @ApiOkResponse({ type: TeamCalendarEntryDto, isArray: true })
+  @ApiQuery({ name: 'start', required: false, type: String })
+  @ApiQuery({ name: 'end', required: false, type: String })
   teamCalendar(
     @CurrentUser() user: AuthenticatedIdentity,
     @Query('start') start?: string,

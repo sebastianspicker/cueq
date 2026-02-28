@@ -68,13 +68,28 @@ describe('Phase 2 compliance', () => {
   });
 
   it('redacts absence reason for employee team-calendar view', async () => {
+    await request(app.getHttpServer())
+      .post('/v1/absences')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .send({
+        personId: SEED_IDS.personEmployee,
+        type: 'ANNUAL_LEAVE',
+        startDate: '2026-04-20',
+        endDate: '2026-04-21',
+        note: 'Requested leave',
+      });
+
     const response = await request(app.getHttpServer())
       .get('/v1/calendar/team')
+      .query({ start: '2026-04-01', end: '2026-04-30' })
       .set('Authorization', `Bearer ${TOKENS.employee}`);
 
     expect(response.status).toBe(200);
     expect(response.body[0]?.type).toBeUndefined();
     expect(response.body[0]?.note).toBeUndefined();
+    expect(response.body.every((entry: { status: string }) => entry.status === 'APPROVED')).toBe(
+      true,
+    );
   });
 
   it('denies employee access to aggregated reports', async () => {

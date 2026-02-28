@@ -26,6 +26,8 @@ model Person {
   lastName          String
   email             String   @unique
   role              Role     @default(EMPLOYEE)
+  employmentStartDate DateTime?
+  employmentEndDate   DateTime?
   organizationUnitId String
   organizationUnit  OrganizationUnit @relation(fields: [organizationUnitId], references: [id])
   supervisorId      String?
@@ -39,6 +41,7 @@ model Person {
   shiftAssignments  ShiftAssignment[]
   onCallRotations   OnCallRotation[]
   onCallDeployments OnCallDeployment[]
+  leaveAdjustments  LeaveAdjustment[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -251,6 +254,21 @@ model Absence {
 
   @@index([personId, startDate])
   @@map("absences")
+}
+
+model LeaveAdjustment {
+  id        String   @id @default(cuid())
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id])
+  year      Int
+  deltaDays Decimal
+  reason    String
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([personId, year])
+  @@index([createdBy, createdAt])
+  @@map("leave_adjustments")
 }
 
 model OnCallRotation {

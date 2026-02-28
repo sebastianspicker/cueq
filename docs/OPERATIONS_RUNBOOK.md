@@ -13,14 +13,15 @@ This runbook covers operational procedures introduced in Phase 3:
 
 ## 2. Commands
 
-| Purpose                      | Command                                                                        |
-| ---------------------------- | ------------------------------------------------------------------------------ |
-| Full local validation        | `make check`                                                                   |
-| Acceptance including AT-08   | `make test-acceptance`                                                         |
-| Backup/restore drill (AT-08) | `make test-backup-restore`                                                     |
-| Phase 3 seed data            | `pnpm --filter @cueq/database db:seed:phase3`                                  |
-| Reset Phase 3 seed           | `pnpm --filter @cueq/database db:reset:phase3`                                 |
-| HR import (CLI)              | `node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv` |
+| Purpose                          | Command                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| Full local validation            | `make check`                                                                   |
+| Acceptance including AT-08       | `make test-acceptance`                                                         |
+| Backup/restore drill (AT-08)     | `make test-backup-restore`                                                     |
+| Phase 3 seed data                | `pnpm --filter @cueq/database db:seed:phase3`                                  |
+| Reset Phase 3 seed               | `pnpm --filter @cueq/database db:reset:phase3`                                 |
+| HR import (CLI)                  | `node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv` |
+| FR-400 leave-adjustment backfill | `pnpm backfill:leave-adjustments -- --year 2026`                               |
 
 ## 3. Terminal Gateway Operations
 

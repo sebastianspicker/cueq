@@ -62,6 +62,7 @@ async function reset() {
   await prisma.workflowInstance.deleteMany();
   await prisma.onCallDeployment.deleteMany();
   await prisma.onCallRotation.deleteMany();
+  await prisma.leaveAdjustment.deleteMany();
   await prisma.absence.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.shiftAssignment.deleteMany();
@@ -123,6 +124,7 @@ async function seed() {
         lastName: 'Muster',
         email: 'employee@cueq.local',
         role: Role.EMPLOYEE,
+        employmentStartDate: new Date('2024-01-01T00:00:00.000Z'),
         organizationUnitId: IDs.ouAdmin,
         supervisorId: IDs.personLead,
         workTimeModelId: IDs.modelFlextime,
@@ -134,6 +136,7 @@ async function seed() {
         lastName: 'Leitung',
         email: 'lead@cueq.local',
         role: Role.TEAM_LEAD,
+        employmentStartDate: new Date('2024-01-01T00:00:00.000Z'),
         organizationUnitId: IDs.ouAdmin,
         workTimeModelId: IDs.modelFlextime,
       },
@@ -144,6 +147,7 @@ async function seed() {
         lastName: 'Planer',
         email: 'planner@cueq.local',
         role: Role.SHIFT_PLANNER,
+        employmentStartDate: new Date('2024-01-01T00:00:00.000Z'),
         organizationUnitId: IDs.ouSecurity,
         supervisorId: IDs.personLead,
         workTimeModelId: IDs.modelShift,
@@ -155,6 +159,7 @@ async function seed() {
         lastName: 'Personal',
         email: 'hr@cueq.local',
         role: Role.HR,
+        employmentStartDate: new Date('2024-01-01T00:00:00.000Z'),
         organizationUnitId: IDs.ouAdmin,
         workTimeModelId: IDs.modelFlextime,
       },
@@ -165,6 +170,7 @@ async function seed() {
         lastName: 'Admin',
         email: 'admin@cueq.local',
         role: Role.ADMIN,
+        employmentStartDate: new Date('2024-01-01T00:00:00.000Z'),
         organizationUnitId: IDs.ouAdmin,
         workTimeModelId: IDs.modelFlextime,
       },
@@ -175,6 +181,7 @@ async function seed() {
         lastName: 'Bereitschaft',
         email: 'oncall@cueq.local',
         role: Role.EMPLOYEE,
+        employmentStartDate: new Date('2024-01-01T00:00:00.000Z'),
         organizationUnitId: IDs.ouIt,
         supervisorId: IDs.personLead,
         workTimeModelId: IDs.modelOncall,

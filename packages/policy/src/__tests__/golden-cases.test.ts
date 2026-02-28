@@ -73,6 +73,7 @@ describe('Golden Cases: Rest Period Constraints', () => {
 describe('Golden Cases: Leave Entitlement Constraints', () => {
   it('provides 30 days annual leave for TV-L full-time', () => {
     expect(DEFAULT_LEAVE_RULE.annualEntitlementDays).toBe(30);
+    expect(DEFAULT_LEAVE_RULE.fullTimeWeeklyHours).toBe(39.83);
     expect(DEFAULT_LEAVE_RULE.workDaysPerWeek).toBe(5);
   });
 

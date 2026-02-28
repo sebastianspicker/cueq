@@ -20,6 +20,7 @@
 | `CoreWorkflowTransitionContract` | `schemas/domain/core-workflow-transition.schema.json` | 2 |
 | `ExportRun` | `schemas/domain/export-run.schema.json` | 7 |
 | `HrImportRun` | `schemas/domain/hr-import-run.schema.json` | 12 |
+| `LeaveAdjustment` | `schemas/domain/leave-adjustment.schema.json` | 7 |
 | `OrganizationUnit` | `schemas/domain/org-unit.schema.json` | 5 |
 | `PayrollCsvRow` | `schemas/domain/payroll-csv-row.schema.json` | 4 |
 | `Person` | `schemas/domain/person.schema.json` | 11 |
@@ -42,4 +43,4 @@ make generate
 make schemas
 ```
 
-Last generated: 2026-02-28T18:38:27.191Z
+Last generated: 2026-02-28T19:27:06.284Z

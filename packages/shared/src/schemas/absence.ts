@@ -55,10 +55,62 @@ export type Absence = z.infer<typeof AbsenceSchema>;
 export const LeaveBalanceSchema = z.object({
   personId: IdSchema,
   year: z.number().int(),
+  asOfDate: DateSchema,
   entitlement: PositiveDecimalSchema,
   used: PositiveDecimalSchema,
   remaining: z.number(),
   carriedOver: PositiveDecimalSchema,
+  carriedOverUsed: PositiveDecimalSchema,
   forfeited: PositiveDecimalSchema,
+  adjustments: z.number(),
 });
 export type LeaveBalance = z.infer<typeof LeaveBalanceSchema>;
+
+/** HR leave adjustment entry */
+export const LeaveAdjustmentSchema = z.object({
+  id: IdSchema,
+  personId: IdSchema,
+  year: z.number().int(),
+  deltaDays: z.number(),
+  reason: z.string(),
+  createdBy: z.string(),
+  createdAt: DateTimeSchema,
+});
+export type LeaveAdjustment = z.infer<typeof LeaveAdjustmentSchema>;
+
+/** Payload for creating an HR leave adjustment */
+export const CreateLeaveAdjustmentSchema = z.object({
+  personId: IdSchema,
+  year: z.number().int().min(1970).max(2200),
+  deltaDays: z.number(),
+  reason: z.string().min(1).max(1000),
+});
+export type CreateLeaveAdjustment = z.infer<typeof CreateLeaveAdjustmentSchema>;
+
+/** Query for listing leave adjustments */
+export const LeaveAdjustmentQuerySchema = z.object({
+  personId: IdSchema.optional(),
+  year: z.coerce.number().int().min(1970).max(2200).optional(),
+});
+export type LeaveAdjustmentQuery = z.infer<typeof LeaveAdjustmentQuerySchema>;
+
+/** Team calendar query */
+export const TeamCalendarQuerySchema = z.object({
+  start: z.string().optional(),
+  end: z.string().optional(),
+});
+export type TeamCalendarQuery = z.infer<typeof TeamCalendarQuerySchema>;
+
+/** Team calendar entry with role-based redaction semantics */
+export const TeamCalendarEntrySchema = z.object({
+  id: IdSchema,
+  personId: IdSchema,
+  personName: z.string(),
+  startDate: DateSchema,
+  endDate: DateSchema,
+  status: AbsenceStatusSchema,
+  visibilityStatus: z.literal('ABSENT'),
+  type: AbsenceTypeSchema.optional(),
+  note: z.string().nullable().optional(),
+});
+export type TeamCalendarEntry = z.infer<typeof TeamCalendarEntrySchema>;

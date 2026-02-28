@@ -1,8 +1,16 @@
-import { Body, Controller, Get, Inject, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Phase2Service } from '../phase2.service';
+import { AbsenceDto, CreateAbsenceDto } from '../dto/absence.dto';
 
 @ApiTags('absences')
 @ApiBearerAuth()
@@ -12,6 +20,8 @@ export class AbsencesController {
 
   @Post()
   @ApiOperation({ summary: 'Create absence request' })
+  @ApiBody({ type: CreateAbsenceDto })
+  @ApiCreatedResponse({ type: AbsenceDto })
   create(@CurrentUser() user: AuthenticatedIdentity, @Body() payload: unknown): Promise<unknown> {
     return this.phase2Service.createAbsence(user, payload);
   }
@@ -32,7 +42,18 @@ export class AbsencesController {
 
   @Get('me')
   @ApiOperation({ summary: 'List authenticated user absences' })
+  @ApiOkResponse({ type: AbsenceDto, isArray: true })
   listMine(@CurrentUser() user: AuthenticatedIdentity): Promise<unknown> {
     return this.phase2Service.listMyAbsences(user);
+  }
+
+  @Post(':id/cancel')
+  @ApiOperation({ summary: 'Cancel an existing absence request' })
+  @ApiCreatedResponse({ type: AbsenceDto })
+  cancel(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id') absenceId: string,
+  ): Promise<unknown> {
+    return this.phase2Service.cancelAbsence(user, absenceId);
   }
 }

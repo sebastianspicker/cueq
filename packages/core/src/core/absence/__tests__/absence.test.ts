@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { calculateLeaveQuota, calculateProratedMonthlyTarget } from '..';
+import {
+  calculateAbsenceWorkingDays,
+  calculateLeaveLedger,
+  calculateLeaveQuota,
+  calculateProratedMonthlyTarget,
+} from '..';
 import { DEFAULT_LEAVE_RULE } from '@cueq/policy';
 
 describe('calculateProratedMonthlyTarget', () => {
@@ -147,5 +152,149 @@ describe('calculateLeaveQuota', () => {
 
     expect(result.forfeitedDays).toBe(0);
     expect(result.remainingDays).toBe(35);
+  });
+});
+
+describe('calculateAbsenceWorkingDays', () => {
+  it('counts only weekdays and excludes NRW holidays', () => {
+    const days = calculateAbsenceWorkingDays({
+      startDate: '2026-04-01',
+      endDate: '2026-04-07',
+      holidayDates: ['2026-04-03', '2026-04-06'],
+    });
+
+    expect(days).toBe(3);
+  });
+
+  it('uses an empty holiday set when no holidays are provided', () => {
+    const days = calculateAbsenceWorkingDays({
+      startDate: '2026-04-01',
+      endDate: '2026-04-03',
+    });
+
+    expect(days).toBe(3);
+  });
+});
+
+describe('calculateLeaveLedger', () => {
+  it('consumes carry-over before current-year entitlement and forfeits after deadline', () => {
+    const result = calculateLeaveLedger(
+      {
+        year: 2026,
+        asOfDate: '2026-12-31',
+        workTimeModelWeeklyHours: 39.83,
+        priorYearCarryOverDays: 5,
+        annualLeaveUsage: [
+          { date: '2026-02-10', days: 2 },
+          { date: '2026-04-10', days: 6 },
+        ],
+      },
+      DEFAULT_LEAVE_RULE,
+    );
+
+    expect(result.carriedOverDays).toBe(5);
+    expect(result.carriedOverUsedDays).toBe(2);
+    expect(result.forfeitedDays).toBe(3);
+    expect(result.currentYearUsedDays).toBe(6);
+  });
+
+  it('supports employment-window pro-rata and explicit adjustments', () => {
+    const result = calculateLeaveLedger(
+      {
+        year: 2026,
+        asOfDate: '2026-12-31',
+        workTimeModelWeeklyHours: 20,
+        employmentStartDate: '2026-07-01',
+        adjustments: [{ year: 2026, deltaDays: 1.5 }],
+        annualLeaveUsage: [{ date: '2026-08-05', days: 1 }],
+      },
+      DEFAULT_LEAVE_RULE,
+    );
+
+    expect(result.entitlementDays).toBe(7.53);
+    expect(result.adjustmentsDays).toBe(1.5);
+    expect(result.remainingDays).toBe(8.03);
+  });
+
+  it('does not forfeit carry-over before deadline', () => {
+    const result = calculateLeaveLedger(
+      {
+        year: 2026,
+        asOfDate: '2026-03-01',
+        workTimeModelWeeklyHours: 39.83,
+        priorYearCarryOverDays: 4,
+        annualLeaveUsage: [{ date: '2026-02-14', days: 1 }],
+      },
+      DEFAULT_LEAVE_RULE,
+    );
+
+    expect(result.forfeitedDays).toBe(0);
+    expect(result.carriedOverRemainingDays).toBe(3);
+  });
+
+  it('forfeits remaining carry-over at as-of date when deadline already passed', () => {
+    const result = calculateLeaveLedger(
+      {
+        year: 2026,
+        asOfDate: '2026-04-10T12:00:00.000Z',
+        workTimeModelWeeklyHours: 39.83,
+        priorYearCarryOverDays: 4,
+        annualLeaveUsage: [{ date: '2026-02-14', days: 1 }],
+      },
+      DEFAULT_LEAVE_RULE,
+    );
+
+    expect(result.carriedOverUsedDays).toBe(1);
+    expect(result.forfeitedDays).toBe(3);
+    expect(result.carriedOverRemainingDays).toBe(0);
+  });
+
+  it('keeps full-year entitlement when prorating is disabled and full-time weekly hours is omitted', () => {
+    const { fullTimeWeeklyHours: _unused, ...ruleWithoutFullTime } = DEFAULT_LEAVE_RULE;
+    const result = calculateLeaveLedger(
+      {
+        year: 2026,
+        asOfDate: '2026-12-31',
+        workTimeModelWeeklyHours: 39.83,
+        employmentStartDate: '2026-07-01',
+      },
+      {
+        ...ruleWithoutFullTime,
+        proRataOnEntry: false,
+        proRataOnExit: false,
+      } as typeof DEFAULT_LEAVE_RULE,
+    );
+
+    expect(result.entitlementDays).toBe(30);
+    expect(result.usedDays).toBe(0);
+  });
+
+  it('returns zero entitlement when employment window is inverted inside the year', () => {
+    const result = calculateLeaveLedger(
+      {
+        year: 2026,
+        asOfDate: '2026-12-31',
+        workTimeModelWeeklyHours: 39.83,
+        employmentStartDate: '2026-10-01',
+        employmentEndDate: '2026-02-01',
+      },
+      DEFAULT_LEAVE_RULE,
+    );
+
+    expect(result.entitlementDays).toBe(0);
+    expect(result.remainingDays).toBe(0);
+  });
+
+  it('throws when asOfDate is malformed as ISO date time', () => {
+    expect(() =>
+      calculateLeaveLedger(
+        {
+          year: 2026,
+          asOfDate: 'not-a-date',
+          workTimeModelWeeklyHours: 39.83,
+        },
+        DEFAULT_LEAVE_RULE,
+      ),
+    ).toThrow('Invalid date');
   });
 });

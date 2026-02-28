@@ -100,9 +100,26 @@
       "post": {
         "operationId": "AbsencesController_create",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAbsenceDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbsenceDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -142,7 +159,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AbsenceDto"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -156,13 +183,57 @@
         ]
       }
     },
+    "/v1/absences/{id}/cancel": {
+      "post": {
+        "operationId": "AbsencesController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbsenceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel an existing absence request",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
     "/v1/leave-balance/me": {
       "get": {
         "operationId": "LeaveBalanceController_getMe",
         "parameters": [
           {
             "name": "year",
-            "required": true,
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "asOfDate",
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -171,7 +242,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaveBalanceDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -185,21 +263,56 @@
         ]
       }
     },
-    "/v1/calendar/team": {
+    "/v1/leave-adjustments": {
+      "post": {
+        "operationId": "LeaveAdjustmentsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeaveAdjustmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaveAdjustmentDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create HR leave adjustment",
+        "tags": [
+          "absences"
+        ]
+      },
       "get": {
-        "operationId": "CalendarController_teamCalendar",
+        "operationId": "LeaveAdjustmentsController_list",
         "parameters": [
           {
-            "name": "start",
-            "required": true,
+            "name": "personId",
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "end",
-            "required": true,
+            "name": "year",
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -208,7 +321,64 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeaveAdjustmentDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List leave adjustments",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/calendar/team": {
+      "get": {
+        "operationId": "CalendarController_teamCalendar",
+        "parameters": [
+          {
+            "name": "start",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "end",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TeamCalendarEntryDto"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1428,6 +1598,285 @@
         "type": "http"
       }
     },
-    "schemas": {}
+    "schemas": {
+      "CreateAbsenceDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ANNUAL_LEAVE",
+              "SICK",
+              "SPECIAL_LEAVE",
+              "TRAINING",
+              "TRAVEL",
+              "COMP_TIME",
+              "FLEX_DAY",
+              "UNPAID",
+              "PARENTAL"
+            ]
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "personId",
+          "type",
+          "startDate",
+          "endDate"
+        ]
+      },
+      "AbsenceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ANNUAL_LEAVE",
+              "SICK",
+              "SPECIAL_LEAVE",
+              "TRAINING",
+              "TRAVEL",
+              "COMP_TIME",
+              "FLEX_DAY",
+              "UNPAID",
+              "PARENTAL"
+            ]
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "days": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "APPROVED",
+              "REJECTED",
+              "CANCELLED"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "type",
+          "startDate",
+          "endDate",
+          "days",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "LeaveBalanceDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "asOfDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "entitlement": {
+            "type": "number"
+          },
+          "used": {
+            "type": "number"
+          },
+          "remaining": {
+            "type": "number"
+          },
+          "carriedOver": {
+            "type": "number"
+          },
+          "carriedOverUsed": {
+            "type": "number"
+          },
+          "forfeited": {
+            "type": "number"
+          },
+          "adjustments": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "personId",
+          "year",
+          "asOfDate",
+          "entitlement",
+          "used",
+          "remaining",
+          "carriedOver",
+          "carriedOverUsed",
+          "forfeited",
+          "adjustments"
+        ]
+      },
+      "CreateLeaveAdjustmentDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "deltaDays": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "personId",
+          "year",
+          "deltaDays",
+          "reason"
+        ]
+      },
+      "LeaveAdjustmentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "deltaDays": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "year",
+          "deltaDays",
+          "reason",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "TeamCalendarEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "APPROVED",
+              "REJECTED",
+              "CANCELLED"
+            ]
+          },
+          "visibilityStatus": {
+            "type": "string",
+            "enum": [
+              "ABSENT"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ANNUAL_LEAVE",
+              "SICK",
+              "SPECIAL_LEAVE",
+              "TRAINING",
+              "TRAVEL",
+              "COMP_TIME",
+              "FLEX_DAY",
+              "UNPAID",
+              "PARENTAL"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "personName",
+          "startDate",
+          "endDate",
+          "status",
+          "visibilityStatus"
+        ]
+      }
+    }
   }
 }

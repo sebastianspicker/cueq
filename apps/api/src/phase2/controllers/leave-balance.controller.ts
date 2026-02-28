@@ -1,8 +1,9 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Phase2Service } from '../phase2.service';
+import { LeaveBalanceDto } from '../dto/absence.dto';
 
 @ApiTags('absences')
 @ApiBearerAuth()
@@ -12,7 +13,14 @@ export class LeaveBalanceController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get leave balance for the authenticated user' })
-  getMe(@CurrentUser() user: AuthenticatedIdentity, @Query('year') year?: string) {
-    return this.phase2Service.leaveBalance(user, year ? Number(year) : undefined);
+  @ApiOkResponse({ type: LeaveBalanceDto })
+  @ApiQuery({ name: 'year', required: false, type: String })
+  @ApiQuery({ name: 'asOfDate', required: false, type: String })
+  getMe(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Query('year') year?: string,
+    @Query('asOfDate') asOfDate?: string,
+  ) {
+    return this.phase2Service.leaveBalance(user, year ? Number(year) : undefined, asOfDate);
   }
 }

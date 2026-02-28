@@ -42,6 +42,7 @@ async function snapshot(prisma) {
     shifts,
     bookings,
     absences,
+    leaveAdjustments,
     onCallRotations,
     onCallDeployments,
     workflowInstances,
@@ -65,6 +66,7 @@ async function snapshot(prisma) {
     prisma.shift.findMany(),
     prisma.booking.findMany(),
     prisma.absence.findMany(),
+    prisma.leaveAdjustment.findMany(),
     prisma.onCallRotation.findMany(),
     prisma.onCallDeployment.findMany(),
     prisma.workflowInstance.findMany(),
@@ -90,6 +92,7 @@ async function snapshot(prisma) {
     shifts: sortById(shifts),
     bookings: sortById(bookings),
     absences: sortById(absences),
+    leaveAdjustments: sortById(leaveAdjustments),
     onCallRotations: sortById(onCallRotations),
     onCallDeployments: sortById(onCallDeployments),
     workflowInstances: sortById(workflowInstances),
@@ -139,6 +142,12 @@ async function restoreDataset(prisma, dataset) {
   }
   if (dataset.absences.length) {
     await prisma.absence.createMany({ data: dataset.absences, skipDuplicates: true });
+  }
+  if (dataset.leaveAdjustments.length) {
+    await prisma.leaveAdjustment.createMany({
+      data: dataset.leaveAdjustments,
+      skipDuplicates: true,
+    });
   }
   if (dataset.onCallRotations.length) {
     await prisma.onCallRotation.createMany({

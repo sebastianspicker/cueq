@@ -74,4 +74,38 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
 
     await expect(page.getByRole('heading', { name: 'Plan-Ist-Abgleich' })).toBeVisible();
   });
+
+  test('leave request flow and team-calendar role visibility', async ({ page }) => {
+    const leadToken = mockToken({
+      sub: 'c000000000000000000000101',
+      email: 'lead@cueq.local',
+      role: 'TEAM_LEAD',
+      organizationUnitId: 'c000000000000000000000001',
+    });
+
+    await page.goto('http://localhost:3000/de/leave');
+    await page.getByLabel('Bearer-Token').fill(employeeToken);
+    await page.getByLabel('Jahr').fill('2026');
+    await page.getByLabel('Stand-Datum').fill('2026-12-31');
+    await page.getByRole('button', { name: 'Kontostand laden' }).click();
+    await expect(page.getByRole('heading', { name: 'Urlaubskonto' })).toBeVisible();
+
+    await page.getByLabel('Typ').selectOption('ANNUAL_LEAVE');
+    await page.getByLabel('Startdatum').fill('2026-04-20');
+    await page.getByLabel('Enddatum').fill('2026-04-22');
+    await page.getByLabel('Notiz').fill('Playwright leave request');
+    await page.getByRole('button', { name: 'Abwesenheit beantragen' }).last().click();
+    await expect(page.getByText('Abwesenheit erfasst.')).toBeVisible();
+
+    await page.goto('http://localhost:3000/de/team-calendar');
+    await page.getByLabel('Bearer-Token').fill(employeeToken);
+    await page.getByLabel('Start').fill('2026-04-01');
+    await page.getByLabel('Ende').fill('2026-04-30');
+    await page.getByRole('button', { name: 'Kalender laden' }).click();
+    await expect(page.getByText('REQUESTED')).toHaveCount(0);
+
+    await page.getByLabel('Bearer-Token').fill(leadToken);
+    await page.getByRole('button', { name: 'Kalender laden' }).click();
+    await expect(page.getByText('REQUESTED')).toBeVisible();
+  });
 });

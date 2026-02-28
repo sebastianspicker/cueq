@@ -95,7 +95,7 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
   });
 
   it('AT-04 part-time prorated target uses deterministic segments', async () => {
-    const response = await request(app.getHttpServer())
+    const prorated = await request(app.getHttpServer())
       .post('/v1/absences/prorated-target')
       .set('Authorization', `Bearer ${TOKENS.hr}`)
       .send({
@@ -108,8 +108,26 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
         ],
       });
 
-    expect(response.status).toBe(201);
-    expect(response.body.proratedTargetHours).toBe(151.33);
+    expect(prorated.status).toBe(201);
+    expect(prorated.body.proratedTargetHours).toBe(151.33);
+
+    const beforeDeadline = await request(app.getHttpServer())
+      .get('/v1/leave-balance/me')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .query({ year: 2026, asOfDate: '2026-03-01' });
+
+    const afterDeadline = await request(app.getHttpServer())
+      .get('/v1/leave-balance/me')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .query({ year: 2026, asOfDate: '2026-12-31' });
+
+    expect(beforeDeadline.status).toBe(200);
+    expect(beforeDeadline.body.carriedOver).toBeGreaterThan(0);
+    expect(beforeDeadline.body.forfeited).toBe(0);
+
+    expect(afterDeadline.status).toBe(200);
+    expect(afterDeadline.body.carriedOver).toBeGreaterThan(0);
+    expect(afterDeadline.body.forfeited).toBe(afterDeadline.body.carriedOver);
   });
 
   it('AT-05 on-call compliance validates rest window', async () => {
@@ -178,6 +196,18 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
   });
 
   it('AT-07 team calendar enforces role-based visibility', async () => {
+    const requested = await request(app.getHttpServer())
+      .post('/v1/absences')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .send({
+        personId: SEED_IDS.personEmployee,
+        type: 'ANNUAL_LEAVE',
+        startDate: '2026-04-20',
+        endDate: '2026-04-22',
+        note: 'Spring leave',
+      });
+    expect(requested.status).toBe(201);
+
     const employeeView = await request(app.getHttpServer())
       .get('/v1/calendar/team')
       .query({ start: '2026-04-01T00:00:00.000Z', end: '2026-04-30T23:59:59.000Z' })
@@ -191,8 +221,16 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
     expect(employeeView.status).toBe(200);
     expect(leadView.status).toBe(200);
 
-    expect(employeeView.body[0]?.status).toBe('ABSENT');
-    expect(employeeView.body[0]?.type).toBeUndefined();
+    expect(employeeView.body[0]?.visibilityStatus).toBe('ABSENT');
+    expect(employeeView.body.every((entry: { type?: string }) => entry.type === undefined)).toBe(
+      true,
+    );
+    expect(
+      employeeView.body.every((entry: { status: string }) => entry.status === 'APPROVED'),
+    ).toBe(true);
+    expect(leadView.body.some((entry: { status: string }) => entry.status === 'REQUESTED')).toBe(
+      true,
+    );
     expect(leadView.body[0]?.type).toBeDefined();
   });
 

@@ -5,6 +5,7 @@ import { DashboardController } from './controllers/dashboard.controller';
 import { BookingsController } from './controllers/bookings.controller';
 import { AbsencesController } from './controllers/absences.controller';
 import { LeaveBalanceController } from './controllers/leave-balance.controller';
+import { LeaveAdjustmentsController } from './controllers/leave-adjustments.controller';
 import { CalendarController } from './controllers/calendar.controller';
 import { WorkflowsController } from './controllers/workflows.controller';
 import { RostersController } from './controllers/rosters.controller';
@@ -29,6 +30,7 @@ import { TimeEngineController } from './controllers/time-engine.controller';
     BookingsController,
     AbsencesController,
     LeaveBalanceController,
+    LeaveAdjustmentsController,
     CalendarController,
     WorkflowsController,
     RostersController,
