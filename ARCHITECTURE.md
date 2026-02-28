@@ -18,7 +18,7 @@ cueq is an integrated time-tracking, absence-management, and shift-planning syst
 
 ## 2. Architecture Principles
 
-1. **Domain-first.** Core business logic has zero I/O dependencies. All rules, calculations, and state machines live in `src/core/` and are testable in isolation.
+1. **Domain-first.** Core business logic has zero I/O dependencies. All rules, calculations, and state machines live in `packages/core/src/core/` and are testable in isolation.
 2. **Schema-driven contracts.** Every entity, API endpoint, event, and export format is defined in JSON Schema / OpenAPI _before_ implementation. Types are generated, not hand-written.
 3. **Hexagonal / Ports & Adapters.** The core domain is surrounded by adapters (DB, terminals, SSO, exports) that can be swapped or mocked independently.
 4. **Append-only audit.** The audit trail is structurally immutable. No code path may update or delete audit entries.

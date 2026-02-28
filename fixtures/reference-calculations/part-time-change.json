@@ -10,7 +10,8 @@
       { "from": "2026-04-01", "to": "2026-04-14", "weeklyHours": 39.83 },
       { "from": "2026-04-15", "to": "2026-04-30", "weeklyHours": 30.0 }
     ],
-    "actualHours": 149.0
+    "actualHours": 149.0,
+    "transitionAdjustmentHours": -0.33
   },
   "expected": {
     "proratedTargetHours": 151.33,

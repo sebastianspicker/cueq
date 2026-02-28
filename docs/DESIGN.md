@@ -37,7 +37,7 @@ cueq uses DDD-inspired patterns without the full ceremonial weight:
          └──────────────────┘
 ```
 
-- `src/core/` contains **zero imports from frameworks, databases, or HTTP libraries**.
+- `packages/core/src/core/` contains **zero imports from frameworks, databases, or HTTP libraries**.
 - All I/O happens through **port interfaces** defined in core, implemented by adapters.
 - This guarantees core logic is testable with plain unit tests — no mocking frameworks needed.
 
@@ -90,7 +90,7 @@ The audit trail is an **append-only log**:
 
 ### Repository Pattern (Adapters)
 
-Each domain entity has a **repository interface** defined in `src/core/`:
+Each domain entity has a **repository interface** defined in `packages/core/src/core/`:
 
 ```typescript
 interface BookingRepository {
@@ -115,13 +115,13 @@ The implementation in `src/adapters/persistence/` handles SQL, connection poolin
 
 ## 4. Testing Strategy
 
-| Layer           | Type        | Speed | What it validates                             |
-| --------------- | ----------- | ----- | --------------------------------------------- |
-| `src/core/`     | Unit        | <10s  | Business logic, rule evaluation, calculations |
-| `src/adapters/` | Integration | <60s  | DB queries, SSO handshake, terminal import    |
-| `src/api/`      | Contract    | <30s  | API matches OpenAPI spec                      |
-| End-to-end      | Acceptance  | <5min | 8 MVP scenarios from PRD                      |
-| Cross-cutting   | Compliance  | <30s  | GDPR visibility, audit immutability           |
+| Layer                     | Type        | Speed | What it validates                             |
+| ------------------------- | ----------- | ----- | --------------------------------------------- |
+| `packages/core/src/core/` | Unit        | <10s  | Business logic, rule evaluation, calculations |
+| `src/adapters/`           | Integration | <60s  | DB queries, SSO handshake, terminal import    |
+| `src/api/`                | Contract    | <30s  | API matches OpenAPI spec                      |
+| End-to-end                | Acceptance  | <5min | 8 MVP scenarios from PRD                      |
+| Cross-cutting             | Compliance  | <30s  | GDPR visibility, audit immutability           |
 
 See [`QUALITY_SCORE.md`](QUALITY_SCORE.md) for coverage targets and metrics.
 

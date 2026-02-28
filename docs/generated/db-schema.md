@@ -9,6 +9,13 @@
 | `Absence` | `schemas/domain/absence.schema.json` | 10 |
 | `AuditEntry` | `schemas/domain/audit-entry.schema.json` | 10 |
 | `Booking` | `schemas/domain/booking.schema.json` | 10 |
+| `CoreAuditEntryDraftContract` | `schemas/domain/core-audit-entry-draft.schema.json` | 2 |
+| `CoreClosingContract` | `schemas/domain/core-closing.schema.json` | 3 |
+| `CoreFlextimeCalculationContract` | `schemas/domain/core-flextime-calculation.schema.json` | 2 |
+| `CoreOnCallRestContract` | `schemas/domain/core-oncall-rest.schema.json` | 2 |
+| `CoreProratedTargetContract` | `schemas/domain/core-prorated-target.schema.json` | 2 |
+| `CoreShiftComplianceContract` | `schemas/domain/core-shift-compliance.schema.json` | 2 |
+| `CoreWorkflowTransitionContract` | `schemas/domain/core-workflow-transition.schema.json` | 2 |
 | `ExportRun` | `schemas/domain/export-run.schema.json` | 7 |
 | `OrganizationUnit` | `schemas/domain/org-unit.schema.json` | 5 |
 | `Person` | `schemas/domain/person.schema.json` | 11 |
@@ -28,4 +35,4 @@ make generate
 make schemas
 ```
 
-Last generated: 2026-02-28T12:41:15.313Z
+Last generated: 2026-02-28T13:12:31.194Z

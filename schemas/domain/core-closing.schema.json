@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/core-closing.schema.json",
+  "title": "CoreClosingContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["checklistInput", "checklistOutput", "cutoffTransition"],
+  "properties": {
+    "checklistInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missingBookings",
+        "bookingGaps",
+        "openCorrectionRequests",
+        "openLeaveRequests",
+        "ruleViolations",
+        "rosterMismatches",
+        "balanceAnomalies"
+      ],
+      "properties": {
+        "missingBookings": { "type": "integer", "minimum": 0 },
+        "bookingGaps": { "type": "integer", "minimum": 0 },
+        "openCorrectionRequests": { "type": "integer", "minimum": 0 },
+        "openLeaveRequests": { "type": "integer", "minimum": 0 },
+        "ruleViolations": { "type": "integer", "minimum": 0 },
+        "rosterMismatches": { "type": "integer", "minimum": 0 },
+        "balanceAnomalies": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "checklistOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items", "hasErrors"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "hasErrors": { "type": "boolean" }
+      }
+    },
+    "cutoffTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nextStatus", "violations"],
+      "properties": {
+        "nextStatus": {
+          "enum": ["OPEN", "REVIEW", "APPROVED", "EXPORTED"]
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

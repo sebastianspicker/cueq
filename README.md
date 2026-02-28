@@ -139,7 +139,9 @@ graph TD
         end
 
         subgraph Packages ["packages/"]
+            CORE["core/<br/>Pure Domain Logic<br/>@cueq/core"]
             DB["database/<br/>Prisma Schema + Client<br/>@cueq/database"]
+            POL["policy/<br/>Policy-as-Code Rules<br/>@cueq/policy"]
             SH["shared/<br/>Zod Schemas + Types<br/>@cueq/shared"]
         end
 
@@ -153,6 +155,10 @@ graph TD
     end
 
     API --> DB
+    API --> CORE
+    CORE --> POL
+    CORE --> SH
+    API --> POL
     API --> SH
     WEB --> SH
     DB -.-> GEN
@@ -162,13 +168,19 @@ graph TD
 
 ```mermaid
 graph BT
+    CORE["@cueq/core<br/>(pure domain)"]
     DB["@cueq/database<br/>(Prisma)"]
+    POL["@cueq/policy<br/>(rules)"]
     SH["@cueq/shared<br/>(Zod schemas)"]
     API["@cueq/api<br/>(NestJS)"]
     WEB["@cueq/web<br/>(Next.js)"]
 
+    API --> CORE
     API --> DB
+    API --> POL
     API --> SH
+    CORE --> POL
+    CORE --> SH
     WEB --> SH
 ```
 
@@ -194,14 +206,22 @@ cueq/
 │       └── package.json
 │
 ├── packages/
+│   ├── core/                   # Pure domain logic (time, absence, workflow, roster, closing, audit)
+│   │   ├── src/core/
+│   │   ├── src/index.ts
+│   │   └── package.json
 │   ├── database/               # Prisma schema + generated client
 │   │   ├── prisma/
 │   │   │   └── schema.prisma   # 14 models, 10 enums
 │   │   ├── src/index.ts        # Re-exports PrismaClient
 │   │   └── package.json
+│   ├── policy/                 # Policy-as-code definitions + golden tests
+│   │   ├── src/rules/
+│   │   └── package.json
 │   └── shared/                 # Shared validation & types
 │       ├── src/
 │       │   ├── index.ts
+│       │   ├── generated/      # Generated types from JSON Schemas
 │       │   └── schemas/
 │       │       ├── common.ts   # ID, DateTime, Pagination, ApiError
 │       │       ├── booking.ts  # CreateBooking, BookingCorrection

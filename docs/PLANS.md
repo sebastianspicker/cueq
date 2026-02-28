@@ -4,22 +4,22 @@
 
 ---
 
-## Current Phase: Phase 0 — Harness Foundation
+## Current Phase: Phase 1 — Domain Core
 
-**Goal**: Make the repo safe to receive code. Every future PR will be validated by CI, schemas, and tests.
+**Goal**: Implement pure domain logic (time engine, absence, workflow, roster, closing, audit) with deterministic fixture coverage and >90% core unit coverage.
 
-**Status**: 🟡 In Progress (implementation complete on branch; pending default-branch CI confirmation)
+**Status**: 🟡 In Progress (Phase 1 implemented on branch; pending merge/default-branch confirmation)
 
 ---
 
 ## Phase Overview
 
-| Phase       | Name               | Goal                                                                                     | Status                                    |
-| ----------- | ------------------ | ---------------------------------------------------------------------------------------- | ----------------------------------------- |
-| **Phase 0** | Harness Foundation | CI, schemas, config, scripts, docs skeleton                                              | 🟡 In Progress (pending merge validation) |
-| **Phase 1** | Domain Core        | Pure logic (time engine, absence, workflow, roster, closing, audit) with full unit tests | ⏳ Planned                                |
-| **Phase 2** | Services + UI      | API, adapters, frontend; 7/8 acceptance tests green                                      | ⏳ Planned                                |
-| **Phase 3** | Integrations + Ops | Terminal gateway, HR import, payroll export, backup/restore; pilot-ready                 | ⏳ Planned                                |
+| Phase       | Name               | Goal                                                                                     | Status                                 |
+| ----------- | ------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------- |
+| **Phase 0** | Harness Foundation | CI, schemas, config, scripts, docs skeleton                                              | ✅ Complete                            |
+| **Phase 1** | Domain Core        | Pure logic (time engine, absence, workflow, roster, closing, audit) with full unit tests | 🟡 In Progress (implemented on branch) |
+| **Phase 2** | Services + UI      | API, adapters, frontend; 7/8 acceptance tests green                                      | ⏳ Planned                             |
+| **Phase 3** | Integrations + Ops | Terminal gateway, HR import, payroll export, backup/restore; pilot-ready                 | ⏳ Planned                             |
 
 ---
 
@@ -52,24 +52,26 @@
 
 ## Phase 1 — Domain Core
 
-### Deliverables (Preview)
+### Deliverables
 
-- `src/core/time-engine/`: time-type catalog, work-time models, plausibility checks, balance calculation
-- `src/core/absence/`: leave quotas (pro-rata, carry-over, forfeiture)
-- `src/core/workflow/`: approval state machine, delegation chain
-- `src/core/roster/`: shift templates, min-staffing, plan-vs-actual
-- `src/core/closing/`: month-end checklists, cut-off lock
-- `src/core/audit/`: audit entry builder (append-only)
-- Full JSON Schemas and type generation
-- Reference calculation fixtures with real data
-- > 90% unit test coverage on `src/core/`
+- [x] `packages/core/src/core/time-engine/`: plausibility checks, balance calculation, rule-violation mapping
+- [x] `packages/core/src/core/absence/`: pro-rata targets and leave quota/carry-over/forfeiture helpers
+- [x] `packages/core/src/core/workflow/`: approval state machine, escalation trigger, delegation chain resolution
+- [x] `packages/core/src/core/roster/`: shift compliance, min-staffing, plan-vs-actual
+- [x] `packages/core/src/core/closing/`: checklist generation and cut-off lock transitions
+- [x] `packages/core/src/core/audit/`: immutable audit entry builder (append-only API surface)
+- [x] Core domain schemas under `schemas/domain/core-*.schema.json`
+- [x] Type generation wired into `make generate` (`scripts/generate-core-schema-types.mjs`)
+- [x] Dual fixture tracks: synthetic (`fixtures/reference-calculations/`) + anonymized-derived (`fixtures/reference-calculations-real/`)
+- [x] NRW holiday dataset (`fixtures/calendars/nrw-holidays-2026.json`) for deterministic rule tests
+- [x] Coverage gate configured for `packages/core/src/core/**` (>=90% lines/statements/functions)
 
 ### Definition of Done (Phase 1)
 
-- [ ] 4 reference calculations pass (flextime, shift/Pforte, part-time change, on-call/IT)
-- [ ] Rule violations correctly detected per PRD
-- [ ] Audit entries immutable by type-system design
-- [ ] Domain glossary complete in `docs/design-docs/core-beliefs.md`
+- [x] 4 reference calculations pass (flextime, shift/Pforte, part-time change, on-call/IT)
+- [x] Rule violations correctly detected per PRD
+- [x] Audit entries immutable by type-system design
+- [x] Domain glossary complete in `docs/design-docs/core-beliefs.md`
 
 ---
 
@@ -120,6 +122,7 @@ Active and completed execution plans are tracked in:
 
 - **Active**: [`exec-plans/active/`](exec-plans/active/) — use the [template](exec-plans/active/000-template.md)
 - **Completed**: [`exec-plans/completed/`](exec-plans/completed/) — moved here with linked PRs
+  - Latest: [`001-phase-1-domain-core.md`](exec-plans/completed/001-phase-1-domain-core.md)
 - **Tech Debt**: [`exec-plans/tech-debt-tracker.md`](exec-plans/tech-debt-tracker.md)
 
 ---

@@ -8,6 +8,7 @@ const fixtureSchemaPath = resolve(
   '../../schemas/fixtures/reference-calculation.schema.json',
 );
 const fixturesDir = resolve(process.cwd(), '../../fixtures/reference-calculations');
+const realDerivedFixturesDir = resolve(process.cwd(), '../../fixtures/reference-calculations-real');
 
 async function readJson(filePath: string) {
   const raw = await readFile(filePath, 'utf8');
@@ -20,11 +21,21 @@ describe('Reference calculation fixtures', () => {
     const ajv = new Ajv2020({ allErrors: true, strict: false });
     const validate = ajv.compile(schema);
     const fixtureFiles = (await readdir(fixturesDir)).filter((file) => file.endsWith('.json'));
+    const realDerivedFixtureFiles = (await readdir(realDerivedFixturesDir)).filter((file) =>
+      file.endsWith('.json'),
+    );
 
     expect(fixtureFiles.length).toBeGreaterThan(0);
+    expect(realDerivedFixtureFiles.length).toBeGreaterThan(0);
 
     for (const file of fixtureFiles) {
       const fixture = await readJson(resolve(fixturesDir, file));
+      const valid = validate(fixture);
+      expect(valid, `${file}: ${ajv.errorsText(validate.errors)}`).toBe(true);
+    }
+
+    for (const file of realDerivedFixtureFiles) {
+      const fixture = await readJson(resolve(realDerivedFixturesDir, file));
       const valid = validate(fixture);
       expect(valid, `${file}: ${ajv.errorsText(validate.errors)}`).toBe(true);
     }

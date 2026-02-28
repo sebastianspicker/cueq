@@ -71,57 +71,60 @@ Complexity kills correctness. Every change to cueq must be:
 
 > Canonical German → English mappings for the cueq domain. Use these terms consistently in code, comments, schemas, and documentation.
 
-| German Term                | English Term          | Definition                                                        |
-| -------------------------- | --------------------- | ----------------------------------------------------------------- |
-| Zeiterfassung              | Time tracking         | Recording actual work hours                                       |
-| Buchung                    | Booking               | A single time-recording event (start/stop)                        |
-| Zeitart                    | Time type             | Category of a booking (work, pause, on-call, deployment, etc.)    |
-| Sollzeit                   | Target time           | Expected work hours from model/roster                             |
-| Istzeit                    | Actual time           | Recorded work hours from bookings                                 |
-| Gleitzeit                  | Flextime              | Flexible working hours with core hours                            |
-| Kernzeit                   | Core hours            | Mandatory presence window within flextime                         |
-| Fixzeit                    | Fixed time            | Non-flexible scheduled hours                                      |
-| Schichtmodell              | Shift model           | Configuration of shift rotations and patterns                     |
-| Dienstplan                 | Roster / shift plan   | Published schedule assigning people to shifts                     |
-| Mindestbesetzung           | Minimum staffing      | Required headcount per shift/time slot                            |
-| Qualifikation              | Qualification / skill | Role-specific capability required for a shift                     |
-| Schichttausch              | Shift swap            | Exchange of assigned shifts between employees                     |
-| Rufbereitschaft            | On-call duty          | Standby status; employee reachable but not at workplace           |
-| Einsatz                    | Deployment / callout  | Actual work performed during on-call                              |
-| Dienstgang                 | Official errand       | Off-site work during work hours                                   |
-| Mehrarbeit                 | Overtime (ordered)    | Work beyond contract hours, ordered by supervisor                 |
-| Überstunden                | Overtime (accrued)    | Hours accrued beyond target in flextime                           |
-| Zuschlag                   | Surcharge / premium   | Additional pay/time credit for night/weekend/holiday work         |
-| Abwesenheit                | Absence               | Any time away from work (leave, sick, etc.)                       |
-| Urlaub                     | Annual leave          | Paid vacation days per TV-L entitlement                           |
-| Resturlaub                 | Remaining leave       | Unused leave days from current/prior year                         |
-| Übertrag                   | Carry-over            | Leave or hours transferred to next period                         |
-| Verfall                    | Forfeiture / expiry   | Loss of unused leave/hours after deadline                         |
-| Sonderurlaub               | Special leave         | Leave for specific life events (wedding, bereavement, etc.)       |
-| Krankheit                  | Sick leave            | Absence due to illness                                            |
-| eAU                        | Electronic sick note  | Digital incapacity certificate from physician                     |
-| Freizeitausgleich          | Compensatory time off | Time off in lieu of overtime pay                                  |
-| Gleittag                   | Flex day              | Full day off using accrued flextime balance                       |
-| Monatsabschluss            | Monthly closing       | End-of-month process: review, approve, lock, export               |
-| Cut-off                    | Cut-off               | Deadline after which changes require HR workflow                  |
-| Prüfliste                  | Checklist             | List of items requiring attention before closing                  |
-| Korrekturfenster           | Correction window     | Time period where corrections are still allowed                   |
-| Genehmigung                | Approval              | Authorization of a request by a supervisor                        |
-| Vertretung                 | Delegation / deputy   | Acting on behalf of an absent supervisor                          |
-| Stellvertretungskette      | Delegation chain      | Ordered list of deputies for a role                               |
-| Eskalation                 | Escalation            | Automatic routing when an approval is overdue                     |
-| Audittrail                 | Audit trail           | Immutable log of all changes and decisions                        |
-| Organisationseinheit (OE)  | Organizational unit   | Department, team, or cost center                                  |
-| Personalrat                | Works council         | Employee representation body with co-determination rights         |
-| Bezügestelle               | Payroll office        | Department processing salary payments                             |
-| Dienstvereinbarung         | Works agreement       | Binding agreement between employer and works council              |
-| Pforte                     | Security desk         | University reception/security (24/7 shift operation)              |
-| Hausdienst                 | Facility services     | Building maintenance and caretaking                               |
-| Veranstaltungstechnik (VT) | Event technology      | Audio/visual/staging tech services                                |
-| TV-L                       | TV-L                  | Collective agreement for public-sector employees of German states |
-| NRW                        | NRW                   | Nordrhein-Westfalen (North Rhine-Westphalia)                      |
-| DSGVO                      | GDPR                  | General Data Protection Regulation (EU)                           |
-| DSFA                       | DPIA                  | Data Protection Impact Assessment                                 |
+| German Term                | English Term          | Definition                                                               |
+| -------------------------- | --------------------- | ------------------------------------------------------------------------ |
+| Zeiterfassung              | Time tracking         | Recording actual work hours                                              |
+| Buchung                    | Booking               | A single time-recording event (start/stop)                               |
+| Zeitart                    | Time type             | Category of a booking (work, pause, on-call, deployment, etc.)           |
+| Sollzeit                   | Target time           | Expected work hours from model/roster                                    |
+| Istzeit                    | Actual time           | Recorded work hours from bookings                                        |
+| Plausibilitätsprüfung      | Plausibility check    | Validation of booking/shift intervals for overlaps and impossible ranges |
+| Gleitzeit                  | Flextime              | Flexible working hours with core hours                                   |
+| Kernzeit                   | Core hours            | Mandatory presence window within flextime                                |
+| Fixzeit                    | Fixed time            | Non-flexible scheduled hours                                             |
+| Schichtmodell              | Shift model           | Configuration of shift rotations and patterns                            |
+| Dienstplan                 | Roster / shift plan   | Published schedule assigning people to shifts                            |
+| Plan-Ist-Abgleich          | Plan-vs-actual        | Comparison of rostered vs. actually worked coverage                      |
+| Mindestbesetzung           | Minimum staffing      | Required headcount per shift/time slot                                   |
+| Qualifikation              | Qualification / skill | Role-specific capability required for a shift                            |
+| Schichttausch              | Shift swap            | Exchange of assigned shifts between employees                            |
+| Rufbereitschaft            | On-call duty          | Standby status; employee reachable but not at workplace                  |
+| Einsatz                    | Deployment / callout  | Actual work performed during on-call                                     |
+| Dienstgang                 | Official errand       | Off-site work during work hours                                          |
+| Mehrarbeit                 | Overtime (ordered)    | Work beyond contract hours, ordered by supervisor                        |
+| Überstunden                | Overtime (accrued)    | Hours accrued beyond target in flextime                                  |
+| Zuschlag                   | Surcharge / premium   | Additional pay/time credit for night/weekend/holiday work                |
+| Abwesenheit                | Absence               | Any time away from work (leave, sick, etc.)                              |
+| Urlaub                     | Annual leave          | Paid vacation days per TV-L entitlement                                  |
+| Resturlaub                 | Remaining leave       | Unused leave days from current/prior year                                |
+| Übertrag                   | Carry-over            | Leave or hours transferred to next period                                |
+| Verfall                    | Forfeiture / expiry   | Loss of unused leave/hours after deadline                                |
+| Sonderurlaub               | Special leave         | Leave for specific life events (wedding, bereavement, etc.)              |
+| Krankheit                  | Sick leave            | Absence due to illness                                                   |
+| eAU                        | Electronic sick note  | Digital incapacity certificate from physician                            |
+| Freizeitausgleich          | Compensatory time off | Time off in lieu of overtime pay                                         |
+| Gleittag                   | Flex day              | Full day off using accrued flextime balance                              |
+| Monatsabschluss            | Monthly closing       | End-of-month process: review, approve, lock, export                      |
+| Sperrung                   | Cut-off lock          | Status lock preventing late period changes without workflow              |
+| Cut-off                    | Cut-off               | Deadline after which changes require HR workflow                         |
+| Prüfliste                  | Checklist             | List of items requiring attention before closing                         |
+| Korrekturfenster           | Correction window     | Time period where corrections are still allowed                          |
+| Genehmigung                | Approval              | Authorization of a request by a supervisor                               |
+| Vertretung                 | Delegation / deputy   | Acting on behalf of an absent supervisor                                 |
+| Stellvertretungskette      | Delegation chain      | Ordered list of deputies for a role                                      |
+| Eskalation                 | Escalation            | Automatic routing when an approval is overdue                            |
+| Audittrail                 | Audit trail           | Immutable log of all changes and decisions                               |
+| Organisationseinheit (OE)  | Organizational unit   | Department, team, or cost center                                         |
+| Personalrat                | Works council         | Employee representation body with co-determination rights                |
+| Bezügestelle               | Payroll office        | Department processing salary payments                                    |
+| Dienstvereinbarung         | Works agreement       | Binding agreement between employer and works council                     |
+| Pforte                     | Security desk         | University reception/security (24/7 shift operation)                     |
+| Hausdienst                 | Facility services     | Building maintenance and caretaking                                      |
+| Veranstaltungstechnik (VT) | Event technology      | Audio/visual/staging tech services                                       |
+| TV-L                       | TV-L                  | Collective agreement for public-sector employees of German states        |
+| NRW                        | NRW                   | Nordrhein-Westfalen (North Rhine-Westphalia)                             |
+| DSGVO                      | GDPR                  | General Data Protection Regulation (EU)                                  |
+| DSFA                       | DPIA                  | Data Protection Impact Assessment                                        |
 
 ---
 

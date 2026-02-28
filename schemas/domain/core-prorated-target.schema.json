@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/core-prorated-target.schema.json",
+  "title": "CoreProratedTargetContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input", "output"],
+  "properties": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["month", "segments", "actualHours"],
+      "properties": {
+        "month": { "type": "string" },
+        "segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to", "weeklyHours"],
+            "properties": {
+              "from": { "type": "string", "format": "date" },
+              "to": { "type": "string", "format": "date" },
+              "weeklyHours": { "type": "number" }
+            }
+          }
+        },
+        "actualHours": { "type": "number" },
+        "transitionAdjustmentHours": { "type": "number" },
+        "holidayDates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proratedTargetHours", "deltaHours", "violations"],
+      "properties": {
+        "proratedTargetHours": { "type": "number" },
+        "deltaHours": { "type": "number" },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

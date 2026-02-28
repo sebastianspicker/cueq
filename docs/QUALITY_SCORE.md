@@ -6,13 +6,13 @@
 
 ## 1. Test Coverage Targets
 
-| Scope           | Metric                             | Target               | Phase   |
-| --------------- | ---------------------------------- | -------------------- | ------- |
-| `src/core/`     | Line coverage                      | ≥90%                 | Phase 1 |
-| `src/adapters/` | Line coverage                      | ≥70%                 | Phase 2 |
-| `src/api/`      | Endpoint coverage (contract tests) | 100% of OpenAPI spec | Phase 2 |
-| `src/ui/`       | Component coverage                 | ≥60%                 | Phase 2 |
-| Overall         | Line coverage                      | ≥80%                 | Phase 2 |
+| Scope                     | Metric                             | Target               | Phase   |
+| ------------------------- | ---------------------------------- | -------------------- | ------- |
+| `packages/core/src/core/` | Line coverage                      | ≥90%                 | Phase 1 |
+| `src/adapters/`           | Line coverage                      | ≥70%                 | Phase 2 |
+| `src/api/`                | Endpoint coverage (contract tests) | 100% of OpenAPI spec | Phase 2 |
+| `src/ui/`                 | Component coverage                 | ≥60%                 | Phase 2 |
+| Overall                   | Line coverage                      | ≥80%                 | Phase 2 |
 
 ---
 

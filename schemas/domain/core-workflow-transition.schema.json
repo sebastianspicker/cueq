@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/core-workflow-transition.schema.json",
+  "title": "CoreWorkflowTransitionContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input", "output"],
+  "properties": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workflowId", "currentStatus", "decision", "actorId"],
+      "properties": {
+        "workflowId": { "$ref": "./_defs/common.schema.json#/$defs/id" },
+        "currentStatus": {
+          "enum": ["PENDING", "APPROVED", "REJECTED", "ESCALATED", "CANCELLED"]
+        },
+        "decision": {
+          "enum": ["APPROVE", "REJECT", "ESCALATE", "CANCEL"]
+        },
+        "actorId": { "$ref": "./_defs/common.schema.json#/$defs/id" },
+        "reason": { "type": "string" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "nextStatus", "decidedAt", "violations"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "nextStatus": {
+          "enum": ["PENDING", "APPROVED", "REJECTED", "ESCALATED", "CANCELLED"]
+        },
+        "decidedAt": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

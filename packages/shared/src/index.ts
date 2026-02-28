@@ -13,3 +13,4 @@ export * from './schemas/time-type';
 export * from './schemas/workflow';
 export * from './schemas/oncall';
 export * from './schemas/common';
+export * from './generated/core-schema-types';

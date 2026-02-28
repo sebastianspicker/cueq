@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/fixtures/nrw-holidays.schema.json",
+  "title": "NrwHolidayDataset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["year", "region", "holidays"],
+  "properties": {
+    "year": {
+      "type": "integer",
+      "minimum": 2020
+    },
+    "region": {
+      "const": "NRW"
+    },
+    "source": {
+      "type": "string"
+    },
+    "holidays": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["date", "name"],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

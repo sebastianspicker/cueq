@@ -15,11 +15,10 @@
 
 ## Active Items
 
-| #      | Item                                | Impact    | Effort    | Owner | Target Date | Status     | Notes                                              |
-| ------ | ----------------------------------- | --------- | --------- | ----- | ----------- | ---------- | -------------------------------------------------- |
-| TD-006 | Honeywell terminal protocol unknown | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | Adapter design depends on this                     |
-| TD-007 | Payroll export format undefined     | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | Schema stub needs real field definitions           |
-| TD-008 | NRW holiday dataset not compiled    | 🟢 Low    | 🟢 Low    | TBD   | Phase 1     | ⏳ Pending | Need machine-readable holiday list for rule engine |
+| #      | Item                                | Impact    | Effort    | Owner | Target Date | Status     | Notes                                    |
+| ------ | ----------------------------------- | --------- | --------- | ----- | ----------- | ---------- | ---------------------------------------- |
+| TD-006 | Honeywell terminal protocol unknown | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | Adapter design depends on this           |
+| TD-007 | Payroll export format undefined     | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | Schema stub needs real field definitions |
 
 ### Status Legend
 
@@ -57,3 +56,4 @@
 | TD-003 | Test scaffolding missing         | 2026-02-28    | Phase 0 harness implementation                   |
 | TD-004 | ESLint/formatter harness missing | 2026-02-28    | Phase 0 harness implementation                   |
 | TD-005 | ADR-001 tech stack undecided     | 2026-02-28    | [ADR-001](../design-decisions/001-tech-stack.md) |
+| TD-008 | NRW holiday dataset not compiled | 2026-02-28    | Phase 1 domain core rollout                      |
