@@ -1,0 +1,21 @@
+# UV Package Manager Reference for LLM Agents
+# ===============================================
+#
+# UV is an ultra-fast Python package installer and resolver. This file
+# is included as a reference placeholder in case Python is used for
+# any tooling, scripting, or data processing components in cueq.
+#
+# Expected content:
+# - UV installation and configuration
+# - Lockfile management patterns
+# - Virtual environment setup
+# - Integration with CI pipelines
+#
+# Note: cueq's primary stack is expected to be TypeScript/Node.js.
+# Python may be used for:
+# - Data migration scripts
+# - Reference calculation validators
+# - Schema generation tools
+#
+# TODO: Populate if Python tooling is adopted.
+# See: docs/design-decisions/001-tech-stack.md
