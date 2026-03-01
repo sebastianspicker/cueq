@@ -7,9 +7,11 @@ interface PageShellProps {
 export function PageShell({ title, description, children }: PageShellProps) {
   return (
     <section className="cq-page-shell">
-      <h1>{title}</h1>
-      {description ? <p>{description}</p> : null}
-      {children}
+      <header className="cq-page-header">
+        <h1>{title}</h1>
+        {description ? <p>{description}</p> : null}
+      </header>
+      <div className="cq-page-content">{children}</div>
     </section>
   );
 }

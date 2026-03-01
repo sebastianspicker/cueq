@@ -11,11 +11,12 @@ interface ConnectionPanelProps {
 
 export function ConnectionPanel(props: ConnectionPanelProps) {
   return (
-    <div className="cq-section-card" style={{ display: 'grid', gap: '.75rem' }}>
+    <div className="cq-section-card cq-connection-panel">
       <FormField label={props.apiBaseLabel}>
         <input
           value={props.apiBaseUrl}
           onChange={(event) => props.setApiBaseUrl(event.target.value)}
+          autoComplete="off"
         />
       </FormField>
       <FormField label={props.tokenLabel}>
@@ -24,6 +25,7 @@ export function ConnectionPanel(props: ConnectionPanelProps) {
           value={props.token}
           onChange={(event) => props.setToken(event.target.value)}
           placeholder="mock.eyJzdWIiOiJjLi4uIn0"
+          autoComplete="off"
         />
       </FormField>
     </div>

@@ -6,7 +6,7 @@ interface FormFieldProps {
 export function FormField({ label, children }: FormFieldProps) {
   return (
     <label className="cq-form-field">
-      <span>{label}</span>
+      <span className="cq-form-label">{label}</span>
       {children}
     </label>
   );
