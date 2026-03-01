@@ -48,12 +48,12 @@
 
 ## 4. Schema & Type Health
 
-| Metric                                       | Target | Check                        |
-| -------------------------------------------- | ------ | ---------------------------- |
-| All JSON Schemas compile                     | ✅     | `make schemas`               |
-| Generated types match schemas                | ✅     | `make generate` + diff check |
-| No hand-written types that duplicate schemas | ✅     | Linter rule / code review    |
-| OpenAPI spec matches implementation          | ✅     | Contract tests               |
+| Metric                                       | Target | Check                                     |
+| -------------------------------------------- | ------ | ----------------------------------------- |
+| All JSON Schemas compile                     | ✅     | `make schemas`                            |
+| Generated types match schemas                | ✅     | `make generate` + diff check              |
+| No hand-written types that duplicate schemas | ✅     | ESLint `cueq/no-manual-schema-types` rule |
+| OpenAPI spec matches implementation          | ✅     | Contract tests                            |
 
 ---
 
@@ -82,11 +82,11 @@
 
 ## 7. Accessibility (UI)
 
-| Metric                       | Target | Tool           | Phase   |
-| ---------------------------- | ------ | -------------- | ------- |
-| axe-core critical violations | 0      | axe-core in CI | Phase 2 |
-| axe-core serious violations  | 0      | axe-core in CI | Phase 3 |
-| WCAG 2.1 AA conformance      | Full   | Manual audit   | Phase 3 |
+| Metric                       | Target | Tool                          | Phase   |
+| ---------------------------- | ------ | ----------------------------- | ------- |
+| axe-core critical violations | 0      | Playwright + axe-core CI gate | Phase 2 |
+| axe-core serious violations  | 0      | Playwright + axe-core CI gate | Phase 3 |
+| WCAG 2.1 AA conformance      | Full   | Manual audit                  | Phase 3 |
 
 ---
 

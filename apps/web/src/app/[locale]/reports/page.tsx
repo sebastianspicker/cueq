@@ -94,6 +94,25 @@ interface ComplianceSummaryReport {
   };
 }
 
+interface CustomReportOptions {
+  reportTypes: string[];
+  groupBy: string[];
+  metrics: string[];
+}
+
+interface CustomReportPreviewRow {
+  group: string;
+  metrics: Record<string, number>;
+}
+
+interface CustomReportPreview {
+  reportType: string;
+  groupBy: string;
+  from: string;
+  to: string;
+  rows: CustomReportPreviewRow[];
+}
+
 export default function ReportsPage() {
   const t = useTranslations('pages.reports');
   const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:3001');
@@ -109,6 +128,11 @@ export default function ReportsPage() {
   const [closingCompletion, setClosingCompletion] = useState<ClosingCompletionReport | null>(null);
   const [auditSummary, setAuditSummary] = useState<AuditSummaryReport | null>(null);
   const [complianceSummary, setComplianceSummary] = useState<ComplianceSummaryReport | null>(null);
+  const [customOptions, setCustomOptions] = useState<CustomReportOptions | null>(null);
+  const [customPreview, setCustomPreview] = useState<CustomReportPreview | null>(null);
+  const [customType, setCustomType] = useState('TEAM_ABSENCE');
+  const [customGroupBy, setCustomGroupBy] = useState('ORGANIZATION_UNIT');
+  const [customMetrics, setCustomMetrics] = useState('requests,days');
 
   const baseUrl = useMemo(() => apiBaseUrl.replace(/\/$/, ''), [apiBaseUrl]);
 
@@ -156,6 +180,54 @@ export default function ReportsPage() {
       setAuditSummary(audit);
       setComplianceSummary(compliance);
       setLoaded(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadCustomOptions() {
+    setLoading(true);
+    setError(null);
+    try {
+      const options = await apiRequest<CustomReportOptions>('/v1/reports/custom/options');
+      setCustomOptions(options);
+      if (options.reportTypes[0]) {
+        setCustomType(options.reportTypes[0]);
+      }
+      if (options.groupBy[0]) {
+        setCustomGroupBy(options.groupBy[0]);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadCustomPreview() {
+    setLoading(true);
+    setError(null);
+    try {
+      const metrics = customMetrics
+        .split(',')
+        .map((metric) => metric.trim())
+        .filter(Boolean);
+      const params = new URLSearchParams();
+      params.set('reportType', customType);
+      params.set('groupBy', customGroupBy);
+      params.set('from', from);
+      params.set('to', to);
+      if (organizationUnitId) {
+        params.set('organizationUnitId', organizationUnitId);
+      }
+      for (const metric of metrics) {
+        params.append('metrics', metric);
+      }
+
+      const preview = await apiRequest<CustomReportPreview>(`/v1/reports/custom/preview?${params}`);
+      setCustomPreview(preview);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -291,6 +363,61 @@ export default function ReportsPage() {
           </p>
         </article>
       ) : null}
+
+      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <h2>{t('customBuilderHeading')}</h2>
+        <p>{t('customBuilderDescription')}</p>
+        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+          <button type="button" disabled={loading} onClick={() => void loadCustomOptions()}>
+            {loading ? t('loading') : t('loadCustomOptions')}
+          </button>
+          <button type="button" disabled={loading} onClick={() => void loadCustomPreview()}>
+            {loading ? t('loading') : t('loadCustomPreview')}
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gap: '.5rem', marginTop: '.75rem' }}>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('customTypeLabel')}</span>
+            <input value={customType} onChange={(event) => setCustomType(event.target.value)} />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('customGroupByLabel')}</span>
+            <input
+              value={customGroupBy}
+              onChange={(event) => setCustomGroupBy(event.target.value)}
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('customMetricsLabel')}</span>
+            <input
+              value={customMetrics}
+              onChange={(event) => setCustomMetrics(event.target.value)}
+            />
+          </label>
+        </div>
+
+        {customOptions ? (
+          <p style={{ marginTop: '.75rem' }}>
+            {t('customOptionsLoaded')}: {customOptions.reportTypes.join(', ')}
+          </p>
+        ) : null}
+
+        {customPreview ? (
+          <div style={{ marginTop: '.75rem' }}>
+            <p>
+              {t('customPreviewLoaded')}: {customPreview.reportType} ({customPreview.groupBy})
+            </p>
+            <ul>
+              {customPreview.rows.map((row, index) => (
+                <li key={`${row.group}-${index}`}>
+                  {row.group}: {JSON.stringify(row.metrics)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </article>
     </section>
   );
 }

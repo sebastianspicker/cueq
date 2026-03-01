@@ -7,8 +7,8 @@
 This runbook covers operational procedures introduced in Phase 3:
 
 - Terminal heartbeat and sync health
-- HR master data import (file-first)
-- Payroll export (`CSV_V1`)
+- HR master data import (file + API provider)
+- Payroll export (`CSV_V1`, `XML_V1`)
 - Backup/restore verification (AT-08)
 
 ## 2. Commands
@@ -22,6 +22,12 @@ This runbook covers operational procedures introduced in Phase 3:
 | Reset Phase 3 seed               | `pnpm --filter @cueq/database db:reset:phase3`                                 |
 | HR import (CLI)                  | `node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv` |
 | FR-400 leave-adjustment backfill | `pnpm backfill:leave-adjustments -- --year 2026`                               |
+
+## 2.1 Auth Provider Modes
+
+- `AUTH_PROVIDER=mock`: local/dev token testing (`mock.<base64url-json>`)
+- `AUTH_PROVIDER=oidc`: OIDC validation via issuer JWKS
+- `AUTH_PROVIDER=saml`: SAML bridge token validation (`SAML_ISSUER`, `SAML_AUDIENCE`, `SAML_JWT_SECRET`)
 
 ## 3. Terminal Gateway Operations
 
@@ -43,6 +49,12 @@ This runbook covers operational procedures introduced in Phase 3:
 - Endpoint: `POST /v1/hr/import-runs`
 - Header: `x-integration-token: <HR_IMPORT_TOKEN>`
 - Payload: `{ source: "FILE", sourceFile: "...", csv: "..." }`
+- API payload: `{ source: "API", sourceFile: "hr-master-http-v1" }`
+- Provider config:
+  - `HR_PROVIDER_MODE=stub|http`
+  - `HR_MASTER_API_URL`
+  - `HR_MASTER_API_TOKEN`
+  - `HR_MASTER_API_TIMEOUT_MS`
 
 ### CLI Import
 
@@ -56,10 +68,11 @@ node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv
 
 - Lead sign-off (OE periods): `POST /v1/closing-periods/{id}/lead-approve`
 - HR final approval: `POST /v1/closing-periods/{id}/approve`
-- Trigger export: `POST /v1/closing-periods/{id}/export`
+- Trigger export: `POST /v1/closing-periods/{id}/export` with optional body `{ "format": "CSV_V1" | "XML_V1" }`
 - Download artifact: `GET /v1/closing-periods/{closingPeriodId}/export-runs/{runId}/csv`
-- Format: `CSV_V1`
-- Deterministic checksum: `SHA-256` over canonical CSV payload
+- Download format-agnostic artifact: `GET /v1/closing-periods/{closingPeriodId}/export-runs/{runId}/artifact`
+- Formats: `CSV_V1`, `XML_V1`
+- Deterministic checksum: `SHA-256` over canonical payload per format
 
 ### Lock behavior and corrections
 
@@ -76,6 +89,20 @@ node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv
 - `CLOSING_BOOKING_GAP_MINUTES=240`
 - `CLOSING_BALANCE_ANOMALY_HOURS=40`
 - `CLOSING_ALLOW_MANUAL_REVIEW_START=false`
+
+## 5.2 Honeywell Terminal File Protocol
+
+- Endpoint: `POST /v1/terminal/sync/batches/file`
+- Protocol: `HONEYWELL_CSV_V1`
+- Payload shape:
+  - `terminalId`
+  - `sourceFile`
+  - `protocol` (`HONEYWELL_CSV_V1`)
+  - `csv` (header: `personId,timeTypeCode,startTime,endTime,note`)
+- Behavior:
+  - malformed rows are counted and skipped
+  - duplicate rows are deduplicated deterministically
+  - ingestion checksum is emitted in response/audit
 
 ## 5.1 Reporting Operations (FR-700)
 

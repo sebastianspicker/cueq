@@ -1,6 +1,6 @@
 # Product Spec: Workflows & Approvals (FR-500)
 
-> **Status:** ✅ Implemented | **Scope:** Core + API + Web Inbox MVP
+> **Status:** ✅ Implemented | **Scope:** Core + API + Web
 
 ---
 
@@ -15,13 +15,13 @@ FR-500 delivers a configurable workflow engine for approval-heavy operations wit
 - hourly automated escalation with immutable audit entries
 - approval inbox/detail APIs and web MVP for approve/reject/delegate/cancel actions
 
-Initial scope covers workflow types already wired in product flows:
+Implemented workflow types:
 
 - `LEAVE_REQUEST`
 - `BOOKING_CORRECTION`
 - `POST_CLOSE_CORRECTION`
-
-`SHIFT_SWAP` and `OVERTIME_APPROVAL` stay out of this first FR-500 slice.
+- `SHIFT_SWAP`
+- `OVERTIME_APPROVAL`
 
 ## 2. Contracts and Entry Points
 
@@ -47,6 +47,8 @@ Initial scope covers workflow types already wired in product flows:
 - `GET /v1/workflows/inbox` (+ `status`, `type`, `overdueOnly`)
 - `GET /v1/workflows/{id}`
 - `POST /v1/workflows/{id}/decision`
+- `POST /v1/workflows/shift-swaps`
+- `POST /v1/workflows/overtime-approvals`
 - `GET /v1/workflows/policies` (HR/Admin)
 - `PUT /v1/workflows/policies/{type}` (HR/Admin)
 - `GET /v1/workflows/delegations` (HR/Admin)
@@ -104,5 +106,4 @@ Decision actions additionally require current assignee authority.
 ## 7. Out of Scope
 
 - workflow admin UI for policies/delegations
-- shift swap and overtime workflow product flows
 - cross-tenant/custom policy versioning beyond current DB model

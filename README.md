@@ -323,23 +323,23 @@ make dev
 
 Run `make help` for a full list. Key commands:
 
-| Command              | Description                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------- |
-| `make setup`         | Install dependencies, start Docker, generate Prisma client, push schema               |
-| `make dev`           | Start API + Web with hot reload                                                       |
-| `make check`         | Full validation: lint + format + typecheck + schemas/fixtures + tests + OpenAPI drift |
-| `make lint`          | Run linters (check mode)                                                              |
-| `make lint-fix`      | Auto-fix lint + format                                                                |
-| `make typecheck`     | TypeScript type checking                                                              |
-| `make schemas`       | Validate JSON Schemas and fixture contracts                                           |
-| `make generate`      | Generate Prisma client, OpenAPI snapshot, and generated schema docs                   |
-| `make openapi-check` | Compare generated OpenAPI spec against committed snapshot                             |
-| `make test`          | Run all tests                                                                         |
-| `make test-all`      | Run all test suites (unit + integration + acceptance + compliance)                    |
-| `make build`         | Build all packages and apps                                                           |
-| `make db-generate`   | Regenerate Prisma client after schema change                                          |
-| `make db-migrate`    | Run database migrations                                                               |
-| `make clean`         | Stop Docker, remove artifacts                                                         |
+| Command              | Description                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------- |
+| `make setup`         | Install dependencies, start Docker, generate Prisma client, push schema                            |
+| `make dev`           | Start API + Web with hot reload                                                                    |
+| `make check`         | Full validation: lint + format + typecheck + docs links + schemas/fixtures + tests + OpenAPI drift |
+| `make lint`          | Run linters (check mode)                                                                           |
+| `make lint-fix`      | Auto-fix lint + format                                                                             |
+| `make typecheck`     | TypeScript type checking                                                                           |
+| `make schemas`       | Validate JSON Schemas and fixture contracts                                                        |
+| `make generate`      | Generate Prisma client, OpenAPI snapshot, and generated schema docs                                |
+| `make openapi-check` | Compare generated OpenAPI spec against committed snapshot                                          |
+| `make test`          | Run all tests                                                                                      |
+| `make test-all`      | Run all test suites (unit + integration + acceptance + compliance + backup/restore)                |
+| `make build`         | Build all packages and apps                                                                        |
+| `make db-generate`   | Regenerate Prisma client after schema change                                                       |
+| `make db-migrate`    | Run database migrations                                                                            |
+| `make clean`         | Stop Docker, remove artifacts                                                                      |
 
 ---
 

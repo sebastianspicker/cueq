@@ -27,7 +27,8 @@ cueq/                          # pnpm + Turborepo monorepo
 ├── packages/
 │   ├── database/              # Prisma schema + client (@cueq/database)
 │   ├── shared/                # Zod schemas + types (@cueq/shared)
-│   └── policy/                # Policy-as-code rules + golden tests (@cueq/policy)
+│   ├── policy/                # Policy-as-code rules + golden tests (@cueq/policy)
+│   └── core/                  # Domain core logic helpers (@cueq/core)
 ├── schemas/                   # JSON Schema source-of-truth contracts
 ├── fixtures/                  # Synthetic reference fixtures
 ├── contracts/                 # Committed OpenAPI snapshot and API contracts
@@ -79,24 +80,24 @@ All changes to this repo MUST follow these rules:
 
 > **Status:** Phase 0 harness commands are implemented and CI-enforced.
 
-| Command                 | What It Does                                                                                          | Status         |
-| ----------------------- | ----------------------------------------------------------------------------------------------------- | -------------- |
-| `make setup`            | Install dependencies, start Docker services, generate Prisma client, push schema                      | ✅ Implemented |
-| `make check`            | Full validation: lint + format + type-check + schema/fixture validation + tests + OpenAPI drift check | ✅ Implemented |
-| `make lint`             | Run linter in check mode (no auto-fix)                                                                | ✅ Implemented |
-| `make lint-fix`         | Auto-fix lint + formatting issues                                                                     | ✅ Implemented |
-| `make typecheck`        | TypeScript compiler in `--noEmit` mode                                                                | ✅ Implemented |
-| `make schemas`          | Validate all JSON Schemas and fixture contracts                                                       | ✅ Implemented |
-| `make generate`         | Generate Prisma client + OpenAPI snapshot + generated schema docs                                     | ✅ Implemented |
-| `make openapi-check`    | Compare generated OpenAPI document to committed snapshot                                              | ✅ Implemented |
-| `make test-unit`        | Run unit tests only (target: <10s)                                                                    | ✅ Implemented |
-| `make test-integration` | Run integration tests (requires Docker)                                                               | ✅ Implemented |
-| `make test-acceptance`  | Run acceptance tests (full stack)                                                                     | ✅ Implemented |
-| `make test-compliance`  | Run GDPR/audit compliance tests                                                                       | ✅ Implemented |
-| `make test-all`         | Run all test suites                                                                                   | ✅ Implemented |
-| `make docs`             | Generate documentation site from markdown                                                             | 🔜 Planned     |
-| `make dev`              | Start development server with hot reload                                                              | ✅ Implemented |
-| `make clean`            | Remove build artifacts, stop Docker, prune volumes                                                    | ✅ Implemented |
+| Command                 | What It Does                                                                                                            | Status         |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `make setup`            | Install dependencies, start Docker services, generate Prisma client, push schema                                        | ✅ Implemented |
+| `make check`            | Full validation: lint + format + type-check + docs link check + schema/fixture validation + tests + OpenAPI drift check | ✅ Implemented |
+| `make lint`             | Run linter in check mode (no auto-fix)                                                                                  | ✅ Implemented |
+| `make lint-fix`         | Auto-fix lint + formatting issues                                                                                       | ✅ Implemented |
+| `make typecheck`        | TypeScript compiler in `--noEmit` mode                                                                                  | ✅ Implemented |
+| `make schemas`          | Validate all JSON Schemas and fixture contracts                                                                         | ✅ Implemented |
+| `make generate`         | Generate Prisma client + OpenAPI snapshot + generated schema docs                                                       | ✅ Implemented |
+| `make openapi-check`    | Compare generated OpenAPI document to committed snapshot                                                                | ✅ Implemented |
+| `make test-unit`        | Run unit tests only (target: <10s)                                                                                      | ✅ Implemented |
+| `make test-integration` | Run integration tests (requires Docker)                                                                                 | ✅ Implemented |
+| `make test-acceptance`  | Run acceptance tests (full stack)                                                                                       | ✅ Implemented |
+| `make test-compliance`  | Run GDPR/audit compliance tests                                                                                         | ✅ Implemented |
+| `make test-all`         | Run all test suites                                                                                                     | ✅ Implemented |
+| `make docs`             | Generate documentation site from markdown                                                                               | 🔜 Planned     |
+| `make dev`              | Start development server with hot reload                                                                                | ✅ Implemented |
+| `make clean`            | Remove build artifacts, stop Docker, prune volumes                                                                      | ✅ Implemented |
 
 ---
 

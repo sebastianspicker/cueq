@@ -1,3 +1,4 @@
+import { BadGatewayException } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
@@ -5,16 +6,41 @@ import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
 import { SEED_IDS } from '../../src/test-utils/seed-ids';
 import { Phase2Service } from '../../src/phase2/phase2.service';
 import { PrismaService } from '../../src/persistence/prisma.service';
+import type { HrMasterProviderPort } from '../../src/phase2/hr-master-provider.port';
 
 const TERMINAL_TOKEN = process.env.TERMINAL_GATEWAY_TOKEN ?? 'dev-terminal-token';
 const HR_IMPORT_TOKEN = process.env.HR_IMPORT_TOKEN ?? 'dev-hr-token';
 
 describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
   let app: INestApplication;
+  let hrProviderMode: 'success' | 'invalid-payload' = 'success';
+
+  const hrProvider: HrMasterProviderPort = {
+    async fetchMasterRecords() {
+      if (hrProviderMode === 'invalid-payload') {
+        throw new BadGatewayException('HR master API returned an invalid payload schema.');
+      }
+
+      return [
+        {
+          externalId: 'hrapi100',
+          firstName: 'Api',
+          lastName: 'Import',
+          email: 'api.import@cueq.local',
+          role: 'EMPLOYEE',
+          organizationUnit: 'Verwaltung',
+          workTimeModel: 'Gleitzeit Vollzeit',
+          weeklyHours: '39.83',
+          dailyTargetHours: '7.97',
+          supervisorExternalId: 'lead01',
+        },
+      ];
+    },
+  };
 
   beforeAll(async () => {
     seedPhase2Data();
-    app = await createTestApp();
+    app = await createTestApp({ hrMasterProvider: hrProvider });
   });
 
   afterAll(async () => {
@@ -49,6 +75,31 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
     ).toBeDefined();
   });
 
+  it('imports Honeywell CSV file batches with malformed-row accounting', async () => {
+    const csv = [
+      'personId,timeTypeCode,startTime,endTime,note',
+      `${SEED_IDS.personPlanner},WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,first`,
+      'invalid-person,WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,bad',
+      `${SEED_IDS.personPlanner},WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,dup`,
+    ].join('\n');
+
+    const response = await request(app.getHttpServer())
+      .post('/v1/terminal/sync/batches/file')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        terminalId: 'T-HONEYWELL-01',
+        sourceFile: 'honeywell-batch-01.csv',
+        protocol: 'HONEYWELL_CSV_V1',
+        csv,
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.protocol).toBe('HONEYWELL_CSV_V1');
+    expect(response.body.created).toBe(1);
+    expect(response.body.duplicates).toBe(1);
+    expect(response.body.malformedRows).toBe(1);
+  });
+
   it('runs file-based HR import and fetches import run', async () => {
     const csv = [
       'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours,supervisorExternalId',
@@ -74,6 +125,34 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
 
     expect(getRun.status).toBe(200);
     expect(getRun.body.id).toBe(run.body.id);
+  });
+
+  it('runs API-source HR import via provider contract', async () => {
+    hrProviderMode = 'success';
+    const run = await request(app.getHttpServer())
+      .post('/v1/hr/import-runs')
+      .set('x-integration-token', HR_IMPORT_TOKEN)
+      .send({
+        source: 'API',
+        sourceFile: 'hr-master-http-v1',
+      });
+
+    expect(run.status).toBe(201);
+    expect(run.body.status).toBe('SUCCEEDED');
+    expect(run.body.totalRows).toBe(1);
+    expect(run.body.createdRows).toBe(1);
+  });
+
+  it('fails API-source import when upstream payload is invalid', async () => {
+    hrProviderMode = 'invalid-payload';
+    const run = await request(app.getHttpServer())
+      .post('/v1/hr/import-runs')
+      .set('x-integration-token', HR_IMPORT_TOKEN)
+      .send({
+        source: 'API',
+      });
+
+    expect(run.status).toBe(502);
   });
 
   it('applies automatic closing cut-off transition', async () => {
@@ -150,6 +229,36 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
     expect(payrollExport.status).toBe(403);
   });
 
+  it('supports multi-format export artifact download and checksum determinism', async () => {
+    const csvExport = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({ format: 'CSV_V1' });
+    expect(csvExport.status).toBe(201);
+
+    const csvExportRepeat = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({ format: 'CSV_V1' });
+    expect(csvExportRepeat.status).toBe(201);
+    expect(csvExportRepeat.body.checksum).toBe(csvExport.body.checksum);
+
+    const xmlExport = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({ format: 'XML_V1' });
+    expect(xmlExport.status).toBe(201);
+    expect(xmlExport.body.checksum).not.toBe(csvExport.body.checksum);
+
+    const artifact = await request(app.getHttpServer())
+      .get(
+        `/v1/closing-periods/${SEED_IDS.closingPeriod}/export-runs/${xmlExport.body.exportRun.id}/artifact`,
+      )
+      .set('Authorization', `Bearer ${TOKENS.hr}`);
+    expect(artifact.status).toBe(200);
+    expect(artifact.text).toContain('<payroll');
+  });
+
   it('serves policy bundle and policy history', async () => {
     const bundle = await request(app.getHttpServer())
       .get('/v1/policies')
@@ -167,6 +276,12 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
     expect(history.status).toBe(200);
     expect(history.body.total).toBe(1);
     expect(history.body.entries[0].type).toBe('REST_RULE');
+
+    const forbidden = await request(app.getHttpServer())
+      .get('/v1/policies')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .query({ asOf: '2026-03-15' });
+    expect(forbidden.status).toBe(403);
   });
 
   it('evaluates time-engine rules and returns surcharge classification', async () => {
@@ -196,6 +311,41 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
         minutes: 60,
       },
     ]);
+  });
+
+  it('serves custom report builder options and preview with allowlist enforcement', async () => {
+    const options = await request(app.getHttpServer())
+      .get('/v1/reports/custom/options')
+      .set('Authorization', `Bearer ${TOKENS.hr}`);
+    expect(options.status).toBe(200);
+    expect(Array.isArray(options.body.reportTypes)).toBe(true);
+
+    const preview = await request(app.getHttpServer())
+      .get('/v1/reports/custom/preview')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        reportType: 'TEAM_ABSENCE',
+        groupBy: 'ORGANIZATION_UNIT',
+        from: '2026-03-01',
+        to: '2026-03-31',
+        organizationUnitId: SEED_IDS.ouAdmin,
+        metrics: ['days'],
+      });
+    expect(preview.status).toBe(200);
+    expect(preview.body.reportType).toBe('TEAM_ABSENCE');
+
+    const forbiddenMetric = await request(app.getHttpServer())
+      .get('/v1/reports/custom/preview')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        reportType: 'TEAM_ABSENCE',
+        groupBy: 'ORGANIZATION_UNIT',
+        from: '2026-03-01',
+        to: '2026-03-31',
+        organizationUnitId: SEED_IDS.ouAdmin,
+        metrics: ['completionRate'],
+      });
+    expect(forbiddenMetric.status).toBe(400);
   });
 
   it('supports draft roster lifecycle, assignments, publish gate and plan-vs-actual metrics', async () => {

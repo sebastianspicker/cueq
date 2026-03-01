@@ -16,7 +16,8 @@ import { TerminalIntegrationController } from './controllers/terminal-integratio
 import { HrImportController } from './controllers/hr-import.controller';
 import { TerminalGatewayService } from './terminal-gateway.service';
 import { HrImportService } from './hr-import.service';
-import { StubHrMasterProvider } from './hr-master-provider.port';
+import { HR_MASTER_PROVIDER, StubHrMasterProvider } from './hr-master-provider.port';
+import { HttpHrMasterProvider } from './http-hr-master-provider.adapter';
 import { PoliciesController } from './controllers/policies.controller';
 import { IntegrationsController } from './controllers/integrations.controller';
 import { ReportsController } from './controllers/reports.controller';
@@ -30,7 +31,16 @@ import { ClosingCutoffService } from './closing-cutoff.service';
     Phase2Service,
     TerminalGatewayService,
     HrImportService,
-    StubHrMasterProvider,
+    {
+      provide: HR_MASTER_PROVIDER,
+      useFactory: () => {
+        const mode = (process.env.HR_PROVIDER_MODE ?? 'stub').toLowerCase();
+        if (mode === 'http') {
+          return new HttpHrMasterProvider();
+        }
+        return new StubHrMasterProvider();
+      },
+    },
     WorkflowRuntimeService,
     WorkflowEscalationService,
     ClosingCutoffService,

@@ -16,6 +16,12 @@ export class TerminalSyncController {
     return this.phase2Service.importTerminalBatch(user, payload);
   }
 
+  @Post('file')
+  @ApiOperation({ summary: 'Import terminal offline-sync file batch (HONEYWELL_CSV_V1)' })
+  importBatchFile(@CurrentUser() user: AuthenticatedIdentity, @Body() payload: unknown) {
+    return this.phase2Service.importTerminalBatchFile(user, payload);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get imported terminal batch by id' })
   getBatch(@Param('id') batchId: string): Promise<unknown> {

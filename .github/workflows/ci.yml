@@ -61,11 +61,17 @@ jobs:
       - name: Setup
         run: make setup
 
+      - name: Docs Link Check
+        run: pnpm docs:links
+
       - name: Check
         run: make check
 
       - name: Acceptance
         run: make test-acceptance
+
+      - name: Accessibility Gate (critical/serious)
+        run: pnpm --filter @cueq/web test:acceptance --grep "a11y acceptance"
 
       - name: Build
         run: make build

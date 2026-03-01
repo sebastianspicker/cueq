@@ -1,10 +1,13 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Role } from '@cueq/database';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { Phase2Service } from '../phase2.service';
 
 @ApiTags('policy')
 @ApiBearerAuth()
 @Controller('v1/policies')
+@Roles(Role.HR, Role.ADMIN)
 export class PoliciesController {
   constructor(@Inject(Phase2Service) private readonly phase2Service: Phase2Service) {}
 

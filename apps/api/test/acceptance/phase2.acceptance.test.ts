@@ -250,6 +250,22 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
     expect(exportRunAgain.body.checksum).toBe(exportRun.body.checksum);
     expect(exportRunAgain.body.csv).toBe(exportRun.body.csv);
 
+    const exportXml = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({ format: 'XML_V1' });
+    expect(exportXml.status).toBe(201);
+    expect(exportXml.body.checksum).not.toBe(exportRun.body.checksum);
+
+    const artifactDownload = await request(app.getHttpServer())
+      .get(
+        `/v1/closing-periods/${SEED_IDS.closingPeriod}/export-runs/${exportXml.body.exportRun.id}/artifact`,
+      )
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send();
+    expect(artifactDownload.status).toBe(200);
+    expect(artifactDownload.text).toContain('<payroll');
+
     const correction = await request(app.getHttpServer())
       .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/post-close-corrections`)
       .set('Authorization', `Bearer ${TOKENS.hr}`)

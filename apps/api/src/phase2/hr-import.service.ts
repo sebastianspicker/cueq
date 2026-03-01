@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { buildAuditEntry } from '@cueq/core';
 import { PrismaService } from '../persistence/prisma.service';
 import {
-  StubHrMasterProvider,
+  HR_MASTER_PROVIDER,
   type HrMasterProviderPort,
   type HrMasterRecord,
 } from './hr-master-provider.port';
@@ -26,7 +26,7 @@ type ParsedRow = HrMasterRecord & {
 export class HrImportService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(StubHrMasterProvider) private readonly provider: HrMasterProviderPort,
+    @Inject(HR_MASTER_PROVIDER) private readonly provider: HrMasterProviderPort,
   ) {}
 
   private assertIntegrationToken(token: string | undefined, envVar: string, fallback: string) {

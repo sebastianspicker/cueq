@@ -10,6 +10,7 @@ export DATABASE_URL="${DATABASE_URL:-postgresql://cueq:cueq_dev_password@localho
 run_pnpm lint
 run_pnpm format
 run_pnpm typecheck
+run_pnpm docs:links
 "${SCRIPT_DIR}/schemas.sh"
 run_pnpm test
 run_pnpm --filter @cueq/policy test:golden

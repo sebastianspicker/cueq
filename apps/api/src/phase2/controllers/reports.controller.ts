@@ -78,4 +78,19 @@ export class ReportsController {
   ) {
     return this.phase2Service.reportComplianceSummary(user, query);
   }
+
+  @Get('custom/options')
+  @ApiOperation({ summary: 'List whitelisted custom report builder options' })
+  customOptions(@CurrentUser() user: AuthenticatedIdentity) {
+    return this.phase2Service.reportCustomOptions(user);
+  }
+
+  @Get('custom/preview')
+  @ApiOperation({ summary: 'Preview custom report builder output (aggregate only)' })
+  customPreview(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.phase2Service.reportCustomPreview(user, query);
+  }
 }

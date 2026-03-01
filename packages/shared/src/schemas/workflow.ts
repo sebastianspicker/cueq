@@ -173,3 +173,30 @@ export type UpdateWorkflowDelegationRule = z.infer<typeof UpdateWorkflowDelegati
 /** Backward-compat alias for legacy call sites */
 export const WorkflowDecisionSchema = WorkflowDecisionCommandSchema;
 export type WorkflowDecision = WorkflowDecisionCommand;
+
+export const ShiftSwapRequestSchema = z
+  .object({
+    shiftId: IdSchema,
+    fromPersonId: IdSchema,
+    toPersonId: IdSchema,
+    reason: z.string().min(10).max(1000),
+  })
+  .superRefine((value, ctx) => {
+    if (value.fromPersonId === value.toPersonId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'fromPersonId and toPersonId must differ',
+        path: ['toPersonId'],
+      });
+    }
+  });
+export type ShiftSwapRequest = z.infer<typeof ShiftSwapRequestSchema>;
+
+export const OvertimeApprovalRequestSchema = z.object({
+  personId: IdSchema,
+  periodStart: DateTimeSchema,
+  periodEnd: DateTimeSchema,
+  overtimeHours: z.number().positive(),
+  reason: z.string().min(10).max(1000),
+});
+export type OvertimeApprovalRequest = z.infer<typeof OvertimeApprovalRequestSchema>;

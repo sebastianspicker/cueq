@@ -227,6 +227,23 @@ export class WorkflowRuntimeService {
       return input.preferredApproverId;
     }
 
+    if (input.type === WorkflowType.SHIFT_SWAP) {
+      const planner = await this.firstPersonByRoles(
+        [Role.SHIFT_PLANNER],
+        input.requesterOrganizationUnitId,
+        input.requesterId,
+      );
+      if (planner) {
+        return planner;
+      }
+
+      return this.firstPersonByRoles(
+        [Role.HR, Role.ADMIN],
+        input.requesterOrganizationUnitId,
+        input.requesterId,
+      );
+    }
+
     if (input.type === WorkflowType.POST_CLOSE_CORRECTION) {
       const alternate = await this.firstPersonByRoles(
         [Role.HR, Role.ADMIN],

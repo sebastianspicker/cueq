@@ -64,6 +64,7 @@ export default function ClosingPage() {
   const [checklist, setChecklist] = useState<ClosingChecklistResponse | null>(null);
   const [workflowId, setWorkflowId] = useState('');
   const [workflowReason, setWorkflowReason] = useState('Payroll mismatch correction');
+  const [exportFormat, setExportFormat] = useState<'CSV_V1' | 'XML_V1'>('CSV_V1');
   const [correctionPayload, setCorrectionPayload] = useState<ApplyCorrectionPayload>({
     workflowId: '',
     personId: '',
@@ -240,7 +241,7 @@ export default function ClosingPage() {
     }
   }
 
-  async function downloadCsv(runId: string) {
+  async function downloadArtifact(runId: string) {
     const period = selectedPeriod();
     if (!period) {
       return;
@@ -251,7 +252,7 @@ export default function ClosingPage() {
     setMessage(null);
     try {
       const response = await fetch(
-        `${baseUrl}/v1/closing-periods/${period.id}/export-runs/${runId}/csv`,
+        `${baseUrl}/v1/closing-periods/${period.id}/export-runs/${runId}/artifact`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -263,15 +264,19 @@ export default function ClosingPage() {
         throw new Error(body || t('requestFailed'));
       }
 
-      const csv = await response.text();
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const artifact = await response.text();
+      const contentType = response.headers.get('content-type') ?? 'application/octet-stream';
+      const filename =
+        response.headers.get('content-disposition')?.match(/filename="([^"]+)"/u)?.[1] ??
+        `payroll-export-${period.id}-${runId}.txt`;
+      const blob = new Blob([artifact], { type: contentType });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `payroll-export-${period.id}-${runId}.csv`;
+      anchor.download = filename;
       anchor.click();
       URL.revokeObjectURL(url);
-      setMessage(t('downloadReady'));
+      setMessage(t('downloadArtifactReady'));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -388,6 +393,18 @@ export default function ClosingPage() {
 
       <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
         <h2>{t('actionsTitle')}</h2>
+        <label
+          style={{ display: 'grid', gap: '.25rem', marginBottom: '.75rem', maxWidth: '16rem' }}
+        >
+          <span>{t('exportFormatLabel')}</span>
+          <select
+            value={exportFormat}
+            onChange={(event) => setExportFormat(event.target.value as 'CSV_V1' | 'XML_V1')}
+          >
+            <option value="CSV_V1">CSV_V1</option>
+            <option value="XML_V1">XML_V1</option>
+          </select>
+        </label>
         <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
           <button
             type="button"
@@ -413,7 +430,11 @@ export default function ClosingPage() {
           <button
             type="button"
             disabled={loading || !period}
-            onClick={() => void runPeriodAction('export')}
+            onClick={() =>
+              void runPeriodAction('export', {
+                format: exportFormat,
+              })
+            }
           >
             {t('export')}
           </button>
@@ -541,9 +562,9 @@ export default function ClosingPage() {
                   type="button"
                   style={{ marginLeft: '.5rem' }}
                   disabled={loading}
-                  onClick={() => void downloadCsv(run.id)}
+                  onClick={() => void downloadArtifact(run.id)}
                 >
-                  {t('downloadCsv')}
+                  {t('downloadArtifact')}
                 </button>
               </li>
             ))}

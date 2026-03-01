@@ -3,6 +3,49 @@ import tsEslintPlugin from '@typescript-eslint/eslint-plugin';
 
 const typescriptFiles = ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'];
 
+const cueqPlugin = {
+  rules: {
+    'no-manual-schema-types': {
+      meta: {
+        type: 'problem',
+        docs: {
+          description:
+            'Prevent manual schema shape types in shared schema files; prefer zod schemas + z.infer.',
+        },
+        schema: [],
+      },
+      create(context) {
+        return {
+          TSInterfaceDeclaration(node) {
+            context.report({
+              node,
+              message:
+                'Do not declare interfaces in schema files. Define a zod schema and export z.infer type instead.',
+            });
+          },
+          TSTypeAliasDeclaration(node) {
+            const annotation = node.typeAnnotation;
+            const manualTypes = new Set([
+              'TSTypeLiteral',
+              'TSUnionType',
+              'TSIntersectionType',
+              'TSMappedType',
+              'TSTupleType',
+            ]);
+            if (manualTypes.has(annotation.type)) {
+              context.report({
+                node,
+                message:
+                  'Manual schema shape type aliases are disallowed in schema files. Prefer zod schema + z.infer.',
+              });
+            }
+          },
+        };
+      },
+    },
+  },
+};
+
 export default [
   {
     ignores: [
@@ -72,6 +115,15 @@ export default [
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['packages/shared/src/schemas/**/*.ts'],
+    plugins: {
+      cueq: cueqPlugin,
+    },
+    rules: {
+      'cueq/no-manual-schema-types': 'error',
     },
   },
 ];

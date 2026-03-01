@@ -74,7 +74,8 @@ Honeywell Terminal → [file/CSV] → Terminal Gateway Adapter → Booking API �
                                    Monitoring (heartbeat, errors)
 ```
 
-> **TODO**: Clarify Honeywell protocol (file-based CSV vs. real-time TCP/UDP)
+Honeywell protocol baseline is now ratified as `HONEYWELL_CSV_V1` via
+`POST /v1/terminal/sync/batches/file`, while real-time protocols remain future roadmap work.
 
 ## 5. References
 

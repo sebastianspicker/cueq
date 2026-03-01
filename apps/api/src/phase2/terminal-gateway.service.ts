@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto';
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '@cueq/database';
 import { BookingSource } from '@cueq/database';
 import { buildAuditEntry } from '@cueq/core';
@@ -21,6 +27,13 @@ const TerminalSyncBatchSchema = z.object({
   ),
 });
 
+const TerminalSyncBatchFileSchema = z.object({
+  terminalId: z.string().min(1),
+  sourceFile: z.string().optional(),
+  protocol: z.enum(['HONEYWELL_CSV_V1']).default('HONEYWELL_CSV_V1'),
+  csv: z.string().min(1),
+});
+
 const TerminalHeartbeatSchema = z.object({
   terminalId: z.string().min(1),
   observedAt: z.string().datetime(),
@@ -39,11 +52,80 @@ const TerminalHeartbeatSchema = z.object({
 });
 
 type TerminalSyncBatchInput = z.infer<typeof TerminalSyncBatchSchema>;
+type TerminalSyncBatchFileInput = z.infer<typeof TerminalSyncBatchFileSchema>;
 type TerminalHeartbeatInput = z.infer<typeof TerminalHeartbeatSchema>;
+
+const TerminalCsvRowSchema = z.object({
+  personId: z.string().cuid(),
+  timeTypeCode: z.string().min(1),
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime().optional(),
+  note: z.string().max(1000).optional(),
+});
 
 @Injectable()
 export class TerminalGatewayService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
+  private parseHoneywellCsv(csv: string): {
+    records: Array<{
+      personId: string;
+      timeTypeCode: string;
+      startTime: string;
+      endTime?: string;
+      note?: string;
+    }>;
+    malformedRows: number;
+  } {
+    const lines = csv
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      return { records: [], malformedRows: 0 };
+    }
+
+    const [headerLine, ...rowLines] = lines;
+    if (!headerLine) {
+      return { records: [], malformedRows: 0 };
+    }
+
+    const headers = headerLine.split(',').map((header) => header.trim());
+    const requiredHeaders = ['personId', 'timeTypeCode', 'startTime'];
+    const missingHeader = requiredHeaders.find((required) => !headers.includes(required));
+    if (missingHeader) {
+      throw new BadRequestException(`Missing required Honeywell CSV column: ${missingHeader}`);
+    }
+
+    const records: Array<{
+      personId: string;
+      timeTypeCode: string;
+      startTime: string;
+      endTime?: string;
+      note?: string;
+    }> = [];
+    let malformedRows = 0;
+
+    for (const rowLine of rowLines) {
+      const values = rowLine.split(',').map((value) => value.trim());
+      const raw = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']));
+      const parsed = TerminalCsvRowSchema.safeParse({
+        personId: raw.personId,
+        timeTypeCode: raw.timeTypeCode,
+        startTime: raw.startTime,
+        endTime: raw.endTime || undefined,
+        note: raw.note || undefined,
+      });
+      if (!parsed.success) {
+        malformedRows += 1;
+        continue;
+      }
+      records.push(parsed.data);
+    }
+
+    return { records, malformedRows };
+  }
 
   private assertIntegrationToken(token: string | undefined, envVar: string, fallback: string) {
     const expected = process.env[envVar] ?? fallback;
@@ -220,6 +302,22 @@ export class TerminalGatewayService {
       conflictFlags,
       ingestionChecksum,
       sorted: true,
+    };
+  }
+
+  async importBatchFile(user: AuthenticatedIdentity, actorId: string, payload: unknown) {
+    const parsed = TerminalSyncBatchFileSchema.parse(payload) as TerminalSyncBatchFileInput;
+    const { records, malformedRows } = this.parseHoneywellCsv(parsed.csv);
+    const imported = await this.importBatch(user, actorId, {
+      terminalId: parsed.terminalId,
+      sourceFile: parsed.sourceFile,
+      records,
+    });
+
+    return {
+      ...imported,
+      protocol: parsed.protocol,
+      malformedRows,
     };
   }
 

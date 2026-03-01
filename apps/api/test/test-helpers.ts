@@ -4,16 +4,30 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { buildMockToken, MOCK_IDENTITIES } from '../src/test-utils/seed-ids';
 import { AppModule } from '../src/app.module';
+import {
+  HR_MASTER_PROVIDER,
+  type HrMasterProviderPort,
+} from '../src/phase2/hr-master-provider.port';
 
-export async function createTestApp(): Promise<INestApplication> {
+interface TestAppOptions {
+  hrMasterProvider?: HrMasterProviderPort;
+}
+
+export async function createTestApp(options: TestAppOptions = {}): Promise<INestApplication> {
   process.env.AUTH_MODE = 'mock';
   process.env.DATABASE_URL =
     process.env.DATABASE_URL ??
     'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public';
 
-  const moduleRef = await Test.createTestingModule({
+  const moduleBuilder = Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  });
+
+  if (options.hrMasterProvider) {
+    moduleBuilder.overrideProvider(HR_MASTER_PROVIDER).useValue(options.hrMasterProvider);
+  }
+
+  const moduleRef = await moduleBuilder.compile();
 
   const app = moduleRef.createNestApplication();
   await app.init();

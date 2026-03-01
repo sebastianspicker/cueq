@@ -1,6 +1,6 @@
 # Product Spec: New User Onboarding
 
-> **Status:** 📝 Draft
+> **Status:** ✅ Implemented
 
 ---
 
@@ -68,11 +68,11 @@ When a new employee is provisioned via HR/IdM master data import and logs in for
 
 ---
 
-## 8. TODO: Confirm
+## 8. Follow-up Notes
 
-- [ ] Exact orientation/welcome content for first login (copy review with HR)
-- [ ] Whether a "profile completion" step is needed (or if IdM data is sufficient)
-- [ ] Default language detection strategy (browser locale vs. OE setting)
+- Orientation content is implemented in the dashboard onboarding card and remains copy-tunable.
+- No profile-completion step is required for MVP; IdM/HR import data is sufficient.
+- Default language remains German (`/de`) with explicit English route switch (`/en`).
 
 ---
 

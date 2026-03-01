@@ -82,6 +82,10 @@ export default function RosterPage() {
   const [draftOrganizationUnitId, setDraftOrganizationUnitId] = useState('');
   const [draftPeriodStart, setDraftPeriodStart] = useState('2026-04-01T00:00');
   const [draftPeriodEnd, setDraftPeriodEnd] = useState('2026-04-30T23:59');
+  const [swapShiftId, setSwapShiftId] = useState('');
+  const [swapFromPersonId, setSwapFromPersonId] = useState('');
+  const [swapToPersonId, setSwapToPersonId] = useState('');
+  const [swapReason, setSwapReason] = useState('Please swap assignment for this shift.');
 
   const baseUrl = useMemo(() => apiBaseUrl.replace(/\/$/, ''), [apiBaseUrl]);
 
@@ -263,6 +267,38 @@ export default function RosterPage() {
       });
       await refreshRoster(roster.id);
       setMessage(t('published'));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function requestShiftSwap() {
+    if (!roster) {
+      setError(t('loadFirst'));
+      return;
+    }
+    if (!swapShiftId || !swapFromPersonId || !swapToPersonId) {
+      setError(t('swapMissingFields'));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await apiRequest('/v1/workflows/shift-swaps', {
+        method: 'POST',
+        body: JSON.stringify({
+          shiftId: swapShiftId,
+          fromPersonId: swapFromPersonId,
+          toPersonId: swapToPersonId,
+          reason: swapReason,
+        }),
+      });
+      await refreshRoster(roster.id);
+      setMessage(t('swapRequested'));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -472,6 +508,43 @@ export default function RosterPage() {
             })}
           </ul>
         )}
+      </article>
+
+      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <h2>{t('swapTitle')}</h2>
+        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('swapShiftId')}</span>
+            <input value={swapShiftId} onChange={(event) => setSwapShiftId(event.target.value)} />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('swapFromPersonId')}</span>
+            <input
+              value={swapFromPersonId}
+              onChange={(event) => setSwapFromPersonId(event.target.value)}
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('swapToPersonId')}</span>
+            <input
+              value={swapToPersonId}
+              onChange={(event) => setSwapToPersonId(event.target.value)}
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('swapReason')}</span>
+            <input value={swapReason} onChange={(event) => setSwapReason(event.target.value)} />
+          </label>
+        </div>
+        <div style={{ marginTop: '.75rem' }}>
+          <button
+            type="button"
+            disabled={loading || !roster}
+            onClick={() => void requestShiftSwap()}
+          >
+            {t('swapRequest')}
+          </button>
+        </div>
       </article>
 
       <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>

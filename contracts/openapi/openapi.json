@@ -412,6 +412,46 @@
         ]
       }
     },
+    "/v1/workflows/shift-swaps": {
+      "post": {
+        "operationId": "WorkflowsController_createShiftSwap",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create shift swap workflow request",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/overtime-approvals": {
+      "post": {
+        "operationId": "WorkflowsController_createOvertimeApproval",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create overtime approval workflow request",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
     "/v1/workflows/inbox": {
       "get": {
         "operationId": "WorkflowsController_inbox",
@@ -1312,6 +1352,25 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "CSV_V1",
+                      "XML_V1"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "",
@@ -1367,6 +1426,43 @@
           }
         ],
         "summary": "Download canonical payroll CSV artifact for an export run",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{closingPeriodId}/export-runs/{runId}/artifact": {
+      "get": {
+        "operationId": "ClosingController_downloadArtifact",
+        "parameters": [
+          {
+            "name": "closingPeriodId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Download canonical payroll export artifact for an export run",
         "tags": [
           "closing"
         ]
@@ -1517,6 +1613,26 @@
           }
         ],
         "summary": "Import terminal offline-sync batch (CSV adapter v0)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/sync/batches/file": {
+      "post": {
+        "operationId": "TerminalSyncController_importBatchFile",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import terminal offline-sync file batch (HONEYWELL_CSV_V1)",
         "tags": [
           "terminal-sync"
         ]
@@ -1994,6 +2110,46 @@
         ]
       }
     },
+    "/v1/reports/custom/options": {
+      "get": {
+        "operationId": "ReportsController_customOptions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List whitelisted custom report builder options",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/custom/preview": {
+      "get": {
+        "operationId": "ReportsController_customPreview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Preview custom report builder output (aggregate only)",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/v1/time-engine/evaluate": {
       "post": {
         "operationId": "TimeEngineController_evaluate",
@@ -2452,6 +2608,13 @@
             "type": "string"
           },
           "csv": {
+            "type": "string",
+            "nullable": true
+          },
+          "artifact": {
+            "type": "string"
+          },
+          "contentType": {
             "type": "string"
           },
           "rows": {
@@ -2464,7 +2627,8 @@
         "required": [
           "exportRun",
           "checksum",
-          "csv",
+          "artifact",
+          "contentType",
           "rows"
         ]
       },

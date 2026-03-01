@@ -50,8 +50,14 @@ export class ClosingExportResponseDto {
   @ApiProperty({ type: String })
   checksum!: string;
 
+  @ApiPropertyOptional({ type: String, nullable: true })
+  csv!: string | null;
+
   @ApiProperty({ type: String })
-  csv!: string;
+  artifact!: string;
+
+  @ApiProperty({ type: String })
+  contentType!: string;
 
   @ApiProperty({ type: PayrollCsvRowDto, isArray: true })
   rows!: PayrollCsvRowDto[];

@@ -1,6 +1,6 @@
 # Exec Plan: FR-700 Reports & Export
 
-> **Status:** 🔄 In Progress | **Owner:** Reporting + Integrations Team | **Started:** 2026-03-01 | **Target:** 2026-03-08
+> **Status:** ✅ Complete | **Owner:** Reporting + Integrations Team | **Started:** 2026-03-01 | **Completed:** 2026-03-01
 
 ---
 
@@ -33,9 +33,8 @@ References:
 
 ### Out of Scope
 
-- multi-format payroll export (`XML`, `CSV_V2+`)
 - individual-level analytics
-- custom report builder
+- unrestricted/free-form analytics builder
 
 ## Task Sequence
 
@@ -55,8 +54,8 @@ References:
 - [x] Audit/compliance summary reports are role-gated and aggregate-only
 - [x] Report access remains append-only audit logged
 - [x] Web reports page supports API-driven summary retrieval
-- [ ] `make check` passes
+- [x] `make check` passes
 
 ## Risks / Notes
 
-- `CSV_V1` is intentionally fixed for this cycle; format evolution remains deferred follow-up work.
+- Multi-format export (`CSV_V1`, `XML_V1`) and whitelisted custom builder were implemented as follow-up slices after FR-700 baseline closeout.

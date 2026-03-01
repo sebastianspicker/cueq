@@ -70,9 +70,21 @@ export class ClosingController {
 
   @Post(':id/export')
   @ApiOperation({ summary: 'Export closing period run with deterministic CSV checksum' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        format: { type: 'string', enum: ['CSV_V1', 'XML_V1'] },
+      },
+    },
+  })
   @ApiCreatedResponse({ type: ClosingExportResponseDto })
-  exportRun(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
-    return this.phase2Service.exportClosing(user, closingPeriodId);
+  exportRun(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id') closingPeriodId: string,
+    @Body() payload?: unknown,
+  ) {
+    return this.phase2Service.exportClosing(user, closingPeriodId, payload);
   }
 
   @Get(':closingPeriodId/export-runs/:runId/csv')
@@ -89,6 +101,21 @@ export class ClosingController {
     response.setHeader('Content-Disposition', `attachment; filename=\"${result.filename}\"`);
     response.setHeader('X-Checksum-Sha256', result.checksum);
     response.status(200).send(result.csv);
+  }
+
+  @Get(':closingPeriodId/export-runs/:runId/artifact')
+  @ApiOperation({ summary: 'Download canonical payroll export artifact for an export run' })
+  async downloadArtifact(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('closingPeriodId') closingPeriodId: string,
+    @Param('runId') runId: string,
+    @Res() response: Response,
+  ) {
+    const result = await this.phase2Service.getExportRunArtifact(user, closingPeriodId, runId);
+    response.setHeader('Content-Type', result.contentType);
+    response.setHeader('Content-Disposition', `attachment; filename=\"${result.filename}\"`);
+    response.setHeader('X-Checksum-Sha256', result.checksum);
+    response.status(200).send(result.artifact);
   }
 
   @Post(':id/post-close-corrections')

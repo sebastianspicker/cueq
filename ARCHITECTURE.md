@@ -101,15 +101,15 @@ Web Self-Service ──→ API ──→ Booking ──→ Time Engine ──→
 
 ## 6. Integration Points
 
-| System                     | Direction     | Protocol                     | Notes                                                  |
-| -------------------------- | ------------- | ---------------------------- | ------------------------------------------------------ |
-| **Honeywell Terminals**    | Inbound       | File import / CSV (presumed) | Offline buffering; batch sync with conflict resolution |
-| **SSO / IdM**              | Bidirectional | SAML 2.0 / OIDC              | Authentication + role mapping                          |
-| **HR Master Data**         | Inbound       | File import / API            | Person, OE, work-time model, supervisor relationships  |
-| **Payroll / Bezügestelle** | Outbound      | CSV / XML (schema-defined)   | Monthly export with protocol and idempotency           |
-| **Calendar (optional)**    | Outbound      | ICS                          | Privacy-filtered ("absent" only, no reason)            |
+| System                     | Direction     | Protocol                         | Notes                                                  |
+| -------------------------- | ------------- | -------------------------------- | ------------------------------------------------------ |
+| **Honeywell Terminals**    | Inbound       | File import / `HONEYWELL_CSV_V1` | Offline buffering; batch sync with conflict resolution |
+| **SSO / IdM**              | Bidirectional | SAML 2.0 / OIDC                  | Authentication + role mapping                          |
+| **HR Master Data**         | Inbound       | File import / API                | Person, OE, work-time model, supervisor relationships  |
+| **Payroll / Bezügestelle** | Outbound      | CSV / XML (schema-defined)       | Monthly export with protocol and idempotency           |
+| **Calendar (optional)**    | Outbound      | ICS                              | Privacy-filtered ("absent" only, no reason)            |
 
-> **TODO: confirm** — Exact Honeywell terminal protocol (file-based vs. real-time) must be clarified during Phase 0.
+Honeywell protocol baseline for the pilot is ratified as file-based `HONEYWELL_CSV_V1`.
 
 ---
 
@@ -129,14 +129,14 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) for the full threat model.
 
 ## 8. Deployment Architecture
 
-> **TODO: confirm** — On-premises vs. managed cloud to be decided in ADR-002.
-
 **Assumed baseline:**
 
 - Docker-compose for local development
 - PostgreSQL as the primary database
 - Reverse proxy (nginx/traefik) for TLS termination
 - CI/CD via GitHub Actions
+- Runtime target: on-premises first, managed EU cloud compatible (see ADR-002)
+- Monitoring baseline: Prometheus + Alertmanager + Grafana (see ADR-003)
 
 ---
 

@@ -44,6 +44,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           <Link href={`/${locale}/time-engine`}>{messages.app.nav.timeEngine}</Link>
           <Link href={`/${locale}/closing`}>{messages.app.nav.closing}</Link>
           <Link href={`/${locale}/reports`}>{messages.app.nav.reports}</Link>
+          <Link href={`/${locale}/policy-admin`}>{messages.app.nav.policyAdmin}</Link>
         </nav>
         <Link href={`/${altLocale}/dashboard`}>{altLocale.toUpperCase()}</Link>
       </header>

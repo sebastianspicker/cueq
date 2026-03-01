@@ -15,10 +15,9 @@
 
 ## Active Items
 
-| #      | Item                                | Impact    | Effort    | Owner | Target Date | Status     | Notes                                          |
-| ------ | ----------------------------------- | --------- | --------- | ----- | ----------- | ---------- | ---------------------------------------------- |
-| TD-006 | Honeywell terminal protocol unknown | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | Adapter design depends on this                 |
-| TD-007 | Payroll export format undefined     | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | `CSV_V1` standardized; future formats deferred |
+| #      | Item                        | Impact | Effort | Owner | Target Date | Status | Notes |
+| ------ | --------------------------- | ------ | ------ | ----- | ----------- | ------ | ----- |
+| _none_ | _No active tech debt items_ |        |        |       |             |        |       |
 
 ### Status Legend
 
@@ -49,11 +48,13 @@
 
 ## Resolved Items
 
-| #      | Item                             | Resolved Date | Resolved By (PR)                                 |
-| ------ | -------------------------------- | ------------- | ------------------------------------------------ |
-| TD-001 | CI pipeline missing              | 2026-02-28    | Phase 0 harness implementation                   |
-| TD-002 | Domain JSON schemas missing      | 2026-02-28    | Phase 0 harness implementation                   |
-| TD-003 | Test scaffolding missing         | 2026-02-28    | Phase 0 harness implementation                   |
-| TD-004 | ESLint/formatter harness missing | 2026-02-28    | Phase 0 harness implementation                   |
-| TD-005 | ADR-001 tech stack undecided     | 2026-02-28    | [ADR-001](../design-decisions/001-tech-stack.md) |
-| TD-008 | NRW holiday dataset not compiled | 2026-02-28    | Phase 1 domain core rollout                      |
+| #      | Item                                | Resolved Date | Resolved By (PR)                                             |
+| ------ | ----------------------------------- | ------------- | ------------------------------------------------------------ |
+| TD-001 | CI pipeline missing                 | 2026-02-28    | Phase 0 harness implementation                               |
+| TD-002 | Domain JSON schemas missing         | 2026-02-28    | Phase 0 harness implementation                               |
+| TD-003 | Test scaffolding missing            | 2026-02-28    | Phase 0 harness implementation                               |
+| TD-004 | ESLint/formatter harness missing    | 2026-02-28    | Phase 0 harness implementation                               |
+| TD-005 | ADR-001 tech stack undecided        | 2026-02-28    | [ADR-001](../design-decisions/001-tech-stack.md)             |
+| TD-008 | NRW holiday dataset not compiled    | 2026-02-28    | Phase 1 domain core rollout                                  |
+| TD-006 | Honeywell terminal protocol unknown | 2026-03-01    | `HONEYWELL_CSV_V1` finalized + file endpoint implemented     |
+| TD-007 | Payroll export format undefined     | 2026-03-01    | Multi-format export (`CSV_V1`, `XML_V1`) + artifact endpoint |

@@ -36,6 +36,8 @@ describe('Phase 3 integration: OpenAPI contract', () => {
       '/v1/leave-adjustments',
       '/v1/calendar/team',
       '/v1/workflows/booking-corrections',
+      '/v1/workflows/shift-swaps',
+      '/v1/workflows/overtime-approvals',
       '/v1/workflows/inbox',
       '/v1/workflows/{id}',
       '/v1/workflows/{id}/decision',
@@ -67,17 +69,21 @@ describe('Phase 3 integration: OpenAPI contract', () => {
       '/v1/closing-periods/{id}/corrections/bookings',
       '/v1/closing-periods/{id}/reopen',
       '/v1/closing-periods/{closingPeriodId}/export-runs/{runId}/csv',
+      '/v1/closing-periods/{closingPeriodId}/export-runs/{runId}/artifact',
       '/v1/reports/team-absence',
       '/v1/reports/oe-overtime',
       '/v1/reports/closing-completion',
       '/v1/reports/audit-summary',
       '/v1/reports/compliance-summary',
+      '/v1/reports/custom/options',
+      '/v1/reports/custom/preview',
       '/v1/integrations/webhooks/endpoints',
       '/v1/integrations/events/outbox',
       '/v1/integrations/webhooks/dispatch',
       '/v1/integrations/webhooks/deliveries',
       '/v1/terminal/sync/batches',
       '/v1/terminal/sync/batches/{id}',
+      '/v1/terminal/sync/batches/file',
       '/v1/terminal/heartbeats',
       '/v1/terminal/health',
       '/v1/hr/import-runs',
@@ -117,5 +123,6 @@ describe('Phase 3 integration: OpenAPI contract', () => {
 
     const exportPost = document.paths?.['/v1/closing-periods/{id}/export']?.post;
     expect(exportPost?.responses?.['201']?.content?.['application/json']).toBeDefined();
+    expect(exportPost?.requestBody).toBeDefined();
   });
 });

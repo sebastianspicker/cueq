@@ -57,7 +57,7 @@ This execution plan closes those gaps with deterministic policy behavior and tes
 - [x] Leave request workflow transitions update linked absences
 - [x] Team-calendar visibility split is role-tested
 - [x] New FR-400 endpoints included in OpenAPI path coverage
-- [ ] Full `make check` run on final branch snapshot
+- [x] Full `make check` run on final branch snapshot
 
 ## Risks / Notes
 

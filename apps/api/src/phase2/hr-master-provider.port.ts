@@ -11,6 +11,8 @@ export type HrMasterRecord = {
   supervisorExternalId?: string;
 };
 
+export const HR_MASTER_PROVIDER = Symbol('HR_MASTER_PROVIDER');
+
 export interface HrMasterProviderPort {
   fetchMasterRecords(): Promise<HrMasterRecord[]>;
 }

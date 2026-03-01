@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { AuthService } from './auth.service';
 import { OidcIdentityProviderAdapter } from './oidc-identity-provider.adapter';
+import { SamlIdentityProviderAdapter } from './saml-identity-provider.adapter';
 import { AuthGuard } from '../guards/auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 
@@ -10,6 +11,7 @@ import { RolesGuard } from '../guards/roles.guard';
     Reflector,
     AuthService,
     OidcIdentityProviderAdapter,
+    SamlIdentityProviderAdapter,
     {
       provide: APP_GUARD,
       inject: [Reflector, AuthService],

@@ -43,11 +43,11 @@ packages/policy/CHANGELOG.md
 
 Each entry includes: version number, effective date, what changed, why, and approval reference.
 
-## 5. TODO: Confirm
+## 5. Confirmed Scope
 
-- [ ] Additional rule categories needed (surcharges, closing rules, shift swap rules)
-- [ ] Policy changelog format (keep-a-changelog vs. custom)
-- [ ] Admin UI for viewing active policies (Phase 2+)
+- [x] Additional rule categories tracked and extended through workflow/closing/reporting specs.
+- [x] Policy changelog format standardized in `packages/policy/CHANGELOG.md`.
+- [x] Admin UI for active policy visibility: `web /[locale]/policy-admin` + API role gates (`HR`, `ADMIN`).
 
 ## 6. References
 

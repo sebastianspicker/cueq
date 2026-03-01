@@ -4,15 +4,13 @@
 
 ## 1. Availability Targets
 
-| Component                  | Target                                       | Rationale                                                    |
-| -------------------------- | -------------------------------------------- | ------------------------------------------------------------ |
-| Web application            | 99.5% (excl. maintenance windows)            | Core employee interaction; low tolerance for downtime        |
-| API                        | 99.5%                                        | Feeds web + future mobile                                    |
-| Database                   | 99.9%                                        | Data durability is critical; managed PG or HA setup          |
-| Honeywell terminal gateway | 99% (with offline buffer)                    | Terminals buffer locally; gateway downtime doesn't lose data |
-| Monthly closing/export     | Available during business hours (Mo–Fr 7–18) | Batch process; not 24/7 critical                             |
-
-> **TODO: confirm** — SLA numbers to be finalized with university IT and stakeholders.
+| Component                  | Target                                              | Rationale                                                    |
+| -------------------------- | --------------------------------------------------- | ------------------------------------------------------------ |
+| Web application            | 99.5% (excl. maintenance windows)                   | Core employee interaction; low tolerance for downtime        |
+| API                        | 99.5%                                               | Feeds web + future mobile                                    |
+| Database                   | 99.9%                                               | Data durability is critical; managed PG or HA setup          |
+| Honeywell terminal gateway | 99% (with offline buffer)                           | Terminals buffer locally; gateway downtime doesn't lose data |
+| Monthly closing/export     | 99.0% during business hours (Mo–Fr 07:00–18:00 CET) | Batch process; not 24/7 critical                             |
 
 ---
 
@@ -78,7 +76,13 @@ The automated backup/restore test verifies:
 | Monthly closing       | Closing status per OE            | Closing not completed by deadline |
 | Disk / resource usage | System metrics                   | >80% threshold                    |
 
-> **TODO: confirm** — Monitoring stack (Prometheus/Grafana, Datadog, or university-provided) to be decided.
+### Monitoring Stack
+
+- Metrics: Prometheus
+- Alert routing: Alertmanager
+- Dashboards: Grafana
+- Log shipping: university-provided centralized log platform
+- Trace collection: optional, disabled by default in pilot
 
 Health payload now includes operational snapshots for:
 

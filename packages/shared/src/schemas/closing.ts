@@ -34,3 +34,11 @@ export const ClosingBookingCorrectionSchema = z.object({
   note: z.string().max(1000).optional(),
 });
 export type ClosingBookingCorrection = z.infer<typeof ClosingBookingCorrectionSchema>;
+
+export const ExportFormatSchema = z.enum(['CSV_V1', 'XML_V1']);
+export type ExportFormat = z.infer<typeof ExportFormatSchema>;
+
+export const ClosingExportRequestSchema = z.object({
+  format: ExportFormatSchema.default('CSV_V1').optional(),
+});
+export type ClosingExportRequest = z.infer<typeof ClosingExportRequestSchema>;

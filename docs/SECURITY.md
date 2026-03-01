@@ -23,6 +23,17 @@
 | Service accounts   | Separate credentials for terminal gateway and HR import; scoped to minimal permissions   |
 | Integration tokens | `TERMINAL_GATEWAY_TOKEN` and `HR_IMPORT_TOKEN` required for machine-to-machine endpoints |
 
+Runtime selector:
+
+- `AUTH_PROVIDER=mock|oidc|saml` (preferred)
+- `AUTH_MODE` remains supported as backward-compatible fallback
+
+SAML adapter settings:
+
+- `SAML_ISSUER`
+- `SAML_AUDIENCE`
+- `SAML_JWT_SECRET`
+
 ---
 
 ## 3. Authorization (Role-Based Access Control)
@@ -155,11 +166,16 @@ Integration tokens for terminal and HR endpoints must be rotated and delivered v
 If you discover a security vulnerability in cueq:
 
 1. **Do not** open a public issue.
-2. Email the maintainer(s) privately (contact TBD).
+2. Email the security response team privately at `security@cueq.local`.
 3. Include: description, reproduction steps, impact assessment.
 4. We will acknowledge within 48 hours and work on a fix.
 
-> **TODO: confirm** — Security contact email to be established.
+### Security Ownership
+
+- Security mailbox: `security@cueq.local`
+- Primary owner: Platform Security Owner (Admin Team)
+- Backup owner: Ops On-Call Lead
+- Triage SLA owner: Platform Security Owner
 
 ---
 

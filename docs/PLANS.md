@@ -6,7 +6,7 @@
 
 ## Current Phase: Phase 3 — Integrations + Operations
 
-**Goal**: Deliver pilot-ready integrations and operations hardening (terminal gateway ops, HR import, payroll CSV export, backup/restore verification).
+**Goal**: Deliver pilot-ready integrations and operations hardening (terminal gateway ops, HR import, payroll export, backup/restore verification).
 
 **Status**: ✅ Completed on branch (pending merge/default-branch confirmation)
 
@@ -14,16 +14,16 @@
 
 ## Phase Overview
 
-| Phase       | Name               | Goal                                                                                     | Status                |
-| ----------- | ------------------ | ---------------------------------------------------------------------------------------- | --------------------- |
-| **Phase 0** | Harness Foundation | CI, schemas, config, scripts, docs skeleton                                              | ✅ Complete           |
-| **Phase 1** | Domain Core        | Pure logic (time engine, absence, workflow, roster, closing, audit) with full unit tests | ✅ Complete           |
-| **Phase 2** | Services + UI      | API, adapters, frontend; 7/8 acceptance tests green                                      | ✅ Complete           |
-| **Phase 3** | Integrations + Ops | Terminal gateway, HR import, payroll export, backup/restore; pilot-ready                 | ✅ Complete on branch |
+| Phase       | Name               | Goal                                                                                         | Status                |
+| ----------- | ------------------ | -------------------------------------------------------------------------------------------- | --------------------- |
+| **Phase 0** | Harness Foundation | CI, schemas, config, scripts, docs skeleton                                                  | ✅ Complete           |
+| **Phase 1** | Domain Core        | Pure logic (time engine, absence, workflow, roster, closing, audit) with full unit tests     | ✅ Complete           |
+| **Phase 2** | Services + UI      | API, adapters, frontend; 7/8 acceptance tests green                                          | ✅ Complete           |
+| **Phase 3** | Integrations + Ops | Terminal gateway, HR import, payroll/reporting/export hardening, backup/restore; pilot-ready | ✅ Complete on branch |
 
 ---
 
-## Phase 0 — Harness Foundation (Current)
+## Phase 0 — Harness Foundation
 
 ### Deliverables
 
@@ -42,11 +42,13 @@
 
 ### Definition of Done (Phase 0)
 
-- [ ] `make check` passes on a fresh clone (validated by CI smoke job after merge)
-- [ ] CI runs green on the default branch (pending merge)
+- [x] `make check` passes on a fresh clone (validated by CI smoke job)
+- [ ] CI runs green on the default branch (external confirmation required)
 - [x] All schemas pass validation
 - [x] ADR-001 is written and merged
-- [ ] A new contributor can run `make setup && make check` successfully (validated by CI smoke job after merge)
+- [x] A new contributor can run `make setup && make check` successfully (validated by CI smoke job)
+
+Default-branch confirmation should include workflow run URL and commit SHA when reconciled after merge.
 
 ---
 
@@ -80,9 +82,9 @@
 ### Deliverables
 
 - PostgreSQL persistence adapters
-- SSO adapter (SAML/OIDC) with mock in docker-compose
+- SSO adapter (mock/OIDC/SAML) with config-based provider selection
 - REST API matching OpenAPI spec
-- Employee dashboard, team calendar, roster view, approval inbox
+- Employee dashboard, team calendar, roster view, approval inbox, policy admin view
 - DE + EN translations
 - 7/8 acceptance tests passing
 
@@ -99,9 +101,9 @@
 
 ### Deliverables
 
-- Honeywell terminal gateway (import, offline buffer, sync)
-- HR master data import (file + optional API)
-- Payroll export (schema-compliant, reproducible)
+- Honeywell terminal gateway (record + `HONEYWELL_CSV_V1` file import, offline buffer, sync)
+- HR master data import (file + HTTP API provider mode)
+- Payroll export (schema-compliant, reproducible, multi-format artifact)
 - Backup/restore automated verification
 - Pilot seed data (admin dept, Pforte, IT on-call)
 - Completed runbook, monitoring, and compliance docs
@@ -122,7 +124,7 @@ Active and completed execution plans are tracked in:
 
 - **Active**: [`exec-plans/active/`](exec-plans/active/) — use the [template](exec-plans/active/000-template.md)
 - **Completed**: [`exec-plans/completed/`](exec-plans/completed/) — moved here with linked PRs
-  - Latest: [`004-differentiators-ae.md`](exec-plans/completed/004-differentiators-ae.md)
+  - Latest: [`008-fr-700-reports-export.md`](exec-plans/completed/008-fr-700-reports-export.md)
 - **Tech Debt**: [`exec-plans/tech-debt-tracker.md`](exec-plans/tech-debt-tracker.md)
 
 ---

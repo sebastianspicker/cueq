@@ -14,6 +14,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     const closing = await request.get('http://localhost:3000/de/closing');
     const approvals = await request.get('http://localhost:3000/de/approvals');
     const reports = await request.get('http://localhost:3000/de/reports');
+    const policyAdmin = await request.get('http://localhost:3000/de/policy-admin');
     const timeEngineDe = await request.get('http://localhost:3000/de/time-engine');
     const timeEngineEn = await request.get('http://localhost:3000/en/time-engine');
 
@@ -22,6 +23,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     expect(closing.status()).toBe(200);
     expect(approvals.status()).toBe(200);
     expect(reports.status()).toBe(200);
+    expect(policyAdmin.status()).toBe(200);
     expect(timeEngineDe.status()).toBe(200);
     expect(timeEngineEn.status()).toBe(200);
 
@@ -30,6 +32,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     expect(await closing.text()).toContain('Monatsabschluss');
     expect(await approvals.text()).toContain('Freigabe-Postfach');
     expect(await reports.text()).toContain('Berichte');
+    expect(await policyAdmin.text()).toContain('Policy-Administration');
     expect(await timeEngineDe.text()).toContain('Time-Engine-Evaluator');
     expect(await timeEngineEn.text()).toContain('Time Engine Evaluator');
   });
@@ -44,6 +47,16 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body.role).toBe('EMPLOYEE');
+  });
+
+  test('dashboard supports load + quick-action booking flow', async ({ page }) => {
+    await page.goto('http://localhost:3000/de/dashboard');
+    await page.getByLabel('Bearer-Token').fill(employeeToken);
+    await page.getByRole('button', { name: 'Dashboard laden' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Übersicht' })).toBeVisible();
+    await page.getByRole('button', { name: 'Kommen' }).click();
+    await expect(page.getByText('Buchung erfolgreich angelegt.')).toBeVisible();
   });
 
   test('roster page supports create + assign + publish planner flow', async ({ page }) => {
@@ -174,6 +187,35 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
 
     await page.getByLabel('Bearer token').fill(employeeToken);
     await page.getByRole('button', { name: 'Load reports' }).click();
+    await expect(page.locator('p[role="alert"]')).toContainText('403');
+  });
+
+  test('policy admin page allows HR/Admin and blocks employee', async ({ page }) => {
+    const hrToken = mockToken({
+      sub: 'c000000000000000000000103',
+      email: 'hr@cueq.local',
+      role: 'HR',
+      organizationUnitId: 'c000000000000000000000001',
+    });
+    const adminToken = mockToken({
+      sub: 'c000000000000000000000104',
+      email: 'admin@cueq.local',
+      role: 'ADMIN',
+      organizationUnitId: 'c000000000000000000000001',
+    });
+
+    await page.goto('http://localhost:3000/de/policy-admin');
+
+    await page.getByLabel('Bearer-Token').fill(hrToken);
+    await page.getByRole('button', { name: 'Bundle laden' }).click();
+    await expect(page.getByText('Policy-Bundle geladen.')).toBeVisible();
+
+    await page.getByLabel('Bearer-Token').fill(adminToken);
+    await page.getByRole('button', { name: 'Historie laden' }).click();
+    await expect(page.getByText('Policy-Historie geladen.')).toBeVisible();
+
+    await page.getByLabel('Bearer-Token').fill(employeeToken);
+    await page.getByRole('button', { name: 'Bundle laden' }).click();
     await expect(page.locator('p[role="alert"]')).toContainText('403');
   });
 });

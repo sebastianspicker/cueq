@@ -43,6 +43,7 @@ import {
   AuditSummaryQuerySchema,
   BookingCorrectionSchema,
   ClosingBookingCorrectionSchema,
+  ClosingExportRequestSchema,
   ClosingPeriodMonthQuerySchema,
   ClosingCompletionQuerySchema,
   ComplianceSummaryQuerySchema,
@@ -58,18 +59,22 @@ import {
   ListOnCallRotationsQuerySchema,
   LeaveAdjustmentQuerySchema,
   OeOvertimeQuerySchema,
+  CustomReportPreviewQuerySchema,
   OutboxQuerySchema,
   PolicyBundleQuerySchema,
   PolicyHistoryQuerySchema,
   TeamAbsenceQuerySchema,
   TeamCalendarQuerySchema,
   TimeRuleEvaluationRequestSchema,
+  ShiftSwapRequestSchema,
+  OvertimeApprovalRequestSchema,
   UpdateShiftSchema,
   UpdateOnCallRotationSchema,
   WorkflowDecisionCommandSchema,
   WorkflowInboxQuerySchema,
   WorkflowPolicyUpsertSchema,
   WorkflowTypeSchema,
+  CustomReportOptionsSchema,
   CreateWorkflowDelegationRuleSchema,
   UpdateWorkflowDelegationRuleSchema,
   AssignShiftSchema,
@@ -150,6 +155,15 @@ function toClosingActorRole(role: Role): ClosingActorRole {
   }
 
   return 'EMPLOYEE';
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
 }
 
 function toCoreClosingStatus(status: ClosingStatus): CoreClosingStatus {
@@ -894,21 +908,48 @@ export class Phase2Service {
   async dashboard(user: AuthenticatedIdentity) {
     const person = await this.personForUser(user);
     const now = new Date();
+    const dayStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+    );
+    const dayEnd = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999),
+    );
 
-    const latestTimeAccount = await this.prisma.timeAccount.findFirst({
-      where: { personId: person.id },
-      orderBy: { periodStart: 'desc' },
-    });
+    const [latestTimeAccount, todayBookingsCount, totalBookingsCount, clockInType] =
+      await Promise.all([
+        this.prisma.timeAccount.findFirst({
+          where: { personId: person.id },
+          orderBy: { periodStart: 'desc' },
+        }),
+        this.prisma.booking.count({
+          where: {
+            personId: person.id,
+            startTime: { gte: dayStart, lte: dayEnd },
+          },
+        }),
+        this.prisma.booking.count({
+          where: { personId: person.id },
+        }),
+        this.prisma.timeType.findFirst({
+          where: { code: 'WORK' },
+          select: { id: true },
+        }),
+      ]);
 
     const dailyTarget = Number(
       person.workTimeModel?.dailyTargetHours ?? Number(person.workTimeModel?.weeklyHours ?? 0) / 5,
     );
+    const hasFirstBooking = totalBookingsCount > 0;
 
     return {
       personId: person.id,
       modelName: person.workTimeModel?.name ?? 'N/A',
       todayTargetHours: Number(dailyTarget.toFixed(2)),
       currentBalanceHours: Number((latestTimeAccount?.balance ?? 0).toFixed(2)),
+      todayBookingsCount,
+      hasFirstBooking,
+      showOrientation: !hasFirstBooking,
+      clockInTimeTypeId: clockInType?.id ?? null,
       period: latestTimeAccount
         ? {
             start: latestTimeAccount.periodStart.toISOString(),
@@ -1511,6 +1552,153 @@ export class Phase2Service {
     };
   }
 
+  async createShiftSwapWorkflow(user: AuthenticatedIdentity, payload: unknown) {
+    const requester = await this.personForUser(user);
+    const parsed = ShiftSwapRequestSchema.parse(payload);
+    this.assertCanActForPerson(user, requester.id, parsed.fromPersonId);
+
+    const shift = await this.prisma.shift.findUnique({
+      where: { id: parsed.shiftId },
+      include: {
+        assignments: true,
+        roster: {
+          select: {
+            organizationUnitId: true,
+          },
+        },
+      },
+    });
+    if (!shift) {
+      throw new NotFoundException('Shift not found.');
+    }
+
+    const fromAssignment = shift.assignments.find(
+      (assignment) => assignment.personId === parsed.fromPersonId,
+    );
+    if (!fromAssignment) {
+      throw new BadRequestException('fromPersonId is not assigned to the shift.');
+    }
+    if (shift.assignments.some((assignment) => assignment.personId === parsed.toPersonId)) {
+      throw new BadRequestException('toPersonId is already assigned to the shift.');
+    }
+
+    const preferredApprover = await this.prisma.person.findFirst({
+      where: {
+        role: Role.SHIFT_PLANNER,
+        organizationUnitId: shift.roster.organizationUnitId,
+      },
+      select: { id: true },
+    });
+    const assignment = await this.workflowRuntimeService.buildWorkflowAssignment({
+      type: WorkflowType.SHIFT_SWAP,
+      requesterId: requester.id,
+      requesterOrganizationUnitId: requester.organizationUnitId,
+      preferredApproverId: preferredApprover?.id ?? undefined,
+    });
+
+    const workflow = await this.prisma.workflowInstance.create({
+      data: {
+        type: WorkflowType.SHIFT_SWAP,
+        status: assignment.status,
+        requesterId: requester.id,
+        approverId: assignment.approverId,
+        entityType: 'Shift',
+        entityId: shift.id,
+        reason: parsed.reason,
+        requestPayload: parsed,
+        submittedAt: assignment.submittedAt,
+        dueAt: assignment.dueAt,
+        escalationLevel: assignment.escalationLevel,
+        delegationTrail: assignment.delegationTrail,
+      },
+    });
+
+    await this.appendAudit({
+      actorId: requester.id,
+      action: 'WORKFLOW_CREATED',
+      entityType: 'WorkflowInstance',
+      entityId: workflow.id,
+      after: {
+        type: workflow.type,
+        status: workflow.status,
+        approverId: workflow.approverId,
+        dueAt: workflow.dueAt?.toISOString() ?? null,
+        shiftId: shift.id,
+        fromPersonId: parsed.fromPersonId,
+        toPersonId: parsed.toPersonId,
+      },
+      reason: parsed.reason,
+    });
+
+    return workflow;
+  }
+
+  async createOvertimeApprovalWorkflow(user: AuthenticatedIdentity, payload: unknown) {
+    const requester = await this.personForUser(user);
+    const parsed = OvertimeApprovalRequestSchema.parse(payload);
+    this.assertCanActForPerson(user, requester.id, parsed.personId);
+
+    const start = new Date(parsed.periodStart);
+    const end = new Date(parsed.periodEnd);
+    if (start > end) {
+      throw new BadRequestException('periodStart must be on or before periodEnd.');
+    }
+
+    const targetPerson = await this.prisma.person.findUnique({
+      where: { id: parsed.personId },
+      select: {
+        id: true,
+        organizationUnitId: true,
+        supervisorId: true,
+      },
+    });
+    if (!targetPerson) {
+      throw new NotFoundException('Person not found.');
+    }
+
+    const assignment = await this.workflowRuntimeService.buildWorkflowAssignment({
+      type: WorkflowType.OVERTIME_APPROVAL,
+      requesterId: requester.id,
+      requesterOrganizationUnitId: targetPerson.organizationUnitId,
+      preferredApproverId: targetPerson.supervisorId ?? undefined,
+    });
+
+    const workflow = await this.prisma.workflowInstance.create({
+      data: {
+        type: WorkflowType.OVERTIME_APPROVAL,
+        status: assignment.status,
+        requesterId: requester.id,
+        approverId: assignment.approverId,
+        entityType: 'TimeAccount',
+        entityId: targetPerson.id,
+        reason: parsed.reason,
+        requestPayload: parsed,
+        submittedAt: assignment.submittedAt,
+        dueAt: assignment.dueAt,
+        escalationLevel: assignment.escalationLevel,
+        delegationTrail: assignment.delegationTrail,
+      },
+    });
+
+    await this.appendAudit({
+      actorId: requester.id,
+      action: 'WORKFLOW_CREATED',
+      entityType: 'WorkflowInstance',
+      entityId: workflow.id,
+      after: {
+        type: workflow.type,
+        status: workflow.status,
+        approverId: workflow.approverId,
+        dueAt: workflow.dueAt?.toISOString() ?? null,
+        personId: parsed.personId,
+        overtimeHours: parsed.overtimeHours,
+      },
+      reason: parsed.reason,
+    });
+
+    return workflow;
+  }
+
   async workflowInbox(user: AuthenticatedIdentity, query?: unknown) {
     const person = await this.personForUser(user);
     const parsed = WorkflowInboxQuerySchema.parse(query ?? {});
@@ -1669,6 +1857,101 @@ export class Phase2Service {
           });
         }
       }
+    }
+
+    if (
+      decision.updated.type === WorkflowType.SHIFT_SWAP &&
+      decision.updated.entityType === 'Shift' &&
+      decision.action === 'APPROVE'
+    ) {
+      const payload = ShiftSwapRequestSchema.parse(decision.updated.requestPayload ?? {});
+      const shiftId = payload.shiftId || decision.updated.entityId;
+      await this.prisma.$transaction(async (tx) => {
+        const shift = await tx.shift.findUnique({
+          where: { id: shiftId },
+          include: { assignments: true },
+        });
+        if (!shift) {
+          throw new NotFoundException('Shift not found for approved swap.');
+        }
+        const fromAssignment = shift.assignments.find(
+          (assignment) => assignment.personId === payload.fromPersonId,
+        );
+        if (!fromAssignment) {
+          throw new BadRequestException('fromPersonId assignment no longer exists on shift.');
+        }
+        const toAssigned = shift.assignments.some(
+          (assignment) => assignment.personId === payload.toPersonId,
+        );
+        await tx.shiftAssignment.delete({ where: { id: fromAssignment.id } });
+        if (!toAssigned) {
+          await tx.shiftAssignment.create({
+            data: {
+              shiftId: shift.id,
+              personId: payload.toPersonId,
+            },
+          });
+        }
+      });
+
+      await this.appendAudit({
+        actorId: actor.id,
+        action: 'SHIFT_SWAP_APPLIED',
+        entityType: 'Shift',
+        entityId: decision.updated.entityId,
+        after: {
+          fromPersonId: payload.fromPersonId,
+          toPersonId: payload.toPersonId,
+          workflowId: decision.updated.id,
+        },
+        reason: parsed.reason,
+      });
+    }
+
+    if (
+      decision.updated.type === WorkflowType.OVERTIME_APPROVAL &&
+      decision.updated.entityType === 'TimeAccount' &&
+      decision.action === 'APPROVE'
+    ) {
+      const payload = OvertimeApprovalRequestSchema.parse(decision.updated.requestPayload ?? {});
+      const periodStart = new Date(payload.periodStart);
+      const periodEnd = new Date(payload.periodEnd);
+
+      const account = await this.prisma.timeAccount.findFirst({
+        where: {
+          personId: payload.personId,
+          periodStart: { lte: periodStart },
+          periodEnd: { gte: periodEnd },
+        },
+        orderBy: { periodStart: 'desc' },
+      });
+      if (!account) {
+        throw new NotFoundException('No matching time account found for overtime approval.');
+      }
+
+      const nextOvertimeHours =
+        Number(Number(account.overtimeHours).toFixed(2)) + payload.overtimeHours;
+      const updated = await this.prisma.timeAccount.update({
+        where: { id: account.id },
+        data: {
+          overtimeHours: Number(nextOvertimeHours.toFixed(2)),
+        },
+      });
+
+      await this.appendAudit({
+        actorId: actor.id,
+        action: 'OVERTIME_APPROVED',
+        entityType: 'TimeAccount',
+        entityId: updated.id,
+        before: {
+          overtimeHours: Number(account.overtimeHours),
+        },
+        after: {
+          overtimeHours: Number(updated.overtimeHours),
+          workflowId: decision.updated.id,
+        },
+        reason: parsed.reason,
+      });
     }
 
     return decision.updated;
@@ -3202,10 +3485,12 @@ export class Phase2Service {
     };
   }
 
-  async exportClosing(user: AuthenticatedIdentity, closingPeriodId: string) {
+  async exportClosing(user: AuthenticatedIdentity, closingPeriodId: string, payload?: unknown) {
     if (!HR_LIKE_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin can export closing periods.');
     }
+    const parsedRequest = ClosingExportRequestSchema.parse(payload ?? {});
+    const format = parsedRequest.format ?? 'CSV_V1';
 
     const actor = await this.personForUser(user);
     const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
@@ -3237,12 +3522,24 @@ export class Phase2Service {
       )
       .join('\n');
     const csv = `${header}\n${body}\n`;
-    const checksum = createHash('sha256').update(csv).digest('hex');
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      `<payrollExport format="${format}" closingPeriodId="${escapeXml(closingPeriodId)}">`,
+      ...normalizedRows.map(
+        (row) =>
+          `  <row personId="${escapeXml(row.personId)}" targetHours="${row.targetHours.toFixed(2)}" actualHours="${row.actualHours.toFixed(2)}" balance="${row.balance.toFixed(2)}" />`,
+      ),
+      '</payrollExport>',
+      '',
+    ].join('\n');
+    const artifact = format === 'CSV_V1' ? csv : xml;
+    const contentType = format === 'CSV_V1' ? 'text/csv' : 'application/xml';
+    const checksum = createHash('sha256').update(artifact).digest('hex');
 
     const existingRun = await this.prisma.exportRun.findFirst({
       where: {
         closingPeriodId,
-        format: 'CSV_V1',
+        format,
         checksum,
       },
       orderBy: { exportedAt: 'desc' },
@@ -3252,7 +3549,9 @@ export class Phase2Service {
       return {
         exportRun: existingRun,
         checksum: existingRun.checksum,
-        csv: existingRun.artifact,
+        csv: existingRun.format === 'CSV_V1' ? existingRun.artifact : null,
+        artifact: existingRun.artifact,
+        contentType: existingRun.contentType ?? contentType,
         rows: normalizedRows,
       };
     }
@@ -3280,11 +3579,11 @@ export class Phase2Service {
     const exportRun = await this.prisma.exportRun.create({
       data: {
         closingPeriodId,
-        format: 'CSV_V1',
+        format,
         recordCount: normalizedRows.length,
         checksum,
-        artifact: csv,
-        contentType: 'text/csv',
+        artifact,
+        contentType,
         exportedById: actor.id,
       },
     });
@@ -3316,7 +3615,9 @@ export class Phase2Service {
     return {
       exportRun,
       checksum,
-      csv,
+      csv: format === 'CSV_V1' ? artifact : null,
+      artifact,
+      contentType,
       rows: normalizedRows,
     };
   }
@@ -3346,6 +3647,37 @@ export class Phase2Service {
       csv: exportRun.artifact,
       checksum: exportRun.checksum,
       contentType: exportRun.contentType ?? 'text/csv',
+    };
+  }
+
+  async getExportRunArtifact(user: AuthenticatedIdentity, closingPeriodId: string, runId: string) {
+    if (!EXPORT_DOWNLOAD_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin/Payroll can download payroll export artifacts.');
+    }
+
+    const exportRun = await this.prisma.exportRun.findFirst({
+      where: {
+        id: runId,
+        closingPeriodId,
+      },
+    });
+    if (!exportRun) {
+      throw new NotFoundException('Export run not found.');
+    }
+    if (!exportRun.artifact) {
+      throw new BadRequestException('Artifact is unavailable for this export run.');
+    }
+
+    const extension = exportRun.format === 'XML_V1' ? 'xml' : 'csv';
+    const contentType =
+      exportRun.contentType ?? (exportRun.format === 'XML_V1' ? 'application/xml' : 'text/csv');
+
+    return {
+      filename: `payroll-export-${closingPeriodId}-${runId}.${extension}`,
+      artifact: exportRun.artifact,
+      checksum: exportRun.checksum,
+      contentType,
+      format: exportRun.format,
     };
   }
 
@@ -4295,6 +4627,126 @@ export class Phase2Service {
     };
   }
 
+  reportCustomOptions(user: AuthenticatedIdentity) {
+    if (!REPORT_ALLOWED_ROLES.has(user.role)) {
+      throw new ForbiddenException('Role does not permit access to reports.');
+    }
+
+    return CustomReportOptionsSchema.parse({
+      reportTypes: ['TEAM_ABSENCE', 'OE_OVERTIME', 'CLOSING_COMPLETION'],
+      groupBy: ['ORGANIZATION_UNIT', 'NONE'],
+      metrics: ['requests', 'days', 'people', 'totalOvertimeHours', 'completionRate', 'exported'],
+    });
+  }
+
+  async reportCustomPreview(user: AuthenticatedIdentity, query: unknown) {
+    const normalizedQuery =
+      query && typeof query === 'object' && !Array.isArray(query)
+        ? { ...(query as Record<string, unknown>) }
+        : {};
+    if (typeof normalizedQuery.metrics === 'string') {
+      normalizedQuery.metrics = [normalizedQuery.metrics];
+    }
+
+    const parsed = CustomReportPreviewQuerySchema.parse(normalizedQuery);
+
+    const metricAllowList: Record<string, Set<string>> = {
+      TEAM_ABSENCE: new Set(['requests', 'days']),
+      OE_OVERTIME: new Set(['people', 'totalOvertimeHours']),
+      CLOSING_COMPLETION: new Set(['completionRate', 'exported']),
+    };
+    const allowedMetrics = metricAllowList[parsed.reportType];
+    const disallowed = parsed.metrics.filter((metric) => !allowedMetrics?.has(metric));
+    if (disallowed.length > 0) {
+      throw new BadRequestException(
+        `Unsupported metrics for ${parsed.reportType}: ${disallowed.join(', ')}`,
+      );
+    }
+
+    if (parsed.reportType === 'TEAM_ABSENCE') {
+      const report = await this.reportTeamAbsence(user, {
+        organizationUnitId: parsed.organizationUnitId,
+        from: parsed.from,
+        to: parsed.to,
+      });
+      const metricValues: Record<string, number> = {};
+      if (parsed.metrics.includes('requests')) {
+        metricValues.requests = report.totals.requests;
+      }
+      if (parsed.metrics.includes('days')) {
+        metricValues.days = report.totals.days;
+      }
+
+      return {
+        reportType: parsed.reportType,
+        groupBy: parsed.groupBy,
+        from: parsed.from,
+        to: parsed.to,
+        suppression: report.suppression,
+        rows: [
+          {
+            group: parsed.groupBy === 'ORGANIZATION_UNIT' ? report.organizationUnitId : 'ALL',
+            metrics: metricValues,
+          },
+        ],
+      };
+    }
+
+    if (parsed.reportType === 'OE_OVERTIME') {
+      const report = await this.reportOeOvertime(user, {
+        organizationUnitId: parsed.organizationUnitId,
+        from: parsed.from,
+        to: parsed.to,
+      });
+      const metricValues: Record<string, number> = {};
+      if (parsed.metrics.includes('people')) {
+        metricValues.people = report.totals.people;
+      }
+      if (parsed.metrics.includes('totalOvertimeHours')) {
+        metricValues.totalOvertimeHours = report.totals.totalOvertimeHours;
+      }
+
+      return {
+        reportType: parsed.reportType,
+        groupBy: parsed.groupBy,
+        from: parsed.from,
+        to: parsed.to,
+        suppression: report.suppression,
+        rows: [
+          {
+            group: parsed.groupBy === 'ORGANIZATION_UNIT' ? report.organizationUnitId : 'ALL',
+            metrics: metricValues,
+          },
+        ],
+      };
+    }
+
+    const report = await this.reportClosingCompletion(user, {
+      from: parsed.from,
+      to: parsed.to,
+    });
+    const metricValues: Record<string, number> = {};
+    if (parsed.metrics.includes('completionRate')) {
+      metricValues.completionRate = report.totals.completionRate;
+    }
+    if (parsed.metrics.includes('exported')) {
+      metricValues.exported = report.totals.exported;
+    }
+
+    return {
+      reportType: parsed.reportType,
+      groupBy: parsed.groupBy,
+      from: parsed.from,
+      to: parsed.to,
+      rows: [
+        {
+          group: 'ALL',
+          metrics: metricValues,
+        },
+      ],
+    };
+  }
+
   async importTerminalBatch(user: AuthenticatedIdentity, payload: unknown) {
     if (!HR_LIKE_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin can import terminal batches.');
@@ -4302,6 +4754,15 @@ export class Phase2Service {
 
     const actor = await this.personForUser(user);
     return this.terminalGatewayService.importBatch(user, actor.id, payload);
+  }
+
+  async importTerminalBatchFile(user: AuthenticatedIdentity, payload: unknown) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can import terminal batches.');
+    }
+
+    const actor = await this.personForUser(user);
+    return this.terminalGatewayService.importBatchFile(user, actor.id, payload);
   }
 
   async getTerminalBatch(batchId: string) {

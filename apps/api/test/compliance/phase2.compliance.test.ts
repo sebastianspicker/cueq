@@ -253,6 +253,28 @@ describe('Phase 2 compliance', () => {
     expect(worksCouncilCompliance.body).toHaveProperty('operations');
   });
 
+  it('enforces custom report builder role gates and aggregate-only output', async () => {
+    const employeeOptions = await request(app.getHttpServer())
+      .get('/v1/reports/custom/options')
+      .set('Authorization', `Bearer ${TOKENS.employee}`);
+    expect(employeeOptions.status).toBe(403);
+
+    const hrPreview = await request(app.getHttpServer())
+      .get('/v1/reports/custom/preview')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        reportType: 'TEAM_ABSENCE',
+        groupBy: 'ORGANIZATION_UNIT',
+        from: '2026-03-01',
+        to: '2026-03-31',
+        organizationUnitId: SEED_IDS.ouAdmin,
+        metrics: ['days'],
+      });
+    expect(hrPreview.status).toBe(200);
+    expect(Array.isArray(hrPreview.body.rows)).toBe(true);
+    expect(hrPreview.body).not.toHaveProperty('personIds');
+  });
+
   it('denies employee access to time-engine evaluation endpoint', async () => {
     const response = await request(app.getHttpServer())
       .post('/v1/time-engine/evaluate')
@@ -289,6 +311,38 @@ describe('Phase 2 compliance', () => {
 
     expect(latestAudit).not.toBeNull();
     expect(latestAudit?.entityType).toBe('Report');
+  });
+
+  it('records booking creation audit entry for dashboard quick action path', async () => {
+    const dashboard = await request(app.getHttpServer())
+      .get('/v1/dashboard/me')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .send();
+    expect(dashboard.status).toBe(200);
+
+    const booking = await request(app.getHttpServer())
+      .post('/v1/bookings')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .send({
+        personId: dashboard.body.personId,
+        timeTypeId: dashboard.body.clockInTimeTypeId,
+        startTime: '2026-04-09T08:00:00.000Z',
+        source: 'MANUAL',
+        note: 'Compliance quick action booking',
+      });
+    expect(booking.status).toBe(201);
+
+    const latestAudit = await prisma.auditEntry.findFirst({
+      where: {
+        action: 'BOOKING_CREATED',
+        entityType: 'Booking',
+        entityId: booking.body.id,
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    expect(latestAudit).not.toBeNull();
+    expect(latestAudit?.entityId).toBe(booking.body.id);
   });
 
   it('writes audit entries for roster mutations', async () => {

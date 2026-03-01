@@ -1,6 +1,6 @@
 # Exec Plan: FR-300 Roster & Shift Planning
 
-> **Status:** 🔄 In Progress | **Owner:** Roster Team | **Started:** 2026-02-28 | **Target:** 2026-03-07
+> **Status:** ✅ Complete | **Owner:** Roster Team | **Started:** 2026-02-28 | **Completed:** 2026-03-01
 
 ---
 
@@ -52,7 +52,7 @@ References:
 - [x] Planner-only write permissions enforced and compliance-tested
 - [x] AT-03 assertions strengthened with deterministic metrics
 - [x] Web roster acceptance flow covers create+assign+plan-vs-actual
-- [ ] `make check` passes
+- [x] `make check` passes
 
 ## Linked PRs / Issues
 

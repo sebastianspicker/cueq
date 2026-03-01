@@ -9,6 +9,22 @@ import { PrismaService } from '../../src/persistence/prisma.service';
 describe('FR-500 integration', () => {
   let app: INestApplication;
 
+  function tokenForPerson(personId: string | null | undefined) {
+    if (personId === SEED_IDS.personLead) {
+      return TOKENS.lead;
+    }
+    if (personId === SEED_IDS.personHr) {
+      return TOKENS.hr;
+    }
+    if (personId === SEED_IDS.personAdmin) {
+      return TOKENS.admin;
+    }
+    if (personId === SEED_IDS.personPlanner) {
+      return TOKENS.planner;
+    }
+    return TOKENS.hr;
+  }
+
   beforeAll(async () => {
     app = await createTestApp();
   });
@@ -211,6 +227,117 @@ describe('FR-500 integration', () => {
       .set('Authorization', `Bearer ${TOKENS.employee}`);
     const absence = mine.body.find((entry: { id: string }) => entry.id === created.body.id);
     expect(absence?.status).toBe('CANCELLED');
+  });
+
+  it('supports shift swap workflow and applies assignment swap on approval', async () => {
+    const roster = await request(app.getHttpServer())
+      .post('/v1/rosters')
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        organizationUnitId: SEED_IDS.ouSecurity,
+        periodStart: '2026-06-01T00:00:00.000Z',
+        periodEnd: '2026-06-30T23:59:59.000Z',
+      });
+    expect(roster.status).toBe(201);
+
+    const shift = await request(app.getHttpServer())
+      .post(`/v1/rosters/${roster.body.id}/shifts`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        startTime: '2026-06-05T08:00:00.000Z',
+        endTime: '2026-06-05T16:00:00.000Z',
+        shiftType: 'DAY',
+        minStaffing: 1,
+      });
+    expect(shift.status).toBe(201);
+
+    const assign = await request(app.getHttpServer())
+      .post(`/v1/rosters/${roster.body.id}/shifts/${shift.body.id}/assignments`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        personId: SEED_IDS.personPlanner,
+      });
+    expect(assign.status).toBe(201);
+
+    const created = await request(app.getHttpServer())
+      .post('/v1/workflows/shift-swaps')
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        shiftId: shift.body.id,
+        fromPersonId: SEED_IDS.personPlanner,
+        toPersonId: SEED_IDS.personHr,
+        reason: 'Requesting a shift swap due to availability conflict.',
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.type).toBe('SHIFT_SWAP');
+
+    const approval = await request(app.getHttpServer())
+      .post(`/v1/workflows/${created.body.id}/decision`)
+      .set('Authorization', `Bearer ${tokenForPerson(created.body.approverId)}`)
+      .send({
+        action: 'APPROVE',
+        reason: 'Approved swap request',
+      });
+    expect(approval.status).toBe(201);
+    expect(approval.body.status).toBe('APPROVED');
+
+    const detail = await request(app.getHttpServer())
+      .get(`/v1/rosters/${roster.body.id}`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    expect(detail.status).toBe(200);
+    const updatedShift = detail.body.shifts.find(
+      (entry: { id: string }) => entry.id === shift.body.id,
+    );
+    expect(
+      updatedShift.assignments.some(
+        (entry: { personId: string }) => entry.personId === SEED_IDS.personHr,
+      ),
+    ).toBe(true);
+    expect(
+      updatedShift.assignments.some(
+        (entry: { personId: string }) => entry.personId === SEED_IDS.personPlanner,
+      ),
+    ).toBe(false);
+  });
+
+  it('supports overtime approval workflow and updates overtime hours on approval', async () => {
+    const prisma = app.get(PrismaService);
+    const baseline = await prisma.timeAccount.findFirst({
+      where: { personId: SEED_IDS.personEmployee },
+      orderBy: { periodStart: 'desc' },
+    });
+    if (!baseline) {
+      throw new Error('Expected seeded time account');
+    }
+
+    const created = await request(app.getHttpServer())
+      .post('/v1/workflows/overtime-approvals')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .send({
+        personId: SEED_IDS.personEmployee,
+        periodStart: baseline.periodStart.toISOString(),
+        periodEnd: baseline.periodEnd.toISOString(),
+        overtimeHours: 1.5,
+        reason: 'Requesting overtime approval for month-end support.',
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.type).toBe('OVERTIME_APPROVAL');
+
+    const approval = await request(app.getHttpServer())
+      .post(`/v1/workflows/${created.body.id}/decision`)
+      .set('Authorization', `Bearer ${tokenForPerson(created.body.approverId)}`)
+      .send({
+        action: 'APPROVE',
+        reason: 'Approved overtime',
+      });
+    expect(approval.status).toBe(201);
+
+    const updated = await prisma.timeAccount.findUnique({
+      where: { id: baseline.id },
+    });
+    expect(Number(updated?.overtimeHours ?? 0)).toBe(
+      Number(Number(baseline.overtimeHours).toFixed(2)) + 1.5,
+    );
   });
 
   it('escalates overdue workflows exactly once per overdue instance', async () => {

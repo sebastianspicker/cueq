@@ -20,16 +20,16 @@ These specs ensure CueQ matches baseline functionality (time, leave, roster, exp
 
 | Spec                                                            | Description                                          | Source       | Status         |
 | --------------------------------------------------------------- | ---------------------------------------------------- | ------------ | -------------- |
-| [New User Onboarding](new-user-onboarding.md)                   | First-time employee: SSO → dashboard → first booking | PRD §6 UJ1   | 📝 Draft       |
+| [New User Onboarding](new-user-onboarding.md)                   | First-time employee: SSO → dashboard → first booking | PRD §6 UJ1   | ✅ Implemented |
 | [Phase 2 Acceptance Scenarios](phase-2-acceptance-scenarios.md) | Canonical AT-01..AT-07 scenarios for phase gate      | Phase 2 Plan | 🟡 Active      |
 | [Phase 3 Acceptance Scenarios](phase-3-acceptance-scenarios.md) | Canonical AT-01..AT-08 scenarios for phase gate      | Phase 3 Plan | ✅ Complete    |
 | [Time Engine Rules](time-engine-rules.md)                       | Rule evaluation: pauses, rest, max-hours, surcharges | PRD FR-200   | ✅ Implemented |
 | [Roster & Shift Planning](roster-shift-planning.md)             | Shift creation, min-staffing, plan-vs-actual         | PRD FR-300   | ✅ Implemented |
 | [Absence & Leave](absence-leave.md)                             | Leave quotas, carry-over, forfeiture, team calendar  | PRD FR-400   | ✅ Implemented |
 | [Workflows & Approvals](workflows-approvals.md)                 | State machine, delegation, escalation                | PRD FR-500   | ✅ Implemented |
-| [Monthly Closing](monthly-closing.md)                           | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | 🟡 Active      |
-| [Reports & Export](reports-export.md)                           | Payroll export, audit reports, compliance reports    | PRD FR-700   | 🟡 Active      |
+| [Monthly Closing](monthly-closing.md)                           | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | ✅ Implemented |
+| [Reports & Export](reports-export.md)                           | Payroll export, audit reports, compliance reports    | PRD FR-700   | ✅ Implemented |
 
 ## Traceability
 
-Product requirements originate from stakeholder workshops and the original PRD. Each spec above references the relevant PRD sections (FR-100 through FR-800).
+Product requirements originate from stakeholder workshops and the original PRD. Each spec above references the relevant PRD sections (FR-100 through FR-700).

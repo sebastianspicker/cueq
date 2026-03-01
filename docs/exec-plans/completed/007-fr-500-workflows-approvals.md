@@ -35,9 +35,10 @@ References:
 
 ### Out of Scope
 
-- full `SHIFT_SWAP` and `OVERTIME_APPROVAL` product flows
 - admin UI for policy/delegation management
 - non-hourly escalation scheduling strategies
+
+`SHIFT_SWAP` and `OVERTIME_APPROVAL` flows were implemented in a subsequent roadmap slice after this plan completed.
 
 ## Task Sequence
 

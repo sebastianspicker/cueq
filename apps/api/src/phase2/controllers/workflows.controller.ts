@@ -30,6 +30,24 @@ export class WorkflowsController {
     return this.phase2Service.createBookingCorrection(user, payload);
   }
 
+  @Post('shift-swaps')
+  @ApiOperation({ summary: 'Create shift swap workflow request' })
+  createShiftSwap(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Body() payload: unknown,
+  ): Promise<unknown> {
+    return this.phase2Service.createShiftSwapWorkflow(user, payload);
+  }
+
+  @Post('overtime-approvals')
+  @ApiOperation({ summary: 'Create overtime approval workflow request' })
+  createOvertimeApproval(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Body() payload: unknown,
+  ): Promise<unknown> {
+    return this.phase2Service.createOvertimeApprovalWorkflow(user, payload);
+  }
+
   @Get('inbox')
   @ApiOperation({ summary: 'List workflow inbox for authenticated approver/requester' })
   inbox(
