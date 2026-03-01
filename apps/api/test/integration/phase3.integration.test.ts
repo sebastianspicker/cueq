@@ -134,6 +134,20 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
 
     expect(csv.status).toBe(200);
     expect(csv.text).toContain('personId,targetHours,actualHours,balance');
+
+    const payrollDownload = await request(app.getHttpServer())
+      .get(
+        `/v1/closing-periods/${SEED_IDS.closingPeriod}/export-runs/${exported.body.exportRun.id}/csv`,
+      )
+      .set('Authorization', `Bearer ${TOKENS.payroll}`)
+      .send();
+    expect(payrollDownload.status).toBe(200);
+
+    const payrollExport = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
+      .set('Authorization', `Bearer ${TOKENS.payroll}`)
+      .send();
+    expect(payrollExport.status).toBe(403);
   });
 
   it('serves policy bundle and policy history', async () => {
@@ -429,6 +443,73 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
         to: '2026-03-31',
       });
     expect(closing.status).toBe(200);
+
+    const auditSummary = await request(app.getHttpServer())
+      .get('/v1/reports/audit-summary')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(auditSummary.status).toBe(200);
+    expect(auditSummary.body).toMatchObject({
+      from: '2026-03-01',
+      to: '2026-03-31',
+    });
+    expect(auditSummary.body.totals.entries).toBeGreaterThan(0);
+    expect(Array.isArray(auditSummary.body.byAction)).toBe(true);
+    expect(Array.isArray(auditSummary.body.byEntityType)).toBe(true);
+
+    const complianceSummary = await request(app.getHttpServer())
+      .get('/v1/reports/compliance-summary')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(complianceSummary.status).toBe(200);
+    expect(complianceSummary.body).toMatchObject({
+      from: '2026-03-01',
+      to: '2026-03-31',
+    });
+    expect(complianceSummary.body.privacy.minGroupSize).toBeGreaterThan(0);
+    expect(complianceSummary.body.closing.periods).toBeGreaterThanOrEqual(0);
+
+    const dataProtectionAudit = await request(app.getHttpServer())
+      .get('/v1/reports/audit-summary')
+      .set('Authorization', `Bearer ${TOKENS.dataProtection}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(dataProtectionAudit.status).toBe(200);
+
+    const worksCouncilCompliance = await request(app.getHttpServer())
+      .get('/v1/reports/compliance-summary')
+      .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(worksCouncilCompliance.status).toBe(200);
+
+    const payrollAuditDenied = await request(app.getHttpServer())
+      .get('/v1/reports/audit-summary')
+      .set('Authorization', `Bearer ${TOKENS.payroll}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(payrollAuditDenied.status).toBe(403);
+
+    const leadAuditDenied = await request(app.getHttpServer())
+      .get('/v1/reports/audit-summary')
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(leadAuditDenied.status).toBe(403);
   });
 
   it('registers webhook endpoints and exposes outbox + delivery states', async () => {

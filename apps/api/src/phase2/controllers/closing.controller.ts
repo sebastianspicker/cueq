@@ -2,6 +2,7 @@ import { Body, Controller, Get, Inject, Param, Post, Query, Res } from '@nestjs/
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiCreatedResponse,
   ApiOperation,
   ApiProduces,
   ApiQuery,
@@ -12,6 +13,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Phase2Service } from '../phase2.service';
 import type { Response } from 'express';
 import type { ClosingBookingCorrection } from '@cueq/shared';
+import { ClosingExportResponseDto } from '../dto/closing.dto';
 
 @ApiTags('closing')
 @ApiBearerAuth()
@@ -68,6 +70,7 @@ export class ClosingController {
 
   @Post(':id/export')
   @ApiOperation({ summary: 'Export closing period run with deterministic CSV checksum' })
+  @ApiCreatedResponse({ type: ClosingExportResponseDto })
   exportRun(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
     return this.phase2Service.exportClosing(user, closingPeriodId);
   }

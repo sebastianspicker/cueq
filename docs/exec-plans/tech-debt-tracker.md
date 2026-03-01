@@ -15,10 +15,10 @@
 
 ## Active Items
 
-| #      | Item                                | Impact    | Effort    | Owner | Target Date | Status     | Notes                                    |
-| ------ | ----------------------------------- | --------- | --------- | ----- | ----------- | ---------- | ---------------------------------------- |
-| TD-006 | Honeywell terminal protocol unknown | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | Adapter design depends on this           |
-| TD-007 | Payroll export format undefined     | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | Schema stub needs real field definitions |
+| #      | Item                                | Impact    | Effort    | Owner | Target Date | Status     | Notes                                          |
+| ------ | ----------------------------------- | --------- | --------- | ----- | ----------- | ---------- | ---------------------------------------------- |
+| TD-006 | Honeywell terminal protocol unknown | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | Adapter design depends on this                 |
+| TD-007 | Payroll export format undefined     | 🟡 Medium | 🟡 Medium | TBD   | Phase 1     | ⏳ Pending | `CSV_V1` standardized; future formats deferred |
 
 ### Status Legend
 

@@ -152,4 +152,28 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     await page.getByRole('button', { name: 'Postfach laden' }).click();
     await expect(page.getByRole('list').getByText('BOOKING_CORRECTION')).toBeVisible();
   });
+
+  test('reports page loads summaries for HR and blocks employee on restricted report', async ({
+    page,
+  }) => {
+    const hrToken = mockToken({
+      sub: 'c000000000000000000000103',
+      email: 'hr@cueq.local',
+      role: 'HR',
+      organizationUnitId: 'c000000000000000000000001',
+    });
+
+    await page.goto('http://localhost:3000/en/reports');
+    await page.getByLabel('Bearer token').fill(hrToken);
+    await page.getByLabel('From', { exact: true }).fill('2026-03-01');
+    await page.getByLabel('To', { exact: true }).fill('2026-03-31');
+    await page.getByRole('button', { name: 'Load reports' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Audit Summary' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Compliance Summary' })).toBeVisible();
+
+    await page.getByLabel('Bearer token').fill(employeeToken);
+    await page.getByRole('button', { name: 'Load reports' }).click();
+    await expect(page.locator('p[role="alert"]')).toContainText('403');
+  });
 });

@@ -77,6 +77,25 @@ node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv
 - `CLOSING_BALANCE_ANOMALY_HOURS=40`
 - `CLOSING_ALLOW_MANUAL_REVIEW_START=false`
 
+## 5.1 Reporting Operations (FR-700)
+
+- Team absence report: `GET /v1/reports/team-absence`
+- OU overtime report: `GET /v1/reports/oe-overtime`
+- Closing completion report: `GET /v1/reports/closing-completion`
+- Audit summary report: `GET /v1/reports/audit-summary`
+- Compliance summary report: `GET /v1/reports/compliance-summary`
+
+### Role access
+
+- Aggregated reports: `TEAM_LEAD`, `HR`, `ADMIN`, `DATA_PROTECTION`, `WORKS_COUNCIL`
+- Summary reports (`audit-summary`, `compliance-summary`): `HR`, `ADMIN`, `DATA_PROTECTION`, `WORKS_COUNCIL`
+
+### Operational guardrails
+
+- All report accesses are logged with `REPORT_ACCESSED` audit entries.
+- Aggregated report suppression uses `REPORT_MIN_GROUP_SIZE` (default `5`).
+- Summary report payloads are aggregate-only and do not include individual actor IDs.
+
 ## 6. Backup / Restore Verification
 
 AT-08 automation verifies:

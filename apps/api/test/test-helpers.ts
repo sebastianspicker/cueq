@@ -59,4 +59,7 @@ export const TOKENS = {
   planner: buildMockToken(MOCK_IDENTITIES.planner),
   hr: buildMockToken(MOCK_IDENTITIES.hr),
   admin: buildMockToken(MOCK_IDENTITIES.admin),
+  payroll: buildMockToken(MOCK_IDENTITIES.payroll),
+  dataProtection: buildMockToken(MOCK_IDENTITIES.dataProtection),
+  worksCouncil: buildMockToken(MOCK_IDENTITIES.worksCouncil),
 };

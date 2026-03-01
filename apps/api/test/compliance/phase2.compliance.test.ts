@@ -209,6 +209,50 @@ describe('Phase 2 compliance', () => {
     expect(response.status).toBe(403);
   });
 
+  it('enforces restricted access for audit/compliance summary reports', async () => {
+    const payrollAudit = await request(app.getHttpServer())
+      .get('/v1/reports/audit-summary')
+      .set('Authorization', `Bearer ${TOKENS.payroll}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(payrollAudit.status).toBe(403);
+
+    const leadCompliance = await request(app.getHttpServer())
+      .get('/v1/reports/compliance-summary')
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(leadCompliance.status).toBe(403);
+
+    const dataProtectionAudit = await request(app.getHttpServer())
+      .get('/v1/reports/audit-summary')
+      .set('Authorization', `Bearer ${TOKENS.dataProtection}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(dataProtectionAudit.status).toBe(200);
+
+    expect(dataProtectionAudit.body).toHaveProperty('totals');
+    expect(dataProtectionAudit.body).not.toHaveProperty('actors');
+    expect(dataProtectionAudit.body).not.toHaveProperty('actorIds');
+
+    const worksCouncilCompliance = await request(app.getHttpServer())
+      .get('/v1/reports/compliance-summary')
+      .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
+      .query({
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+    expect(worksCouncilCompliance.status).toBe(200);
+    expect(worksCouncilCompliance.body).toHaveProperty('privacy');
+    expect(worksCouncilCompliance.body).toHaveProperty('operations');
+  });
+
   it('denies employee access to time-engine evaluation endpoint', async () => {
     const response = await request(app.getHttpServer())
       .post('/v1/time-engine/evaluate')

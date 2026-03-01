@@ -1314,7 +1314,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClosingExportResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1754,10 +1761,42 @@
     "/v1/reports/team-absence": {
       "get": {
         "operationId": "ReportsController_teamAbsence",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationUnitId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamAbsenceReportDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1774,10 +1813,42 @@
     "/v1/reports/oe-overtime": {
       "get": {
         "operationId": "ReportsController_oeOvertime",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationUnitId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OeOvertimeReportDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1794,10 +1865,34 @@
     "/v1/reports/closing-completion": {
       "get": {
         "operationId": "ReportsController_closingCompletion",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClosingCompletionReportDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1806,6 +1901,94 @@
           }
         ],
         "summary": "Closing completion report by status",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/audit-summary": {
+      "get": {
+        "operationId": "ReportsController_auditSummary",
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditSummaryReportDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Aggregate audit activity summary for reporting period",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/compliance-summary": {
+      "get": {
+        "operationId": "ReportsController_complianceSummary",
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceSummaryReportDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Aggregate compliance and privacy summary for reporting period",
         "tags": [
           "reports"
         ]
@@ -2190,6 +2373,501 @@
           "endDate",
           "status",
           "visibilityStatus"
+        ]
+      },
+      "ExportRunDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "closingPeriodId": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "recordCount": {
+            "type": "number"
+          },
+          "checksum": {
+            "type": "string"
+          },
+          "artifact": {
+            "type": "string",
+            "nullable": true
+          },
+          "contentType": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "exportedById": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "closingPeriodId",
+          "format",
+          "recordCount",
+          "checksum",
+          "exportedAt",
+          "exportedById"
+        ]
+      },
+      "PayrollCsvRowDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "targetHours": {
+            "type": "number"
+          },
+          "actualHours": {
+            "type": "number"
+          },
+          "balance": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "personId",
+          "targetHours",
+          "actualHours",
+          "balance"
+        ]
+      },
+      "ClosingExportResponseDto": {
+        "type": "object",
+        "properties": {
+          "exportRun": {
+            "$ref": "#/components/schemas/ExportRunDto"
+          },
+          "checksum": {
+            "type": "string"
+          },
+          "csv": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollCsvRowDto"
+            }
+          }
+        },
+        "required": [
+          "exportRun",
+          "checksum",
+          "csv",
+          "rows"
+        ]
+      },
+      "ReportSuppressionDto": {
+        "type": "object",
+        "properties": {
+          "suppressed": {
+            "type": "boolean"
+          },
+          "minGroupSize": {
+            "type": "number"
+          },
+          "population": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "suppressed",
+          "minGroupSize",
+          "population"
+        ]
+      },
+      "TeamAbsenceTotalsDto": {
+        "type": "object",
+        "properties": {
+          "requests": {
+            "type": "number"
+          },
+          "days": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "requests",
+          "days"
+        ]
+      },
+      "TeamAbsenceBucketDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "days": {
+            "type": "number"
+          },
+          "requests": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "type",
+          "days",
+          "requests"
+        ]
+      },
+      "TeamAbsenceReportDto": {
+        "type": "object",
+        "properties": {
+          "organizationUnitId": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "suppression": {
+            "$ref": "#/components/schemas/ReportSuppressionDto"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TeamAbsenceTotalsDto"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamAbsenceBucketDto"
+            }
+          }
+        },
+        "required": [
+          "organizationUnitId",
+          "from",
+          "to",
+          "suppression",
+          "totals",
+          "buckets"
+        ]
+      },
+      "OeOvertimeTotalsDto": {
+        "type": "object",
+        "properties": {
+          "people": {
+            "type": "number"
+          },
+          "totalBalanceHours": {
+            "type": "number"
+          },
+          "totalOvertimeHours": {
+            "type": "number"
+          },
+          "avgBalanceHours": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "people",
+          "totalBalanceHours",
+          "totalOvertimeHours",
+          "avgBalanceHours"
+        ]
+      },
+      "OeOvertimeReportDto": {
+        "type": "object",
+        "properties": {
+          "organizationUnitId": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "suppression": {
+            "$ref": "#/components/schemas/ReportSuppressionDto"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/OeOvertimeTotalsDto"
+          }
+        },
+        "required": [
+          "organizationUnitId",
+          "from",
+          "to",
+          "suppression",
+          "totals"
+        ]
+      },
+      "ClosingCompletionTotalsDto": {
+        "type": "object",
+        "properties": {
+          "periods": {
+            "type": "number"
+          },
+          "exported": {
+            "type": "number"
+          },
+          "approved": {
+            "type": "number"
+          },
+          "review": {
+            "type": "number"
+          },
+          "open": {
+            "type": "number"
+          },
+          "completionRate": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "periods",
+          "exported",
+          "approved",
+          "review",
+          "open",
+          "completionRate"
+        ]
+      },
+      "ClosingCompletionReportDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ClosingCompletionTotalsDto"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "totals"
+        ]
+      },
+      "AuditSummaryTotalsDto": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "number"
+          },
+          "uniqueActors": {
+            "type": "number"
+          },
+          "reportAccesses": {
+            "type": "number"
+          },
+          "exportsTriggered": {
+            "type": "number"
+          },
+          "lockBlocks": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "entries",
+          "uniqueActors",
+          "reportAccesses",
+          "exportsTriggered",
+          "lockBlocks"
+        ]
+      },
+      "ReportActionCountDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "action",
+          "count"
+        ]
+      },
+      "ReportEntityTypeCountDto": {
+        "type": "object",
+        "properties": {
+          "entityType": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "entityType",
+          "count"
+        ]
+      },
+      "AuditSummaryReportDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/AuditSummaryTotalsDto"
+          },
+          "byAction": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportActionCountDto"
+            }
+          },
+          "byEntityType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportEntityTypeCountDto"
+            }
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "totals",
+          "byAction",
+          "byEntityType"
+        ]
+      },
+      "CompliancePrivacySummaryDto": {
+        "type": "object",
+        "properties": {
+          "minGroupSize": {
+            "type": "number"
+          },
+          "reportAccesses": {
+            "type": "number"
+          },
+          "suppressedReportAccesses": {
+            "type": "number"
+          },
+          "suppressionRate": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "minGroupSize",
+          "reportAccesses",
+          "suppressedReportAccesses",
+          "suppressionRate"
+        ]
+      },
+      "ComplianceClosingSummaryDto": {
+        "type": "object",
+        "properties": {
+          "periods": {
+            "type": "number"
+          },
+          "exported": {
+            "type": "number"
+          },
+          "completionRate": {
+            "type": "number"
+          },
+          "lockBlocks": {
+            "type": "number"
+          },
+          "postCloseCorrections": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "periods",
+          "exported",
+          "completionRate",
+          "lockBlocks",
+          "postCloseCorrections"
+        ]
+      },
+      "CompliancePayrollExportSummaryDto": {
+        "type": "object",
+        "properties": {
+          "runs": {
+            "type": "number"
+          },
+          "uniqueChecksums": {
+            "type": "number"
+          },
+          "duplicateChecksums": {
+            "type": "number"
+          },
+          "lastRunAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "runs",
+          "uniqueChecksums",
+          "duplicateChecksums"
+        ]
+      },
+      "ComplianceOperationsSummaryDto": {
+        "type": "object",
+        "properties": {
+          "lastBackupRestoreVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "ComplianceSummaryReportDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "privacy": {
+            "$ref": "#/components/schemas/CompliancePrivacySummaryDto"
+          },
+          "closing": {
+            "$ref": "#/components/schemas/ComplianceClosingSummaryDto"
+          },
+          "payrollExport": {
+            "$ref": "#/components/schemas/CompliancePayrollExportSummaryDto"
+          },
+          "operations": {
+            "$ref": "#/components/schemas/ComplianceOperationsSummaryDto"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "privacy",
+          "closing",
+          "payrollExport",
+          "operations"
         ]
       }
     }

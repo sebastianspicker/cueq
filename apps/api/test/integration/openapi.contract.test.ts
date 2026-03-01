@@ -70,6 +70,8 @@ describe('Phase 3 integration: OpenAPI contract', () => {
       '/v1/reports/team-absence',
       '/v1/reports/oe-overtime',
       '/v1/reports/closing-completion',
+      '/v1/reports/audit-summary',
+      '/v1/reports/compliance-summary',
       '/v1/integrations/webhooks/endpoints',
       '/v1/integrations/events/outbox',
       '/v1/integrations/webhooks/dispatch',
@@ -85,5 +87,35 @@ describe('Phase 3 integration: OpenAPI contract', () => {
     for (const path of required) {
       expect(paths).toContain(path);
     }
+  });
+
+  it('exposes FR-700 query parameters and response schemas', () => {
+    const document = buildOpenApiDocument(app);
+    const reportPath = (path: string) => document.paths?.[path]?.get;
+
+    const teamAbsenceParams = reportPath('/v1/reports/team-absence')?.parameters ?? [];
+    expect(teamAbsenceParams.some((param: { name?: string }) => param.name === 'from')).toBe(true);
+    expect(teamAbsenceParams.some((param: { name?: string }) => param.name === 'to')).toBe(true);
+    expect(
+      teamAbsenceParams.some((param: { name?: string }) => param.name === 'organizationUnitId'),
+    ).toBe(true);
+
+    const overtimeParams = reportPath('/v1/reports/oe-overtime')?.parameters ?? [];
+    expect(overtimeParams.some((param: { name?: string }) => param.name === 'from')).toBe(true);
+    expect(overtimeParams.some((param: { name?: string }) => param.name === 'to')).toBe(true);
+    expect(
+      overtimeParams.some((param: { name?: string }) => param.name === 'organizationUnitId'),
+    ).toBe(true);
+
+    const auditParams = reportPath('/v1/reports/audit-summary')?.parameters ?? [];
+    expect(auditParams.some((param: { name?: string }) => param.name === 'from')).toBe(true);
+    expect(auditParams.some((param: { name?: string }) => param.name === 'to')).toBe(true);
+
+    const complianceParams = reportPath('/v1/reports/compliance-summary')?.parameters ?? [];
+    expect(complianceParams.some((param: { name?: string }) => param.name === 'from')).toBe(true);
+    expect(complianceParams.some((param: { name?: string }) => param.name === 'to')).toBe(true);
+
+    const exportPost = document.paths?.['/v1/closing-periods/{id}/export']?.post;
+    expect(exportPost?.responses?.['201']?.content?.['application/json']).toBeDefined();
   });
 });

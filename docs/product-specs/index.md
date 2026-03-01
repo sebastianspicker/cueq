@@ -28,7 +28,7 @@ These specs ensure CueQ matches baseline functionality (time, leave, roster, exp
 | [Absence & Leave](absence-leave.md)                             | Leave quotas, carry-over, forfeiture, team calendar  | PRD FR-400   | ✅ Implemented |
 | [Workflows & Approvals](workflows-approvals.md)                 | State machine, delegation, escalation                | PRD FR-500   | ✅ Implemented |
 | [Monthly Closing](monthly-closing.md)                           | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | 🟡 Active      |
-| Reports & Export                                                | Payroll export, audit reports, compliance reports    | PRD FR-700   | 🔜 Planned     |
+| [Reports & Export](reports-export.md)                           | Payroll export, audit reports, compliance reports    | PRD FR-700   | 🟡 Active      |
 
 ## Traceability
 

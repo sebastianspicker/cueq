@@ -56,6 +56,24 @@ export const MOCK_IDENTITIES = {
     role: 'ADMIN',
     organizationUnitId: SEED_IDS.ouAdmin,
   },
+  payroll: {
+    sub: SEED_IDS.personAdmin,
+    email: 'payroll@cueq.local',
+    role: 'PAYROLL',
+    organizationUnitId: SEED_IDS.ouAdmin,
+  },
+  dataProtection: {
+    sub: SEED_IDS.personAdmin,
+    email: 'dataprotection@cueq.local',
+    role: 'DATA_PROTECTION',
+    organizationUnitId: SEED_IDS.ouAdmin,
+  },
+  worksCouncil: {
+    sub: SEED_IDS.personAdmin,
+    email: 'workscouncil@cueq.local',
+    role: 'WORKS_COUNCIL',
+    organizationUnitId: SEED_IDS.ouAdmin,
+  },
 };
 
 export function buildMockToken(payload: Record<string, unknown>): string {

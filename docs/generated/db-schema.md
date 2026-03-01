@@ -24,6 +24,8 @@
 | `OrganizationUnit` | `schemas/domain/org-unit.schema.json` | 5 |
 | `PayrollCsvRow` | `schemas/domain/payroll-csv-row.schema.json` | 4 |
 | `Person` | `schemas/domain/person.schema.json` | 11 |
+| `ReportAuditSummary` | `schemas/domain/report-audit-summary.schema.json` | 5 |
+| `ReportComplianceSummary` | `schemas/domain/report-compliance-summary.schema.json` | 6 |
 | `Roster` | `schemas/domain/roster.schema.json` | 8 |
 | `ShiftAssignment` | `schemas/domain/shift-assignment.schema.json` | 5 |
 | `Shift` | `schemas/domain/shift.schema.json` | 9 |
@@ -45,4 +47,4 @@ make generate
 make schemas
 ```
 
-Last generated: 2026-02-28T21:56:49.717Z
+Last generated: 2026-03-01T06:55:44.237Z

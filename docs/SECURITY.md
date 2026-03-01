@@ -35,27 +35,31 @@
 | `Teamleitung` (Team Lead)       | Team bookings (read), approvals, team absence (with reason), team reports          |
 | `Dienstplaner` (Shift Planner)  | Roster planning for assigned OEs, shift swap approvals                             |
 | `HR` (Personalstelle)           | All bookings (read/correct), rule configuration, monthly closing, cross-OE reports |
-| `Payroll` (Bezügestelle)        | Export data (read), export configuration                                           |
+| `Payroll` (Bezügestelle)        | Export artifacts (read/download); no export trigger rights                         |
 | `Admin`                         | System configuration, role management, terminal management, monitoring             |
 | `Datenschutz` (Data Protection) | Audit trail (read), GDPR reports                                                   |
 | `Personalrat` (Works Council)   | Aggregated reports only (no individual data); configurable read access             |
 
 ### Permission Matrix
 
-| Resource             | Employee | Lead     | Planner         | HR                  | Payroll | Admin | PR        |
-| -------------------- | -------- | -------- | --------------- | ------------------- | ------- | ----- | --------- |
-| Own bookings         | RW       | R        | —               | RW                  | —       | —     | —         |
-| Team bookings        | —        | R        | R               | RW                  | —       | —     | —         |
-| Absence reason       | —        | R (team) | —               | R (all)             | —       | —     | —         |
-| Absence status       | R (team) | R (team) | R (assigned)    | R (all)             | —       | —     | —         |
-| Roster               | R        | R        | RW              | R                   | —       | —     | —         |
-| Approvals            | Submit   | Decide   | Decide (shifts) | Decide (post-close) | —       | —     | —         |
-| Reports (individual) | Own      | Team     | —               | All                 | —       | —     | —         |
-| Reports (aggregate)  | —        | Team     | —               | All                 | Export  | —     | Agg. only |
-| Audit trail          | —        | —        | —               | R                   | —       | R     | R         |
-| System config        | —        | —        | —               | —                   | —       | RW    | —         |
+| Resource                         | Employee | Lead     | Planner         | HR                  | Payroll | Admin | PR        |
+| -------------------------------- | -------- | -------- | --------------- | ------------------- | ------- | ----- | --------- |
+| Own bookings                     | RW       | R        | —               | RW                  | —       | —     | —         |
+| Team bookings                    | —        | R        | R               | RW                  | —       | —     | —         |
+| Absence reason                   | —        | R (team) | —               | R (all)             | —       | —     | —         |
+| Absence status                   | R (team) | R (team) | R (assigned)    | R (all)             | —       | —     | —         |
+| Roster                           | R        | R        | RW              | R                   | —       | —     | —         |
+| Approvals                        | Submit   | Decide   | Decide (shifts) | Decide (post-close) | —       | —     | —         |
+| Reports (individual)             | Own      | Team     | —               | All                 | —       | —     | —         |
+| Reports (aggregate)              | —        | Team     | —               | All                 | —       | —     | Agg. only |
+| Audit/compliance summary reports | —        | —        | —               | R                   | —       | R     | R         |
+| Payroll CSV download             | —        | —        | —               | R                   | R       | R     | —         |
+| Audit trail                      | —        | —        | —               | R                   | —       | R     | R         |
+| System config                    | —        | —        | —               | —                   | —       | RW    | —         |
 
 **Key**: R = Read, W = Write, RW = Read+Write, — = No access
+
+`Datenschutz` has read-only access to audit/compliance summary reports and audit trail, aligned with HR/Admin visibility for those report classes.
 
 ---
 
