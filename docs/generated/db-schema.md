@@ -45,4 +45,4 @@ make generate
 make schemas
 ```
 
-Last generated: 2026-02-28T20:36:21.660Z
+Last generated: 2026-02-28T21:56:49.717Z

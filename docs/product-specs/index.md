@@ -27,7 +27,7 @@ These specs ensure CueQ matches baseline functionality (time, leave, roster, exp
 | [Roster & Shift Planning](roster-shift-planning.md)             | Shift creation, min-staffing, plan-vs-actual         | PRD FR-300   | ✅ Implemented |
 | [Absence & Leave](absence-leave.md)                             | Leave quotas, carry-over, forfeiture, team calendar  | PRD FR-400   | ✅ Implemented |
 | [Workflows & Approvals](workflows-approvals.md)                 | State machine, delegation, escalation                | PRD FR-500   | ✅ Implemented |
-| Monthly Closing                                                 | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | 🔜 Planned     |
+| [Monthly Closing](monthly-closing.md)                           | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | 🟡 Active      |
 | Reports & Export                                                | Payroll export, audit reports, compliance reports    | PRD FR-700   | 🔜 Planned     |
 
 ## Traceability

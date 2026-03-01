@@ -423,6 +423,12 @@ model ClosingPeriod {
   periodStart         DateTime
   periodEnd           DateTime
   status              ClosingStatus @default(OPEN)
+  leadApprovedAt      DateTime?
+  leadApprovedById    String?
+  hrApprovedAt        DateTime?
+  hrApprovedById      String?
+  lockedAt            DateTime?
+  lockSource          ClosingLockSource?
   closedAt            DateTime?
   closedById          String?
   exportRuns          ExportRun[]
@@ -438,6 +444,12 @@ enum ClosingStatus {
   REVIEW
   CLOSED
   EXPORTED
+}
+
+enum ClosingLockSource {
+  AUTO_CUTOFF
+  MANUAL_REVIEW_START
+  HR_CORRECTION
 }
 
 model ExportRun {

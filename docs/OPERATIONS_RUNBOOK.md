@@ -54,10 +54,28 @@ node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv
 
 ## 5. Payroll Export Operations
 
+- Lead sign-off (OE periods): `POST /v1/closing-periods/{id}/lead-approve`
+- HR final approval: `POST /v1/closing-periods/{id}/approve`
 - Trigger export: `POST /v1/closing-periods/{id}/export`
 - Download artifact: `GET /v1/closing-periods/{closingPeriodId}/export-runs/{runId}/csv`
 - Format: `CSV_V1`
 - Deterministic checksum: `SHA-256` over canonical CSV payload
+
+### Lock behavior and corrections
+
+- Mutable writes overlapping `REVIEW`, `APPROVED`, `EXPORTED` periods return `409` with code `CLOSING_PERIOD_LOCKED`.
+- Start post-close correction workflow: `POST /v1/closing-periods/{id}/post-close-corrections`
+- Apply approved booking correction: `POST /v1/closing-periods/{id}/corrections/bookings`
+
+### Monthly closing scheduler defaults
+
+- `CLOSING_AUTO_CUTOFF_ENABLED=true`
+- `CLOSING_CUTOFF_DAY=3`
+- `CLOSING_CUTOFF_HOUR=12`
+- `CLOSING_TIMEZONE=Europe/Berlin`
+- `CLOSING_BOOKING_GAP_MINUTES=240`
+- `CLOSING_BALANCE_ANOMALY_HOURS=40`
+- `CLOSING_ALLOW_MANUAL_REVIEW_START=false`
 
 ## 6. Backup / Restore Verification
 

@@ -1,9 +1,17 @@
 import { Body, Controller, Get, Inject, Param, Post, Query, Res } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiProduces,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Phase2Service } from '../phase2.service';
 import type { Response } from 'express';
+import type { ClosingBookingCorrection } from '@cueq/shared';
 
 @ApiTags('closing')
 @ApiBearerAuth()
@@ -13,6 +21,9 @@ export class ClosingController {
 
   @Get()
   @ApiOperation({ summary: 'List closing periods' })
+  @ApiQuery({ name: 'from', required: false, type: String })
+  @ApiQuery({ name: 'to', required: false, type: String })
+  @ApiQuery({ name: 'organizationUnitId', required: false, type: String })
   list(
     @CurrentUser() user: AuthenticatedIdentity,
     @Query('from') from?: string,
@@ -29,9 +40,18 @@ export class ClosingController {
   }
 
   @Post(':id/start-review')
-  @ApiOperation({ summary: 'Transition closing period from open to review' })
+  @ApiOperation({
+    summary:
+      'Transition closing period from open to review (manual emergency override, admin-only when enabled)',
+  })
   startReview(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
     return this.phase2Service.startClosingReview(user, closingPeriodId);
+  }
+
+  @Post(':id/lead-approve')
+  @ApiOperation({ summary: 'Record team-lead sign-off for closing period' })
+  leadApprove(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+    return this.phase2Service.leadApproveClosing(user, closingPeriodId);
   }
 
   @Get(':id/checklist')
@@ -76,6 +96,31 @@ export class ClosingController {
     @Body() payload: { reason?: string },
   ): Promise<unknown> {
     return this.phase2Service.postCloseCorrection(user, closingPeriodId, payload?.reason);
+  }
+
+  @Post(':id/corrections/bookings')
+  @ApiOperation({ summary: 'Apply approved post-close booking correction (HR/Admin only)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['workflowId', 'personId', 'timeTypeId', 'startTime', 'endTime', 'reason'],
+      properties: {
+        workflowId: { type: 'string' },
+        personId: { type: 'string' },
+        timeTypeId: { type: 'string' },
+        startTime: { type: 'string', format: 'date-time' },
+        endTime: { type: 'string', format: 'date-time' },
+        reason: { type: 'string' },
+        note: { type: 'string' },
+      },
+    },
+  })
+  applyBookingCorrection(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id') closingPeriodId: string,
+    @Body() payload: ClosingBookingCorrection,
+  ) {
+    return this.phase2Service.applyPostCloseBookingCorrection(user, closingPeriodId, payload);
   }
 
   @Post(':id/reopen')

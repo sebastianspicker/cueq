@@ -194,12 +194,32 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
 
     expect(resolveCorrection.status).toBe(201);
 
+    const leadApprove = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/lead-approve`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
+      .send();
+    expect(leadApprove.status).toBe(201);
+
     const approve = await request(app.getHttpServer())
       .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/approve`)
       .set('Authorization', `Bearer ${TOKENS.hr}`)
       .send();
 
     expect(approve.status).toBe(201);
+
+    const lockedMutation = await request(app.getHttpServer())
+      .post('/v1/bookings')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personEmployee,
+        timeTypeId: SEED_IDS.timeTypeWork,
+        startTime: '2026-03-12T08:00:00.000Z',
+        endTime: '2026-03-12T12:00:00.000Z',
+        source: 'MANUAL',
+        note: 'Should be blocked by closing lock',
+      });
+    expect(lockedMutation.status).toBe(409);
+    expect(lockedMutation.body.code).toBe('CLOSING_PERIOD_LOCKED');
 
     const exportRun = await request(app.getHttpServer())
       .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
@@ -236,6 +256,44 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
       .send({ reason: 'Payroll mismatch correction' });
 
     expect(correction.status).toBe(201);
+    const correctionApproverToken =
+      correction.body.approverId === SEED_IDS.personLead
+        ? TOKENS.lead
+        : correction.body.approverId === SEED_IDS.personAdmin
+          ? TOKENS.admin
+          : TOKENS.hr;
+
+    const approveCorrectionWorkflow = await request(app.getHttpServer())
+      .post(`/v1/workflows/${correction.body.id}/decision`)
+      .set('Authorization', `Bearer ${correctionApproverToken}`)
+      .send({ action: 'APPROVE', reason: 'Correction approved' });
+    expect(approveCorrectionWorkflow.status).toBe(201);
+
+    const applyCorrection = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/corrections/bookings`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        workflowId: correction.body.id,
+        personId: SEED_IDS.personEmployee,
+        timeTypeId: SEED_IDS.timeTypeWork,
+        startTime: '2026-03-10T09:00:00.000Z',
+        endTime: '2026-03-10T11:00:00.000Z',
+        reason: 'Backfill missing booking after payroll check',
+      });
+    expect(applyCorrection.status).toBe(201);
+
+    const approveAfterCorrection = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/approve`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send();
+    expect(approveAfterCorrection.status).toBe(201);
+
+    const exportAfterCorrection = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send();
+    expect(exportAfterCorrection.status).toBe(201);
+    expect(exportAfterCorrection.body.checksum).not.toBe(exportRun.body.checksum);
   });
 
   it('AT-07 team calendar enforces role-based visibility', async () => {

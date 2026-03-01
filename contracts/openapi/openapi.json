@@ -1115,7 +1115,7 @@
         "parameters": [
           {
             "name": "from",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1123,7 +1123,7 @@
           },
           {
             "name": "to",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1131,7 +1131,7 @@
           },
           {
             "name": "organizationUnitId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1206,7 +1206,36 @@
             "bearer": []
           }
         ],
-        "summary": "Transition closing period from open to review",
+        "summary": "Transition closing period from open to review (manual emergency override, admin-only when enabled)",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/lead-approve": {
+      "post": {
+        "operationId": "ClosingController_leadApprove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Record team-lead sign-off for closing period",
         "tags": [
           "closing"
         ]
@@ -1360,6 +1389,78 @@
           }
         ],
         "summary": "Create post-close correction workflow",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/corrections/bookings": {
+      "post": {
+        "operationId": "ClosingController_applyBookingCorrection",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workflowId",
+                  "personId",
+                  "timeTypeId",
+                  "startTime",
+                  "endTime",
+                  "reason"
+                ],
+                "properties": {
+                  "workflowId": {
+                    "type": "string"
+                  },
+                  "personId": {
+                    "type": "string"
+                  },
+                  "timeTypeId": {
+                    "type": "string"
+                  },
+                  "startTime": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endTime": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Apply approved post-close booking correction (HR/Admin only)",
         "tags": [
           "closing"
         ]

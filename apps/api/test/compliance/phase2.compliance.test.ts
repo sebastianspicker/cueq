@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { prisma } from '@cueq/database';
+import { ClosingStatus, WorkflowStatus, WorkflowType, prisma } from '@cueq/database';
 import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
 import { SEED_IDS } from '../../src/test-utils/seed-ids';
 
@@ -23,6 +23,55 @@ describe('Phase 2 compliance', () => {
     const response = await request(app.getHttpServer())
       .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/approve`)
       .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .send();
+
+    expect(response.status).toBe(403);
+  });
+
+  it('denies non-HR post-close correction booking application', async () => {
+    const workflow = await prisma.workflowInstance.create({
+      data: {
+        type: WorkflowType.POST_CLOSE_CORRECTION,
+        status: WorkflowStatus.APPROVED,
+        requesterId: SEED_IDS.personHr,
+        approverId: SEED_IDS.personHr,
+        entityType: 'ClosingPeriod',
+        entityId: SEED_IDS.closingPeriod,
+        reason: 'Compliance test workflow',
+        submittedAt: new Date('2026-03-31T10:00:00.000Z'),
+        dueAt: new Date('2026-04-01T10:00:00.000Z'),
+        decidedAt: new Date('2026-03-31T10:05:00.000Z'),
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/corrections/bookings`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
+      .send({
+        workflowId: workflow.id,
+        personId: SEED_IDS.personEmployee,
+        timeTypeId: SEED_IDS.timeTypeWork,
+        startTime: '2026-03-10T09:00:00.000Z',
+        endTime: '2026-03-10T10:00:00.000Z',
+        reason: 'Compliance verification payload',
+      });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('denies team lead lead-approval outside own organization unit', async () => {
+    const foreignClosing = await prisma.closingPeriod.create({
+      data: {
+        organizationUnitId: SEED_IDS.ouSecurity,
+        periodStart: new Date('2026-05-01T00:00:00.000Z'),
+        periodEnd: new Date('2026-05-31T23:59:59.000Z'),
+        status: ClosingStatus.REVIEW,
+      },
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${foreignClosing.id}/lead-approve`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
       .send();
 
     expect(response.status).toBe(403);

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -13,6 +14,7 @@ import {
   AbsenceStatus,
   AbsenceType,
   BookingSource,
+  ClosingLockSource,
   ClosingStatus,
   OutboxStatus,
   Role,
@@ -39,6 +41,8 @@ import {
 } from '@cueq/policy';
 import {
   BookingCorrectionSchema,
+  ClosingBookingCorrectionSchema,
+  ClosingPeriodMonthQuerySchema,
   ClosingCompletionQuerySchema,
   CreateAbsenceSchema,
   CreateBookingSchema,
@@ -106,6 +110,22 @@ const HOLIDAY_FIXTURE_PATHS = [
 
 type ClosingActorRole = 'EMPLOYEE' | 'TEAM_LEAD' | 'HR' | 'ADMIN';
 type CoreClosingStatus = 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED';
+
+function parseShortOffsetToMinutes(offset: string): number {
+  if (offset === 'GMT' || offset === 'UTC') {
+    return 0;
+  }
+
+  const match = /^(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?$/.exec(offset);
+  if (!match) {
+    return 0;
+  }
+
+  const sign = match[1] === '-' ? -1 : 1;
+  const hours = Number(match[2] ?? '0');
+  const minutes = Number(match[3] ?? '0');
+  return sign * (hours * 60 + minutes);
+}
 
 function toClosingActorRole(role: Role): ClosingActorRole {
   if (role === Role.HR) {
@@ -238,6 +258,261 @@ export class Phase2Service {
   private webhookTimeoutMs(): number {
     const parsed = Number(process.env.WEBHOOK_REQUEST_TIMEOUT_MS ?? '5000');
     return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 5000;
+  }
+
+  private closingAutoCutoffEnabled(): boolean {
+    const raw = (process.env.CLOSING_AUTO_CUTOFF_ENABLED ?? 'true').trim().toLowerCase();
+    return !['0', 'false', 'no', 'off'].includes(raw);
+  }
+
+  private allowManualReviewStart(): boolean {
+    const raw = (process.env.CLOSING_ALLOW_MANUAL_REVIEW_START ?? 'false').trim().toLowerCase();
+    return ['1', 'true', 'yes', 'on'].includes(raw);
+  }
+
+  private closingCutoffDay(): number {
+    const parsed = Number(process.env.CLOSING_CUTOFF_DAY ?? '3');
+    if (!Number.isFinite(parsed)) {
+      return 3;
+    }
+
+    return Math.min(28, Math.max(1, Math.trunc(parsed)));
+  }
+
+  private closingCutoffHour(): number {
+    const parsed = Number(process.env.CLOSING_CUTOFF_HOUR ?? '12');
+    if (!Number.isFinite(parsed)) {
+      return 12;
+    }
+
+    return Math.min(23, Math.max(0, Math.trunc(parsed)));
+  }
+
+  private closingTimeZone(): string {
+    const candidate = process.env.CLOSING_TIMEZONE?.trim() || 'Europe/Berlin';
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date());
+      return candidate;
+    } catch {
+      return 'Europe/Berlin';
+    }
+  }
+
+  private closingBookingGapMinutes(): number {
+    const parsed = Number(process.env.CLOSING_BOOKING_GAP_MINUTES ?? '240');
+    return Number.isFinite(parsed) && parsed >= 30 ? Math.trunc(parsed) : 240;
+  }
+
+  private closingBalanceAnomalyHours(): number {
+    const parsed = Number(process.env.CLOSING_BALANCE_ANOMALY_HOURS ?? '40');
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 40;
+  }
+
+  private resolveTimeZoneOffsetMinutes(at: Date, timeZone: string): number {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      timeZoneName: 'shortOffset',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const zonePart = formatter.formatToParts(at).find((part) => part.type === 'timeZoneName');
+    return parseShortOffsetToMinutes(zonePart?.value ?? 'UTC');
+  }
+
+  private zonedDateTimeToUtcDate(input: {
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    timeZone: string;
+  }): Date {
+    const utcGuess = new Date(
+      Date.UTC(input.year, input.month - 1, input.day, input.hour, input.minute, 0, 0),
+    );
+    const offsetMinutes = this.resolveTimeZoneOffsetMinutes(utcGuess, input.timeZone);
+    return new Date(utcGuess.getTime() - offsetMinutes * 60 * 1000);
+  }
+
+  private cutoffAtForPeriod(period: { periodEnd: Date }): Date {
+    const cutoffDay = this.closingCutoffDay();
+    const cutoffHour = this.closingCutoffHour();
+    const timeZone = this.closingTimeZone();
+
+    const periodYear = period.periodEnd.getUTCFullYear();
+    const periodMonth = period.periodEnd.getUTCMonth() + 1;
+    let cutoffYear = periodYear;
+    let cutoffMonth = periodMonth + 1;
+    if (cutoffMonth > 12) {
+      cutoffMonth = 1;
+      cutoffYear += 1;
+    }
+
+    const maxDay = new Date(Date.UTC(cutoffYear, cutoffMonth, 0)).getUTCDate();
+    const day = Math.min(cutoffDay, maxDay);
+
+    return this.zonedDateTimeToUtcDate({
+      year: cutoffYear,
+      month: cutoffMonth,
+      day,
+      hour: cutoffHour,
+      minute: 0,
+      timeZone,
+    });
+  }
+
+  private async resolveSystemActorId(): Promise<string | null> {
+    const actor = await this.prisma.person.findFirst({
+      where: { role: { in: [Role.ADMIN, Role.HR] } },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return actor?.id ?? null;
+  }
+
+  async runClosingCutoff(now: Date = new Date()) {
+    if (!this.closingAutoCutoffEnabled()) {
+      return {
+        enabled: false,
+        evaluated: 0,
+        transitioned: 0,
+      };
+    }
+
+    const periods = await this.prisma.closingPeriod.findMany({
+      where: { status: ClosingStatus.OPEN },
+      select: { id: true, periodStart: true, periodEnd: true, organizationUnitId: true },
+      orderBy: { periodStart: 'asc' },
+    });
+
+    const actorId = await this.resolveSystemActorId();
+    let transitioned = 0;
+
+    for (const period of periods) {
+      const cutoffAt = this.cutoffAtForPeriod(period);
+      if (now < cutoffAt) {
+        continue;
+      }
+
+      const updated = await this.prisma.closingPeriod.updateMany({
+        where: {
+          id: period.id,
+          status: ClosingStatus.OPEN,
+        },
+        data: {
+          status: ClosingStatus.REVIEW,
+          lockedAt: now,
+          lockSource: ClosingLockSource.AUTO_CUTOFF,
+        },
+      });
+
+      if (updated.count === 0) {
+        continue;
+      }
+
+      transitioned += 1;
+
+      if (actorId) {
+        await this.appendAudit({
+          actorId,
+          action: 'CLOSING_CUTOFF_APPLIED',
+          entityType: 'ClosingPeriod',
+          entityId: period.id,
+          before: { status: 'OPEN' },
+          after: {
+            status: 'REVIEW',
+            lockedAt: now.toISOString(),
+            lockSource: 'AUTO_CUTOFF',
+            cutoffAt: cutoffAt.toISOString(),
+          },
+        });
+      }
+    }
+
+    return {
+      enabled: true,
+      evaluated: periods.length,
+      transitioned,
+    };
+  }
+
+  private async findOverlappingLockedClosingPeriod(input: {
+    organizationUnitId: string | null;
+    from: Date;
+    to: Date;
+  }) {
+    const where: Prisma.ClosingPeriodWhereInput = {
+      periodStart: { lte: input.to },
+      periodEnd: { gte: input.from },
+      status: {
+        in: [ClosingStatus.REVIEW, ClosingStatus.CLOSED, ClosingStatus.EXPORTED],
+      },
+      ...(input.organizationUnitId
+        ? {
+            OR: [
+              { organizationUnitId: input.organizationUnitId },
+              { organizationUnitId: null },
+            ] as Prisma.ClosingPeriodWhereInput[],
+          }
+        : { organizationUnitId: null }),
+    };
+
+    return this.prisma.closingPeriod.findFirst({
+      where,
+      orderBy: { periodStart: 'desc' },
+    });
+  }
+
+  private async assertClosingPeriodUnlockedForRange(input: {
+    actorId: string;
+    organizationUnitId: string | null;
+    from: Date;
+    to: Date;
+    attemptedAction: string;
+    entityType: string;
+    entityId: string;
+  }) {
+    const period = await this.findOverlappingLockedClosingPeriod({
+      organizationUnitId: input.organizationUnitId,
+      from: input.from,
+      to: input.to,
+    });
+
+    if (!period) {
+      return;
+    }
+
+    await this.appendAudit({
+      actorId: input.actorId,
+      action: 'CLOSING_LOCK_BLOCKED',
+      entityType: input.entityType,
+      entityId: input.entityId,
+      before: {
+        attemptedAction: input.attemptedAction,
+        from: input.from.toISOString(),
+        to: input.to.toISOString(),
+        organizationUnitId: input.organizationUnitId,
+      },
+      after: {
+        closingPeriodId: period.id,
+        status: toCoreClosingStatus(period.status),
+        periodStart: period.periodStart.toISOString(),
+        periodEnd: period.periodEnd.toISOString(),
+        lockedAt: period.lockedAt?.toISOString() ?? null,
+        lockSource: period.lockSource ?? null,
+      },
+    });
+
+    throw new ConflictException({
+      code: 'CLOSING_PERIOD_LOCKED',
+      message: 'Requested mutation overlaps with a locked closing period.',
+      closingPeriodId: period.id,
+      status: toCoreClosingStatus(period.status),
+      periodStart: period.periodStart.toISOString(),
+      periodEnd: period.periodEnd.toISOString(),
+      lockSource: period.lockSource ?? null,
+    });
   }
 
   private assertCanReadReports(user: AuthenticatedIdentity) {
@@ -661,12 +936,41 @@ export class Phase2Service {
 
     this.assertCanActForPerson(user, actor.id, parsed.personId);
 
+    if (parsed.source === BookingSource.CORRECTION) {
+      throw new BadRequestException(
+        'Use POST /v1/closing-periods/{id}/corrections/bookings for controlled correction entries.',
+      );
+    }
+
+    const targetPerson = await this.prisma.person.findUnique({
+      where: { id: parsed.personId },
+      select: { id: true, organizationUnitId: true },
+    });
+    if (!targetPerson) {
+      throw new NotFoundException('Person not found.');
+    }
+
+    const startTime = new Date(parsed.startTime);
+    const endTime = parsed.endTime ? new Date(parsed.endTime) : startTime;
+    const from = startTime <= endTime ? startTime : endTime;
+    const to = startTime <= endTime ? endTime : startTime;
+
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: targetPerson.organizationUnitId,
+      from,
+      to,
+      attemptedAction: 'BOOKING_CREATE',
+      entityType: 'Booking',
+      entityId: `${parsed.personId}:${parsed.startTime}`,
+    });
+
     const booking = await this.prisma.booking.create({
       data: {
         personId: parsed.personId,
         timeTypeId: parsed.timeTypeId,
-        startTime: new Date(parsed.startTime),
-        endTime: parsed.endTime ? new Date(parsed.endTime) : null,
+        startTime,
+        endTime: parsed.endTime ? endTime : null,
         source: parsed.source as BookingSource,
         note: parsed.note,
         shiftId: parsed.shiftId,
@@ -737,6 +1041,16 @@ export class Phase2Service {
 
     const start = new Date(`${parsed.startDate}T00:00:00.000Z`);
     const end = new Date(`${parsed.endDate}T00:00:00.000Z`);
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: targetPerson.organizationUnitId,
+      from: start,
+      to: end,
+      attemptedAction: 'ABSENCE_CREATE',
+      entityType: 'Absence',
+      entityId: `${parsed.personId}:${parsed.startDate}:${parsed.endDate}`,
+    });
+
     const holidayDates = this.holidayDatesBetween(parsed.startDate, parsed.endDate);
     const daySpan = calculateAbsenceWorkingDays({
       startDate: parsed.startDate,
@@ -847,6 +1161,24 @@ export class Phase2Service {
     }
 
     this.assertCanActForPerson(user, actor.id, absence.personId);
+
+    const targetPerson = await this.prisma.person.findUnique({
+      where: { id: absence.personId },
+      select: { organizationUnitId: true },
+    });
+    if (!targetPerson) {
+      throw new NotFoundException('Person not found.');
+    }
+
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: targetPerson.organizationUnitId,
+      from: absence.startDate,
+      to: absence.endDate,
+      attemptedAction: 'ABSENCE_CANCEL',
+      entityType: 'Absence',
+      entityId: absence.id,
+    });
 
     if (absence.status !== AbsenceStatus.REQUESTED && absence.status !== AbsenceStatus.APPROVED) {
       throw new BadRequestException('Only requested or approved absences can be cancelled.');
@@ -996,6 +1328,16 @@ export class Phase2Service {
     if (!person) {
       throw new NotFoundException('Person not found.');
     }
+
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: person.organizationUnitId,
+      from: new Date(Date.UTC(parsed.year, 11, 1, 0, 0, 0)),
+      to: new Date(Date.UTC(parsed.year, 11, 31, 23, 59, 59)),
+      attemptedAction: 'LEAVE_ADJUSTMENT_CREATE',
+      entityType: 'LeaveAdjustment',
+      entityId: `${parsed.personId}:${parsed.year}`,
+    });
 
     const adjustment = await this.prisma.leaveAdjustment.create({
       data: {
@@ -1323,6 +1665,16 @@ export class Phase2Service {
 
     this.assertCanWriteRoster(user, actor.organizationUnitId, parsed.organizationUnitId);
 
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: parsed.organizationUnitId,
+      from: new Date(parsed.periodStart),
+      to: new Date(parsed.periodEnd),
+      attemptedAction: 'ROSTER_CREATE',
+      entityType: 'Roster',
+      entityId: `${parsed.organizationUnitId}:${parsed.periodStart}`,
+    });
+
     const periodStart = new Date(parsed.periodStart);
     const periodEnd = new Date(parsed.periodEnd);
     const overlap = await this.prisma.roster.findFirst({
@@ -1438,6 +1790,15 @@ export class Phase2Service {
     const startTime = new Date(parsed.startTime);
     const endTime = new Date(parsed.endTime);
     this.assertShiftInsideRoster(roster, startTime, endTime);
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: roster.organizationUnitId,
+      from: startTime,
+      to: endTime,
+      attemptedAction: 'SHIFT_CREATE',
+      entityType: 'Shift',
+      entityId: `${roster.id}:${parsed.startTime}`,
+    });
 
     const shift = await this.prisma.shift.create({
       data: {
@@ -1523,6 +1884,15 @@ export class Phase2Service {
     const nextStartTime = parsed.startTime ? new Date(parsed.startTime) : shift.startTime;
     const nextEndTime = parsed.endTime ? new Date(parsed.endTime) : shift.endTime;
     this.assertShiftInsideRoster(shift.roster, nextStartTime, nextEndTime);
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: shift.roster.organizationUnitId,
+      from: nextStartTime,
+      to: nextEndTime,
+      attemptedAction: 'SHIFT_UPDATE',
+      entityType: 'Shift',
+      entityId: shift.id,
+    });
 
     for (const assignment of shift.assignments) {
       await this.ensureNoOverlappingAssignedShift(
@@ -1607,6 +1977,15 @@ export class Phase2Service {
 
     this.assertCanWriteRoster(user, actor.organizationUnitId, shift.roster.organizationUnitId);
     this.assertRosterIsDraft(shift.roster.status);
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: shift.roster.organizationUnitId,
+      from: shift.startTime,
+      to: shift.endTime,
+      attemptedAction: 'SHIFT_DELETE',
+      entityType: 'Shift',
+      entityId: shift.id,
+    });
 
     if (shift._count.bookings > 0) {
       throw new BadRequestException('Cannot delete shift with existing bookings.');
@@ -1663,6 +2042,15 @@ export class Phase2Service {
 
     this.assertCanWriteRoster(user, actor.organizationUnitId, shift.roster.organizationUnitId);
     this.assertRosterIsDraft(shift.roster.status);
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: shift.roster.organizationUnitId,
+      from: shift.startTime,
+      to: shift.endTime,
+      attemptedAction: 'SHIFT_ASSIGN',
+      entityType: 'Shift',
+      entityId: shift.id,
+    });
 
     const person = await this.prisma.person.findUnique({
       where: { id: parsed.personId },
@@ -1755,6 +2143,8 @@ export class Phase2Service {
           select: {
             id: true,
             personId: true,
+            startTime: true,
+            endTime: true,
             roster: {
               select: {
                 organizationUnitId: true,
@@ -1776,6 +2166,15 @@ export class Phase2Service {
       assignment.shift.roster.organizationUnitId,
     );
     this.assertRosterIsDraft(assignment.shift.roster.status);
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: assignment.shift.roster.organizationUnitId,
+      from: assignment.shift.startTime,
+      to: assignment.shift.endTime,
+      attemptedAction: 'SHIFT_UNASSIGN',
+      entityType: 'ShiftAssignment',
+      entityId: assignment.id,
+    });
 
     await this.prisma.shiftAssignment.delete({
       where: { id: assignment.id },
@@ -1834,6 +2233,15 @@ export class Phase2Service {
 
     this.assertCanWriteRoster(user, actor.organizationUnitId, roster.organizationUnitId);
     this.assertRosterIsDraft(roster.status);
+    await this.assertClosingPeriodUnlockedForRange({
+      actorId: actor.id,
+      organizationUnitId: roster.organizationUnitId,
+      from: roster.periodStart,
+      to: roster.periodEnd,
+      attemptedAction: 'ROSTER_PUBLISH',
+      entityType: 'Roster',
+      entityId: roster.id,
+    });
 
     const shortfalls = roster.shifts
       .map((shift) => {
@@ -2234,23 +2642,31 @@ export class Phase2Service {
     organizationUnitId?: string,
   ) {
     const actor = await this.personForUser(user);
+    const parsed = ClosingPeriodMonthQuerySchema.parse({
+      from: fromMonth,
+      to: toMonth,
+      organizationUnitId,
+    });
     if (!APPROVAL_ROLES.has(user.role)) {
       throw new ForbiddenException('Role does not permit reading closing periods.');
     }
 
     if (
       user.role === Role.TEAM_LEAD &&
-      organizationUnitId &&
-      organizationUnitId !== actor.organizationUnitId
+      parsed.organizationUnitId &&
+      parsed.organizationUnitId !== actor.organizationUnitId
     ) {
       throw new ForbiddenException('Team leads can only access closing periods in their own unit.');
     }
 
-    const from = fromMonth
-      ? this.parseMonthToRange(fromMonth).from
+    const from = parsed.from
+      ? this.parseMonthToRange(parsed.from).from
       : new Date('2026-01-01T00:00:00.000Z');
-    const to = toMonth ? this.parseMonthToRange(toMonth).to : new Date('2030-12-31T23:59:59.000Z');
-    const targetOuId = user.role === Role.TEAM_LEAD ? actor.organizationUnitId : organizationUnitId;
+    const to = parsed.to
+      ? this.parseMonthToRange(parsed.to).to
+      : new Date('2030-12-31T23:59:59.000Z');
+    const targetOuId =
+      user.role === Role.TEAM_LEAD ? actor.organizationUnitId : parsed.organizationUnitId;
 
     const periods = await this.prisma.closingPeriod.findMany({
       where: {
@@ -2276,6 +2692,12 @@ export class Phase2Service {
       exportRuns: period.exportRuns,
       closedAt: period.closedAt?.toISOString() ?? null,
       closedById: period.closedById,
+      leadApprovedAt: period.leadApprovedAt?.toISOString() ?? null,
+      leadApprovedById: period.leadApprovedById,
+      hrApprovedAt: period.hrApprovedAt?.toISOString() ?? null,
+      hrApprovedById: period.hrApprovedById,
+      lockedAt: period.lockedAt?.toISOString() ?? null,
+      lockSource: period.lockSource,
       createdAt: period.createdAt.toISOString(),
       updatedAt: period.updatedAt.toISOString(),
     }));
@@ -2308,6 +2730,12 @@ export class Phase2Service {
       exportRuns: period.exportRuns,
       closedAt: period.closedAt?.toISOString() ?? null,
       closedById: period.closedById,
+      leadApprovedAt: period.leadApprovedAt?.toISOString() ?? null,
+      leadApprovedById: period.leadApprovedById,
+      hrApprovedAt: period.hrApprovedAt?.toISOString() ?? null,
+      hrApprovedById: period.hrApprovedById,
+      lockedAt: period.lockedAt?.toISOString() ?? null,
+      lockSource: period.lockSource,
       createdAt: period.createdAt.toISOString(),
       updatedAt: period.updatedAt.toISOString(),
     };
@@ -2315,8 +2743,14 @@ export class Phase2Service {
 
   async startClosingReview(user: AuthenticatedIdentity, closingPeriodId: string) {
     const actor = await this.personForUser(user);
-    if (!APPROVAL_ROLES.has(user.role)) {
-      throw new ForbiddenException('Role does not permit closing review transitions.');
+    if (!this.allowManualReviewStart()) {
+      throw new ForbiddenException(
+        'Manual review start is disabled. Enable CLOSING_ALLOW_MANUAL_REVIEW_START for emergency use.',
+      );
+    }
+
+    if (user.role !== Role.ADMIN) {
+      throw new ForbiddenException('Manual review start is restricted to ADMIN role.');
     }
 
     const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
@@ -2337,7 +2771,11 @@ export class Phase2Service {
 
     const updated = await this.prisma.closingPeriod.update({
       where: { id: period.id },
-      data: { status: toPersistenceClosingStatus(transition.nextStatus) },
+      data: {
+        status: toPersistenceClosingStatus(transition.nextStatus),
+        lockedAt: new Date(),
+        lockSource: ClosingLockSource.MANUAL_REVIEW_START,
+      },
     });
 
     await this.appendAudit({
@@ -2346,7 +2784,70 @@ export class Phase2Service {
       entityType: 'ClosingPeriod',
       entityId: updated.id,
       before: { status: period.status },
-      after: { status: updated.status },
+      after: {
+        status: updated.status,
+        lockSource: updated.lockSource,
+        lockedAt: updated.lockedAt?.toISOString() ?? null,
+      },
+    });
+
+    return {
+      ...updated,
+      status: toCoreClosingStatus(updated.status),
+    };
+  }
+
+  async leadApproveClosing(user: AuthenticatedIdentity, closingPeriodId: string) {
+    const actor = await this.personForUser(user);
+    if (user.role !== Role.TEAM_LEAD) {
+      throw new ForbiddenException('Only TEAM_LEAD can submit lead approval.');
+    }
+
+    const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
+    if (!period) {
+      throw new NotFoundException('Closing period not found.');
+    }
+
+    if (!period.organizationUnitId) {
+      throw new BadRequestException('Global closing periods do not require team-lead approval.');
+    }
+    if (period.organizationUnitId !== actor.organizationUnitId) {
+      throw new ForbiddenException(
+        'Team leads can only approve closing periods in their own unit.',
+      );
+    }
+    if (period.status !== ClosingStatus.REVIEW) {
+      throw new BadRequestException('Lead approval is only valid while period is in REVIEW.');
+    }
+
+    if (period.leadApprovedAt) {
+      return {
+        ...period,
+        status: toCoreClosingStatus(period.status),
+      };
+    }
+
+    const updated = await this.prisma.closingPeriod.update({
+      where: { id: period.id },
+      data: {
+        leadApprovedAt: new Date(),
+        leadApprovedById: actor.id,
+      },
+    });
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'CLOSING_LEAD_APPROVED',
+      entityType: 'ClosingPeriod',
+      entityId: updated.id,
+      before: {
+        leadApprovedAt: null,
+        leadApprovedById: period.leadApprovedById ?? null,
+      },
+      after: {
+        leadApprovedAt: updated.leadApprovedAt?.toISOString() ?? null,
+        leadApprovedById: updated.leadApprovedById ?? null,
+      },
     });
 
     return {
@@ -2375,7 +2876,15 @@ export class Phase2Service {
 
     const updated = await this.prisma.closingPeriod.update({
       where: { id: period.id },
-      data: { status: toPersistenceClosingStatus(transition.nextStatus) },
+      data: {
+        status: toPersistenceClosingStatus(transition.nextStatus),
+        leadApprovedAt: null,
+        leadApprovedById: null,
+        hrApprovedAt: null,
+        hrApprovedById: null,
+        lockedAt: null,
+        lockSource: null,
+      },
     });
 
     await this.appendAudit({
@@ -2384,7 +2893,13 @@ export class Phase2Service {
       entityType: 'ClosingPeriod',
       entityId: updated.id,
       before: { status: period.status },
-      after: { status: updated.status },
+      after: {
+        status: updated.status,
+        leadApprovedAt: null,
+        hrApprovedAt: null,
+        lockedAt: null,
+        lockSource: null,
+      },
     });
 
     return {
@@ -2405,7 +2920,7 @@ export class Phase2Service {
       throw new NotFoundException('Closing period not found.');
     }
 
-    const personsInOu = await this.prisma.person.count({
+    const personScope = await this.prisma.person.findMany({
       where: period.organizationUnitId
         ? {
             organizationUnitId: period.organizationUnitId,
@@ -2414,59 +2929,121 @@ export class Phase2Service {
         : {
             role: { in: [Role.EMPLOYEE, Role.SHIFT_PLANNER] },
           },
+      select: { id: true },
+      orderBy: { id: 'asc' },
     });
+    const personIds = personScope.map((person) => person.id);
+    const gapThresholdMinutes = this.closingBookingGapMinutes();
+    const balanceThresholdHours = this.closingBalanceAnomalyHours();
 
-    const [bookedPersonIds, absentPersonIds] = await Promise.all([
-      this.prisma.booking.findMany({
-        where: {
-          startTime: { gte: period.periodStart, lte: period.periodEnd },
-          person: period.organizationUnitId
-            ? {
-                organizationUnitId: period.organizationUnitId,
-                role: { in: [Role.EMPLOYEE, Role.SHIFT_PLANNER] },
-              }
-            : undefined,
-        },
-        select: { personId: true },
-      }),
-      this.prisma.absence.findMany({
-        where: {
-          status: 'APPROVED',
-          startDate: { lte: period.periodEnd },
-          endDate: { gte: period.periodStart },
-          person: period.organizationUnitId
-            ? {
-                organizationUnitId: period.organizationUnitId,
-                role: { in: [Role.EMPLOYEE, Role.SHIFT_PLANNER] },
-              }
-            : undefined,
-        },
-        select: { personId: true },
-      }),
+    const [bookings, approvedAbsences] = await Promise.all([
+      personIds.length === 0
+        ? Promise.resolve([])
+        : this.prisma.booking.findMany({
+            where: {
+              personId: { in: personIds },
+              startTime: { lte: period.periodEnd },
+              OR: [{ endTime: null }, { endTime: { gte: period.periodStart } }],
+            },
+            select: {
+              personId: true,
+              startTime: true,
+              endTime: true,
+            },
+            orderBy: [{ personId: 'asc' }, { startTime: 'asc' }],
+          }),
+      personIds.length === 0
+        ? Promise.resolve([])
+        : this.prisma.absence.findMany({
+            where: {
+              personId: { in: personIds },
+              status: AbsenceStatus.APPROVED,
+              startDate: { lte: period.periodEnd },
+              endDate: { gte: period.periodStart },
+            },
+            select: { personId: true },
+          }),
     ]);
 
-    const covered = new Set(
-      [...bookedPersonIds, ...absentPersonIds].map((entry) => entry.personId),
-    );
-    const missingBookings = Math.max(personsInOu - covered.size, 0);
+    const coveredPersonIds = new Set([
+      ...bookings.map((entry) => entry.personId),
+      ...approvedAbsences.map((entry) => entry.personId),
+    ]);
+    const missingBookings = Math.max(personIds.length - coveredPersonIds.size, 0);
 
-    const openCorrectionRequests = await this.prisma.workflowInstance.count({
-      where: {
-        type: WorkflowType.BOOKING_CORRECTION,
-        status: {
-          in: [WorkflowStatus.SUBMITTED, WorkflowStatus.PENDING, WorkflowStatus.ESCALATED],
-        },
-      },
-    });
+    const bookingsByPerson = new Map<string, Array<{ startTime: Date; endTime: Date | null }>>();
+    for (const booking of bookings) {
+      if (!bookingsByPerson.has(booking.personId)) {
+        bookingsByPerson.set(booking.personId, []);
+      }
+      bookingsByPerson.get(booking.personId)?.push({
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+      });
+    }
 
-    const openLeaveRequests = await this.prisma.absence.count({
-      where: { status: 'REQUESTED' },
-    });
+    let bookingGaps = 0;
+    let ruleViolations = 0;
+    for (const entries of bookingsByPerson.values()) {
+      for (let index = 0; index < entries.length; index += 1) {
+        const current = entries[index];
+        if (!current || !current.endTime) {
+          continue;
+        }
+
+        const durationMinutes = (current.endTime.getTime() - current.startTime.getTime()) / 60000;
+        if (durationMinutes > 10 * 60) {
+          ruleViolations += 1;
+        }
+
+        const previous = index > 0 ? entries[index - 1] : null;
+        if (previous?.endTime) {
+          const gapMinutes = (current.startTime.getTime() - previous.endTime.getTime()) / 60000;
+          if (gapMinutes > gapThresholdMinutes) {
+            bookingGaps += 1;
+          }
+          const previousDay = previous.endTime.toISOString().slice(0, 10);
+          const currentDay = current.startTime.toISOString().slice(0, 10);
+          if (previousDay !== currentDay && gapMinutes >= 0 && gapMinutes < 11 * 60) {
+            ruleViolations += 1;
+          }
+        }
+      }
+    }
+
+    const openStatuses = [
+      WorkflowStatus.SUBMITTED,
+      WorkflowStatus.PENDING,
+      WorkflowStatus.ESCALATED,
+    ];
+    const [openCorrectionRequests, openLeaveRequests] = await Promise.all([
+      personIds.length === 0
+        ? Promise.resolve(0)
+        : this.prisma.workflowInstance.count({
+            where: {
+              type: WorkflowType.BOOKING_CORRECTION,
+              status: { in: openStatuses },
+              requesterId: { in: personIds },
+              createdAt: { gte: period.periodStart, lte: period.periodEnd },
+            },
+          }),
+      personIds.length === 0
+        ? Promise.resolve(0)
+        : this.prisma.absence.count({
+            where: {
+              personId: { in: personIds },
+              status: AbsenceStatus.REQUESTED,
+              startDate: { lte: period.periodEnd },
+              endDate: { gte: period.periodStart },
+            },
+          }),
+    ]);
 
     const rosters = await this.prisma.roster.findMany({
       where: {
         periodStart: { lte: period.periodEnd },
         periodEnd: { gte: period.periodStart },
+        organizationUnitId: period.organizationUnitId ?? undefined,
       },
       include: {
         shifts: {
@@ -2488,20 +3065,27 @@ export class Phase2Service {
       )
     ).reduce((sum, mismatches) => sum + mismatches, 0);
 
-    const balanceAnomalies = await this.prisma.timeAccount.count({
-      where: {
-        periodStart: { gte: period.periodStart },
-        periodEnd: { lte: period.periodEnd },
-        OR: [{ balance: { gt: 40 } }, { balance: { lt: -40 } }],
-      },
-    });
+    const balanceAnomalies =
+      personIds.length === 0
+        ? 0
+        : await this.prisma.timeAccount.count({
+            where: {
+              personId: { in: personIds },
+              periodStart: { gte: period.periodStart },
+              periodEnd: { lte: period.periodEnd },
+              OR: [
+                { balance: { gt: balanceThresholdHours } },
+                { balance: { lt: -balanceThresholdHours } },
+              ],
+            },
+          });
 
     const checklist = generateClosingChecklist({
       missingBookings,
-      bookingGaps: 0,
+      bookingGaps,
       openCorrectionRequests,
       openLeaveRequests,
-      ruleViolations: 0,
+      ruleViolations,
       rosterMismatches,
       balanceAnomalies,
     });
@@ -2510,17 +3094,18 @@ export class Phase2Service {
       const openErrors = checklist.items
         .filter((item) => item.severity === 'ERROR' && item.status === 'OPEN')
         .map((item) => item.code);
-
-      await this.enqueueDomainEvent({
-        eventType: 'violation.detected',
-        aggregateType: 'ClosingPeriod',
-        aggregateId: period.id,
-        payload: {
-          checklistCodes: openErrors,
-          periodStart: period.periodStart.toISOString(),
-          periodEnd: period.periodEnd.toISOString(),
-        },
-      });
+      if (openErrors.length > 0) {
+        await this.enqueueDomainEvent({
+          eventType: 'violation.detected',
+          aggregateType: 'ClosingPeriod',
+          aggregateId: period.id,
+          payload: {
+            checklistCodes: openErrors,
+            periodStart: period.periodStart.toISOString(),
+            periodEnd: period.periodEnd.toISOString(),
+          },
+        });
+      }
     }
 
     return {
@@ -2542,6 +3127,11 @@ export class Phase2Service {
     if (!period) {
       throw new NotFoundException('Closing period not found.');
     }
+    if (period.organizationUnitId && !period.leadApprovedAt) {
+      throw new BadRequestException(
+        'Team-lead approval is required before HR can finalize this closing period.',
+      );
+    }
 
     const checklist = await this.closingChecklist(closingPeriodId);
     const transition = applyCutoffLock({
@@ -2557,7 +3147,15 @@ export class Phase2Service {
 
     const updated = await this.prisma.closingPeriod.update({
       where: { id: period.id },
-      data: { status: toPersistenceClosingStatus(transition.nextStatus) },
+      data: {
+        status: toPersistenceClosingStatus(transition.nextStatus),
+        hrApprovedAt: new Date(),
+        hrApprovedById: actor.id,
+        closedAt: new Date(),
+        closedById: actor.id,
+        lockedAt: period.lockedAt ?? new Date(),
+        lockSource: period.lockSource ?? ClosingLockSource.MANUAL_REVIEW_START,
+      },
     });
 
     await this.appendAudit({
@@ -2566,7 +3164,11 @@ export class Phase2Service {
       entityType: 'ClosingPeriod',
       entityId: updated.id,
       before: { status: period.status },
-      after: { status: updated.status },
+      after: {
+        status: updated.status,
+        hrApprovedAt: updated.hrApprovedAt?.toISOString() ?? null,
+        hrApprovedById: updated.hrApprovedById,
+      },
     });
 
     await this.enqueueDomainEvent({
@@ -2782,7 +3384,13 @@ export class Phase2Service {
 
     await this.prisma.closingPeriod.update({
       where: { id: period.id },
-      data: { status: toPersistenceClosingStatus(transition.nextStatus) },
+      data: {
+        status: toPersistenceClosingStatus(transition.nextStatus),
+        hrApprovedAt: null,
+        hrApprovedById: null,
+        lockedAt: new Date(),
+        lockSource: ClosingLockSource.HR_CORRECTION,
+      },
     });
 
     await this.appendAudit({
@@ -2798,6 +3406,142 @@ export class Phase2Service {
     });
 
     return workflow;
+  }
+
+  async applyPostCloseBookingCorrection(
+    user: AuthenticatedIdentity,
+    closingPeriodId: string,
+    payload: unknown,
+  ) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can apply post-close booking corrections.');
+    }
+
+    const actor = await this.personForUser(user);
+    const parsed = ClosingBookingCorrectionSchema.parse(payload ?? {});
+    const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
+
+    if (!period) {
+      throw new NotFoundException('Closing period not found.');
+    }
+    if (period.status !== ClosingStatus.REVIEW && period.status !== ClosingStatus.EXPORTED) {
+      throw new BadRequestException(
+        'Post-close booking corrections require a REVIEW or EXPORTED period.',
+      );
+    }
+
+    const workflow = await this.prisma.workflowInstance.findUnique({
+      where: { id: parsed.workflowId },
+    });
+    if (!workflow) {
+      throw new NotFoundException('Post-close correction workflow not found.');
+    }
+    if (
+      workflow.type !== WorkflowType.POST_CLOSE_CORRECTION ||
+      workflow.status !== WorkflowStatus.APPROVED ||
+      workflow.entityType !== 'ClosingPeriod' ||
+      workflow.entityId !== closingPeriodId
+    ) {
+      throw new BadRequestException(
+        'workflowId must reference an APPROVED POST_CLOSE_CORRECTION workflow for this period.',
+      );
+    }
+
+    const person = await this.prisma.person.findUnique({
+      where: { id: parsed.personId },
+      select: { id: true, organizationUnitId: true },
+    });
+    if (!person) {
+      throw new NotFoundException('Person not found.');
+    }
+    if (period.organizationUnitId && person.organizationUnitId !== period.organizationUnitId) {
+      throw new BadRequestException(
+        'Correction booking person must belong to the closing period organization unit.',
+      );
+    }
+
+    const timeType = await this.prisma.timeType.findUnique({
+      where: { id: parsed.timeTypeId },
+      select: { id: true, code: true, category: true },
+    });
+    if (!timeType) {
+      throw new NotFoundException('Time type not found.');
+    }
+
+    const startTime = new Date(parsed.startTime);
+    const endTime = new Date(parsed.endTime);
+    if (
+      Number.isNaN(startTime.getTime()) ||
+      Number.isNaN(endTime.getTime()) ||
+      startTime >= endTime
+    ) {
+      throw new BadRequestException('startTime and endTime must form a valid interval.');
+    }
+    if (startTime < period.periodStart || endTime > period.periodEnd) {
+      throw new BadRequestException(
+        'Correction booking interval must be inside the closing period time range.',
+      );
+    }
+
+    const booking = await this.prisma.booking.create({
+      data: {
+        personId: parsed.personId,
+        timeTypeId: parsed.timeTypeId,
+        startTime,
+        endTime,
+        source: BookingSource.CORRECTION,
+        note: parsed.note ?? parsed.reason,
+      },
+    });
+
+    const durationHours = Number(
+      ((endTime.getTime() - startTime.getTime()) / 3_600_000).toFixed(4),
+    );
+    await this.prisma.timeAccount.updateMany({
+      where: {
+        personId: parsed.personId,
+        periodStart: { gte: period.periodStart },
+        periodEnd: { lte: period.periodEnd },
+      },
+      data: {
+        actualHours: { increment: durationHours },
+        balance: { increment: durationHours },
+        overtimeHours: { increment: durationHours },
+      },
+    });
+
+    await this.appendAudit({
+      actorId: actor.id,
+      action: 'POST_CLOSE_CORRECTION_APPLIED',
+      entityType: 'Booking',
+      entityId: booking.id,
+      after: {
+        closingPeriodId,
+        workflowId: workflow.id,
+        personId: booking.personId,
+        timeTypeId: booking.timeTypeId,
+        timeTypeCode: timeType.code,
+        startTime: booking.startTime.toISOString(),
+        endTime: booking.endTime?.toISOString() ?? null,
+        durationHours,
+      },
+      reason: parsed.reason,
+    });
+
+    return {
+      id: booking.id,
+      closingPeriodId,
+      workflowId: workflow.id,
+      personId: booking.personId,
+      timeTypeId: booking.timeTypeId,
+      timeTypeCode: timeType.code,
+      timeTypeCategory: timeType.category,
+      startTime: booking.startTime.toISOString(),
+      endTime: booking.endTime?.toISOString() ?? null,
+      source: booking.source,
+      note: booking.note,
+      durationHours,
+    };
   }
 
   async policyBundle(query: unknown) {

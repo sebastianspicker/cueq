@@ -23,6 +23,7 @@ import { ReportsController } from './controllers/reports.controller';
 import { TimeEngineController } from './controllers/time-engine.controller';
 import { WorkflowRuntimeService } from './workflow-runtime.service';
 import { WorkflowEscalationService } from './workflow-escalation.service';
+import { ClosingCutoffService } from './closing-cutoff.service';
 
 @Module({
   providers: [
@@ -32,6 +33,7 @@ import { WorkflowEscalationService } from './workflow-escalation.service';
     StubHrMasterProvider,
     WorkflowRuntimeService,
     WorkflowEscalationService,
+    ClosingCutoffService,
   ],
   controllers: [
     MeController,

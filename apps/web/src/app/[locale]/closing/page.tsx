@@ -1,60 +1,555 @@
-import { getTranslations } from 'next-intl/server';
+'use client';
 
-interface ClosingPageProps {
-  params: Promise<{ locale: string }>;
+import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+
+interface ClosingChecklistItem {
+  code: string;
+  label: string;
+  severity: string;
+  status: string;
+  details: string;
 }
 
-export default async function ClosingPage({ params }: ClosingPageProps) {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'pages.closing' });
+interface ClosingChecklistResponse {
+  closingPeriodId: string;
+  status: string;
+  hasErrors: boolean;
+  items: ClosingChecklistItem[];
+}
+
+interface ExportRun {
+  id: string;
+  format: string;
+  recordCount: number;
+  checksum: string;
+  exportedAt: string;
+}
+
+interface ClosingPeriod {
+  id: string;
+  organizationUnitId: string | null;
+  periodStart: string;
+  periodEnd: string;
+  status: string;
+  exportRuns: ExportRun[];
+  leadApprovedAt?: string | null;
+  leadApprovedById?: string | null;
+  hrApprovedAt?: string | null;
+  hrApprovedById?: string | null;
+  lockedAt?: string | null;
+  lockSource?: string | null;
+}
+
+interface ApplyCorrectionPayload {
+  workflowId: string;
+  personId: string;
+  timeTypeId: string;
+  startTime: string;
+  endTime: string;
+  reason: string;
+  note?: string;
+}
+
+export default function ClosingPage() {
+  const t = useTranslations('pages.closing');
+  const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:3001');
+  const [token, setToken] = useState('');
+  const [fromMonth, setFromMonth] = useState('2026-03');
+  const [toMonth, setToMonth] = useState('2026-03');
+  const [organizationUnitId, setOrganizationUnitId] = useState('');
+  const [periods, setPeriods] = useState<ClosingPeriod[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<ClosingPeriod | null>(null);
+  const [checklist, setChecklist] = useState<ClosingChecklistResponse | null>(null);
+  const [workflowId, setWorkflowId] = useState('');
+  const [workflowReason, setWorkflowReason] = useState('Payroll mismatch correction');
+  const [correctionPayload, setCorrectionPayload] = useState<ApplyCorrectionPayload>({
+    workflowId: '',
+    personId: '',
+    timeTypeId: '',
+    startTime: '2026-03-10T09:00:00.000Z',
+    endTime: '2026-03-10T11:00:00.000Z',
+    reason: 'Backfill missing booking after payroll check',
+    note: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const baseUrl = useMemo(() => apiBaseUrl.replace(/\/$/, ''), [apiBaseUrl]);
+
+  async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(init?.headers ?? {}),
+      },
+    });
+    const text = await response.text();
+    const data = text ? (JSON.parse(text) as T) : (null as T);
+
+    if (!response.ok) {
+      throw new Error(text || t('requestFailed'));
+    }
+
+    return data;
+  }
+
+  function selectedPeriod(): ClosingPeriod | null {
+    if (!selectedPeriodId) {
+      return null;
+    }
+    return periods.find((period) => period.id === selectedPeriodId) ?? detail;
+  }
+
+  async function loadPeriods() {
+    setLoading(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (fromMonth) {
+        params.set('from', fromMonth);
+      }
+      if (toMonth) {
+        params.set('to', toMonth);
+      }
+      if (organizationUnitId) {
+        params.set('organizationUnitId', organizationUnitId);
+      }
+
+      const rows = await apiRequest<ClosingPeriod[]>(`/v1/closing-periods?${params.toString()}`);
+      setPeriods(rows);
+      if (rows.length === 0) {
+        setSelectedPeriodId(null);
+        setDetail(null);
+        setChecklist(null);
+        return;
+      }
+
+      const next =
+        selectedPeriodId && rows.some((row) => row.id === selectedPeriodId)
+          ? selectedPeriodId
+          : rows[0]?.id;
+      if (next) {
+        await selectPeriod(next);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function selectPeriod(periodId: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      setSelectedPeriodId(periodId);
+      const [period, items] = await Promise.all([
+        apiRequest<ClosingPeriod>(`/v1/closing-periods/${periodId}`),
+        apiRequest<ClosingChecklistResponse>(`/v1/closing-periods/${periodId}/checklist`),
+      ]);
+      setDetail(period);
+      setChecklist(items);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runPeriodAction(pathSuffix: string, body?: unknown) {
+    const period = selectedPeriod();
+    if (!period) {
+      setError(t('selectPeriod'));
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const result = await apiRequest<unknown>(`/v1/closing-periods/${period.id}/${pathSuffix}`, {
+        method: 'POST',
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (pathSuffix === 'post-close-corrections' && result && typeof result === 'object') {
+        const id = (result as { id?: string }).id;
+        if (id) {
+          setWorkflowId(id);
+          setCorrectionPayload((current) => ({ ...current, workflowId: id }));
+        }
+      }
+
+      await loadPeriods();
+      setMessage(t('actionApplied'));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function approveWorkflow() {
+    if (!workflowId) {
+      setError(t('workflowIdRequired'));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await apiRequest(`/v1/workflows/${workflowId}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'APPROVE', reason: workflowReason }),
+      });
+      setMessage(t('workflowApproved'));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function applyCorrection() {
+    const period = selectedPeriod();
+    if (!period) {
+      setError(t('selectPeriod'));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await apiRequest(`/v1/closing-periods/${period.id}/corrections/bookings`, {
+        method: 'POST',
+        body: JSON.stringify(correctionPayload),
+      });
+      await loadPeriods();
+      setMessage(t('correctionApplied'));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function downloadCsv(runId: string) {
+    const period = selectedPeriod();
+    if (!period) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch(
+        `${baseUrl}/v1/closing-periods/${period.id}/export-runs/${runId}/csv`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(body || t('requestFailed'));
+      }
+
+      const csv = await response.text();
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `payroll-export-${period.id}-${runId}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setMessage(t('downloadReady'));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const period = selectedPeriod();
 
   return (
-    <section>
+    <section style={{ display: 'grid', gap: '1rem' }}>
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
 
-      <div style={{ display: 'grid', gap: '1rem', marginTop: '1rem' }}>
-        <label style={{ display: 'grid', gap: '.25rem', maxWidth: 260 }}>
-          <span>{t('periodLabel')}</span>
-          <input type="month" defaultValue="2026-03" readOnly />
-        </label>
+      <label style={{ display: 'grid', gap: '.25rem' }}>
+        <span>{t('apiBaseLabel')}</span>
+        <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} />
+      </label>
 
-        <p>
-          <strong>{t('stateLabel')}:</strong> REVIEW
+      <label style={{ display: 'grid', gap: '.25rem' }}>
+        <span>{t('tokenLabel')}</span>
+        <input
+          type="password"
+          value={token}
+          onChange={(event) => setToken(event.target.value)}
+          placeholder="mock.eyJzdWIiOiJjLi4uIn0"
+        />
+      </label>
+
+      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <h2>{t('periodQueryTitle')}</h2>
+        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('fromMonth')}</span>
+            <input
+              type="month"
+              value={fromMonth}
+              onChange={(event) => setFromMonth(event.target.value)}
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('toMonth')}</span>
+            <input
+              type="month"
+              value={toMonth}
+              onChange={(event) => setToMonth(event.target.value)}
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('organizationUnitId')}</span>
+            <input
+              value={organizationUnitId}
+              onChange={(event) => setOrganizationUnitId(event.target.value)}
+            />
+          </label>
+        </div>
+        <div style={{ marginTop: '.75rem' }}>
+          <button type="button" disabled={loading} onClick={() => void loadPeriods()}>
+            {loading ? t('loading') : t('loadPeriods')}
+          </button>
+        </div>
+      </article>
+
+      {message ? <p style={{ color: '#0f766e' }}>{message}</p> : null}
+      {error ? (
+        <p role="alert" style={{ color: '#b91c1c' }}>
+          {error}
         </p>
+      ) : null}
 
-        <section>
-          <h2>{t('actionsTitle')}</h2>
-          <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-            <button type="button" disabled>
-              Start Review
-            </button>
-            <button type="button" disabled>
-              Approve
-            </button>
-            <button type="button" disabled>
-              Export
-            </button>
-            <button type="button" disabled>
-              Re-open
-            </button>
-          </div>
-        </section>
-
-        <section>
-          <h2>{t('checklistTitle')}</h2>
-          <ul>
-            <li>Missing bookings: 0</li>
-            <li>Open corrections: 0</li>
-            <li>Roster mismatches: 0</li>
+      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <h2>{t('periodListTitle')}</h2>
+        {periods.length === 0 ? (
+          <p>{t('noPeriods')}</p>
+        ) : (
+          <ul style={{ display: 'grid', gap: '.5rem' }}>
+            {periods.map((row) => (
+              <li
+                key={row.id}
+                style={{ border: '1px solid #e5e7eb', borderRadius: '.5rem', padding: '.5rem' }}
+              >
+                <div>
+                  <strong>{row.id}</strong> | {row.status}
+                </div>
+                <div>
+                  {row.periodStart.slice(0, 10)} - {row.periodEnd.slice(0, 10)}
+                </div>
+                <button type="button" disabled={loading} onClick={() => void selectPeriod(row.id)}>
+                  {t('details')}
+                </button>
+              </li>
+            ))}
           </ul>
-        </section>
+        )}
+      </article>
 
-        <section>
-          <h2>{t('exportsTitle')}</h2>
-          <p>No export runs loaded.</p>
-        </section>
-      </div>
+      {period ? (
+        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+          <h2>{t('stateLabel')}</h2>
+          <p>
+            <strong>{t('stateLabel')}:</strong> {period.status}
+          </p>
+          <p>
+            <strong>{t('leadApprovalLabel')}:</strong> {period.leadApprovedAt ?? '—'}
+          </p>
+          <p>
+            <strong>{t('hrApprovalLabel')}:</strong> {period.hrApprovedAt ?? '—'}
+          </p>
+          <p>
+            <strong>{t('lockLabel')}:</strong> {period.lockedAt ?? '—'} ({period.lockSource ?? '—'})
+          </p>
+        </article>
+      ) : null}
+
+      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <h2>{t('actionsTitle')}</h2>
+        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            disabled={loading || !period}
+            onClick={() => void runPeriodAction('start-review')}
+          >
+            {t('startReview')}
+          </button>
+          <button
+            type="button"
+            disabled={loading || !period}
+            onClick={() => void runPeriodAction('lead-approve')}
+          >
+            {t('leadApprove')}
+          </button>
+          <button
+            type="button"
+            disabled={loading || !period}
+            onClick={() => void runPeriodAction('approve')}
+          >
+            {t('approve')}
+          </button>
+          <button
+            type="button"
+            disabled={loading || !period}
+            onClick={() => void runPeriodAction('export')}
+          >
+            {t('export')}
+          </button>
+          <button
+            type="button"
+            disabled={loading || !period}
+            onClick={() => void runPeriodAction('reopen')}
+          >
+            {t('reopen')}
+          </button>
+          <button
+            type="button"
+            disabled={loading || !period}
+            onClick={() =>
+              void runPeriodAction('post-close-corrections', { reason: workflowReason })
+            }
+          >
+            {t('postCloseCorrection')}
+          </button>
+        </div>
+      </article>
+
+      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <h2>{t('checklistTitle')}</h2>
+        {!checklist ? (
+          <p>{t('noChecklist')}</p>
+        ) : (
+          <ul style={{ display: 'grid', gap: '.5rem' }}>
+            {checklist.items.map((item) => (
+              <li key={item.code}>
+                <strong>{item.label}</strong> [{item.severity}/{item.status}] - {item.details}
+              </li>
+            ))}
+          </ul>
+        )}
+      </article>
+
+      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <h2>{t('correctionTitle')}</h2>
+        <div style={{ display: 'grid', gap: '.5rem' }}>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('workflowIdLabel')}</span>
+            <input value={workflowId} onChange={(event) => setWorkflowId(event.target.value)} />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('workflowReasonLabel')}</span>
+            <input
+              value={workflowReason}
+              onChange={(event) => setWorkflowReason(event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={loading || !workflowId}
+            onClick={() => void approveWorkflow()}
+          >
+            {t('approveWorkflow')}
+          </button>
+
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('personIdLabel')}</span>
+            <input
+              value={correctionPayload.personId}
+              onChange={(event) =>
+                setCorrectionPayload((current) => ({ ...current, personId: event.target.value }))
+              }
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('timeTypeIdLabel')}</span>
+            <input
+              value={correctionPayload.timeTypeId}
+              onChange={(event) =>
+                setCorrectionPayload((current) => ({ ...current, timeTypeId: event.target.value }))
+              }
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('startTimeLabel')}</span>
+            <input
+              value={correctionPayload.startTime}
+              onChange={(event) =>
+                setCorrectionPayload((current) => ({ ...current, startTime: event.target.value }))
+              }
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('endTimeLabel')}</span>
+            <input
+              value={correctionPayload.endTime}
+              onChange={(event) =>
+                setCorrectionPayload((current) => ({ ...current, endTime: event.target.value }))
+              }
+            />
+          </label>
+          <label style={{ display: 'grid', gap: '.25rem' }}>
+            <span>{t('reasonLabel')}</span>
+            <input
+              value={correctionPayload.reason}
+              onChange={(event) =>
+                setCorrectionPayload((current) => ({ ...current, reason: event.target.value }))
+              }
+            />
+          </label>
+          <button
+            type="button"
+            disabled={loading || !period}
+            onClick={() => void applyCorrection()}
+          >
+            {t('applyCorrection')}
+          </button>
+        </div>
+      </article>
+
+      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <h2>{t('exportsTitle')}</h2>
+        {!period || period.exportRuns.length === 0 ? (
+          <p>{t('noExports')}</p>
+        ) : (
+          <ul style={{ display: 'grid', gap: '.5rem' }}>
+            {period.exportRuns.map((run) => (
+              <li key={run.id}>
+                {run.exportedAt} | {run.format} | {run.recordCount} | {run.checksum}
+                <button
+                  type="button"
+                  style={{ marginLeft: '.5rem' }}
+                  disabled={loading}
+                  onClick={() => void downloadCsv(run.id)}
+                >
+                  {t('downloadCsv')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </article>
     </section>
   );
 }

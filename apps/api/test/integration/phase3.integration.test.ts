@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
 import { SEED_IDS } from '../../src/test-utils/seed-ids';
+import { Phase2Service } from '../../src/phase2/phase2.service';
+import { PrismaService } from '../../src/persistence/prisma.service';
 
 const TERMINAL_TOKEN = process.env.TERMINAL_GATEWAY_TOKEN ?? 'dev-terminal-token';
 const HR_IMPORT_TOKEN = process.env.HR_IMPORT_TOKEN ?? 'dev-hr-token';
@@ -74,12 +76,40 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
     expect(getRun.body.id).toBe(run.body.id);
   });
 
+  it('applies automatic closing cut-off transition', async () => {
+    const prisma = app.get(PrismaService);
+    const created = await prisma.closingPeriod.create({
+      data: {
+        organizationUnitId: SEED_IDS.ouAdmin,
+        periodStart: new Date('2026-01-01T00:00:00.000Z'),
+        periodEnd: new Date('2026-01-31T23:59:59.000Z'),
+        status: 'OPEN',
+      },
+    });
+
+    const service = app.get(Phase2Service);
+    const result = await service.runClosingCutoff(new Date('2026-02-10T12:00:00.000Z'));
+    expect(result.enabled).toBe(true);
+    expect(result.transitioned).toBeGreaterThan(0);
+
+    const updated = await prisma.closingPeriod.findUnique({ where: { id: created.id } });
+    expect(updated?.status).toBe('REVIEW');
+    expect(updated?.lockSource).toBe('AUTO_CUTOFF');
+    expect(updated?.lockedAt).not.toBeNull();
+  });
+
   it('exports canonical payroll CSV and allows csv download', async () => {
     const resolveCorrection = await request(app.getHttpServer())
       .post('/v1/workflows/c000000000000000000000600/decision')
       .set('Authorization', `Bearer ${TOKENS.lead}`)
       .send({ decision: 'APPROVED', reason: 'Resolved before close' });
     expect(resolveCorrection.status).toBe(201);
+
+    const leadApprove = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/lead-approve`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
+      .send();
+    expect(leadApprove.status).toBe(201);
 
     const approve = await request(app.getHttpServer())
       .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/approve`)

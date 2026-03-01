@@ -18,4 +18,5 @@ export * from './schemas/events';
 export * from './schemas/reporting';
 export * from './schemas/time-engine';
 export * from './schemas/common';
+export * from './schemas/closing';
 export * from './generated/core-schema-types';

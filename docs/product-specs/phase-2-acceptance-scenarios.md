@@ -11,16 +11,16 @@ Phase 2 is complete when acceptance tests `AT-01..AT-07` pass against determinis
 
 ## Acceptance Matrix
 
-| Test  | Scenario                         | Seed / Fixture                                          | Required Assertions                                          |
-| ----- | -------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
-| AT-01 | Terminal offline buffer sync     | synthetic terminal batch CSV                            | dedupe, ordering, absence-conflict flagging, audit append    |
-| AT-02 | Correction with delegation chain | workflow + approver chain seed                          | delegation resolution, valid transitions, inbox actions      |
-| AT-03 | Roster plan-vs-actual            | `fixtures/reference-calculations/pforte-shift.json`     | mismatch detection + compliance rate                         |
-| AT-04 | Leave with part-time carry-over  | `fixtures/reference-calculations/part-time-change.json` | prorated target + carry-over/forfeiture correctness          |
-| AT-05 | On-call + Sunday deployment      | `fixtures/reference-calculations/it-oncall.json`        | rest compliance outcome + violation mapping                  |
-| AT-06 | Closing + export + HR correction | deterministic closing period seed                       | checklist gating, deterministic checksum, HR-only correction |
-| AT-07 | Role-based visibility            | multi-role org/team seed                                | absence reason redaction + pending-visibility split by role  |
-| AT-08 | Backup / restore                 | restore fixture set                                     | **Phase 3 only**                                             |
+| Test  | Scenario                         | Seed / Fixture                                          | Required Assertions                                                                                     |
+| ----- | -------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| AT-01 | Terminal offline buffer sync     | synthetic terminal batch CSV                            | dedupe, ordering, absence-conflict flagging, audit append                                               |
+| AT-02 | Correction with delegation chain | workflow + approver chain seed                          | delegation resolution, valid transitions, inbox actions                                                 |
+| AT-03 | Roster plan-vs-actual            | `fixtures/reference-calculations/pforte-shift.json`     | mismatch detection + compliance rate                                                                    |
+| AT-04 | Leave with part-time carry-over  | `fixtures/reference-calculations/part-time-change.json` | prorated target + carry-over/forfeiture correctness                                                     |
+| AT-05 | On-call + Sunday deployment      | `fixtures/reference-calculations/it-oncall.json`        | rest compliance outcome + violation mapping                                                             |
+| AT-06 | Closing + export + HR correction | deterministic closing period seed                       | lead + HR approval gate, checklist gating, lock enforcement, deterministic checksum, HR-only correction |
+| AT-07 | Role-based visibility            | multi-role org/team seed                                | absence reason redaction + pending-visibility split by role                                             |
+| AT-08 | Backup / restore                 | restore fixture set                                     | **Phase 3 only**                                                                                        |
 
 ## Notes
 
