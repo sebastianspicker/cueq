@@ -25,6 +25,9 @@ import { TimeEngineController } from './controllers/time-engine.controller';
 import { WorkflowRuntimeService } from './workflow-runtime.service';
 import { WorkflowEscalationService } from './workflow-escalation.service';
 import { ClosingCutoffService } from './closing-cutoff.service';
+import { DashboardBookingsService } from './services/dashboard-bookings.service';
+import { OncallDomainService } from './services/oncall-domain.service';
+import { WorkflowsDomainService } from './services/workflows-domain.service';
 
 @Module({
   providers: [
@@ -44,6 +47,9 @@ import { ClosingCutoffService } from './closing-cutoff.service';
     WorkflowRuntimeService,
     WorkflowEscalationService,
     ClosingCutoffService,
+    DashboardBookingsService,
+    OncallDomainService,
+    WorkflowsDomainService,
   ],
   controllers: [
     MeController,
@@ -65,6 +71,14 @@ import { ClosingCutoffService } from './closing-cutoff.service';
     ReportsController,
     TimeEngineController,
   ],
-  exports: [Phase2Service, TerminalGatewayService, HrImportService, WorkflowRuntimeService],
+  exports: [
+    Phase2Service,
+    TerminalGatewayService,
+    HrImportService,
+    WorkflowRuntimeService,
+    DashboardBookingsService,
+    OncallDomainService,
+    WorkflowsDomainService,
+  ],
 })
 export class Phase2Module {}

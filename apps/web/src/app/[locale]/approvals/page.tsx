@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { useApiContext } from '../../../lib/api-context';
 
 type WorkflowAction = 'SUBMIT' | 'APPROVE' | 'REJECT' | 'DELEGATE' | 'CANCEL';
 
@@ -40,8 +42,7 @@ const TYPE_FILTERS = [
 
 export default function ApprovalsPage() {
   const t = useTranslations('pages.approvals');
-  const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:3001');
-  const [token, setToken] = useState('');
+  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('ALL');
   const [typeFilter, setTypeFilter] = useState<(typeof TYPE_FILTERS)[number]>('ALL');
   const [overdueOnly, setOverdueOnly] = useState(false);
@@ -54,27 +55,6 @@ export default function ApprovalsPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const baseUrl = useMemo(() => apiBaseUrl.replace(/\/$/, ''), [apiBaseUrl]);
-
-  async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(`${baseUrl}${path}`, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...(init?.headers ?? {}),
-      },
-    });
-    const text = await response.text();
-    const data = text ? (JSON.parse(text) as T) : (null as T);
-
-    if (!response.ok) {
-      throw new Error(text || t('requestFailed'));
-    }
-
-    return data;
-  }
 
   function inboxQuery() {
     const params = new URLSearchParams();
@@ -176,20 +156,14 @@ export default function ApprovalsPage() {
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
 
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('apiBaseLabel')}</span>
-        <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} />
-      </label>
-
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('tokenLabel')}</span>
-        <input
-          type="password"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="mock.eyJzdWIiOiJjLi4uIn0"
-        />
-      </label>
+      <ConnectionPanel
+        apiBaseLabel={t('apiBaseLabel')}
+        tokenLabel={t('tokenLabel')}
+        apiBaseUrl={apiBaseUrl}
+        setApiBaseUrl={setApiBaseUrl}
+        token={token}
+        setToken={setToken}
+      />
 
       <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
         <h2>{t('filtersTitle')}</h2>

@@ -177,6 +177,55 @@ export class WorkflowRuntimeService {
     return TYPE_ROLE_MATRIX[type].includes(role);
   }
 
+  private isRoleAllowedForAllWorkflowTypes(role: Role): boolean {
+    return (Object.values(WorkflowType) as WorkflowType[]).every((type) =>
+      this.isRoleAllowedForType(role, type),
+    );
+  }
+
+  private async ensureValidDelegationTarget(input: {
+    delegatorId: string;
+    delegateId: string;
+    workflowType: WorkflowType | null;
+  }) {
+    if (input.delegatorId === input.delegateId) {
+      throw new BadRequestException('Delegator and delegate must be different people.');
+    }
+
+    const [delegator, delegate] = await Promise.all([
+      this.prisma.person.findUnique({
+        where: { id: input.delegatorId },
+        select: { id: true },
+      }),
+      this.prisma.person.findUnique({
+        where: { id: input.delegateId },
+        select: { id: true, role: true },
+      }),
+    ]);
+
+    if (!delegator) {
+      throw new BadRequestException('delegatorId person was not found.');
+    }
+    if (!delegate) {
+      throw new BadRequestException('delegateId person was not found.');
+    }
+
+    const delegateRoleAllowed = input.workflowType
+      ? this.isRoleAllowedForType(delegate.role, input.workflowType)
+      : this.isRoleAllowedForAllWorkflowTypes(delegate.role);
+    if (!delegateRoleAllowed) {
+      if (input.workflowType) {
+        throw new BadRequestException(
+          `delegateId role cannot approve workflow type ${input.workflowType}.`,
+        );
+      }
+
+      throw new BadRequestException(
+        'delegateId role cannot be used for delegations without a specific workflowType.',
+      );
+    }
+  }
+
   private async ensurePolicy(type: WorkflowType): Promise<WorkflowPolicy> {
     const defaultPolicy = DEFAULT_POLICIES[type];
     return this.prisma.workflowPolicy.upsert({
@@ -282,7 +331,7 @@ export class WorkflowRuntimeService {
     let currentDelegator = input.primaryApproverId;
 
     for (let depth = 0; depth < input.maxDepth; depth += 1) {
-      const rule = await this.prisma.workflowDelegationRule.findFirst({
+      const rules = await this.prisma.workflowDelegationRule.findMany({
         where: {
           delegatorId: currentDelegator,
           isActive: true,
@@ -302,23 +351,42 @@ export class WorkflowRuntimeService {
         orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
       });
 
-      if (!rule) {
+      if (rules.length === 0) {
+        break;
+      }
+
+      const delegateIds = [...new Set(rules.map((rule) => rule.delegateId))];
+      const delegates = await this.prisma.person.findMany({
+        where: { id: { in: delegateIds } },
+        select: { id: true, role: true },
+      });
+      const delegateById = new Map(delegates.map((delegate) => [delegate.id, delegate]));
+
+      const selectedRule = rules.find((rule) => {
+        const delegate = delegateById.get(rule.delegateId);
+        if (!delegate) {
+          return false;
+        }
+
+        return this.isRoleAllowedForType(delegate.role, input.workflowType);
+      });
+      if (!selectedRule) {
         break;
       }
 
       candidates.push({
-        approverId: rule.delegateId,
+        approverId: selectedRule.delegateId,
         isAvailable: true,
-        activeFrom: toIso(rule.activeFrom),
-        activeTo: rule.activeTo ? toIso(rule.activeTo) : undefined,
+        activeFrom: toIso(selectedRule.activeFrom),
+        activeTo: selectedRule.activeTo ? toIso(selectedRule.activeTo) : undefined,
       });
 
-      if (visited.has(rule.delegateId)) {
+      if (visited.has(selectedRule.delegateId)) {
         break;
       }
 
-      visited.add(rule.delegateId);
-      currentDelegator = rule.delegateId;
+      visited.add(selectedRule.delegateId);
+      currentDelegator = selectedRule.delegateId;
     }
 
     return candidates;
@@ -575,9 +643,39 @@ export class WorkflowRuntimeService {
       if (!command.delegateToId) {
         throw new BadRequestException('delegateToId is required for DELEGATE.');
       }
+      if (command.delegateToId === actor.id) {
+        throw new BadRequestException('Approver cannot delegate to self.');
+      }
       if (command.delegateToId === workflow.requesterId) {
         throw new BadRequestException('Requester cannot be delegated as approver.');
       }
+
+      const delegate = await this.prisma.person.findUnique({
+        where: { id: command.delegateToId },
+        select: {
+          id: true,
+          role: true,
+          organizationUnitId: true,
+        },
+      });
+      if (!delegate) {
+        throw new BadRequestException('delegateToId person was not found.');
+      }
+      if (!this.isRoleAllowedForType(delegate.role, workflow.type)) {
+        throw new BadRequestException(
+          `delegateToId role cannot approve workflow type ${workflow.type}.`,
+        );
+      }
+      if (
+        (actor.role === Role.TEAM_LEAD || actor.role === Role.SHIFT_PLANNER) &&
+        delegate.organizationUnitId !== actor.organizationUnitId &&
+        !HR_ADMIN_ROLES.has(delegate.role)
+      ) {
+        throw new BadRequestException(
+          'Team leads and shift planners can only delegate within their own organization unit or to HR/Admin.',
+        );
+      }
+
       nextApproverId = command.delegateToId;
       delegationTrail = appendTrail(workflow.delegationTrail, command.delegateToId);
     }
@@ -631,6 +729,15 @@ export class WorkflowRuntimeService {
   }
 
   async upsertPolicy(type: WorkflowType, payload: WorkflowPolicyUpsert) {
+    const invalidRole = payload.escalationRoles.find(
+      (role) => !this.isRoleAllowedForType(role, type),
+    );
+    if (invalidRole) {
+      throw new BadRequestException(
+        `Escalation role ${invalidRole} cannot be used for workflow type ${type}.`,
+      );
+    }
+
     return this.prisma.workflowPolicy.upsert({
       where: { type },
       create: {
@@ -672,6 +779,12 @@ export class WorkflowRuntimeService {
       priority?: number;
     },
   ) {
+    await this.ensureValidDelegationTarget({
+      delegatorId: payload.delegatorId,
+      delegateId: payload.delegateId,
+      workflowType: payload.workflowType ?? null,
+    });
+
     const created = await this.prisma.workflowDelegationRule.create({
       data: {
         delegatorId: payload.delegatorId,
@@ -718,6 +831,26 @@ export class WorkflowRuntimeService {
     if (!current) {
       throw new NotFoundException('Delegation rule not found.');
     }
+
+    const nextActiveFrom = payload.activeFrom ? new Date(payload.activeFrom) : current.activeFrom;
+    const nextActiveTo =
+      payload.activeTo === null
+        ? null
+        : payload.activeTo
+          ? new Date(payload.activeTo)
+          : current.activeTo;
+    if (nextActiveTo && nextActiveTo <= nextActiveFrom) {
+      throw new BadRequestException('activeTo must be after activeFrom.');
+    }
+
+    const nextDelegateId = payload.delegateId ?? current.delegateId;
+    const nextWorkflowType =
+      payload.workflowType === undefined ? current.workflowType : payload.workflowType;
+    await this.ensureValidDelegationTarget({
+      delegatorId: current.delegatorId,
+      delegateId: nextDelegateId,
+      workflowType: nextWorkflowType ?? null,
+    });
 
     const updated = await this.prisma.workflowDelegationRule.update({
       where: { id },

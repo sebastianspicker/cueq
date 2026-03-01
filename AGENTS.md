@@ -84,6 +84,8 @@ All changes to this repo MUST follow these rules:
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------- |
 | `make setup`            | Install dependencies, start Docker services, generate Prisma client, push schema                                        | ✅ Implemented |
 | `make check`            | Full validation: lint + format + type-check + docs link check + schema/fixture validation + tests + OpenAPI drift check | ✅ Implemented |
+| `make quick`            | Fast local validation: lint + type-check + unit tests only                                                              | ✅ Implemented |
+| `make docs-check`       | Run markdown cross-link validation only                                                                                 | ✅ Implemented |
 | `make lint`             | Run linter in check mode (no auto-fix)                                                                                  | ✅ Implemented |
 | `make lint-fix`         | Auto-fix lint + formatting issues                                                                                       | ✅ Implemented |
 | `make typecheck`        | TypeScript compiler in `--noEmit` mode                                                                                  | ✅ Implemented |

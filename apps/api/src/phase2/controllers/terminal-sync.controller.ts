@@ -24,7 +24,10 @@ export class TerminalSyncController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get imported terminal batch by id' })
-  getBatch(@Param('id') batchId: string): Promise<unknown> {
-    return this.phase2Service.getTerminalBatch(batchId);
+  getBatch(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id') batchId: string,
+  ): Promise<unknown> {
+    return this.phase2Service.getTerminalBatch(user, batchId);
   }
 }

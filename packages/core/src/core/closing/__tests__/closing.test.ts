@@ -60,7 +60,7 @@ describe('applyCutoffLock', () => {
     expect(result.violations[0]?.code).toBe('CHECKLIST_NOT_GREEN');
   });
 
-  it('allows HR-only re-open and post-close correction', () => {
+  it('allows HR/Admin re-open and post-close correction', () => {
     const reopen = applyCutoffLock({
       currentStatus: 'REVIEW',
       action: 'REOPEN',
@@ -69,6 +69,14 @@ describe('applyCutoffLock', () => {
     });
     expect(reopen.nextStatus).toBe('OPEN');
 
+    const reopenAsAdmin = applyCutoffLock({
+      currentStatus: 'REVIEW',
+      action: 'REOPEN',
+      actorRole: 'ADMIN',
+      checklistHasErrors: false,
+    });
+    expect(reopenAsAdmin.nextStatus).toBe('OPEN');
+
     const postClose = applyCutoffLock({
       currentStatus: 'EXPORTED',
       action: 'POST_CLOSE_CORRECTION',
@@ -76,6 +84,14 @@ describe('applyCutoffLock', () => {
       checklistHasErrors: false,
     });
     expect(postClose.nextStatus).toBe('REVIEW');
+
+    const postCloseAsAdmin = applyCutoffLock({
+      currentStatus: 'EXPORTED',
+      action: 'POST_CLOSE_CORRECTION',
+      actorRole: 'ADMIN',
+      checklistHasErrors: false,
+    });
+    expect(postCloseAsAdmin.nextStatus).toBe('REVIEW');
   });
 
   it('returns deterministic violations for invalid state transitions', () => {
@@ -104,7 +120,7 @@ describe('applyCutoffLock', () => {
     expect(invalidExport.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
   });
 
-  it('blocks non-HR re-open and post-close correction', () => {
+  it('blocks non-HR/Admin re-open and post-close correction', () => {
     const reopenForbidden = applyCutoffLock({
       currentStatus: 'REVIEW',
       action: 'REOPEN',

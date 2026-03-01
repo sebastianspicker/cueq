@@ -78,9 +78,9 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
   it('imports Honeywell CSV file batches with malformed-row accounting', async () => {
     const csv = [
       'personId,timeTypeCode,startTime,endTime,note',
-      `${SEED_IDS.personPlanner},WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,first`,
+      `${SEED_IDS.personPlanner},WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,"first, comma"`,
       'invalid-person,WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,bad',
-      `${SEED_IDS.personPlanner},WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,dup`,
+      `${SEED_IDS.personPlanner},WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,"dup, comma"`,
     ].join('\n');
 
     const response = await request(app.getHttpServer())
@@ -98,12 +98,79 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
     expect(response.body.created).toBe(1);
     expect(response.body.duplicates).toBe(1);
     expect(response.body.malformedRows).toBe(1);
+
+    const detailAsHr = await request(app.getHttpServer())
+      .get(`/v1/terminal/sync/batches/${response.body.batchId}`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`);
+    expect(detailAsHr.status).toBe(200);
+
+    const detailAsEmployee = await request(app.getHttpServer())
+      .get(`/v1/terminal/sync/batches/${response.body.batchId}`)
+      .set('Authorization', `Bearer ${TOKENS.employee}`);
+    expect(detailAsEmployee.status).toBe(403);
+  });
+
+  it('keeps terminal file imports idempotent across repeated batches', async () => {
+    const csv = [
+      'personId,timeTypeCode,startTime,endTime,note',
+      `${SEED_IDS.personPlanner},WORK,2026-03-13T08:00:00.000Z,2026-03-13T16:00:00.000Z,first`,
+    ].join('\n');
+
+    const first = await request(app.getHttpServer())
+      .post('/v1/terminal/sync/batches/file')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        terminalId: 'T-HONEYWELL-IDEMPOTENT',
+        sourceFile: 'honeywell-batch-idempotent.csv',
+        protocol: 'HONEYWELL_CSV_V1',
+        csv,
+      });
+    expect(first.status).toBe(201);
+    expect(first.body.created).toBe(1);
+
+    const second = await request(app.getHttpServer())
+      .post('/v1/terminal/sync/batches/file')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        terminalId: 'T-HONEYWELL-IDEMPOTENT',
+        sourceFile: 'honeywell-batch-idempotent.csv',
+        protocol: 'HONEYWELL_CSV_V1',
+        csv,
+      });
+    expect(second.status).toBe(201);
+    expect(second.body.created).toBe(0);
+    expect(second.body.duplicates).toBe(1);
+
+    const prisma = app.get(PrismaService);
+    const importedBookings = await prisma.booking.count({
+      where: {
+        personId: SEED_IDS.personPlanner,
+        source: 'IMPORT',
+        startTime: new Date('2026-03-13T08:00:00.000Z'),
+      },
+    });
+    expect(importedBookings).toBe(1);
+  });
+
+  it('rejects oversized terminal CSV payloads', async () => {
+    const oversizedCsv = 'x'.repeat(2_000_001);
+    const response = await request(app.getHttpServer())
+      .post('/v1/terminal/sync/batches/file')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        terminalId: 'T-HONEYWELL-OVERSIZE',
+        sourceFile: 'oversized.csv',
+        protocol: 'HONEYWELL_CSV_V1',
+        csv: oversizedCsv,
+      });
+
+    expect(response.status).toBe(413);
   });
 
   it('runs file-based HR import and fetches import run', async () => {
     const csv = [
       'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours,supervisorExternalId',
-      'hrimp100,Ina,Import,ina.import@cueq.local,EMPLOYEE,Verwaltung,Gleitzeit Vollzeit,39.83,7.97,lead01',
+      'hrimp100,Ina,Import,ina.import@cueq.local,EMPLOYEE,"Verwaltung, Campus Nord",Gleitzeit Vollzeit,39.83,7.97,lead01',
     ].join('\n');
 
     const run = await request(app.getHttpServer())
@@ -118,6 +185,13 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
     expect(run.body.status).toBe('SUCCEEDED');
     expect(run.body.totalRows).toBe(1);
 
+    const prisma = app.get(PrismaService);
+    const importedPerson = await prisma.person.findFirst({
+      where: { externalId: 'hrimp100' },
+      include: { organizationUnit: true },
+    });
+    expect(importedPerson?.organizationUnit?.name).toBe('Verwaltung, Campus Nord');
+
     const getRun = await request(app.getHttpServer())
       .get(`/v1/hr/import-runs/${run.body.id}`)
       .set('x-integration-token', HR_IMPORT_TOKEN)
@@ -125,6 +199,20 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
 
     expect(getRun.status).toBe(200);
     expect(getRun.body.id).toBe(run.body.id);
+  });
+
+  it('rejects oversized HR import CSV payloads', async () => {
+    const oversizedCsv = 'x'.repeat(2_000_001);
+
+    const run = await request(app.getHttpServer())
+      .post('/v1/hr/import-runs')
+      .set('x-integration-token', HR_IMPORT_TOKEN)
+      .send({
+        sourceFile: 'oversized-hr.csv',
+        csv: oversizedCsv,
+      });
+
+    expect(run.status).toBe(413);
   });
 
   it('runs API-source HR import via provider contract', async () => {
@@ -227,6 +315,61 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       .set('Authorization', `Bearer ${TOKENS.payroll}`)
       .send();
     expect(payrollExport.status).toBe(403);
+  });
+
+  it('scopes payroll export rows to the closing period organization unit', async () => {
+    const prisma = app.get(PrismaService);
+    const scopedPeriodId = 'c000000000000000000000771';
+    const periodStart = new Date('2026-05-01T00:00:00.000Z');
+    const periodEnd = new Date('2026-05-31T23:59:59.000Z');
+
+    await prisma.timeAccount.create({
+      data: {
+        personId: SEED_IDS.personEmployee,
+        periodStart,
+        periodEnd,
+        targetHours: 160,
+        actualHours: 160,
+        balance: 0,
+        overtimeHours: 0,
+      },
+    });
+    await prisma.timeAccount.create({
+      data: {
+        personId: SEED_IDS.personPlanner,
+        periodStart,
+        periodEnd,
+        targetHours: 160,
+        actualHours: 155,
+        balance: -5,
+        overtimeHours: 0,
+      },
+    });
+
+    await prisma.closingPeriod.create({
+      data: {
+        id: scopedPeriodId,
+        organizationUnitId: SEED_IDS.ouAdmin,
+        periodStart,
+        periodEnd,
+        status: 'CLOSED',
+        leadApprovedAt: new Date('2026-06-01T09:00:00.000Z'),
+        leadApprovedById: SEED_IDS.personLead,
+        hrApprovedAt: new Date('2026-06-01T09:05:00.000Z'),
+        hrApprovedById: SEED_IDS.personHr,
+        closedAt: new Date('2026-06-01T09:05:00.000Z'),
+        closedById: SEED_IDS.personHr,
+      },
+    });
+
+    const exported = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${scopedPeriodId}/export`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({ format: 'CSV_V1' });
+    expect(exported.status).toBe(201);
+    expect(exported.body.rows).toHaveLength(1);
+    expect(exported.body.rows[0]?.personId).toBe(SEED_IDS.personEmployee);
+    expect(String(exported.body.artifact)).not.toContain(SEED_IDS.personPlanner);
   });
 
   it('supports multi-format export artifact download and checksum determinism', async () => {
@@ -518,9 +661,259 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       });
 
     expect(createDeployment.status).toBe(201);
+
+    const listDeploymentsHr = await request(app.getHttpServer())
+      .get('/v1/oncall/deployments')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({ personId: SEED_IDS.personItOncall });
+    expect(listDeploymentsHr.status).toBe(200);
+    expect(listDeploymentsHr.body.length).toBeGreaterThan(0);
+
+    const listDeploymentsEmployee = await request(app.getHttpServer())
+      .get('/v1/oncall/deployments')
+      .set('Authorization', `Bearer ${TOKENS.employee}`);
+    expect(listDeploymentsEmployee.status).toBe(200);
+    expect(Array.isArray(listDeploymentsEmployee.body)).toBe(true);
+
+    const duplicateDeployment = await request(app.getHttpServer())
+      .post('/v1/oncall/deployments')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personItOncall,
+        rotationId: createRotation.body.id,
+        startTime: '2026-03-20T01:30:00.000Z',
+        endTime: '2026-03-20T02:00:00.000Z',
+        remote: true,
+      });
+    expect(duplicateDeployment.status).toBe(409);
+  });
+
+  it('rejects booking intervals where endTime is before startTime', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/v1/bookings')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personEmployee,
+        timeTypeId: SEED_IDS.timeTypeWork,
+        startTime: '2026-03-20T16:00:00.000Z',
+        endTime: '2026-03-20T08:00:00.000Z',
+        source: 'WEB',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain('endTime must be after startTime');
+  });
+
+  it('rejects integration-reserved booking sources on authenticated booking endpoint', async () => {
+    for (const source of ['IMPORT', 'TERMINAL']) {
+      const response = await request(app.getHttpServer())
+        .post('/v1/bookings')
+        .set('Authorization', `Bearer ${TOKENS.hr}`)
+        .send({
+          personId: SEED_IDS.personEmployee,
+          timeTypeId: SEED_IDS.timeTypeWork,
+          startTime: '2026-03-20T08:00:00.000Z',
+          endTime: '2026-03-20T16:00:00.000Z',
+          source,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain(
+        'Booking source IMPORT/TERMINAL is reserved for integration ingestion paths.',
+      );
+    }
+  });
+
+  it('includes overlapping on-call rotations and deployments when filtering by from/to', async () => {
+    const rotation = await request(app.getHttpServer())
+      .post('/v1/oncall/rotations')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personItOncall,
+        organizationUnitId: SEED_IDS.ouIt,
+        startTime: '2026-09-01T00:00:00.000Z',
+        endTime: '2026-09-30T23:59:59.000Z',
+        rotationType: 'WEEKLY',
+      });
+    expect(rotation.status).toBe(201);
+
+    const deployment = await request(app.getHttpServer())
+      .post('/v1/oncall/deployments')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personItOncall,
+        rotationId: rotation.body.id,
+        startTime: '2026-09-10T01:00:00.000Z',
+        endTime: '2026-09-10T03:00:00.000Z',
+        remote: true,
+      });
+    expect(deployment.status).toBe(201);
+
+    const rotations = await request(app.getHttpServer())
+      .get('/v1/oncall/rotations')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        from: '2026-09-15T00:00:00.000Z',
+        to: '2026-09-15T23:59:59.000Z',
+      });
+    expect(rotations.status).toBe(200);
+    expect(rotations.body.some((entry: { id: string }) => entry.id === rotation.body.id)).toBe(
+      true,
+    );
+
+    const deployments = await request(app.getHttpServer())
+      .get('/v1/oncall/deployments')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        from: '2026-09-10T02:00:00.000Z',
+        to: '2026-09-10T02:30:00.000Z',
+      });
+    expect(deployments.status).toBe(200);
+    expect(deployments.body.some((entry: { id: string }) => entry.id === deployment.body.id)).toBe(
+      true,
+    );
+  });
+
+  it('rejects on-call list queries where from is after to', async () => {
+    const rotations = await request(app.getHttpServer())
+      .get('/v1/oncall/rotations')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        from: '2026-09-20T00:00:00.000Z',
+        to: '2026-09-10T00:00:00.000Z',
+      });
+    expect(rotations.status).toBe(400);
+    expect(String(rotations.body.message)).toContain('from must be on or before to');
+
+    const deployments = await request(app.getHttpServer())
+      .get('/v1/oncall/deployments')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        from: '2026-09-20T00:00:00.000Z',
+        to: '2026-09-10T00:00:00.000Z',
+      });
+    expect(deployments.status).toBe(400);
+    expect(String(deployments.body.message)).toContain('from must be on or before to');
+  });
+
+  it('enforces organization-unit scope for shift planner on on-call endpoints', async () => {
+    const itRotation = await request(app.getHttpServer())
+      .post('/v1/oncall/rotations')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personItOncall,
+        organizationUnitId: SEED_IDS.ouIt,
+        startTime: '2026-04-06T00:00:00.000Z',
+        endTime: '2026-04-12T23:59:59.000Z',
+        rotationType: 'WEEKLY',
+      });
+    expect(itRotation.status).toBe(201);
+
+    const crossOuCreate = await request(app.getHttpServer())
+      .post('/v1/oncall/rotations')
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        personId: SEED_IDS.personItOncall,
+        organizationUnitId: SEED_IDS.ouIt,
+        startTime: '2026-04-13T00:00:00.000Z',
+        endTime: '2026-04-19T23:59:59.000Z',
+        rotationType: 'WEEKLY',
+      });
+    expect(crossOuCreate.status).toBe(403);
+
+    const crossOuUpdate = await request(app.getHttpServer())
+      .patch(`/v1/oncall/rotations/${itRotation.body.id}`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .send({
+        note: 'planner cross-ou edit should fail',
+      });
+    expect(crossOuUpdate.status).toBe(403);
+
+    const listRotations = await request(app.getHttpServer())
+      .get('/v1/oncall/rotations')
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .query({ organizationUnitId: SEED_IDS.ouIt });
+    expect(listRotations.status).toBe(200);
+    expect(
+      listRotations.body.some((entry: { id: string }) => entry.id === itRotation.body.id),
+    ).toBe(false);
+
+    const itDeployment = await request(app.getHttpServer())
+      .post('/v1/oncall/deployments')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personItOncall,
+        rotationId: itRotation.body.id,
+        startTime: '2026-04-10T01:00:00.000Z',
+        endTime: '2026-04-10T01:30:00.000Z',
+        remote: true,
+      });
+    expect(itDeployment.status).toBe(201);
+
+    const listDeployments = await request(app.getHttpServer())
+      .get('/v1/oncall/deployments')
+      .set('Authorization', `Bearer ${TOKENS.planner}`)
+      .query({ personId: SEED_IDS.personItOncall });
+    expect(listDeployments.status).toBe(200);
+    expect(
+      listDeployments.body.some((entry: { id: string }) => entry.id === itDeployment.body.id),
+    ).toBe(false);
+  });
+
+  it('rejects on-call rotation with person/organization-unit mismatch', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/v1/oncall/rotations')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personItOncall,
+        organizationUnitId: SEED_IDS.ouAdmin,
+        startTime: '2026-03-23T00:00:00.000Z',
+        endTime: '2026-03-29T23:59:59.000Z',
+        rotationType: 'WEEKLY',
+      });
+
+    expect(response.status).toBe(400);
+    expect(String(response.body.message)).toContain('organizationUnitId must match');
+  });
+
+  it('rejects on-call deployment with end time before start time', async () => {
+    const createRotation = await request(app.getHttpServer())
+      .post('/v1/oncall/rotations')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personItOncall,
+        organizationUnitId: SEED_IDS.ouIt,
+        startTime: '2026-03-30T00:00:00.000Z',
+        endTime: '2026-04-05T23:59:59.000Z',
+        rotationType: 'WEEKLY',
+      });
+    expect(createRotation.status).toBe(201);
+
+    const createDeployment = await request(app.getHttpServer())
+      .post('/v1/oncall/deployments')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        personId: SEED_IDS.personItOncall,
+        rotationId: createRotation.body.id,
+        startTime: '2026-03-31T10:00:00.000Z',
+        endTime: '2026-03-31T09:00:00.000Z',
+        remote: true,
+      });
+
+    expect(createDeployment.status).toBe(400);
   });
 
   it('lists closing periods, reads details and re-opens review period', async () => {
+    const plannerListDenied = await request(app.getHttpServer())
+      .get('/v1/closing-periods')
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    expect(plannerListDenied.status).toBe(403);
+
+    const plannerChecklistDenied = await request(app.getHttpServer())
+      .get(`/v1/closing-periods/${SEED_IDS.closingPeriod}/checklist`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    expect(plannerChecklistDenied.status).toBe(403);
+
     const list = await request(app.getHttpServer())
       .get('/v1/closing-periods')
       .set('Authorization', `Bearer ${TOKENS.hr}`)
@@ -551,6 +944,43 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
 
     expect(reopen.status).toBe(201);
     expect(reopen.body.status).toBe('OPEN');
+
+    const reopenAsLead = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/reopen`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`)
+      .send();
+    expect(reopenAsLead.status).toBe(403);
+
+    const prisma = app.get(PrismaService);
+    const adminReopenPeriodId = 'c000000000000000000000772';
+    await prisma.closingPeriod.create({
+      data: {
+        id: adminReopenPeriodId,
+        organizationUnitId: SEED_IDS.ouAdmin,
+        periodStart: new Date('2026-06-01T00:00:00.000Z'),
+        periodEnd: new Date('2026-06-30T23:59:59.000Z'),
+        status: 'REVIEW',
+      },
+    });
+
+    const reopenAsAdmin = await request(app.getHttpServer())
+      .post(`/v1/closing-periods/${adminReopenPeriodId}/reopen`)
+      .set('Authorization', `Bearer ${TOKENS.admin}`)
+      .send();
+    expect(reopenAsAdmin.status).toBe(201);
+    expect(reopenAsAdmin.body.status).toBe('OPEN');
+  });
+
+  it('restricts closing checklist details to approval-capable roles', async () => {
+    const asHr = await request(app.getHttpServer())
+      .get(`/v1/closing-periods/${SEED_IDS.closingPeriod}/checklist`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`);
+    expect(asHr.status).toBe(200);
+
+    const asEmployee = await request(app.getHttpServer())
+      .get(`/v1/closing-periods/${SEED_IDS.closingPeriod}/checklist`)
+      .set('Authorization', `Bearer ${TOKENS.employee}`);
+    expect(asEmployee.status).toBe(403);
   });
 
   it('enforces report authorization and serves aggregated reports', async () => {
@@ -707,5 +1137,86 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       .set('Authorization', `Bearer ${TOKENS.hr}`);
     expect(deliveries.status).toBe(200);
     expect(deliveries.body.length).toBeGreaterThan(0);
+  });
+
+  it('rejects webhook endpoints targeting private addresses when explicitly disabled', async () => {
+    const previous = process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS;
+    process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS = 'false';
+
+    try {
+      const createEndpoint = await request(app.getHttpServer())
+        .post('/v1/integrations/webhooks/endpoints')
+        .set('Authorization', `Bearer ${TOKENS.hr}`)
+        .send({
+          name: 'integration-test-private-block',
+          url: 'http://127.0.0.1:9/cueq-webhook',
+          subscribedEvents: ['booking.created'],
+        });
+
+      expect(createEndpoint.status).toBe(400);
+      expect(createEndpoint.body.message).toContain(
+        'Webhook url must not target localhost or private network addresses.',
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS;
+      } else {
+        process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS = previous;
+      }
+    }
+  });
+
+  it('rejects dispatch to existing private endpoint when private targets are disabled', async () => {
+    const previous = process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS;
+
+    try {
+      process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS = 'true';
+      const createEndpoint = await request(app.getHttpServer())
+        .post('/v1/integrations/webhooks/endpoints')
+        .set('Authorization', `Bearer ${TOKENS.hr}`)
+        .send({
+          name: 'integration-test-private-existing',
+          url: 'http://127.0.0.1:9/cueq-webhook',
+          subscribedEvents: ['booking.created'],
+        });
+      expect(createEndpoint.status).toBe(201);
+
+      const createBooking = await request(app.getHttpServer())
+        .post('/v1/bookings')
+        .set('Authorization', `Bearer ${TOKENS.hr}`)
+        .send({
+          personId: SEED_IDS.personEmployee,
+          timeTypeId: SEED_IDS.timeTypeWork,
+          startTime: '2026-03-05T08:00:00.000Z',
+          endTime: '2026-03-05T16:00:00.000Z',
+          source: 'WEB',
+        });
+      expect(createBooking.status).toBe(201);
+
+      process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS = 'false';
+
+      const dispatch = await request(app.getHttpServer())
+        .post('/v1/integrations/webhooks/dispatch')
+        .set('Authorization', `Bearer ${TOKENS.hr}`)
+        .send();
+      expect(dispatch.status).toBe(201);
+      expect(dispatch.body.failed).toBeGreaterThan(0);
+
+      const deliveries = await request(app.getHttpServer())
+        .get('/v1/integrations/webhooks/deliveries')
+        .set('Authorization', `Bearer ${TOKENS.hr}`);
+      expect(deliveries.status).toBe(200);
+      expect(
+        deliveries.body.some((entry: { error?: string }) =>
+          String(entry.error ?? '').includes('Webhook url must not target localhost'),
+        ),
+      ).toBe(true);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS;
+      } else {
+        process.env.WEBHOOK_ALLOW_PRIVATE_TARGETS = previous;
+      }
+    }
   });
 });

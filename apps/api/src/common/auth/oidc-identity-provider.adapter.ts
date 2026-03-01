@@ -3,17 +3,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { Role } from '@cueq/database';
 import type { IdentityProviderPort } from './identity-provider.port';
 import type { AuthenticatedIdentity } from './auth.types';
-
-const ROLE_MAP = new Map<string, Role>([
-  ['employee', Role.EMPLOYEE],
-  ['team_lead', Role.TEAM_LEAD],
-  ['shift_planner', Role.SHIFT_PLANNER],
-  ['hr', Role.HR],
-  ['payroll', Role.PAYROLL],
-  ['admin', Role.ADMIN],
-  ['data_protection', Role.DATA_PROTECTION],
-  ['works_council', Role.WORKS_COUNCIL],
-]);
+import { selectHighestRoleClaim } from './role-mapping';
 
 @Injectable()
 export class OidcIdentityProviderAdapter implements IdentityProviderPort {
@@ -29,31 +19,34 @@ export class OidcIdentityProviderAdapter implements IdentityProviderPort {
       throw new UnauthorizedException('OIDC is not configured.');
     }
 
-    const verified = await jwtVerify(token, this.jwks, {
-      issuer: this.issuer,
-      audience: this.audience,
-    });
+    try {
+      const verified = await jwtVerify(token, this.jwks, {
+        issuer: this.issuer,
+        audience: this.audience,
+      });
 
-    const claims = verified.payload as Record<string, unknown>;
-    const email = claims.email ? String(claims.email) : '';
-    const subject = claims.sub ? String(claims.sub) : '';
+      const claims = verified.payload as Record<string, unknown>;
+      const email = claims.email ? String(claims.email) : '';
+      const subject = claims.sub ? String(claims.sub) : '';
 
-    if (!subject || !email) {
-      throw new UnauthorizedException('Missing required identity claims.');
+      if (!subject || !email) {
+        throw new UnauthorizedException('Missing required identity claims.');
+      }
+
+      const realmAccess = claims.realm_access as { roles?: string[] } | undefined;
+      const firstMapped = selectHighestRoleClaim(realmAccess?.roles ?? []) ?? Role.EMPLOYEE;
+
+      return {
+        subject,
+        email,
+        role: firstMapped,
+        organizationUnitId: claims.organizationUnitId
+          ? String(claims.organizationUnitId)
+          : undefined,
+        claims,
+      };
+    } catch {
+      throw new UnauthorizedException('OIDC token validation failed.');
     }
-
-    const realmAccess = claims.realm_access as { roles?: string[] } | undefined;
-    const firstMapped =
-      realmAccess?.roles
-        ?.map((role) => ROLE_MAP.get(role.toLowerCase()))
-        .find((role): role is Role => Boolean(role)) ?? Role.EMPLOYEE;
-
-    return {
-      subject,
-      email,
-      role: firstMapped,
-      organizationUnitId: claims.organizationUnitId ? String(claims.organizationUnitId) : undefined,
-      claims,
-    };
   }
 }

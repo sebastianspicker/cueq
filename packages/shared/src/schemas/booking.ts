@@ -7,15 +7,20 @@ import { BookingSourceSchema, TimeTypeCategorySchema } from './time-type';
 // ---------------------------------------------------------------------------
 
 /** Schema for creating a new booking */
-export const CreateBookingSchema = z.object({
-  personId: IdSchema,
-  timeTypeId: IdSchema,
-  startTime: DateTimeSchema,
-  endTime: DateTimeSchema.optional(),
-  source: BookingSourceSchema,
-  note: z.string().max(1000).optional(),
-  shiftId: IdSchema.optional(),
-});
+export const CreateBookingSchema = z
+  .object({
+    personId: IdSchema,
+    timeTypeId: IdSchema,
+    startTime: DateTimeSchema,
+    endTime: DateTimeSchema.optional(),
+    source: BookingSourceSchema,
+    note: z.string().max(1000).optional(),
+    shiftId: IdSchema.optional(),
+  })
+  .refine((input) => !input.endTime || input.endTime > input.startTime, {
+    message: 'endTime must be after startTime',
+    path: ['endTime'],
+  });
 export type CreateBooking = z.infer<typeof CreateBookingSchema>;
 
 /** Schema for a booking correction request (requires justification) */

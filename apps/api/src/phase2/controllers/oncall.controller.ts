@@ -2,18 +2,20 @@ import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestj
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Phase2Service } from '../phase2.service';
+import { OncallDomainService } from '../services/oncall-domain.service';
 
 @ApiTags('oncall')
 @ApiBearerAuth()
 @Controller('v1/oncall')
 export class OncallController {
-  constructor(@Inject(Phase2Service) private readonly phase2Service: Phase2Service) {}
+  constructor(
+    @Inject(OncallDomainService) private readonly oncallDomainService: OncallDomainService,
+  ) {}
 
   @Post('rotations')
   @ApiOperation({ summary: 'Create on-call rotation entry' })
   createRotation(@CurrentUser() user: AuthenticatedIdentity, @Body() payload: unknown) {
-    return this.phase2Service.createOnCallRotation(user, payload);
+    return this.oncallDomainService.createOnCallRotation(user, payload);
   }
 
   @Get('rotations')
@@ -22,7 +24,7 @@ export class OncallController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Query() query: Record<string, string | undefined>,
   ) {
-    return this.phase2Service.listOnCallRotations(user, query);
+    return this.oncallDomainService.listOnCallRotations(user, query);
   }
 
   @Patch('rotations/:id')
@@ -32,13 +34,22 @@ export class OncallController {
     @Param('id') rotationId: string,
     @Body() payload: unknown,
   ) {
-    return this.phase2Service.updateOnCallRotation(user, rotationId, payload);
+    return this.oncallDomainService.updateOnCallRotation(user, rotationId, payload);
   }
 
   @Post('deployments')
   @ApiOperation({ summary: 'Create on-call deployment entry' })
   createDeployment(@CurrentUser() user: AuthenticatedIdentity, @Body() payload: unknown) {
-    return this.phase2Service.createOnCallDeployment(user, payload);
+    return this.oncallDomainService.createOnCallDeployment(user, payload);
+  }
+
+  @Get('deployments')
+  @ApiOperation({ summary: 'List on-call deployments' })
+  listDeployments(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Query() query: Record<string, string | undefined>,
+  ) {
+    return this.oncallDomainService.listOnCallDeployments(user, query);
   }
 
   @Get('compliance')
@@ -48,6 +59,6 @@ export class OncallController {
     @Query('personId') personId?: string,
     @Query('nextShiftStart') nextShiftStart?: string,
   ) {
-    return this.phase2Service.onCallCompliance(user, personId, nextShiftStart);
+    return this.oncallDomainService.onCallCompliance(user, personId, nextShiftStart);
   }
 }

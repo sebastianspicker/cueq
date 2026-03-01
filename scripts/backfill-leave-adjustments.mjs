@@ -1,35 +1,9 @@
 #!/usr/bin/env node
 import { prisma, Role } from '@cueq/database';
-
-function parseArgs(argv) {
-  const args = new Map();
-  for (let index = 0; index < argv.length; index += 1) {
-    const current = argv[index];
-    if (!current.startsWith('--')) {
-      continue;
-    }
-
-    const [key, inlineValue] = current.split('=', 2);
-    if (inlineValue !== undefined) {
-      args.set(key, inlineValue);
-      continue;
-    }
-
-    const next = argv[index + 1];
-    if (next && !next.startsWith('--')) {
-      args.set(key, next);
-      index += 1;
-      continue;
-    }
-
-    args.set(key, 'true');
-  }
-
-  return args;
-}
+import { parseArgsMap } from './lib/parse-args.mjs';
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const args = parseArgsMap(process.argv.slice(2));
   const year = Number(args.get('--year') ?? new Date().getUTCFullYear());
   const reason = args.get('--reason') ?? 'FR-400 initial leave-adjustment backfill';
   const createdBy = args.get('--created-by') ?? 'system:fr400-backfill';

@@ -1,32 +1,6 @@
 #!/usr/bin/env node
 import { prisma, WorkflowStatus, WorkflowType } from '@cueq/database';
-
-function parseArgs(argv) {
-  const args = new Map();
-  for (let index = 0; index < argv.length; index += 1) {
-    const current = argv[index];
-    if (!current.startsWith('--')) {
-      continue;
-    }
-
-    const [key, inlineValue] = current.split('=', 2);
-    if (inlineValue !== undefined) {
-      args.set(key, inlineValue);
-      continue;
-    }
-
-    const next = argv[index + 1];
-    if (next && !next.startsWith('--')) {
-      args.set(key, next);
-      index += 1;
-      continue;
-    }
-
-    args.set(key, 'true');
-  }
-
-  return args;
-}
+import { parseArgsMap } from './lib/parse-args.mjs';
 
 const DEFAULT_DEADLINE_HOURS = new Map([
   [WorkflowType.LEAVE_REQUEST, 48],
@@ -41,7 +15,7 @@ function addHours(date, hours) {
 }
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const args = parseArgsMap(process.argv.slice(2));
   const dryRun = args.get('--dry-run') === 'true';
 
   const policies = await prisma.workflowPolicy.findMany({

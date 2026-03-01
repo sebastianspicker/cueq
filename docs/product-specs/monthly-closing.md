@@ -1,6 +1,6 @@
 # Product Spec: Monthly Closing (FR-600)
 
-> **Status:** 🟡 Active
+> **Status:** ✅ Implemented
 > **Source:** PRD FR-600
 
 ---

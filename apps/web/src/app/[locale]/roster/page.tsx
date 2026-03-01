@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { useApiContext } from '../../../lib/api-context';
 
 interface RosterMember {
   id: string;
@@ -65,9 +67,7 @@ function toLocalDateTimeInput(isoDate: string): string {
 
 export default function RosterPage() {
   const t = useTranslations('pages.roster');
-
-  const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:3001');
-  const [token, setToken] = useState('');
+  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
   const [roster, setRoster] = useState<RosterDetail | null>(null);
   const [planVsActual, setPlanVsActual] = useState<PlanVsActual | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -86,33 +86,6 @@ export default function RosterPage() {
   const [swapFromPersonId, setSwapFromPersonId] = useState('');
   const [swapToPersonId, setSwapToPersonId] = useState('');
   const [swapReason, setSwapReason] = useState('Please swap assignment for this shift.');
-
-  const baseUrl = useMemo(() => apiBaseUrl.replace(/\/$/, ''), [apiBaseUrl]);
-
-  async function apiRequest(path: string, init?: RequestInit) {
-    const response = await fetch(`${baseUrl}${path}`, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...(init?.headers ?? {}),
-      },
-    });
-
-    const text = await response.text();
-    const data = text ? JSON.parse(text) : null;
-
-    if (!response.ok) {
-      const detail =
-        (typeof data?.message === 'string' && data.message) ||
-        (typeof data?.error === 'string' && data.error) ||
-        text ||
-        t('requestFailed');
-      throw new Error(detail);
-    }
-
-    return data;
-  }
 
   async function refreshRoster(targetRosterId?: string) {
     const detail = targetRosterId
@@ -311,20 +284,14 @@ export default function RosterPage() {
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
 
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('apiBaseLabel')}</span>
-        <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} />
-      </label>
-
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('tokenLabel')}</span>
-        <input
-          type="password"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="mock.eyJzdWIiOiJjLi4uIn0"
-        />
-      </label>
+      <ConnectionPanel
+        apiBaseLabel={t('apiBaseLabel')}
+        tokenLabel={t('tokenLabel')}
+        apiBaseUrl={apiBaseUrl}
+        setApiBaseUrl={setApiBaseUrl}
+        token={token}
+        setToken={setToken}
+      />
 
       <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
         <button type="button" disabled={loading} onClick={() => void loadCurrentRoster()}>

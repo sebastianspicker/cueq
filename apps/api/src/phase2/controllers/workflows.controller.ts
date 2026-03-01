@@ -13,13 +13,16 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Phase2Service } from '../phase2.service';
+import { WorkflowsDomainService } from '../services/workflows-domain.service';
 
 @ApiTags('workflows')
 @ApiBearerAuth()
 @Controller('v1/workflows')
 export class WorkflowsController {
-  constructor(@Inject(Phase2Service) private readonly phase2Service: Phase2Service) {}
+  constructor(
+    @Inject(WorkflowsDomainService)
+    private readonly workflowsDomainService: WorkflowsDomainService,
+  ) {}
 
   @Post('booking-corrections')
   @ApiOperation({ summary: 'Create booking correction workflow request' })
@@ -27,7 +30,7 @@ export class WorkflowsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Body() payload: unknown,
   ): Promise<unknown> {
-    return this.phase2Service.createBookingCorrection(user, payload);
+    return this.workflowsDomainService.createBookingCorrection(user, payload);
   }
 
   @Post('shift-swaps')
@@ -36,7 +39,7 @@ export class WorkflowsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Body() payload: unknown,
   ): Promise<unknown> {
-    return this.phase2Service.createShiftSwapWorkflow(user, payload);
+    return this.workflowsDomainService.createShiftSwapWorkflow(user, payload);
   }
 
   @Post('overtime-approvals')
@@ -45,7 +48,7 @@ export class WorkflowsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Body() payload: unknown,
   ): Promise<unknown> {
-    return this.phase2Service.createOvertimeApprovalWorkflow(user, payload);
+    return this.workflowsDomainService.createOvertimeApprovalWorkflow(user, payload);
   }
 
   @Get('inbox')
@@ -56,13 +59,13 @@ export class WorkflowsController {
     @Query('type') type?: string,
     @Query('overdueOnly') overdueOnly?: string,
   ): Promise<unknown> {
-    return this.phase2Service.workflowInbox(user, { status, type, overdueOnly });
+    return this.workflowsDomainService.workflowInbox(user, { status, type, overdueOnly });
   }
 
   @Get('policies')
   @ApiOperation({ summary: 'List workflow policies (HR/Admin)' })
   policies(@CurrentUser() user: AuthenticatedIdentity): Promise<unknown> {
-    return this.phase2Service.listWorkflowPolicies(user);
+    return this.workflowsDomainService.listWorkflowPolicies(user);
   }
 
   @Put('policies/:type')
@@ -72,7 +75,7 @@ export class WorkflowsController {
     @Param('type') type: string,
     @Body() payload: unknown,
   ): Promise<unknown> {
-    return this.phase2Service.upsertWorkflowPolicy(user, type, payload);
+    return this.workflowsDomainService.upsertWorkflowPolicy(user, type, payload);
   }
 
   @Get('delegations')
@@ -82,7 +85,10 @@ export class WorkflowsController {
     @Query('delegatorId') delegatorId?: string,
     @Query('workflowType') workflowType?: string,
   ): Promise<unknown> {
-    return this.phase2Service.listWorkflowDelegations(user, { delegatorId, workflowType });
+    return this.workflowsDomainService.listWorkflowDelegations(user, {
+      delegatorId,
+      workflowType,
+    });
   }
 
   @Post('delegations')
@@ -91,7 +97,7 @@ export class WorkflowsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Body() payload: unknown,
   ): Promise<unknown> {
-    return this.phase2Service.createWorkflowDelegation(user, payload);
+    return this.workflowsDomainService.createWorkflowDelegation(user, payload);
   }
 
   @Patch('delegations/:id')
@@ -101,7 +107,7 @@ export class WorkflowsController {
     @Param('id') id: string,
     @Body() payload: unknown,
   ): Promise<unknown> {
-    return this.phase2Service.updateWorkflowDelegation(user, id, payload);
+    return this.workflowsDomainService.updateWorkflowDelegation(user, id, payload);
   }
 
   @Delete('delegations/:id')
@@ -110,7 +116,7 @@ export class WorkflowsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Param('id') id: string,
   ): Promise<unknown> {
-    return this.phase2Service.deleteWorkflowDelegation(user, id);
+    return this.workflowsDomainService.deleteWorkflowDelegation(user, id);
   }
 
   @Get(':id')
@@ -119,7 +125,7 @@ export class WorkflowsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Param('id') workflowId: string,
   ): Promise<unknown> {
-    return this.phase2Service.workflowDetail(user, workflowId);
+    return this.workflowsDomainService.workflowDetail(user, workflowId);
   }
 
   @Post(':id/decision')
@@ -129,6 +135,6 @@ export class WorkflowsController {
     @Param('id') workflowId: string,
     @Body() payload: unknown,
   ): Promise<unknown> {
-    return this.phase2Service.decideWorkflow(user, workflowId, payload);
+    return this.workflowsDomainService.decideWorkflow(user, workflowId, payload);
   }
 }

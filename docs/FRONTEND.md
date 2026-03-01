@@ -1,122 +1,104 @@
 # FRONTEND.md — Frontend Architecture & Conventions
 
-> For the overall system architecture, see [`ARCHITECTURE.md`](../ARCHITECTURE.md). For design patterns, see [`DESIGN.md`](DESIGN.md).
+> For overall system architecture, see [`ARCHITECTURE.md`](../ARCHITECTURE.md). For cross-cutting design principles, see [`DESIGN.md`](DESIGN.md).
 
 ---
 
 ## 1. Overview
 
-The cueq frontend is a web application providing self-service time tracking, leave management, roster viewing, and approval workflows. It serves multiple personas — from employees clocking in/out to HR managers running monthly closes.
+The CueQ frontend is a Next.js App Router application that provides:
 
-### Key Requirements (from PRD)
+- employee self-service (dashboard, bookings, leave)
+- planner and lead workflows (team calendar, roster, approvals)
+- HR/admin operations (closing, reports, policy administration)
+- DE/EN localization with externalized messages
 
-- **Accessibility**: WCAG 2.1 AA target (best-effort in MVP; full compliance in Phase 2)
-- **Internationalization**: DE (primary) and EN; all user-facing text externalized
-- **Privacy-aware UI**: Absence reasons hidden from unauthorized roles; team calendar shows only "absent"
+## 2. Runtime Stack
 
----
+| Concern   | Current Choice                          | Notes                                                                |
+| --------- | --------------------------------------- | -------------------------------------------------------------------- |
+| Framework | Next.js App Router + React              | Route-driven UI under `apps/web/src/app`                             |
+| i18n      | `next-intl`                             | Locale segment routing (`/[locale]`) with `de` default, `en` support |
+| API       | Browser `fetch` + shared API client     | Bearer-token based calls to API (`http://localhost:3001` in dev)     |
+| Styling   | Shared global CSS + reusable components | Foundation-first approach, not a full design-system rewrite          |
+| Testing   | Vitest + Playwright + axe               | Unit/integration/compliance/acceptance coverage                      |
 
-## 2. Tech Stack
+## 3. Route Surface
 
-Tech stack decision is accepted in [ADR-001](design-decisions/001-tech-stack.md).
+Primary route tree in `apps/web/src/app/[locale]/`:
 
-| Concern   | Choice                                      | Rationale                                            |
-| --------- | ------------------------------------------- | ---------------------------------------------------- |
-| Framework | Next.js App Router + React                  | SSR/SSG flexibility, large ecosystem, a11y tooling   |
-| Language  | TypeScript (strict)                         | Type safety, shared types with backend               |
-| Styling   | CSS Modules or Tailwind                     | Scoped styles, no global conflicts                   |
-| i18n      | Library TBD (e.g., react-intl, i18next)     | Externalized strings, pluralization, date formatting |
-| State     | Server-state library (e.g., TanStack Query) | API-driven; minimize client-side state               |
-| Testing   | Vitest + Testing Library + axe-core         | Unit, component, a11y                                |
+- `/dashboard`
+- `/bookings`
+- `/team-calendar`
+- `/leave`
+- `/roster`
+- `/approvals`
+- `/time-engine`
+- `/closing`
+- `/reports`
+- `/oncall`
+- `/policy-admin`
 
----
-
-## 3. Key Views
-
-| View                | Primary Persona          | Description                                                                    |
-| ------------------- | ------------------------ | ------------------------------------------------------------------------------ |
-| **Dashboard**       | Employee                 | Today's Soll/Ist, running balance, quick actions (clock in/out, request leave) |
-| **My Bookings**     | Employee                 | List/calendar of own bookings; correction request flow                         |
-| **Leave Request**   | Employee                 | Submit leave; see remaining quota; conflict warnings                           |
-| **Team Calendar**   | Team Lead                | Privacy-filtered absence overview; coverage indicators                         |
-| **Roster View**     | Shift Employee / Planner | Published shift plan; plan-vs-actual; swap request                             |
-| **Approval Inbox**  | Team Lead / HR           | Pending requests with approve/reject; delegation indicator                     |
-| **Monthly Closing** | HR / Team Lead           | Checklist, missing items, approval, export trigger                             |
-| **Admin / Config**  | Admin                    | Roles, OE structure, rule sets, terminal status                                |
-
----
-
-## 4. Conventions
-
-### Component Structure
+## 4. Shared Frontend Structure
 
 ```
-src/ui/
-├── components/          # Reusable UI components (Button, Card, DataTable, etc.)
-├── pages/               # Route-level page components
-│   ├── dashboard/
-│   ├── bookings/
-│   ├── leave/
-│   ├── roster/
-│   ├── approvals/
-│   ├── closing/
-│   └── admin/
+apps/web/src/
+├── app/
+│   ├── layout.tsx
+│   ├── globals.css
+│   └── [locale]/
+│       ├── layout.tsx
+│       └── */page.tsx
+├── components/
+│   ├── PageShell.tsx
+│   ├── SectionCard.tsx
+│   ├── ConnectionPanel.tsx
+│   ├── StatusBanner.tsx
+│   └── FormField.tsx
 ├── i18n/
-│   ├── de.json          # German translations
-│   └── en.json          # English translations
-└── hooks/               # Shared React hooks (useAuth, useBookings, etc.)
+├── lib/
+│   ├── api-client.ts
+│   └── api-context.tsx
+└── messages/
+    ├── de.json
+    └── en.json
 ```
 
-### Naming
+## 5. Conventions
 
-- Components: PascalCase (`BookingCard.tsx`)
-- Hooks: camelCase with `use` prefix (`useLeaveBalance.ts`)
-- Translation keys: dot-separated, snake_case (`dashboard.balance.current_month`)
-- CSS classes: kebab-case or Tailwind utilities
+### API Calls
+
+- Page components must use the shared API context/client.
+- Duplicate per-page `apiBaseUrl` and `apiRequest` implementations are disallowed.
+- Request headers must consistently include `Authorization: Bearer <token>` when token is configured.
+
+### Internationalization
+
+- All user-facing text is stored in `messages/de.json` and `messages/en.json`.
+- No hardcoded UI labels in page components.
+- Domain terms should align with [`docs/design-docs/core-beliefs.md`](design-docs/core-beliefs.md).
 
 ### Accessibility
 
-- Every interactive element has a visible label or `aria-label`.
-- Color is never the sole indicator of state (use icons/text alongside).
-- Keyboard navigation works for all core flows.
-- `axe-core` runs in CI — no critical violations allowed.
+- Semantic labels for inputs and actions are required.
+- Keyboard navigation must work for core workflows.
+- Playwright + axe checks are part of acceptance coverage.
 
-### i18n Rules
+### Privacy and Visibility
 
-- **No hardcoded strings** in components. All user-visible text uses translation keys.
-- German is the primary locale; English is always provided.
-- Dates, times, and numbers use `Intl` formatting with the user's locale.
-- Domain terms follow the [glossary](design-docs/core-beliefs.md#domain-glossary).
+- UI should only display data permitted by the authenticated role.
+- API is the source of truth for access control; UI must avoid leaking restricted fields.
+- Team calendar and reporting views must preserve privacy guardrails.
 
----
+## 6. MVP Implementation Status
 
-## 5. Privacy in the UI
-
-The UI enforces role-based visibility at the component level:
-
-| Data                                 | Employee | Team Lead | HR         | Admin |
-| ------------------------------------ | -------- | --------- | ---------- | ----- |
-| Own bookings                         | ✅       | ✅        | ✅         | ✅    |
-| Own balance                          | ✅       | ✅        | ✅         | ✅    |
-| Team absence (reason)                | ❌       | ✅        | ✅         | ❌    |
-| Team absence (status only: "absent") | ✅       | ✅        | ✅         | ✅    |
-| Others' bookings                     | ❌       | ❌        | ✅ (audit) | ❌    |
-| Aggregated reports                   | ❌       | Team only | All        | ❌    |
-
-The API enforces these rules server-side; the UI reflects them via conditional rendering.
-
----
-
-## 6. TODO: Confirm
-
-- [ ] Design system / component library (build from scratch vs. adopt e.g. Radix, shadcn)
-- [ ] Mobile-responsive design requirements for MVP
-
----
+- Core MVP views are implemented and integrated with API endpoints.
+- Frontend architecture has moved from isolated page-local helpers to shared API/UI primitives.
+- Deferred roadmap items (mobile-first experience, advanced design system migration) are intentionally out of this MVP baseline.
 
 ## 7. References
 
-- [`DESIGN.md`](DESIGN.md) — Design patterns
-- [`QUALITY_SCORE.md`](QUALITY_SCORE.md) — Testing targets including UI
-- [`design-docs/core-beliefs.md`](design-docs/core-beliefs.md) — Glossary and principles
-- [`product-specs/new-user-onboarding.md`](product-specs/new-user-onboarding.md) — First user journey
+- [`docs/QUALITY_SCORE.md`](QUALITY_SCORE.md) — quality and accessibility targets
+- [`docs/product-specs/new-user-onboarding.md`](product-specs/new-user-onboarding.md) — onboarding flow
+- [`docs/product-specs/oncall-domain.md`](product-specs/oncall-domain.md) — on-call domain
+- [`docs/product-specs/workflows-approvals.md`](product-specs/workflows-approvals.md) — approvals and workflows

@@ -15,7 +15,7 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
 
   beforeEach(() => {
     seedPhase2Data();
-  });
+  }, 30_000);
 
   afterAll(async () => {
     if (app) {

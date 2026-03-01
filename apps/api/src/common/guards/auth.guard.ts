@@ -4,6 +4,9 @@ import { Reflector } from '@nestjs/core';
 import type { AuthService } from '../auth/auth.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
+const MAX_BEARER_TOKEN_LENGTH = 4096;
+const CONTROL_CHAR_PATTERN = /[\u0000-\u001f\u007f]/u;
+
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
@@ -23,16 +26,33 @@ export class AuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<{
-      headers: Record<string, string | undefined>;
+      headers: Record<string, string | string[] | undefined>;
       user?: unknown;
     }>();
 
-    const authorization = request.headers.authorization;
-    if (!authorization || !authorization.startsWith('Bearer ')) {
+    const authorizationHeader = request.headers.authorization;
+    if (Array.isArray(authorizationHeader) && authorizationHeader.length !== 1) {
+      throw new UnauthorizedException('Multiple Authorization headers are not allowed.');
+    }
+    const authorization = Array.isArray(authorizationHeader)
+      ? authorizationHeader[0]?.trim()
+      : authorizationHeader?.trim();
+    const bearerMatch = authorization ? /^Bearer\s+(.+)$/iu.exec(authorization) : null;
+    if (!bearerMatch) {
       throw new UnauthorizedException('Missing Bearer token.');
     }
 
-    const token = authorization.slice('Bearer '.length).trim();
+    const token = bearerMatch[1]?.trim();
+    if (!token) {
+      throw new UnauthorizedException('Missing Bearer token.');
+    }
+    if (token.length > MAX_BEARER_TOKEN_LENGTH) {
+      throw new UnauthorizedException('Bearer token is too large.');
+    }
+    if (CONTROL_CHAR_PATTERN.test(token)) {
+      throw new UnauthorizedException('Bearer token is malformed.');
+    }
+
     request.user = await this.authService.verifyToken(token);
     return true;
   }

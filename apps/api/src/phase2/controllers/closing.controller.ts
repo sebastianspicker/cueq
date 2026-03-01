@@ -58,8 +58,8 @@ export class ClosingController {
 
   @Get(':id/checklist')
   @ApiOperation({ summary: 'Generate checklist for closing period' })
-  checklist(@Param('id') closingPeriodId: string) {
-    return this.phase2Service.closingChecklist(closingPeriodId);
+  checklist(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+    return this.phase2Service.closingChecklist(user, closingPeriodId);
   }
 
   @Post(':id/approve')

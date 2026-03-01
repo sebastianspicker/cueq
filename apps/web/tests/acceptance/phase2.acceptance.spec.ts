@@ -11,6 +11,8 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
   test('serves default German dashboard and English locale route', async ({ request }) => {
     const de = await request.get('http://localhost:3000/de/dashboard');
     const en = await request.get('http://localhost:3000/en/dashboard');
+    const bookings = await request.get('http://localhost:3000/de/bookings');
+    const oncall = await request.get('http://localhost:3000/de/oncall');
     const closing = await request.get('http://localhost:3000/de/closing');
     const approvals = await request.get('http://localhost:3000/de/approvals');
     const reports = await request.get('http://localhost:3000/de/reports');
@@ -20,6 +22,8 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
 
     expect(de.status()).toBe(200);
     expect(en.status()).toBe(200);
+    expect(bookings.status()).toBe(200);
+    expect(oncall.status()).toBe(200);
     expect(closing.status()).toBe(200);
     expect(approvals.status()).toBe(200);
     expect(reports.status()).toBe(200);
@@ -29,6 +33,8 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
 
     expect(await de.text()).toContain('Soll/Ist');
     expect(await en.text()).toContain('Target/actual');
+    expect(await bookings.text()).toContain('Meine Buchungen');
+    expect(await oncall.text()).toContain('Rufbereitschaft');
     expect(await closing.text()).toContain('Monatsabschluss');
     expect(await approvals.text()).toContain('Freigabe-Postfach');
     expect(await reports.text()).toContain('Berichte');
@@ -188,6 +194,43 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     await page.getByLabel('Bearer token').fill(employeeToken);
     await page.getByRole('button', { name: 'Load reports' }).click();
     await expect(page.locator('p[role="alert"]')).toContainText('403');
+  });
+
+  test('bookings page lists bookings and creates correction workflow', async ({ page }) => {
+    await page.goto('http://localhost:3000/de/bookings');
+    await page.getByLabel('Bearer-Token').fill(employeeToken);
+    await page.getByRole('button', { name: 'Eigene Buchungen laden' }).click();
+
+    const entries = page.locator('li');
+    await expect(entries.first()).toBeVisible();
+    const firstBookingRow = await entries.first().innerText();
+    const bookingId = firstBookingRow.split('|')[0]?.trim();
+    expect(bookingId).toBeTruthy();
+
+    await page.getByLabel('Buchungs-ID').fill(bookingId ?? '');
+    await page
+      .getByLabel('Begründung')
+      .fill('Need correction for this entry from acceptance test path.');
+    await page.getByRole('button', { name: 'Korrektur-Workflow erstellen' }).click();
+    await expect(page.getByText('Korrektur-Workflow erstellt.')).toBeVisible();
+  });
+
+  test('on-call page supports deployment and compliance checks', async ({ page }) => {
+    const hrToken = mockToken({
+      sub: 'c000000000000000000000103',
+      email: 'hr@cueq.local',
+      role: 'HR',
+      organizationUnitId: 'c000000000000000000000001',
+    });
+
+    await page.goto('http://localhost:3000/de/oncall');
+    await page.getByLabel('Bearer-Token').fill(hrToken);
+    await page.getByLabel('Person-ID').fill('c000000000000000000000105');
+    await page.getByLabel('Organisationseinheit-ID').fill('c000000000000000000000002');
+    await page.getByRole('button', { name: 'Rotationen laden' }).click();
+    await page.getByRole('button', { name: 'Einsätze laden' }).click();
+    await page.getByRole('button', { name: 'Compliance prüfen' }).click();
+    await expect(page.getByRole('heading', { name: 'Compliance' })).toBeVisible();
   });
 
   test('policy admin page allows HR/Admin and blocks employee', async ({ page }) => {

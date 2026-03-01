@@ -60,6 +60,14 @@ export const ListOnCallRotationsQuerySchema = z.object({
 });
 export type ListOnCallRotationsQuery = z.infer<typeof ListOnCallRotationsQuerySchema>;
 
+export const ListOnCallDeploymentsQuerySchema = z.object({
+  personId: IdSchema.optional(),
+  organizationUnitId: IdSchema.optional(),
+  from: DateTimeSchema.optional(),
+  to: DateTimeSchema.optional(),
+});
+export type ListOnCallDeploymentsQuery = z.infer<typeof ListOnCallDeploymentsQuerySchema>;
+
 /** An individual deployment/callout during on-call */
 export const OnCallDeploymentSchema = z.object({
   id: IdSchema,
@@ -75,16 +83,21 @@ export const OnCallDeploymentSchema = z.object({
 export type OnCallDeployment = z.infer<typeof OnCallDeploymentSchema>;
 
 /** Create a new deployment entry */
-export const CreateOnCallDeploymentSchema = z.object({
-  rotationId: IdSchema,
-  personId: IdSchema,
-  startTime: DateTimeSchema,
-  endTime: DateTimeSchema.optional(),
-  remote: z.boolean().default(true),
-  ticketReference: z.string().max(200).optional(),
-  eventReference: z.string().max(200).optional(),
-  description: z.string().max(2000).optional(),
-});
+export const CreateOnCallDeploymentSchema = z
+  .object({
+    rotationId: IdSchema,
+    personId: IdSchema,
+    startTime: DateTimeSchema,
+    endTime: DateTimeSchema.optional(),
+    remote: z.boolean().default(true),
+    ticketReference: z.string().max(200).optional(),
+    eventReference: z.string().max(200).optional(),
+    description: z.string().max(2000).optional(),
+  })
+  .refine((input) => !input.endTime || input.startTime < input.endTime, {
+    message: 'endTime must be after startTime',
+    path: ['endTime'],
+  });
 export type CreateOnCallDeployment = z.infer<typeof CreateOnCallDeploymentSchema>;
 
 /** Compliance check result for on-call rest periods */

@@ -259,6 +259,14 @@ describe('Phase 2 compliance', () => {
       .set('Authorization', `Bearer ${TOKENS.employee}`);
     expect(employeeOptions.status).toBe(403);
 
+    const employeePreview = await request(app.getHttpServer())
+      .get('/v1/reports/custom/preview')
+      .set('Authorization', `Bearer ${TOKENS.employee}`)
+      .query({
+        reportType: 'TEAM_ABSENCE',
+      });
+    expect(employeePreview.status).toBe(403);
+
     const hrPreview = await request(app.getHttpServer())
       .get('/v1/reports/custom/preview')
       .set('Authorization', `Bearer ${TOKENS.hr}`)

@@ -1,17 +1,13 @@
 import { createHash } from 'node:crypto';
-import {
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@cueq/database';
 import { BookingSource } from '@cueq/database';
 import { buildAuditEntry } from '@cueq/core';
 import { z } from 'zod';
 import { PrismaService } from '../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../common/auth/auth.types';
+import { assertIntegrationToken } from '../common/integrations/integration-token';
+import { parseCsvRecords } from '../common/csv/parse-csv';
 
 const TerminalSyncBatchSchema = z.object({
   terminalId: z.string().min(1),
@@ -27,11 +23,13 @@ const TerminalSyncBatchSchema = z.object({
   ),
 });
 
+const MAX_TERMINAL_CSV_BYTES = 2_000_000;
+
 const TerminalSyncBatchFileSchema = z.object({
   terminalId: z.string().min(1),
   sourceFile: z.string().optional(),
   protocol: z.enum(['HONEYWELL_CSV_V1']).default('HONEYWELL_CSV_V1'),
-  csv: z.string().min(1),
+  csv: z.string().min(1).max(MAX_TERMINAL_CSV_BYTES),
 });
 
 const TerminalHeartbeatSchema = z.object({
@@ -77,21 +75,18 @@ export class TerminalGatewayService {
     }>;
     malformedRows: number;
   } {
-    const lines = csv
-      .split(/\r?\n/u)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    if (lines.length === 0) {
+    let headers: string[] = [];
+    let rows: Array<Record<string, string>> = [];
+    try {
+      ({ headers, rows } = parseCsvRecords(csv));
+    } catch (error) {
+      throw new BadRequestException(
+        `Invalid Honeywell CSV payload: ${error instanceof Error ? error.message : 'parse error'}`,
+      );
+    }
+    if (headers.length === 0) {
       return { records: [], malformedRows: 0 };
     }
-
-    const [headerLine, ...rowLines] = lines;
-    if (!headerLine) {
-      return { records: [], malformedRows: 0 };
-    }
-
-    const headers = headerLine.split(',').map((header) => header.trim());
     const requiredHeaders = ['personId', 'timeTypeCode', 'startTime'];
     const missingHeader = requiredHeaders.find((required) => !headers.includes(required));
     if (missingHeader) {
@@ -107,9 +102,7 @@ export class TerminalGatewayService {
     }> = [];
     let malformedRows = 0;
 
-    for (const rowLine of rowLines) {
-      const values = rowLine.split(',').map((value) => value.trim());
-      const raw = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']));
+    for (const raw of rows) {
       const parsed = TerminalCsvRowSchema.safeParse({
         personId: raw.personId,
         timeTypeCode: raw.timeTypeCode,
@@ -125,13 +118,6 @@ export class TerminalGatewayService {
     }
 
     return { records, malformedRows };
-  }
-
-  private assertIntegrationToken(token: string | undefined, envVar: string, fallback: string) {
-    const expected = process.env[envVar] ?? fallback;
-    if (!token || token !== expected) {
-      throw new ForbiddenException('Invalid integration token.');
-    }
   }
 
   private async appendAudit(input: {
@@ -219,6 +205,20 @@ export class TerminalGatewayService {
 
       const bookingStart = new Date(record.startTime);
       const bookingEnd = new Date(record.endTime ?? record.startTime);
+      const existingImportBooking = await this.prisma.booking.findFirst({
+        where: {
+          personId: record.personId,
+          timeTypeId: timeType.id,
+          startTime: bookingStart,
+          endTime: record.endTime ? bookingEnd : null,
+          source: BookingSource.IMPORT,
+        },
+        select: { id: true },
+      });
+      if (existingImportBooking) {
+        duplicates += 1;
+        continue;
+      }
 
       const absenceConflict = await this.prisma.absence.findFirst({
         where: {
@@ -330,8 +330,8 @@ export class TerminalGatewayService {
     return batch;
   }
 
-  async recordHeartbeat(token: string | undefined, payload: unknown) {
-    this.assertIntegrationToken(token, 'TERMINAL_GATEWAY_TOKEN', 'dev-terminal-token');
+  async recordHeartbeat(token: string | string[] | undefined, payload: unknown) {
+    assertIntegrationToken(token, 'TERMINAL_GATEWAY_TOKEN', 'dev-terminal-token');
     const parsed = TerminalHeartbeatSchema.parse(payload) as TerminalHeartbeatInput;
     const observedAt = new Date(parsed.observedAt);
 
@@ -381,8 +381,8 @@ export class TerminalGatewayService {
     };
   }
 
-  async health(token: string | undefined) {
-    this.assertIntegrationToken(token, 'TERMINAL_GATEWAY_TOKEN', 'dev-terminal-token');
+  async health(token: string | string[] | undefined) {
+    assertIntegrationToken(token, 'TERMINAL_GATEWAY_TOKEN', 'dev-terminal-token');
 
     const now = Date.now();
     const terminals = await this.prisma.terminalDevice.findMany({

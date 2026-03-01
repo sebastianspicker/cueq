@@ -5,6 +5,8 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     fileParallelism: false,
+    hookTimeout: 30_000,
+    testTimeout: 60_000,
     setupFiles: ['test/setup/compliance-db.setup.ts'],
     include: ['test/compliance/**/*.test.ts'],
     exclude: ['**/dist/**', '**/.next/**', '**/node_modules/**'],

@@ -328,6 +328,8 @@ Run `make help` for a full list. Key commands:
 | `make setup`         | Install dependencies, start Docker, generate Prisma client, push schema                            |
 | `make dev`           | Start API + Web with hot reload                                                                    |
 | `make check`         | Full validation: lint + format + typecheck + docs links + schemas/fixtures + tests + OpenAPI drift |
+| `make quick`         | Fast local validation: lint + typecheck + unit tests only                                          |
+| `make docs-check`    | Validate internal markdown links only                                                              |
 | `make lint`          | Run linters (check mode)                                                                           |
 | `make lint-fix`      | Auto-fix lint + format                                                                             |
 | `make typecheck`     | TypeScript type checking                                                                           |

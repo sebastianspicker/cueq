@@ -159,11 +159,11 @@ export function applyCutoffLock(input: CutoffTransitionInput): CutoffTransitionR
       return { nextStatus: input.currentStatus, violations };
     }
 
-    if (input.actorRole !== 'HR') {
+    if (input.actorRole !== 'HR' && input.actorRole !== 'ADMIN') {
       violations.push(
         toViolation({
           code: 'ROLE_FORBIDDEN',
-          message: 'Only HR can re-open a closing period.',
+          message: 'Only HR or Admin can re-open a closing period.',
         }),
       );
       return { nextStatus: input.currentStatus, violations };
@@ -183,11 +183,11 @@ export function applyCutoffLock(input: CutoffTransitionInput): CutoffTransitionR
       return { nextStatus: input.currentStatus, violations };
     }
 
-    if (input.actorRole !== 'HR') {
+    if (input.actorRole !== 'HR' && input.actorRole !== 'ADMIN') {
       violations.push(
         toViolation({
           code: 'ROLE_FORBIDDEN',
-          message: 'Only HR can initiate post-close corrections.',
+          message: 'Only HR or Admin can initiate post-close corrections.',
         }),
       );
       return { nextStatus: input.currentStatus, violations };

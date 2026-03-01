@@ -14,7 +14,7 @@ export class TerminalIntegrationController {
   @Public()
   @ApiOperation({ summary: 'Record terminal heartbeat (integration token required)' })
   recordHeartbeat(
-    @Headers('x-integration-token') integrationToken: string | undefined,
+    @Headers('x-integration-token') integrationToken: string | string[] | undefined,
     @Body() payload: unknown,
   ) {
     return this.terminalGatewayService.recordHeartbeat(integrationToken, payload);
@@ -23,7 +23,7 @@ export class TerminalIntegrationController {
   @Get('health')
   @Public()
   @ApiOperation({ summary: 'Read terminal health snapshot (integration token required)' })
-  health(@Headers('x-integration-token') integrationToken: string | undefined) {
+  health(@Headers('x-integration-token') integrationToken: string | string[] | undefined) {
     return this.terminalGatewayService.health(integrationToken);
   }
 }

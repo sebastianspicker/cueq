@@ -2,43 +2,104 @@
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { PrismaClient, Role, WorkTimeModelType } from '@prisma/client';
+import { parseArgsMap } from '../../../scripts/lib/parse-args.mjs';
 
-function parseArgs(argv) {
-  const args = { file: null, sourceFile: null };
-  for (let index = 2; index < argv.length; index += 1) {
-    const current = argv[index];
-    if (current === '--file') {
-      args.file = argv[index + 1] ?? null;
-      index += 1;
+function normalizeRow(row) {
+  return row.map((cell) => String(cell).trim());
+}
+
+function pushRow(rows, row) {
+  const normalized = normalizeRow(row);
+  if (normalized.every((cell) => cell.length === 0)) {
+    return;
+  }
+  rows.push(normalized);
+}
+
+function parseCsvRows(csv) {
+  const rows = [];
+  let row = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < csv.length; index += 1) {
+    const char = csv[index];
+    if (!char) {
       continue;
     }
-    if (current === '--source-file') {
-      args.sourceFile = argv[index + 1] ?? null;
-      index += 1;
+
+    if (char === '"') {
+      const next = csv[index + 1];
+      if (inQuotes && next === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
     }
+
+    if (char === ',' && !inQuotes) {
+      row.push(current);
+      current = '';
+      continue;
+    }
+
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      row.push(current);
+      current = '';
+      pushRow(rows, row);
+      row = [];
+      if (char === '\r' && csv[index + 1] === '\n') {
+        index += 1;
+      }
+      continue;
+    }
+
+    current += char;
   }
 
-  if (!args.file) {
-    throw new Error('Missing required --file argument.');
+  if (inQuotes) {
+    throw new Error('CSV parse error: unmatched quote in input.');
   }
 
-  return args;
+  if (current.length > 0 || row.length > 0) {
+    row.push(current);
+    pushRow(rows, row);
+  }
+
+  return rows;
+}
+
+function parseCsvRecords(csv) {
+  const parsedRows = parseCsvRows(csv);
+  if (parsedRows.length < 2) {
+    return { headers: [], rows: [] };
+  }
+
+  const [headerRow, ...dataRows] = parsedRows;
+  const headers = [...headerRow].map((header) => String(header).trim());
+  if (headers[0]) {
+    headers[0] = headers[0].replace(/^\ufeff/u, '');
+  }
+  if (headers.some((header) => header.length === 0)) {
+    throw new Error('CSV parse error: header names must be non-empty.');
+  }
+  if (new Set(headers).size !== headers.length) {
+    throw new Error('CSV parse error: duplicate header names are not allowed.');
+  }
+
+  return {
+    headers,
+    rows: dataRows.map((values) =>
+      Object.fromEntries(headers.map((header, idx) => [header, values[idx] ?? ''])),
+    ),
+  };
 }
 
 function parseCsv(csv) {
-  const lines = csv
-    .split(/\r?\n/u)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length < 2) {
-    return [];
-  }
-
-  const headers = lines[0].split(',').map((header) => header.trim());
-  return lines.slice(1).map((line) => {
-    const values = line.split(',').map((value) => value.trim());
-    const row = Object.fromEntries(headers.map((header, idx) => [header, values[idx] ?? '']));
+  const { rows } = parseCsvRecords(csv);
+  return rows.map((row) => {
     return {
       externalId: row.externalId ?? '',
       firstName: row.firstName ?? '',
@@ -68,8 +129,14 @@ function toRole(input) {
 }
 
 async function main() {
-  const args = parseArgs(process.argv);
-  const filePath = resolve(process.cwd(), args.file);
+  const args = parseArgsMap(process.argv.slice(2));
+  const file = args.get('--file');
+  if (!file) {
+    throw new Error('Missing required --file argument.');
+  }
+
+  const sourceFile = args.get('--source-file') ?? null;
+  const filePath = resolve(process.cwd(), file);
   const csv = await readFile(filePath, 'utf8');
   const rows = parseCsv(csv);
 
@@ -194,7 +261,7 @@ async function main() {
 
     const summary = {
       source: 'FILE',
-      sourceFile: args.sourceFile ?? basename(filePath),
+      sourceFile: sourceFile ?? basename(filePath),
       totalRows: rows.length,
       createdRows,
       updatedRows,

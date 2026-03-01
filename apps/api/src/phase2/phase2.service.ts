@@ -56,6 +56,7 @@ import {
   CreateShiftSchema,
   CreateWebhookEndpointSchema,
   DeliveryQuerySchema,
+  ListOnCallDeploymentsQuerySchema,
   ListOnCallRotationsQuerySchema,
   LeaveAdjustmentQuerySchema,
   OeOvertimeQuerySchema,
@@ -81,12 +82,15 @@ import {
 } from '@cueq/shared';
 import { PrismaService } from '../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../common/auth/auth.types';
+import { assertWebhookDispatchTargetUrl, assertWebhookTargetUrl } from '../common/http/webhook-url';
+import { readResponseBodyWithLimit } from '../common/http/read-response-body';
 import { TerminalGatewayService } from './terminal-gateway.service';
 import { WorkflowRuntimeService } from './workflow-runtime.service';
 
 const HR_LIKE_ROLES = new Set<Role>([Role.HR, Role.ADMIN]);
 const EXPORT_DOWNLOAD_ROLES = new Set<Role>([Role.HR, Role.ADMIN, Role.PAYROLL]);
 const APPROVAL_ROLES = new Set<Role>([Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN]);
+const CLOSING_READ_ROLES = new Set<Role>([Role.TEAM_LEAD, Role.HR, Role.ADMIN]);
 const REPORT_ALLOWED_ROLES = new Set<Role>([
   Role.TEAM_LEAD,
   Role.HR,
@@ -121,6 +125,8 @@ const HOLIDAY_FIXTURE_PATHS = [
   resolve(process.cwd(), 'fixtures/calendars'),
   resolve(process.cwd(), '../../fixtures/calendars'),
 ];
+const WEBHOOK_RESPONSE_BODY_MAX_CHARS = 8_000;
+const WEBHOOK_ERROR_MAX_CHARS = 1_000;
 
 type ClosingActorRole = 'EMPLOYEE' | 'TEAM_LEAD' | 'HR' | 'ADMIN';
 type CoreClosingStatus = 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED';
@@ -166,6 +172,17 @@ function escapeXml(value: string): string {
     .replaceAll("'", '&apos;');
 }
 
+function truncateForStorage(value: string | null, maxChars: number): string | null {
+  if (value === null) {
+    return null;
+  }
+  if (value.length <= maxChars) {
+    return value;
+  }
+
+  return `${value.slice(0, maxChars)}...[truncated]`;
+}
+
 function toCoreClosingStatus(status: ClosingStatus): CoreClosingStatus {
   if (status === ClosingStatus.CLOSED) {
     return 'APPROVED';
@@ -201,10 +218,29 @@ export class Phase2Service {
   ) {}
 
   private async personForUser(user: AuthenticatedIdentity) {
-    const person = await this.prisma.person.findFirst({
+    const personBySubject = await this.prisma.person.findFirst({
       where: {
-        OR: [{ id: user.subject }, { externalId: user.subject }, { email: user.email }],
+        OR: [{ id: user.subject }, { externalId: user.subject }],
       },
+      include: { workTimeModel: true },
+    });
+
+    if (personBySubject) {
+      if (personBySubject.email.toLowerCase() !== user.email.toLowerCase()) {
+        const personByEmail = await this.prisma.person.findUnique({
+          where: { email: user.email },
+          select: { id: true },
+        });
+        if (personByEmail && personByEmail.id !== personBySubject.id) {
+          throw new ForbiddenException('Authenticated claims do not match person identity.');
+        }
+      }
+
+      return personBySubject;
+    }
+
+    const person = await this.prisma.person.findUnique({
+      where: { email: user.email },
       include: { workTimeModel: true },
     });
 
@@ -997,6 +1033,11 @@ export class Phase2Service {
         'Use POST /v1/closing-periods/{id}/corrections/bookings for controlled correction entries.',
       );
     }
+    if (parsed.source === BookingSource.IMPORT || parsed.source === BookingSource.TERMINAL) {
+      throw new BadRequestException(
+        'Booking source IMPORT/TERMINAL is reserved for integration ingestion paths.',
+      );
+    }
 
     const targetPerson = await this.prisma.person.findUnique({
       where: { id: parsed.personId },
@@ -1494,18 +1535,33 @@ export class Phase2Service {
     const requester = await this.personForUser(user);
     const parsed = BookingCorrectionSchema.parse(payload);
 
-    const booking = await this.prisma.booking.findUnique({ where: { id: parsed.bookingId } });
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: parsed.bookingId },
+      include: {
+        person: {
+          select: {
+            id: true,
+            organizationUnitId: true,
+            supervisorId: true,
+          },
+        },
+      },
+    });
     if (!booking) {
       throw new NotFoundException('Booking not found.');
     }
 
     this.assertCanActForPerson(user, requester.id, booking.personId);
+    const preferredApproverId =
+      booking.personId === requester.id
+        ? (booking.person.supervisorId ?? requester.supervisorId ?? undefined)
+        : undefined;
 
     const assignment = await this.workflowRuntimeService.buildWorkflowAssignment({
       type: WorkflowType.BOOKING_CORRECTION,
       requesterId: requester.id,
-      requesterOrganizationUnitId: requester.organizationUnitId,
-      preferredApproverId: requester.supervisorId ?? undefined,
+      requesterOrganizationUnitId: booking.person.organizationUnitId,
+      preferredApproverId,
     });
 
     const workflow = await this.prisma.workflowInstance.create({
@@ -1572,6 +1628,19 @@ export class Phase2Service {
       throw new NotFoundException('Shift not found.');
     }
 
+    const toPerson = await this.prisma.person.findUnique({
+      where: { id: parsed.toPersonId },
+      select: { id: true, organizationUnitId: true },
+    });
+    if (!toPerson) {
+      throw new NotFoundException('toPersonId person not found.');
+    }
+    if (toPerson.organizationUnitId !== shift.roster.organizationUnitId) {
+      throw new BadRequestException(
+        'toPersonId must belong to the shift roster organization unit.',
+      );
+    }
+
     const fromAssignment = shift.assignments.find(
       (assignment) => assignment.personId === parsed.fromPersonId,
     );
@@ -1592,7 +1661,7 @@ export class Phase2Service {
     const assignment = await this.workflowRuntimeService.buildWorkflowAssignment({
       type: WorkflowType.SHIFT_SWAP,
       requesterId: requester.id,
-      requesterOrganizationUnitId: requester.organizationUnitId,
+      requesterOrganizationUnitId: shift.roster.organizationUnitId,
       preferredApproverId: preferredApprover?.id ?? undefined,
     });
 
@@ -1654,6 +1723,21 @@ export class Phase2Service {
     });
     if (!targetPerson) {
       throw new NotFoundException('Person not found.');
+    }
+
+    const matchingAccount = await this.prisma.timeAccount.findFirst({
+      where: {
+        personId: parsed.personId,
+        periodStart: { lte: start },
+        periodEnd: { gte: end },
+      },
+      select: { id: true },
+      orderBy: { periodStart: 'desc' },
+    });
+    if (!matchingAccount) {
+      throw new BadRequestException(
+        'No matching time account exists for the requested overtime approval period.',
+      );
     }
 
     const assignment = await this.workflowRuntimeService.buildWorkflowAssignment({
@@ -1795,6 +1879,97 @@ export class Phase2Service {
       ...(payload as Record<string, unknown>),
       workflowId,
     });
+    const requestedAction = this.workflowRuntimeService.normalizeAction(parsed);
+
+    if (requestedAction === 'APPROVE') {
+      const workflowForPrecheck = await this.prisma.workflowInstance.findUnique({
+        where: { id: workflowId },
+        select: {
+          id: true,
+          type: true,
+          entityType: true,
+          entityId: true,
+          requestPayload: true,
+        },
+      });
+      if (!workflowForPrecheck) {
+        throw new NotFoundException('Workflow not found.');
+      }
+
+      if (
+        workflowForPrecheck.type === WorkflowType.SHIFT_SWAP &&
+        workflowForPrecheck.entityType === 'Shift'
+      ) {
+        const requestPayload = ShiftSwapRequestSchema.parse(
+          workflowForPrecheck.requestPayload ?? {},
+        );
+        const shiftId = requestPayload.shiftId || workflowForPrecheck.entityId;
+        const shift = await this.prisma.shift.findUnique({
+          where: { id: shiftId },
+          include: {
+            assignments: true,
+            roster: {
+              select: {
+                organizationUnitId: true,
+              },
+            },
+          },
+        });
+        if (!shift) {
+          throw new NotFoundException('Shift not found for approved swap.');
+        }
+
+        const toPerson = await this.prisma.person.findUnique({
+          where: { id: requestPayload.toPersonId },
+          select: { id: true, organizationUnitId: true },
+        });
+        if (!toPerson) {
+          throw new NotFoundException('toPersonId person no longer exists.');
+        }
+        if (toPerson.organizationUnitId !== shift.roster.organizationUnitId) {
+          throw new BadRequestException(
+            'toPersonId must belong to the shift roster organization unit.',
+          );
+        }
+
+        const fromAssigned = shift.assignments.some(
+          (assignment) => assignment.personId === requestPayload.fromPersonId,
+        );
+        if (!fromAssigned) {
+          throw new BadRequestException('fromPersonId assignment no longer exists on shift.');
+        }
+
+        const toAssigned = shift.assignments.some(
+          (assignment) => assignment.personId === requestPayload.toPersonId,
+        );
+        if (toAssigned) {
+          throw new BadRequestException('toPersonId assignment already exists on shift.');
+        }
+      }
+
+      if (
+        workflowForPrecheck.type === WorkflowType.OVERTIME_APPROVAL &&
+        workflowForPrecheck.entityType === 'TimeAccount'
+      ) {
+        const requestPayload = OvertimeApprovalRequestSchema.parse(
+          workflowForPrecheck.requestPayload ?? {},
+        );
+        const periodStart = new Date(requestPayload.periodStart);
+        const periodEnd = new Date(requestPayload.periodEnd);
+        const account = await this.prisma.timeAccount.findFirst({
+          where: {
+            personId: requestPayload.personId,
+            periodStart: { lte: periodStart },
+            periodEnd: { gte: periodEnd },
+          },
+          select: { id: true },
+          orderBy: { periodStart: 'desc' },
+        });
+        if (!account) {
+          throw new BadRequestException('No matching time account found for overtime approval.');
+        }
+      }
+    }
 
     const decision = await this.workflowRuntimeService.decide(
       {
@@ -1869,10 +2044,29 @@ export class Phase2Service {
       await this.prisma.$transaction(async (tx) => {
         const shift = await tx.shift.findUnique({
           where: { id: shiftId },
-          include: { assignments: true },
+          include: {
+            assignments: true,
+            roster: {
+              select: {
+                organizationUnitId: true,
+              },
+            },
+          },
         });
         if (!shift) {
           throw new NotFoundException('Shift not found for approved swap.');
+        }
+        const toPerson = await tx.person.findUnique({
+          where: { id: payload.toPersonId },
+          select: { id: true, organizationUnitId: true },
+        });
+        if (!toPerson) {
+          throw new NotFoundException('toPersonId person no longer exists.');
+        }
+        if (toPerson.organizationUnitId !== shift.roster.organizationUnitId) {
+          throw new BadRequestException(
+            'toPersonId must belong to the shift roster organization unit.',
+          );
         }
         const fromAssignment = shift.assignments.find(
           (assignment) => assignment.personId === payload.fromPersonId,
@@ -1883,15 +2077,16 @@ export class Phase2Service {
         const toAssigned = shift.assignments.some(
           (assignment) => assignment.personId === payload.toPersonId,
         );
-        await tx.shiftAssignment.delete({ where: { id: fromAssignment.id } });
-        if (!toAssigned) {
-          await tx.shiftAssignment.create({
-            data: {
-              shiftId: shift.id,
-              personId: payload.toPersonId,
-            },
-          });
+        if (toAssigned) {
+          throw new BadRequestException('toPersonId assignment already exists on shift.');
         }
+        await tx.shiftAssignment.delete({ where: { id: fromAssignment.id } });
+        await tx.shiftAssignment.create({
+          data: {
+            shiftId: shift.id,
+            personId: payload.toPersonId,
+          },
+        });
       });
 
       await this.appendAudit({
@@ -2665,9 +2860,33 @@ export class Phase2Service {
       throw new ForbiddenException('Only approval-capable roles can manage on-call rotations.');
     }
 
-    const parsed = CreateOnCallRotationSchema.parse(payload);
-    if (user.role === Role.TEAM_LEAD && parsed.organizationUnitId !== actor.organizationUnitId) {
-      throw new ForbiddenException('Team leads can only create rotations in their own unit.');
+    const parsedPayload = CreateOnCallRotationSchema.safeParse(payload);
+    if (!parsedPayload.success) {
+      throw new BadRequestException(
+        parsedPayload.error.issues.map((issue) => issue.message).join('; '),
+      );
+    }
+    const parsed = parsedPayload.data;
+    if (
+      (user.role === Role.TEAM_LEAD || user.role === Role.SHIFT_PLANNER) &&
+      parsed.organizationUnitId !== actor.organizationUnitId
+    ) {
+      throw new ForbiddenException(
+        'Team leads and shift planners can only create rotations in their own unit.',
+      );
+    }
+
+    const person = await this.prisma.person.findUnique({
+      where: { id: parsed.personId },
+      select: { id: true, organizationUnitId: true },
+    });
+    if (!person) {
+      throw new NotFoundException('Person for on-call rotation was not found.');
+    }
+    if (person.organizationUnitId !== parsed.organizationUnitId) {
+      throw new BadRequestException(
+        'On-call rotation organizationUnitId must match the person organization unit.',
+      );
     }
 
     const rotation = await this.prisma.onCallRotation.create({
@@ -2705,16 +2924,26 @@ export class Phase2Service {
     }
 
     const parsed = ListOnCallRotationsQuerySchema.parse(query ?? {});
+    const fromDate = parsed.from ? new Date(parsed.from) : null;
+    const toDate = parsed.to ? new Date(parsed.to) : null;
+    if (fromDate && toDate && fromDate > toDate) {
+      throw new BadRequestException('from must be on or before to.');
+    }
     const where: Prisma.OnCallRotationWhereInput = {
       personId: parsed.personId,
       organizationUnitId: parsed.organizationUnitId,
-      startTime: parsed.from ? { gte: new Date(parsed.from) } : undefined,
-      endTime: parsed.to ? { lte: new Date(parsed.to) } : undefined,
     };
+    if (fromDate && toDate) {
+      where.AND = [{ startTime: { lte: toDate } }, { endTime: { gte: fromDate } }];
+    } else if (fromDate) {
+      where.endTime = { gte: fromDate };
+    } else if (toDate) {
+      where.startTime = { lte: toDate };
+    }
 
     if (user.role === Role.EMPLOYEE) {
       where.personId = actor.id;
-    } else if (user.role === Role.TEAM_LEAD) {
+    } else if (user.role === Role.TEAM_LEAD || user.role === Role.SHIFT_PLANNER) {
       where.organizationUnitId = actor.organizationUnitId;
     }
 
@@ -2722,6 +2951,56 @@ export class Phase2Service {
       where,
       orderBy: { startTime: 'asc' },
     });
+  }
+
+  async listOnCallDeployments(user: AuthenticatedIdentity, query: unknown) {
+    const actor = await this.personForUser(user);
+    if (!APPROVAL_ROLES.has(user.role) && user.role !== Role.EMPLOYEE) {
+      throw new ForbiddenException('Role does not permit reading deployments.');
+    }
+
+    const parsed = ListOnCallDeploymentsQuerySchema.parse(query ?? {});
+    const fromDate = parsed.from ? new Date(parsed.from) : null;
+    const toDate = parsed.to ? new Date(parsed.to) : null;
+    if (fromDate && toDate && fromDate > toDate) {
+      throw new BadRequestException('from must be on or before to.');
+    }
+    const where: Prisma.OnCallDeploymentWhereInput = {
+      personId: parsed.personId,
+      rotation: parsed.organizationUnitId
+        ? { organizationUnitId: parsed.organizationUnitId }
+        : undefined,
+    };
+    if (fromDate && toDate) {
+      where.AND = [{ startTime: { lte: toDate } }, { endTime: { gte: fromDate } }];
+    } else if (fromDate) {
+      where.endTime = { gte: fromDate };
+    } else if (toDate) {
+      where.startTime = { lte: toDate };
+    }
+
+    if (user.role === Role.EMPLOYEE) {
+      where.personId = actor.id;
+    } else if (user.role === Role.TEAM_LEAD || user.role === Role.SHIFT_PLANNER) {
+      where.rotation = { organizationUnitId: actor.organizationUnitId };
+    }
+
+    const deployments = await this.prisma.onCallDeployment.findMany({
+      where,
+      orderBy: { startTime: 'asc' },
+    });
+
+    return deployments.map((deployment) => ({
+      id: deployment.id,
+      personId: deployment.personId,
+      rotationId: deployment.rotationId,
+      startTime: deployment.startTime.toISOString(),
+      endTime: deployment.endTime.toISOString(),
+      remote: deployment.remote,
+      ticketReference: deployment.ticketReference,
+      eventReference: deployment.eventReference,
+      description: deployment.description,
+    }));
   }
 
   async updateOnCallRotation(user: AuthenticatedIdentity, rotationId: string, payload: unknown) {
@@ -2735,8 +3014,13 @@ export class Phase2Service {
       throw new NotFoundException('On-call rotation not found.');
     }
 
-    if (user.role === Role.TEAM_LEAD && existing.organizationUnitId !== actor.organizationUnitId) {
-      throw new ForbiddenException('Team leads can only update rotations in their own unit.');
+    if (
+      (user.role === Role.TEAM_LEAD || user.role === Role.SHIFT_PLANNER) &&
+      existing.organizationUnitId !== actor.organizationUnitId
+    ) {
+      throw new ForbiddenException(
+        'Team leads and shift planners can only update rotations in their own unit.',
+      );
     }
 
     const parsed = UpdateOnCallRotationSchema.parse(payload);
@@ -2778,7 +3062,13 @@ export class Phase2Service {
 
   async createOnCallDeployment(user: AuthenticatedIdentity, payload: unknown) {
     const actor = await this.personForUser(user);
-    const parsed = CreateOnCallDeploymentSchema.parse(payload);
+    const parsedPayload = CreateOnCallDeploymentSchema.safeParse(payload);
+    if (!parsedPayload.success) {
+      throw new BadRequestException(
+        parsedPayload.error.issues.map((issue) => issue.message).join('; '),
+      );
+    }
+    const parsed = parsedPayload.data;
 
     this.assertCanActForPerson(user, actor.id, parsed.personId);
 
@@ -2801,8 +3091,24 @@ export class Phase2Service {
     const endTime = parsed.endTime
       ? new Date(parsed.endTime)
       : new Date(new Date(parsed.startTime).getTime() + 60 * 60 * 1000);
+    if (endTime <= deploymentStart) {
+      throw new BadRequestException('Deployment end time must be after start time.');
+    }
     if (endTime > rotation.endTime) {
       throw new BadRequestException('Deployment end time must be within rotation window.');
+    }
+
+    const duplicate = await this.prisma.onCallDeployment.findFirst({
+      where: {
+        personId: parsed.personId,
+        rotationId: parsed.rotationId,
+        startTime: deploymentStart,
+        endTime,
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      throw new ConflictException('An identical on-call deployment already exists.');
     }
 
     const deployment = await this.prisma.onCallDeployment.create({
@@ -2945,7 +3251,7 @@ export class Phase2Service {
       to: toMonth,
       organizationUnitId,
     });
-    if (!APPROVAL_ROLES.has(user.role)) {
+    if (!CLOSING_READ_ROLES.has(user.role)) {
       throw new ForbiddenException('Role does not permit reading closing periods.');
     }
 
@@ -3003,7 +3309,7 @@ export class Phase2Service {
 
   async getClosingPeriod(user: AuthenticatedIdentity, closingPeriodId: string) {
     const actor = await this.personForUser(user);
-    if (!APPROVAL_ROLES.has(user.role)) {
+    if (!CLOSING_READ_ROLES.has(user.role)) {
       throw new ForbiddenException('Role does not permit reading closing periods.');
     }
 
@@ -3155,6 +3461,10 @@ export class Phase2Service {
   }
 
   async reopenClosing(user: AuthenticatedIdentity, closingPeriodId: string) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can reopen closing periods.');
+    }
+
     const actor = await this.personForUser(user);
     const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
     if (!period) {
@@ -3206,7 +3516,12 @@ export class Phase2Service {
     };
   }
 
-  async closingChecklist(closingPeriodId: string) {
+  async closingChecklist(user: AuthenticatedIdentity, closingPeriodId: string) {
+    const actor = await this.personForUser(user);
+    if (!CLOSING_READ_ROLES.has(user.role)) {
+      throw new ForbiddenException('Role does not permit reading closing checklist details.');
+    }
+
     const period = await this.prisma.closingPeriod.findUnique({
       where: { id: closingPeriodId },
       include: {
@@ -3216,6 +3531,11 @@ export class Phase2Service {
 
     if (!period) {
       throw new NotFoundException('Closing period not found.');
+    }
+    if (user.role === Role.TEAM_LEAD && period.organizationUnitId !== actor.organizationUnitId) {
+      throw new ForbiddenException(
+        'Team leads can only access closing checklist in their own unit.',
+      );
     }
 
     const personScope = await this.prisma.person.findMany({
@@ -3431,7 +3751,7 @@ export class Phase2Service {
       );
     }
 
-    const checklist = await this.closingChecklist(closingPeriodId);
+    const checklist = await this.closingChecklist(user, closingPeriodId);
     const transition = applyCutoffLock({
       currentStatus: toCoreClosingStatus(period.status),
       action: 'APPROVE',
@@ -3501,6 +3821,11 @@ export class Phase2Service {
 
     const accounts = await this.prisma.timeAccount.findMany({
       where: {
+        person: period.organizationUnitId
+          ? {
+              organizationUnitId: period.organizationUnitId,
+            }
+          : undefined,
         periodStart: { gte: period.periodStart },
         periodEnd: { lte: period.periodEnd },
       },
@@ -3969,10 +4294,11 @@ export class Phase2Service {
 
     const actor = await this.personForUser(user);
     const parsed = CreateWebhookEndpointSchema.parse(payload);
+    const validatedUrl = assertWebhookTargetUrl(parsed.url).toString();
     const endpoint = await this.prisma.webhookEndpoint.create({
       data: {
         name: parsed.name,
-        url: parsed.url,
+        url: validatedUrl,
         subscribedEvents: parsed.subscribedEvents,
         secretRef: parsed.secretRef,
         createdById: actor.id,
@@ -4132,10 +4458,41 @@ export class Phase2Service {
         let responseBody: string | null = null;
         let error: string | null = null;
         let deliveredAt: Date | null = null;
+        let targetUrl: string;
 
         try {
-          const response = await fetch(endpoint.url, {
+          targetUrl = (await assertWebhookDispatchTargetUrl(endpoint.url)).toString();
+        } catch (validationError) {
+          status = 'FAILED';
+          error =
+            validationError instanceof BadRequestException
+              ? String(validationError.message)
+              : validationError instanceof Error
+                ? validationError.message
+                : 'Invalid webhook endpoint url';
+          error = truncateForStorage(error, WEBHOOK_ERROR_MAX_CHARS);
+          eventFailed = true;
+          lastError = error;
+
+          await this.prisma.webhookDelivery.create({
+            data: {
+              outboxEventId: event.id,
+              endpointId: endpoint.id,
+              attempt,
+              status,
+              httpStatus,
+              responseBody,
+              error,
+              deliveredAt,
+            },
+          });
+          continue;
+        }
+
+        try {
+          const response = await fetch(targetUrl, {
             method: 'POST',
+            redirect: 'manual',
             headers: {
               'Content-Type': 'application/json',
               'X-Cueq-Event-Type': event.eventType,
@@ -4145,7 +4502,7 @@ export class Phase2Service {
           });
 
           httpStatus = response.status;
-          responseBody = await response.text();
+          responseBody = await readResponseBodyWithLimit(response, WEBHOOK_RESPONSE_BODY_MAX_CHARS);
           if (response.ok) {
             deliveredAt = new Date();
           } else {
@@ -4156,6 +4513,7 @@ export class Phase2Service {
           status = 'FAILED';
           error = dispatchError instanceof Error ? dispatchError.message : 'Unknown dispatch error';
         }
+        error = truncateForStorage(error, WEBHOOK_ERROR_MAX_CHARS);
 
         if (status === 'FAILED') {
           eventFailed = true;
@@ -4640,6 +4998,7 @@ export class Phase2Service {
   }
 
   async reportCustomPreview(user: AuthenticatedIdentity, query: unknown) {
+    this.assertCanReadReports(user);
     const normalizedQuery =
       query && typeof query === 'object' && !Array.isArray(query)
         ? { ...(query as Record<string, unknown>) }
@@ -4765,7 +5124,10 @@ export class Phase2Service {
     return this.terminalGatewayService.importBatchFile(user, actor.id, payload);
   }
 
-  async getTerminalBatch(batchId: string) {
+  async getTerminalBatch(user: AuthenticatedIdentity, batchId: string) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can read terminal batches.');
+    }
     return this.terminalGatewayService.getBatch(batchId);
   }
 

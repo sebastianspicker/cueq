@@ -31,6 +31,16 @@ dev: ## Start development servers (API + Web) with hot reload
 check: ## Full validation: lint + format + typecheck + schemas + tests + openapi-check
 	$(SCRIPTS)/check.sh
 
+.PHONY: quick
+quick: ## Fast local validation: lint + typecheck + unit tests
+	$(SCRIPTS)/pnpm.sh lint
+	$(SCRIPTS)/pnpm.sh typecheck
+	$(SCRIPTS)/pnpm.sh test:unit
+
+.PHONY: docs-check
+docs-check: ## Validate internal markdown links
+	$(SCRIPTS)/pnpm.sh docs:links
+
 .PHONY: lint
 lint: ## Run linters in check mode (no auto-fix)
 	$(SCRIPTS)/pnpm.sh lint

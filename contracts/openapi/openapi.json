@@ -1110,6 +1110,24 @@
         "tags": [
           "oncall"
         ]
+      },
+      "get": {
+        "operationId": "OncallController_listDeployments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List on-call deployments",
+        "tags": [
+          "oncall"
+        ]
       }
     },
     "/v1/oncall/compliance": {

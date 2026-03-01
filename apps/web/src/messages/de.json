@@ -12,7 +12,9 @@
       "timeEngine": "Time Engine",
       "closing": "Monatsabschluss",
       "reports": "Berichte",
-      "policyAdmin": "Policy-Admin"
+      "policyAdmin": "Policy-Admin",
+      "bookings": "Meine Buchungen",
+      "oncall": "Rufbereitschaft"
     }
   },
   "pages": {
@@ -306,6 +308,61 @@
       "emptyResult": "Noch kein Auswertungsergebnis vorhanden.",
       "invalidJson": "Payload muss gültiges JSON sein.",
       "requestFailed": "Anfrage fehlgeschlagen."
+    },
+    "bookings": {
+      "title": "Meine Buchungen",
+      "description": "Eigene Buchungen einsehen und Korrekturen anfragen.",
+      "apiBaseLabel": "API-Basis-URL",
+      "tokenLabel": "Bearer-Token",
+      "load": "Eigene Buchungen laden",
+      "loading": "Lädt...",
+      "requestFailed": "Anfrage fehlgeschlagen.",
+      "noBookings": "Keine Buchungen gefunden.",
+      "correctionTitle": "Korrektur anfragen",
+      "bookingIdLabel": "Buchungs-ID",
+      "startTimeLabel": "Neuer Startzeitpunkt (ISO, optional)",
+      "endTimeLabel": "Neuer Endzeitpunkt (ISO, optional)",
+      "timeTypeIdLabel": "Neue Zeittyp-ID (optional)",
+      "reasonLabel": "Begründung",
+      "submitCorrection": "Korrektur-Workflow erstellen",
+      "correctionCreated": "Korrektur-Workflow erstellt."
+    },
+    "oncall": {
+      "title": "Rufbereitschaft",
+      "description": "Rotationen, Einsätze und Compliance-Prüfungen verwalten.",
+      "apiBaseLabel": "API-Basis-URL",
+      "tokenLabel": "Bearer-Token",
+      "loading": "Lädt...",
+      "requestFailed": "Anfrage fehlgeschlagen.",
+      "loadRotations": "Rotationen laden",
+      "loadDeployments": "Einsätze laden",
+      "runCompliance": "Compliance prüfen",
+      "rotationsTitle": "Rotationen",
+      "deploymentsTitle": "Einsätze",
+      "noRotations": "Keine Rotationen gefunden.",
+      "noDeployments": "Keine Einsätze gefunden.",
+      "createRotationTitle": "Rotation anlegen",
+      "updateRotationTitle": "Rotation aktualisieren",
+      "createDeploymentTitle": "Einsatz anlegen",
+      "personIdLabel": "Person-ID",
+      "organizationUnitIdLabel": "Organisationseinheit-ID",
+      "rotationIdLabel": "Rotations-ID",
+      "startTimeLabel": "Startzeit (ISO)",
+      "endTimeLabel": "Endzeit (ISO)",
+      "rotationTypeLabel": "Rotationstyp",
+      "noteLabel": "Notiz",
+      "ticketLabel": "Ticket-Referenz",
+      "eventLabel": "Event-Referenz",
+      "descriptionLabel": "Beschreibung",
+      "remoteLabel": "Remote",
+      "nextShiftStartLabel": "Nächster Schichtstart (ISO)",
+      "createRotation": "Rotation erstellen",
+      "updateRotation": "Rotation aktualisieren",
+      "createDeployment": "Einsatz erstellen",
+      "complianceTitle": "Compliance",
+      "rotationCreated": "Rotation erstellt.",
+      "rotationUpdated": "Rotation aktualisiert.",
+      "deploymentCreated": "Einsatz erstellt."
     }
   }
 }

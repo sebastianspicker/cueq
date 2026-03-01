@@ -12,7 +12,7 @@ export class HrImportController {
   @Public()
   @ApiOperation({ summary: 'Run HR master data import (file/API, integration token required)' })
   runImport(
-    @Headers('x-integration-token') integrationToken: string | undefined,
+    @Headers('x-integration-token') integrationToken: string | string[] | undefined,
     @Body() payload: unknown,
   ): Promise<unknown> {
     return this.hrImportService.runImport(integrationToken, payload);
@@ -22,7 +22,7 @@ export class HrImportController {
   @Public()
   @ApiOperation({ summary: 'Get HR import run by id (integration token required)' })
   getImportRun(
-    @Headers('x-integration-token') integrationToken: string | undefined,
+    @Headers('x-integration-token') integrationToken: string | string[] | undefined,
     @Param('id') runId: string,
   ): Promise<unknown> {
     return this.hrImportService.getRun(integrationToken, runId);

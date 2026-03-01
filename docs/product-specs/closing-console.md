@@ -51,7 +51,7 @@ Each export produces an `ExportRun` record with:
 - Idempotent: re-running with unchanged data produces identical output
 - Logged in audit trail with full metadata
 
-## 6. UI Skeleton (Future)
+## 6. UI Surface
 
 The Closing Console will be a dedicated view at `/closing` with:
 
@@ -61,7 +61,7 @@ The Closing Console will be a dedicated view at `/closing` with:
 - Export trigger with progress indicator
 - Post-close correction panel (HR role only)
 
-> **No UI implementation yet.** This spec guides the skeleton page in `apps/web/`.
+The Closing Console UI is implemented in `apps/web` and backed by production API routes in `apps/api`.
 
 ## 7. References
 

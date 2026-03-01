@@ -156,18 +156,36 @@ export const CreateWorkflowDelegationRuleSchema = z
         path: ['delegateId'],
       });
     }
+
+    if (value.activeTo && value.activeTo <= value.activeFrom) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'activeTo must be after activeFrom',
+        path: ['activeTo'],
+      });
+    }
   });
 export type CreateWorkflowDelegationRule = z.infer<typeof CreateWorkflowDelegationRuleSchema>;
 
-export const UpdateWorkflowDelegationRuleSchema = z.object({
-  delegateId: IdSchema.optional(),
-  workflowType: WorkflowTypeSchema.optional().nullable(),
-  organizationUnitId: IdSchema.optional().nullable(),
-  activeFrom: DateTimeSchema.optional(),
-  activeTo: DateTimeSchema.optional().nullable(),
-  isActive: z.boolean().optional(),
-  priority: z.number().int().nonnegative().optional(),
-});
+export const UpdateWorkflowDelegationRuleSchema = z
+  .object({
+    delegateId: IdSchema.optional(),
+    workflowType: WorkflowTypeSchema.optional().nullable(),
+    organizationUnitId: IdSchema.optional().nullable(),
+    activeFrom: DateTimeSchema.optional(),
+    activeTo: DateTimeSchema.optional().nullable(),
+    isActive: z.boolean().optional(),
+    priority: z.number().int().nonnegative().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.activeFrom && value.activeTo && value.activeTo <= value.activeFrom) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'activeTo must be after activeFrom',
+        path: ['activeTo'],
+      });
+    }
+  });
 export type UpdateWorkflowDelegationRule = z.infer<typeof UpdateWorkflowDelegationRuleSchema>;
 
 /** Backward-compat alias for legacy call sites */

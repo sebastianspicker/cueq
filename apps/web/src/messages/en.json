@@ -12,7 +12,9 @@
       "timeEngine": "Time Engine",
       "closing": "Closing",
       "reports": "Reports",
-      "policyAdmin": "Policy Admin"
+      "policyAdmin": "Policy Admin",
+      "bookings": "My Bookings",
+      "oncall": "On-Call"
     }
   },
   "pages": {
@@ -306,6 +308,61 @@
       "emptyResult": "No evaluation result yet.",
       "invalidJson": "Payload must be valid JSON.",
       "requestFailed": "Request failed."
+    },
+    "bookings": {
+      "title": "My Bookings",
+      "description": "Review your bookings and request corrections.",
+      "apiBaseLabel": "API base URL",
+      "tokenLabel": "Bearer token",
+      "load": "Load my bookings",
+      "loading": "Loading...",
+      "requestFailed": "Request failed.",
+      "noBookings": "No bookings found.",
+      "correctionTitle": "Request correction",
+      "bookingIdLabel": "Booking ID",
+      "startTimeLabel": "New start time (ISO, optional)",
+      "endTimeLabel": "New end time (ISO, optional)",
+      "timeTypeIdLabel": "New time type ID (optional)",
+      "reasonLabel": "Reason",
+      "submitCorrection": "Create correction workflow",
+      "correctionCreated": "Correction workflow created."
+    },
+    "oncall": {
+      "title": "On-Call",
+      "description": "Manage rotations, deployments, and compliance checks.",
+      "apiBaseLabel": "API base URL",
+      "tokenLabel": "Bearer token",
+      "loading": "Loading...",
+      "requestFailed": "Request failed.",
+      "loadRotations": "Load rotations",
+      "loadDeployments": "Load deployments",
+      "runCompliance": "Run compliance check",
+      "rotationsTitle": "Rotations",
+      "deploymentsTitle": "Deployments",
+      "noRotations": "No rotations found.",
+      "noDeployments": "No deployments found.",
+      "createRotationTitle": "Create rotation",
+      "updateRotationTitle": "Update rotation",
+      "createDeploymentTitle": "Create deployment",
+      "personIdLabel": "Person ID",
+      "organizationUnitIdLabel": "Organization unit ID",
+      "rotationIdLabel": "Rotation ID",
+      "startTimeLabel": "Start time (ISO)",
+      "endTimeLabel": "End time (ISO)",
+      "rotationTypeLabel": "Rotation type",
+      "noteLabel": "Note",
+      "ticketLabel": "Ticket reference",
+      "eventLabel": "Event reference",
+      "descriptionLabel": "Description",
+      "remoteLabel": "Remote",
+      "nextShiftStartLabel": "Next shift start (ISO)",
+      "createRotation": "Create rotation",
+      "updateRotation": "Update rotation",
+      "createDeployment": "Create deployment",
+      "complianceTitle": "Compliance",
+      "rotationCreated": "Rotation created.",
+      "rotationUpdated": "Rotation updated.",
+      "deploymentCreated": "Deployment created."
     }
   }
 }

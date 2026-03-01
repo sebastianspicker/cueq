@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { URL } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 
@@ -232,7 +232,7 @@ async function main() {
     await source.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${restoreSchema}" CASCADE`);
     await source.$executeRawUnsafe(`CREATE SCHEMA "${restoreSchema}"`);
 
-    execSync(`DATABASE_URL='${restoreUrl}' pnpm db:push`, {
+    execFileSync('pnpm', ['db:push'], {
       stdio: 'pipe',
       env: {
         ...process.env,

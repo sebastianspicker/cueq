@@ -1,19 +1,23 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@cueq/database';
 import { Role, WorkTimeModelType } from '@cueq/database';
 import { z } from 'zod';
 import { buildAuditEntry } from '@cueq/core';
 import { PrismaService } from '../persistence/prisma.service';
+import { assertIntegrationToken } from '../common/integrations/integration-token';
+import { parseCsvRecords } from '../common/csv/parse-csv';
 import {
   HR_MASTER_PROVIDER,
   type HrMasterProviderPort,
   type HrMasterRecord,
 } from './hr-master-provider.port';
 
+const MAX_HR_IMPORT_CSV_BYTES = 2_000_000;
+
 const HrImportPayloadSchema = z.object({
   source: z.enum(['FILE', 'API']).default('FILE'),
   sourceFile: z.string().optional(),
-  csv: z.string().optional(),
+  csv: z.string().max(MAX_HR_IMPORT_CSV_BYTES).optional(),
 });
 
 type HrImportPayload = z.infer<typeof HrImportPayloadSchema>;
@@ -29,32 +33,9 @@ export class HrImportService {
     @Inject(HR_MASTER_PROVIDER) private readonly provider: HrMasterProviderPort,
   ) {}
 
-  private assertIntegrationToken(token: string | undefined, envVar: string, fallback: string) {
-    const expected = process.env[envVar] ?? fallback;
-    if (!token || token !== expected) {
-      throw new ForbiddenException('Invalid integration token.');
-    }
-  }
-
   private parseCsv(csv: string): ParsedRow[] {
-    const lines = csv
-      .split(/\r?\n/u)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    if (lines.length < 2) {
-      return [];
-    }
-
-    const [headerLine, ...dataLines] = lines;
-    if (!headerLine) {
-      return [];
-    }
-
-    const headers = headerLine.split(',').map((header) => header.trim());
-    return dataLines.map((line) => {
-      const values = line.split(',').map((value) => value.trim());
-      const row = Object.fromEntries(headers.map((header, idx) => [header, values[idx] ?? '']));
+    const { rows } = parseCsvRecords(csv);
+    return rows.map((row) => {
       return {
         externalId: row.externalId ?? '',
         firstName: row.firstName ?? '',
@@ -113,15 +94,21 @@ export class HrImportService {
     });
   }
 
-  async runImport(token: string | undefined, payload: unknown) {
-    this.assertIntegrationToken(token, 'HR_IMPORT_TOKEN', 'dev-hr-token');
+  async runImport(token: string | string[] | undefined, payload: unknown) {
+    assertIntegrationToken(token, 'HR_IMPORT_TOKEN', 'dev-hr-token');
     const parsedPayload = HrImportPayloadSchema.parse(payload) as HrImportPayload;
 
     let rows: ParsedRow[] = [];
     if (parsedPayload.source === 'API') {
       rows = await this.provider.fetchMasterRecords();
     } else {
-      rows = this.parseCsv(parsedPayload.csv ?? '');
+      try {
+        rows = this.parseCsv(parsedPayload.csv ?? '');
+      } catch (error) {
+        throw new BadRequestException(
+          `Invalid HR CSV payload: ${error instanceof Error ? error.message : 'parse error'}`,
+        );
+      }
     }
 
     let createdRows = 0;
@@ -297,8 +284,8 @@ export class HrImportService {
     };
   }
 
-  async getRun(token: string | undefined, runId: string) {
-    this.assertIntegrationToken(token, 'HR_IMPORT_TOKEN', 'dev-hr-token');
+  async getRun(token: string | string[] | undefined, runId: string) {
+    assertIntegrationToken(token, 'HR_IMPORT_TOKEN', 'dev-hr-token');
 
     const run = await this.prisma.hrImportRun.findUnique({ where: { id: runId } });
     if (!run) {

@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { useApiContext } from '../../../lib/api-context';
 
 interface TeamCalendarEntry {
   id: string;
@@ -17,33 +19,19 @@ interface TeamCalendarEntry {
 
 export default function TeamCalendarPage() {
   const t = useTranslations('pages.teamCalendar');
-  const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:3001');
-  const [token, setToken] = useState('');
+  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
   const [start, setStart] = useState('2026-04-01');
   const [end, setEnd] = useState('2026-04-30');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<TeamCalendarEntry[]>([]);
 
-  const baseUrl = useMemo(() => apiBaseUrl.replace(/\/$/, ''), [apiBaseUrl]);
-
   async function load() {
     setLoading(true);
     setError(null);
     try {
       const query = new URLSearchParams({ start, end });
-      const response = await fetch(`${baseUrl}/v1/calendar/team?${query.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const text = await response.text();
-      const data = text ? (JSON.parse(text) as TeamCalendarEntry[]) : [];
-      if (!response.ok) {
-        throw new Error(text || t('requestFailed'));
-      }
-
+      const data = await apiRequest<TeamCalendarEntry[]>(`/v1/calendar/team?${query.toString()}`);
       setEntries(data);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
@@ -57,20 +45,14 @@ export default function TeamCalendarPage() {
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
 
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('apiBaseLabel')}</span>
-        <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} />
-      </label>
-
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('tokenLabel')}</span>
-        <input
-          type="password"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="mock.eyJzdWIiOiJjLi4uIn0"
-        />
-      </label>
+      <ConnectionPanel
+        apiBaseLabel={t('apiBaseLabel')}
+        tokenLabel={t('tokenLabel')}
+        apiBaseUrl={apiBaseUrl}
+        setApiBaseUrl={setApiBaseUrl}
+        token={token}
+        setToken={setToken}
+      />
 
       <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
         <label style={{ display: 'grid', gap: '.25rem' }}>

@@ -46,4 +46,12 @@ test.describe('a11y acceptance (critical/serious)', () => {
   test('reports route', async ({ page }) => {
     await expectNoCriticalOrSeriousViolations(page, 'http://localhost:3000/de/reports', hrToken);
   });
+
+  test('bookings route', async ({ page }) => {
+    await expectNoCriticalOrSeriousViolations(page, 'http://localhost:3000/de/bookings', hrToken);
+  });
+
+  test('oncall route', async ({ page }) => {
+    await expectNoCriticalOrSeriousViolations(page, 'http://localhost:3000/de/oncall', hrToken);
+  });
 });

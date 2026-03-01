@@ -64,8 +64,8 @@
 | Lint errors                        | 0          | ESLint / Biome        |
 | Type errors                        | 0          | TypeScript `--noEmit` |
 | Formatting drift                   | 0          | Prettier / Biome      |
-| Cyclomatic complexity per function | ≤15        | Linter rule           |
-| Maximum file length                | ≤400 lines | Linter rule           |
+| Cyclomatic complexity per function | ≤15        | Aspirational (review) |
+| Maximum file length                | ≤400 lines | PR policy target      |
 
 ---
 
@@ -77,6 +77,8 @@
 | New entity without glossary entry   | 0      | Code review checklist                              |
 | ADR for every non-trivial decision  | ✅     | Code review checklist                              |
 | Product spec for every feature area | ✅     | [`product-specs/index.md`](product-specs/index.md) |
+
+`Broken internal links` is currently enforced via `pnpm docs:links` in `make check` and CI.
 
 ---
 
@@ -110,6 +112,12 @@ Quality metrics should be:
 3. **Trended** — track over time to detect regression
 
 CI metrics are surfaced through GitHub Actions job summaries and required status checks.
+
+Enforced repository gates (current):
+
+- `make check` (lint, format check, typecheck, docs link check, schema checks, tests, policy golden, openapi check)
+- `make test-all` (unit, integration, acceptance, compliance, backup/restore)
+- `cueq/no-manual-schema-types` ESLint rule for shared schema files
 
 ---
 

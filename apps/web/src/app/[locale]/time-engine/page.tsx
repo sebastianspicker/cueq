@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { useApiContext } from '../../../lib/api-context';
 
 const DEFAULT_PAYLOAD = JSON.stringify(
   {
@@ -42,8 +44,7 @@ interface TimeEngineResponse {
 
 export default function TimeEnginePage() {
   const t = useTranslations('pages.timeEngine');
-  const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:3001');
-  const [token, setToken] = useState('');
+  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
   const [payload, setPayload] = useState(DEFAULT_PAYLOAD);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,22 +64,10 @@ export default function TimeEnginePage() {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl.replace(/\/$/, '')}/v1/time-engine/evaluate`, {
+      const data = await apiRequest<TimeEngineResponse>('/v1/time-engine/evaluate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(parsedPayload),
       });
-
-      const responseText = await response.text();
-      const data = responseText ? (JSON.parse(responseText) as TimeEngineResponse) : null;
-
-      if (!response.ok || !data) {
-        throw new Error(responseText || t('requestFailed'));
-      }
-
       setResult(data);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : t('requestFailed');
@@ -93,20 +82,14 @@ export default function TimeEnginePage() {
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
 
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('apiBaseLabel')}</span>
-        <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} />
-      </label>
-
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('tokenLabel')}</span>
-        <input
-          type="password"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="mock.eyJzdWIiOiJjLi4uIn0"
-        />
-      </label>
+      <ConnectionPanel
+        apiBaseLabel={t('apiBaseLabel')}
+        tokenLabel={t('tokenLabel')}
+        apiBaseUrl={apiBaseUrl}
+        setApiBaseUrl={setApiBaseUrl}
+        token={token}
+        setToken={setToken}
+      />
 
       <label style={{ display: 'grid', gap: '.25rem' }}>
         <span>{t('payloadLabel')}</span>

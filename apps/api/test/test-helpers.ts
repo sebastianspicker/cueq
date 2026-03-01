@@ -1,13 +1,14 @@
-import { execSync } from 'node:child_process';
-import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { HttpAdapterHost } from '@nestjs/core';
 import { buildMockToken, MOCK_IDENTITIES } from '../src/test-utils/seed-ids';
 import { AppModule } from '../src/app.module';
+import { ZodExceptionFilter } from '../src/common/filters/zod-exception.filter';
 import {
   HR_MASTER_PROVIDER,
   type HrMasterProviderPort,
 } from '../src/phase2/hr-master-provider.port';
+import { DEFAULT_DATABASE_URL, prismaPushReset, runDatabaseScript } from './setup/db-utils';
 
 interface TestAppOptions {
   hrMasterProvider?: HrMasterProviderPort;
@@ -30,33 +31,17 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<INest
   const moduleRef = await moduleBuilder.compile();
 
   const app = moduleRef.createNestApplication();
+  const httpAdapterHost = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new ZodExceptionFilter(httpAdapterHost));
   await app.init();
   return app;
 }
 
 function seedData(script: 'db:seed:phase2' | 'db:seed:phase3') {
-  const cwd = join(__dirname, '..', '..', '..');
-  const databaseUrl =
-    process.env.DATABASE_URL ??
-    'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public';
+  const databaseUrl = process.env.DATABASE_URL ?? DEFAULT_DATABASE_URL;
 
-  execSync('pnpm --filter @cueq/database exec prisma db push --force-reset --skip-generate', {
-    cwd,
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      DATABASE_URL: databaseUrl,
-    },
-  });
-
-  execSync(`pnpm --filter @cueq/database ${script}`, {
-    cwd,
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      DATABASE_URL: databaseUrl,
-    },
-  });
+  prismaPushReset(databaseUrl);
+  runDatabaseScript(script, databaseUrl);
 }
 
 export function seedPhase2Data() {

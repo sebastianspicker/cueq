@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { useApiContext } from '../../../lib/api-context';
+import { ApiRequestError } from '../../../lib/api-client';
 
 interface DashboardSummary {
   personId: string;
@@ -20,26 +23,6 @@ interface DashboardSummary {
 interface ClosingPeriodLockedErrorPayload {
   code?: string;
   periodEnd?: string;
-}
-
-class ApiRequestError extends Error {
-  readonly status: number;
-  readonly payload: unknown;
-
-  constructor(status: number, message: string, payload: unknown) {
-    super(message);
-    this.name = 'ApiRequestError';
-    this.status = status;
-    this.payload = payload;
-  }
-}
-
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
 }
 
 function isClosingPeriodLockedError(
@@ -59,9 +42,8 @@ export default function DashboardPage() {
   const t = useTranslations('pages.dashboard');
   const params = useParams<{ locale: string }>();
   const locale = typeof params?.locale === 'string' ? params.locale : 'de';
+  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
 
-  const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:3001');
-  const [token, setToken] = useState('');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [overtimeHours, setOvertimeHours] = useState('2');
   const [overtimePeriodStart, setOvertimePeriodStart] = useState('2026-03-01T00:00:00.000Z');
@@ -72,31 +54,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const baseUrl = useMemo(() => apiBaseUrl.replace(/\/$/, ''), [apiBaseUrl]);
-
-  async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(`${baseUrl}${path}`, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...(init?.headers ?? {}),
-      },
-    });
-    const text = await response.text();
-    const parsed = text ? parseJson(text) : null;
-
-    if (!response.ok) {
-      const message =
-        typeof parsed === 'object' && parsed !== null && 'message' in parsed
-          ? String(parsed.message)
-          : text || t('requestFailed');
-      throw new ApiRequestError(response.status, `${response.status}: ${message}`, parsed);
-    }
-
-    return parsed as T;
-  }
 
   async function loadSummary() {
     setLoading(true);
@@ -200,20 +157,14 @@ export default function DashboardPage() {
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
 
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('apiBaseLabel')}</span>
-        <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} />
-      </label>
-
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('tokenLabel')}</span>
-        <input
-          type="password"
-          value={token}
-          onChange={(event) => setToken(event.target.value)}
-          placeholder="mock.eyJzdWIiOiJjLi4uIn0"
-        />
-      </label>
+      <ConnectionPanel
+        apiBaseLabel={t('apiBaseLabel')}
+        tokenLabel={t('tokenLabel')}
+        apiBaseUrl={apiBaseUrl}
+        setApiBaseUrl={setApiBaseUrl}
+        token={token}
+        setToken={setToken}
+      />
 
       <div>
         <button type="button" disabled={loading} onClick={() => void loadSummary()}>

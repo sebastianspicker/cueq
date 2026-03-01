@@ -3,17 +3,7 @@ import { jwtVerify } from 'jose';
 import { Role } from '@cueq/database';
 import type { IdentityProviderPort } from './identity-provider.port';
 import type { AuthenticatedIdentity } from './auth.types';
-
-const ROLE_MAP = new Map<string, Role>([
-  ['employee', Role.EMPLOYEE],
-  ['team_lead', Role.TEAM_LEAD],
-  ['shift_planner', Role.SHIFT_PLANNER],
-  ['hr', Role.HR],
-  ['payroll', Role.PAYROLL],
-  ['admin', Role.ADMIN],
-  ['data_protection', Role.DATA_PROTECTION],
-  ['works_council', Role.WORKS_COUNCIL],
-]);
+import { parseRoleClaim } from './role-mapping';
 
 @Injectable()
 export class SamlIdentityProviderAdapter implements IdentityProviderPort {
@@ -40,8 +30,7 @@ export class SamlIdentityProviderAdapter implements IdentityProviderPort {
         throw new UnauthorizedException('Missing required SAML identity claims.');
       }
 
-      const roleClaim = claims.role ? String(claims.role).toLowerCase() : 'employee';
-      const mappedRole = ROLE_MAP.get(roleClaim) ?? Role.EMPLOYEE;
+      const mappedRole = parseRoleClaim(claims.role) ?? Role.EMPLOYEE;
 
       return {
         subject,

@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { useApiContext } from '../../../lib/api-context';
 
 interface ReportSuppression {
   suppressed: boolean;
@@ -115,8 +117,7 @@ interface CustomReportPreview {
 
 export default function ReportsPage() {
   const t = useTranslations('pages.reports');
-  const [apiBaseUrl, setApiBaseUrl] = useState('http://localhost:3001');
-  const [token, setToken] = useState('');
+  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
   const [from, setFrom] = useState('2026-03-01');
   const [to, setTo] = useState('2026-03-31');
   const [organizationUnitId, setOrganizationUnitId] = useState('');
@@ -133,24 +134,6 @@ export default function ReportsPage() {
   const [customType, setCustomType] = useState('TEAM_ABSENCE');
   const [customGroupBy, setCustomGroupBy] = useState('ORGANIZATION_UNIT');
   const [customMetrics, setCustomMetrics] = useState('requests,days');
-
-  const baseUrl = useMemo(() => apiBaseUrl.replace(/\/$/, ''), [apiBaseUrl]);
-
-  async function apiRequest<T>(path: string): Promise<T> {
-    const response = await fetch(`${baseUrl}${path}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const text = await response.text();
-    const data = text ? (JSON.parse(text) as T) : (null as T);
-
-    if (!response.ok) {
-      throw new Error(`${response.status}: ${text || t('requestFailed')}`);
-    }
-
-    return data;
-  }
 
   function buildQuery(includeOrganizationUnit: boolean): string {
     const params = new URLSearchParams();
@@ -254,19 +237,14 @@ export default function ReportsPage() {
 
       <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
         <div style={{ display: 'grid', gap: '.75rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
-            <span>{t('apiBaseLabel')}</span>
-            <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} />
-          </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
-            <span>{t('tokenLabel')}</span>
-            <input
-              type="password"
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              placeholder="mock.eyJzdWIiOiJjLi4uIn0"
-            />
-          </label>
+          <ConnectionPanel
+            apiBaseLabel={t('apiBaseLabel')}
+            tokenLabel={t('tokenLabel')}
+            apiBaseUrl={apiBaseUrl}
+            setApiBaseUrl={setApiBaseUrl}
+            token={token}
+            setToken={setToken}
+          />
           <label style={{ display: 'grid', gap: '.25rem' }}>
             <span>{t('fromLabel')}</span>
             <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />

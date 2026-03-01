@@ -1,33 +1,22 @@
-import { BadRequestException } from '@nestjs/common';
-import { Role } from '@cueq/database';
+import { UnauthorizedException } from '@nestjs/common';
 import type { IdentityProviderPort } from './identity-provider.port';
 import type { AuthenticatedIdentity } from './auth.types';
 import { MOCK_IDENTITIES } from '../../test-utils/seed-ids';
-
-const ROLE_MAP = new Map<string, Role>([
-  ['EMPLOYEE', Role.EMPLOYEE],
-  ['TEAM_LEAD', Role.TEAM_LEAD],
-  ['SHIFT_PLANNER', Role.SHIFT_PLANNER],
-  ['HR', Role.HR],
-  ['PAYROLL', Role.PAYROLL],
-  ['ADMIN', Role.ADMIN],
-  ['DATA_PROTECTION', Role.DATA_PROTECTION],
-  ['WORKS_COUNCIL', Role.WORKS_COUNCIL],
-]);
+import { parseRoleClaim } from './role-mapping';
 
 function toIdentity(claims: Record<string, unknown>): AuthenticatedIdentity {
-  const rawRole = String(claims.role ?? 'EMPLOYEE').toUpperCase();
-  const role = ROLE_MAP.get(rawRole);
+  const rawRole = String(claims.role ?? 'EMPLOYEE');
+  const role = parseRoleClaim(rawRole);
 
   if (!role) {
-    throw new BadRequestException(`Unsupported mock role: ${rawRole}`);
+    throw new UnauthorizedException(`Unsupported mock role: ${rawRole.toUpperCase()}`);
   }
 
   const subject = String(claims.sub ?? '');
   const email = String(claims.email ?? '');
 
   if (!subject || !email) {
-    throw new BadRequestException('Mock token must include sub and email claims.');
+    throw new UnauthorizedException('Mock token must include sub and email claims.');
   }
 
   return {
@@ -41,7 +30,7 @@ function toIdentity(claims: Record<string, unknown>): AuthenticatedIdentity {
 
 function parseEncodedPayload(token: string): Record<string, unknown> {
   if (!token.startsWith('mock.')) {
-    throw new BadRequestException('Mock token must start with mock.');
+    throw new UnauthorizedException('Mock token must start with mock.');
   }
 
   const encoded = token.slice('mock.'.length);
@@ -50,7 +39,7 @@ function parseEncodedPayload(token: string): Record<string, unknown> {
     const parsed = JSON.parse(decoded) as Record<string, unknown>;
     return parsed;
   } catch {
-    throw new BadRequestException('Invalid encoded mock token payload.');
+    throw new UnauthorizedException('Invalid encoded mock token payload.');
   }
 }
 
