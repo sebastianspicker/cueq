@@ -54,9 +54,11 @@ When a new employee is provisioned via HR/IdM master data import and logs in for
 
 ## 6. Privacy Considerations
 
-- [ ] No PII beyond what is synced from HR/IdM (name, OE, model, role)
-- [ ] First-login orientation does not collect additional personal data
-- [ ] Dashboard shows only the employee's own data
+- [x] No PII beyond what is synced from HR/IdM (name, OE, model, role)
+- [x] First-login orientation does not collect additional personal data
+- [x] Dashboard shows only the employee's own data
+
+Evidence mapping: FR-100 integration coverage verifies onboarding metadata shape and first-login behavior (`apps/api/test/integration/fr100.integration.test.ts`); orientation is content-only in dashboard onboarding UI (`apps/web/src/app/[locale]/dashboard/page.tsx`); dashboard summary is identity-scoped through authenticated user resolution in Phase 2 service logic (`apps/api/src/phase2/phase2.service.ts`) and covered by API compliance tests (`apps/api/test/compliance/phase2.compliance.test.ts`).
 
 ---
 

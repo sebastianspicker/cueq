@@ -26,8 +26,20 @@ Any PR that adds a new report or modifies report visibility must include:
 - [ ] **Role check**: Is the report restricted to appropriate roles?
 - [ ] **Audit logging**: Is access to the report logged?
 - [ ] **Works council review**: Has the report been reviewed against the Dienstvereinbarung?
+- [ ] **Review evidence linked**: Does the PR link a `review_id` entry from the reporting privacy review log?
 
 This checklist should be part of the PR template for any change touching `reporting/` paths.
+Checklist completion is evidenced by a linked review-log entry, not by markdown checkboxes alone.
+
+### Evidence Artifact
+
+Canonical evidence file:
+
+- [`docs/design-docs/reporting-privacy-review-log.md`](../design-docs/reporting-privacy-review-log.md)
+
+Required PR linkage format:
+
+- `docs/design-docs/reporting-privacy-review-log.md#rpr-YYYYMMDD-NN`
 
 ### Forbidden Patterns
 

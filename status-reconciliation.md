@@ -1,10 +1,10 @@
-# Status Reconciliation — Completed
+# Status Reconciliation — 2026-03-01 Refresh
 
 ## Objective
 
 Align plan/spec/status documents with implemented repository state.
 
-## Reconciled Areas
+## Reconciled Areas (Done)
 
 - Phase narrative and plan lifecycle in `docs/PLANS.md`
 - Product-spec status and traceability statements in `docs/product-specs/index.md`
@@ -14,8 +14,8 @@ Align plan/spec/status documents with implemented repository state.
 - Quality-gate claims vs automation (`docs links`, `a11y critical/serious`, schema-dup lint rule)
 - Command semantics (`test:all` now includes unit + integration + acceptance + compliance + backup/restore)
 - Contributor map drift (`packages/core` listed in `AGENTS.md`)
-- Deferred roadmap items now implemented and reflected in specs/runbook/tech-debt tracker
+- Deferred roadmap items from the prior gap program now implemented and reflected in specs/runbook/tech-debt tracker
 
-## Remaining Non-Local Reconciliation
+## Remaining Reconciliation
 
-- `docs/PLANS.md` Phase-0 DoD item for default-branch CI-green remains intentionally marked as external confirmation required.
+1. `docs/PLANS.md` Phase-0 DoD item for default-branch CI-green remains intentionally marked as external confirmation required.

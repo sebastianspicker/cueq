@@ -39,6 +39,7 @@
 - [ ] Audit logging for report access
 - [ ] No individual performance/behavior metrics exposed
 - [ ] Works council compatibility confirmed
+- Reporting review artifact link (required): <!-- e.g. docs/design-docs/reporting-privacy-review-log.md#rpr-20260301-01 -->
 
 ## Scope Guardrails
 

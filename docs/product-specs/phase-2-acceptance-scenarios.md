@@ -1,6 +1,6 @@
 # Product Spec: Phase 2 Acceptance Scenarios
 
-> **Status:** 🟡 Active
+> **Status:** ✅ Complete (Historical Baseline)
 > **Purpose:** Canonical acceptance scenario set for Phase 2 delivery.
 
 ---
@@ -8,6 +8,7 @@
 ## Summary
 
 Phase 2 is complete when acceptance tests `AT-01..AT-07` pass against deterministic seed data and API/UI contract expectations.
+This document is retained as the historical baseline for Phase 2, while Phase 3 extends the gate with `AT-08`.
 
 ## Acceptance Matrix
 
@@ -26,6 +27,7 @@ Phase 2 is complete when acceptance tests `AT-01..AT-07` pass against determinis
 
 - Phase 2 target is **7/8** by design (`AT-01..AT-07`).
 - `AT-08` is intentionally deferred to operations hardening in Phase 3.
+- Phase 2 scope is complete; use this spec as historical reference for Phase 2 acceptance behavior.
 
 ## References
 

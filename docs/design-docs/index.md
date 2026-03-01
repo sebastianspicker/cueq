@@ -6,9 +6,10 @@
 
 ## Core Documents
 
-| Document                        | Description                                                        |
-| ------------------------------- | ------------------------------------------------------------------ |
-| [Core Beliefs](core-beliefs.md) | Design principles, domain glossary, and non-negotiable constraints |
+| Document                                                        | Description                                                                      |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [Core Beliefs](core-beliefs.md)                                 | Design principles, domain glossary, and non-negotiable constraints               |
+| [Reporting Privacy Review Log](reporting-privacy-review-log.md) | Governance evidence log for reporting privacy and works-council review decisions |
 
 ## Architecture Decision Records (ADRs)
 

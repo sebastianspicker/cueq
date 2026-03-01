@@ -1,31 +1,28 @@
-# Missing Items (Ranked) — Post-Implementation Snapshot
+# Missing Items (Ranked) — 2026-03-01 Refresh
 
 ## Summary
 
-All previously ranked committed and deferred items from the 2026-03-01 analysis have been implemented in this branch snapshot.
+No open functional implementation gaps were found for PRD coverage `FR-100..FR-700`.
+All in-repo docs/governance closure tasks in PR-1 are implemented; one external post-merge confirmation remains.
 
-## Remaining Gaps
+## Committed Gaps (Actionable)
 
-### P2
+### P2 (External Confirmation)
 
-1. **`PH0-DOD-2` external confirmation**
-   - Why it remains: default-branch CI-green proof requires post-merge verification, not local branch evidence.
-   - Current state: `docs/PLANS.md` keeps this explicitly marked as external confirmation required.
+1. **`GOV-PH0-DOD-2`**
+   - Problem: default-branch CI-green proof cannot be established from local branch.
+   - Fix: attach default-branch workflow URL + commit SHA after merge.
 
-## Resolved Items
+## Deferred / Out-of-Scope (No Current Blocker)
 
-Resolved in this implementation wave:
+1. Workflow admin UI for policies/delegations.
+2. Unrestricted/free-form SQL-style report builder.
+3. Mobile onboarding and supervisor-side new-hire view.
+4. eAU integration and automated leave-planning recommendations.
+
+## Already Resolved in This Program
 
 - Governance/docs alignment (`GOV-SEC-CONTACT`, `GOV-ADR-002`, `GOV-SLA`, `GOV-MONITOR-STACK`)
-- Execution-plan and phase/status reconciliation (`DOC-EXEC-*`, `DOC-PLANS-*`, `DOC-AGENTS-PACKAGES`, `FR-800-TRACE`)
-- Command + quality gate alignment (`CMD-TEST-ALL`, `QG-LINK-CI`, `QG-SCHEMA-DUP-LINT`, `QG-A11Y-*`)
-- FR-100 onboarding (`FR-100-UJ1`)
-- Deferred feature set now implemented:
-  - `WF-SHIFT-SWAP-FLOW`
-  - `WF-OVERTIME-APPROVAL-FLOW`
-  - `EXPORT-MULTI-FORMAT`
-  - `REPORT-CUSTOM-BUILDER`
-  - `POLICY-ADMIN-UI`
-  - `HR-API-PROVIDER`
-  - `SAML-ADAPTER`
-  - `HONEYWELL-PROTOCOL-FINAL`
+- Execution-plan and traceability reconciliation (`DOC-EXEC-*`, `DOC-PLANS-*`, `DOC-AGENTS-PACKAGES`, `FR-800-TRACE`)
+- Quality/command gates (`CMD-TEST-ALL`, `QG-LINK-CI`, `QG-SCHEMA-DUP-LINT`, `QG-A11Y-*`)
+- Feature gaps previously identified in committed and deferred buckets (FR-100, FR-500 deferred flows, FR-700 extensions, policy admin, HR provider, SAML, Honeywell protocol)
