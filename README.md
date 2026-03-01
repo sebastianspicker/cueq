@@ -323,25 +323,60 @@ make dev
 
 Run `make help` for a full list. Key commands:
 
-| Command              | Description                                                                                        |
-| -------------------- | -------------------------------------------------------------------------------------------------- |
-| `make setup`         | Install dependencies, start Docker, generate Prisma client, push schema                            |
-| `make dev`           | Start API + Web with hot reload                                                                    |
-| `make check`         | Full validation: lint + format + typecheck + docs links + schemas/fixtures + tests + OpenAPI drift |
-| `make quick`         | Fast local validation: lint + typecheck + unit tests only                                          |
-| `make docs-check`    | Validate internal markdown links only                                                              |
-| `make lint`          | Run linters (check mode)                                                                           |
-| `make lint-fix`      | Auto-fix lint + format                                                                             |
-| `make typecheck`     | TypeScript type checking                                                                           |
-| `make schemas`       | Validate JSON Schemas and fixture contracts                                                        |
-| `make generate`      | Generate Prisma client, OpenAPI snapshot, and generated schema docs                                |
-| `make openapi-check` | Compare generated OpenAPI spec against committed snapshot                                          |
-| `make test`          | Run all tests                                                                                      |
-| `make test-all`      | Run all test suites (unit + integration + acceptance + compliance + backup/restore)                |
-| `make build`         | Build all packages and apps                                                                        |
-| `make db-generate`   | Regenerate Prisma client after schema change                                                       |
-| `make db-migrate`    | Run database migrations                                                                            |
-| `make clean`         | Stop Docker, remove artifacts                                                                      |
+| Command                 | Description                                                                                        |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| `make setup`            | Install dependencies, start Docker, generate Prisma client, push schema                            |
+| `make dev`              | Start API + Web with hot reload                                                                    |
+| `make check`            | Full validation: lint + format + typecheck + docs links + schemas/fixtures + tests + OpenAPI drift |
+| `make quick`            | Fast local validation: lint + typecheck + unit tests only                                          |
+| `make docs-check`       | Validate internal markdown links only                                                              |
+| `make lint`             | Run linters (check mode)                                                                           |
+| `make lint-fix`         | Auto-fix lint + format                                                                             |
+| `make typecheck`        | TypeScript type checking                                                                           |
+| `make schemas`          | Validate JSON Schemas and fixture contracts                                                        |
+| `make generate`         | Generate Prisma client, OpenAPI snapshot, and generated schema docs                                |
+| `make openapi-check`    | Compare generated OpenAPI spec against committed snapshot                                          |
+| `make test`             | Run all tests                                                                                      |
+| `make test-all`         | Run all test suites (unit + integration + acceptance + compliance + backup/restore)                |
+| `make demo-screenshots` | Generate local German demo screenshots using mock-university seed data                             |
+| `make build`            | Build all packages and apps                                                                        |
+| `make db-generate`      | Regenerate Prisma client after schema change                                                       |
+| `make db-migrate`       | Run database migrations                                                                            |
+| `make clean`            | Stop Docker, remove artifacts                                                                      |
+
+---
+
+## Mock University Demo Screenshots
+
+Generated via:
+
+```bash
+make demo-screenshots
+```
+
+### 1. Dashboard
+
+![Mock University NRW Dashboard](docs/assets/demo-screenshots/01-dashboard.png)
+
+### 2. Leave
+
+![Mock University NRW Leave](docs/assets/demo-screenshots/02-leave.png)
+
+### 3. Roster
+
+![Mock University NRW Roster](docs/assets/demo-screenshots/03-roster.png)
+
+### 4. Approvals
+
+![Mock University NRW Approvals](docs/assets/demo-screenshots/04-approvals.png)
+
+### 5. Closing
+
+![Mock University NRW Closing](docs/assets/demo-screenshots/05-closing.png)
+
+### 6. Reports
+
+![Mock University NRW Reports](docs/assets/demo-screenshots/06-reports.png)
 
 ---
 

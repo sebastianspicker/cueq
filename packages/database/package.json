@@ -22,6 +22,8 @@
     "db:reset:phase2": "node prisma/seed-phase2.mjs reset",
     "db:seed:phase3": "node prisma/seed-phase3.mjs seed",
     "db:reset:phase3": "node prisma/seed-phase3.mjs reset",
+    "db:seed:demo": "node prisma/seed-demo-screenshots.mjs seed",
+    "db:reset:demo": "node prisma/seed-demo-screenshots.mjs reset",
     "db:studio": "prisma studio",
     "clean": "rm -rf dist node_modules/.cache"
   },

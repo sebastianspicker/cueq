@@ -14,6 +14,7 @@
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:acceptance": "playwright test",
+    "test:demo-screenshots": "playwright test --config playwright.demo.config.ts",
     "test:compliance": "vitest run --config vitest.compliance.config.ts",
     "clean": "rm -rf .next node_modules/.cache"
   },

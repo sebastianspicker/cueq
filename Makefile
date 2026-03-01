@@ -106,6 +106,10 @@ test-all: ## Run all test suites
 test-backup-restore: ## Run backup/restore verification (AT-08)
 	node ./scripts/backup-restore-verify.mjs
 
+.PHONY: demo-screenshots
+demo-screenshots: ## Generate local German demo screenshots (mock university dataset)
+	$(SCRIPTS)/pnpm.sh demo:screenshots
+
 # ---------------------------------------------------------------------------
 # Database
 # ---------------------------------------------------------------------------

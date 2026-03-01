@@ -18,8 +18,11 @@ This runbook covers operational procedures introduced in Phase 3:
 | Full local validation            | `make check`                                                                   |
 | Acceptance including AT-08       | `make test-acceptance`                                                         |
 | Backup/restore drill (AT-08)     | `make test-backup-restore`                                                     |
+| Mock university demo screenshots | `make demo-screenshots`                                                        |
 | Phase 3 seed data                | `pnpm --filter @cueq/database db:seed:phase3`                                  |
 | Reset Phase 3 seed               | `pnpm --filter @cueq/database db:reset:phase3`                                 |
+| Demo screenshot seed data        | `pnpm --filter @cueq/database db:seed:demo`                                    |
+| Reset demo screenshot seed       | `pnpm --filter @cueq/database db:reset:demo`                                   |
 | HR import (CLI)                  | `node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv` |
 | FR-400 leave-adjustment backfill | `pnpm backfill:leave-adjustments -- --year 2026`                               |
 
@@ -152,3 +155,24 @@ Weekly workflow: `.github/workflows/backup-restore-weekly.yml`
 - Keep service-account scopes minimal
 - Preserve append-only audit behavior
 - No external telemetry
+
+## 9. Local Demo Screenshots
+
+Generate deterministic German demo screenshots with a dedicated mock-university dataset:
+
+```bash
+make demo-screenshots
+```
+
+Artifacts are generated locally only in:
+
+`apps/web/test-results/demo-screenshots/latest/`
+
+Expected files:
+
+- `01-dashboard.png`
+- `02-leave.png`
+- `03-roster.png`
+- `04-approvals.png`
+- `05-closing.png`
+- `06-reports.png`
