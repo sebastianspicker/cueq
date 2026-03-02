@@ -137,12 +137,12 @@ export default function LeavePage() {
         setToken={setToken}
       />
 
-      <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-        <label style={{ display: 'grid', gap: '.25rem' }}>
+      <div className="cq-grid-2">
+        <label className="cq-form-field">
           <span>{t('yearLabel')}</span>
           <input value={year} onChange={(event) => setYear(event.target.value)} />
         </label>
-        <label style={{ display: 'grid', gap: '.25rem' }}>
+        <label className="cq-form-field">
           <span>{t('asOfLabel')}</span>
           <input
             type="date"
@@ -152,7 +152,7 @@ export default function LeavePage() {
         </label>
       </div>
 
-      <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+      <div className="cq-inline-actions">
         <button type="button" disabled={loading} onClick={() => void loadBalance()}>
           {loading ? t('loading') : t('loadBalance')}
         </button>
@@ -163,8 +163,8 @@ export default function LeavePage() {
 
       <SectionCard>
         <h2>{t('submitRequest')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+        <div className="cq-grid-2">
+          <label className="cq-form-field">
             <span>{t('requestTypeLabel')}</span>
             <select
               value={requestType}
@@ -179,7 +179,7 @@ export default function LeavePage() {
               ))}
             </select>
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('startDateLabel')}</span>
             <input
               type="date"
@@ -187,7 +187,7 @@ export default function LeavePage() {
               onChange={(event) => setStartDate(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('endDateLabel')}</span>
             <input
               type="date"
@@ -195,12 +195,12 @@ export default function LeavePage() {
               onChange={(event) => setEndDate(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('noteLabel')}</span>
             <input value={note} onChange={(event) => setNote(event.target.value)} />
           </label>
         </div>
-        <div style={{ marginTop: '.75rem' }}>
+        <div className="cq-space-top-sm">
           <button type="button" disabled={loading} onClick={() => void submitRequest()}>
             {loading ? t('loading') : t('submitRequest')}
           </button>

@@ -237,7 +237,7 @@ export default function ReportsPage() {
       </p>
 
       <SectionCard>
-        <div style={{ display: 'grid', gap: '.75rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        <div className="cq-grid-2">
           <ConnectionPanel
             apiBaseLabel={t('apiBaseLabel')}
             tokenLabel={t('tokenLabel')}
@@ -246,11 +246,11 @@ export default function ReportsPage() {
             token={token}
             setToken={setToken}
           />
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('fromLabel')}</span>
             <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('toLabel')}</span>
             <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
           </label>
@@ -264,7 +264,7 @@ export default function ReportsPage() {
         </div>
         <button
           type="button"
-          style={{ marginTop: '.75rem' }}
+          className="cq-space-top-sm"
           disabled={loading}
           onClick={() => void loadReports()}
         >
@@ -342,7 +342,7 @@ export default function ReportsPage() {
       <SectionCard>
         <h2>{t('customBuilderHeading')}</h2>
         <p>{t('customBuilderDescription')}</p>
-        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+        <div className="cq-inline-actions">
           <button type="button" disabled={loading} onClick={() => void loadCustomOptions()}>
             {loading ? t('loading') : t('loadCustomOptions')}
           </button>
@@ -351,19 +351,19 @@ export default function ReportsPage() {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gap: '.5rem', marginTop: '.75rem' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+        <div className="cq-list-stack cq-space-top-sm">
+          <label className="cq-form-field">
             <span>{t('customTypeLabel')}</span>
             <input value={customType} onChange={(event) => setCustomType(event.target.value)} />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('customGroupByLabel')}</span>
             <input
               value={customGroupBy}
               onChange={(event) => setCustomGroupBy(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('customMetricsLabel')}</span>
             <input
               value={customMetrics}
@@ -373,13 +373,13 @@ export default function ReportsPage() {
         </div>
 
         {customOptions ? (
-          <p style={{ marginTop: '.75rem' }}>
+          <p className="cq-space-top-sm">
             {t('customOptionsLoaded')}: {customOptions.reportTypes.join(', ')}
           </p>
         ) : null}
 
         {customPreview ? (
-          <div style={{ marginTop: '.75rem' }}>
+          <div className="cq-space-top-sm">
             <p>
               {t('customPreviewLoaded')}: {customPreview.reportType} ({customPreview.groupBy})
             </p>

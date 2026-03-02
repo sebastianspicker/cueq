@@ -202,7 +202,7 @@ export default function DashboardPage() {
 
       <SectionCard>
         <h2>{t('quickActionsTitle')}</h2>
-        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+        <div className="cq-inline-actions">
           <button type="button" disabled={loading || !summary} onClick={() => void clockIn()}>
             {t('clockIn')}
           </button>
@@ -212,8 +212,8 @@ export default function DashboardPage() {
 
       <SectionCard>
         <h2>{t('overtimeTitle')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+        <div className="cq-grid-2">
+          <label className="cq-form-field">
             <span>{t('overtimeHours')}</span>
             <input
               type="number"
@@ -223,21 +223,21 @@ export default function DashboardPage() {
               onChange={(event) => setOvertimeHours(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('overtimeReason')}</span>
             <input
               value={overtimeReason}
               onChange={(event) => setOvertimeReason(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('overtimePeriodStart')}</span>
             <input
               value={overtimePeriodStart}
               onChange={(event) => setOvertimePeriodStart(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('overtimePeriodEnd')}</span>
             <input
               value={overtimePeriodEnd}
@@ -245,7 +245,7 @@ export default function DashboardPage() {
             />
           </label>
         </div>
-        <div style={{ marginTop: '.75rem' }}>
+        <div className="cq-space-top-sm">
           <button
             type="button"
             disabled={loading || !summary}

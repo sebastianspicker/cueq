@@ -168,8 +168,8 @@ export default function ApprovalsPage() {
 
       <SectionCard>
         <h2>{t('filtersTitle')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+        <div className="cq-grid-3">
+          <label className="cq-form-field">
             <span>{t('statusFilter')}</span>
             <select
               value={statusFilter}
@@ -185,7 +185,7 @@ export default function ApprovalsPage() {
             </select>
           </label>
 
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('typeFilter')}</span>
             <select
               value={typeFilter}
@@ -201,7 +201,7 @@ export default function ApprovalsPage() {
             </select>
           </label>
 
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('overdueOnly')}</span>
             <input
               type="checkbox"
@@ -210,7 +210,7 @@ export default function ApprovalsPage() {
             />
           </label>
         </div>
-        <div style={{ marginTop: '.75rem' }}>
+        <div className="cq-space-top-sm">
           <button type="button" disabled={loading} onClick={() => void loadInbox()}>
             {loading ? t('loading') : t('loadInbox')}
           </button>
@@ -224,11 +224,11 @@ export default function ApprovalsPage() {
         {items.length === 0 ? (
           <p>{t('noItems')}</p>
         ) : (
-          <ul style={{ display: 'grid', gap: '.5rem' }}>
+          <ul className="cq-list-stack">
             {items.map((item) => (
               <li
                 key={item.id}
-                style={{ border: '1px solid #e5e7eb', borderRadius: '.5rem', padding: '.5rem' }}
+                className="cq-list-item"
               >
                 <div>
                   <strong>{item.type}</strong> | {item.status} | {item.id}
@@ -250,7 +250,7 @@ export default function ApprovalsPage() {
         {!detail ? (
           <p>{t('selectWorkflow')}</p>
         ) : (
-          <div style={{ display: 'grid', gap: '.5rem' }}>
+          <div className="cq-list-stack">
             <p>
               {t('workflowId')}: {detail.id}
             </p>
@@ -280,8 +280,8 @@ export default function ApprovalsPage() {
               {detail.availableActions.length > 0 ? detail.availableActions.join(', ') : '—'}
             </p>
 
-            <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              <label style={{ display: 'grid', gap: '.25rem' }}>
+            <div className="cq-grid-2">
+              <label className="cq-form-field">
                 <span>{t('actionLabel')}</span>
                 <select
                   value={action}
@@ -297,7 +297,7 @@ export default function ApprovalsPage() {
                 </select>
               </label>
 
-              <label style={{ display: 'grid', gap: '.25rem' }}>
+              <label className="cq-form-field">
                 <span>{t('delegateToId')}</span>
                 <input
                   value={delegateToId}
@@ -307,7 +307,7 @@ export default function ApprovalsPage() {
               </label>
             </div>
 
-            <label style={{ display: 'grid', gap: '.25rem' }}>
+            <label className="cq-form-field">
               <span>{t('reasonInput')}</span>
               <input value={reason} onChange={(event) => setReason(event.target.value)} />
             </label>

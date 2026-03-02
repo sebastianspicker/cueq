@@ -284,8 +284,8 @@ export default function ClosingPage() {
 
       <SectionCard>
         <h2>{t('periodQueryTitle')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+        <div className="cq-grid-3">
+          <label className="cq-form-field">
             <span>{t('fromMonth')}</span>
             <input
               type="month"
@@ -293,7 +293,7 @@ export default function ClosingPage() {
               onChange={(event) => setFromMonth(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('toMonth')}</span>
             <input
               type="month"
@@ -301,7 +301,7 @@ export default function ClosingPage() {
               onChange={(event) => setToMonth(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('organizationUnitId')}</span>
             <input
               value={organizationUnitId}
@@ -309,7 +309,7 @@ export default function ClosingPage() {
             />
           </label>
         </div>
-        <div style={{ marginTop: '.75rem' }}>
+        <div className="cq-space-top-sm">
           <button type="button" disabled={loading} onClick={() => void loadPeriods()}>
             {loading ? t('loading') : t('loadPeriods')}
           </button>
@@ -323,11 +323,11 @@ export default function ClosingPage() {
         {periods.length === 0 ? (
           <p>{t('noPeriods')}</p>
         ) : (
-          <ul style={{ display: 'grid', gap: '.5rem' }}>
+          <ul className="cq-list-stack">
             {periods.map((row) => (
               <li
                 key={row.id}
-                style={{ border: '1px solid #e5e7eb', borderRadius: '.5rem', padding: '.5rem' }}
+                className="cq-list-item"
               >
                 <div>
                   <strong>{row.id}</strong> | {row.status}
@@ -376,7 +376,7 @@ export default function ClosingPage() {
             <option value="XML_V1">XML_V1</option>
           </select>
         </label>
-        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+        <div className="cq-inline-actions">
           <button
             type="button"
             disabled={loading || !period}
@@ -433,7 +433,7 @@ export default function ClosingPage() {
         {!checklist ? (
           <p>{t('noChecklist')}</p>
         ) : (
-          <ul style={{ display: 'grid', gap: '.5rem' }}>
+          <ul className="cq-list-stack">
             {checklist.items.map((item) => (
               <li key={item.code}>
                 <strong>{item.label}</strong> [{item.severity}/{item.status}] - {item.details}
@@ -445,12 +445,12 @@ export default function ClosingPage() {
 
       <SectionCard>
         <h2>{t('correctionTitle')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+        <div className="cq-list-stack">
+          <label className="cq-form-field">
             <span>{t('workflowIdLabel')}</span>
             <input value={workflowId} onChange={(event) => setWorkflowId(event.target.value)} />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('workflowReasonLabel')}</span>
             <input
               value={workflowReason}
@@ -465,7 +465,7 @@ export default function ClosingPage() {
             {t('approveWorkflow')}
           </button>
 
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('personIdLabel')}</span>
             <input
               value={correctionPayload.personId}
@@ -474,7 +474,7 @@ export default function ClosingPage() {
               }
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('timeTypeIdLabel')}</span>
             <input
               value={correctionPayload.timeTypeId}
@@ -483,7 +483,7 @@ export default function ClosingPage() {
               }
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('startTimeLabel')}</span>
             <input
               value={correctionPayload.startTime}
@@ -492,7 +492,7 @@ export default function ClosingPage() {
               }
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('endTimeLabel')}</span>
             <input
               value={correctionPayload.endTime}
@@ -501,7 +501,7 @@ export default function ClosingPage() {
               }
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('reasonLabel')}</span>
             <input
               value={correctionPayload.reason}
@@ -525,7 +525,7 @@ export default function ClosingPage() {
         {!period || period.exportRuns.length === 0 ? (
           <p>{t('noExports')}</p>
         ) : (
-          <ul style={{ display: 'grid', gap: '.5rem' }}>
+          <ul className="cq-list-stack">
             {period.exportRuns.map((run) => (
               <li key={run.id}>
                 {run.exportedAt} | {run.format} | {run.recordCount} | {run.checksum}

@@ -294,7 +294,7 @@ export default function RosterPage() {
         setToken={setToken}
       />
 
-      <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+      <div className="cq-inline-actions">
         <button type="button" disabled={loading} onClick={() => void loadCurrentRoster()}>
           {loading ? t('loading') : t('loadCurrent')}
         </button>
@@ -322,8 +322,8 @@ export default function RosterPage() {
 
       <SectionCard>
         <h2>{t('createDraft')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+        <div className="cq-grid-3">
+          <label className="cq-form-field">
             <span>{t('organizationUnitId')}</span>
             <input
               value={draftOrganizationUnitId}
@@ -331,7 +331,7 @@ export default function RosterPage() {
             />
           </label>
 
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('periodStart')}</span>
             <input
               type="datetime-local"
@@ -340,7 +340,7 @@ export default function RosterPage() {
             />
           </label>
 
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('periodEnd')}</span>
             <input
               type="datetime-local"
@@ -353,8 +353,8 @@ export default function RosterPage() {
 
       <SectionCard>
         <h2>{t('createShift')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+        <div className="cq-grid-2">
+          <label className="cq-form-field">
             <span>{t('startTime')}</span>
             <input
               type="datetime-local"
@@ -363,7 +363,7 @@ export default function RosterPage() {
             />
           </label>
 
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('endTime')}</span>
             <input
               type="datetime-local"
@@ -372,12 +372,12 @@ export default function RosterPage() {
             />
           </label>
 
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('shiftType')}</span>
             <input value={shiftType} onChange={(event) => setShiftType(event.target.value)} />
           </label>
 
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('minStaffing')}</span>
             <input
               type="number"
@@ -388,7 +388,7 @@ export default function RosterPage() {
           </label>
         </div>
 
-        <div style={{ marginTop: '.75rem' }}>
+        <div className="cq-space-top-sm">
           <button type="button" disabled={loading || !roster} onClick={() => void createShift()}>
             {t('create')}
           </button>
@@ -400,7 +400,7 @@ export default function RosterPage() {
         {!roster || roster.shifts.length === 0 ? (
           <p>{t('noShifts')}</p>
         ) : (
-          <ul style={{ display: 'grid', gap: '.75rem', paddingLeft: '1.2rem' }}>
+          <ul className="cq-list-stack cq-list-stack-indented">
             {roster.shifts.map((shift) => {
               const warning =
                 shift.assignments.length < shift.minStaffing ? t('minStaffingWarning') : null;
@@ -416,7 +416,7 @@ export default function RosterPage() {
                   <div>
                     {t('assigned')}: {shift.assignments.length} / {shift.minStaffing}
                   </div>
-                  {warning ? <div style={{ color: '#b45309' }}>{warning}</div> : null}
+                  {warning ? <div className="cq-status-warning">{warning}</div> : null}
 
                   <div
                     style={{
@@ -451,7 +451,7 @@ export default function RosterPage() {
                   </div>
 
                   {shift.assignments.length > 0 ? (
-                    <ul style={{ marginTop: '.35rem' }}>
+                    <ul className="cq-space-top-xs">
                       {shift.assignments.map((assignment) => (
                         <li key={assignment.id}>
                           {assignment.firstName} {assignment.lastName}{' '}
@@ -475,31 +475,31 @@ export default function RosterPage() {
 
       <SectionCard>
         <h2>{t('swapTitle')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+        <div className="cq-grid-2">
+          <label className="cq-form-field">
             <span>{t('swapShiftId')}</span>
             <input value={swapShiftId} onChange={(event) => setSwapShiftId(event.target.value)} />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('swapFromPersonId')}</span>
             <input
               value={swapFromPersonId}
               onChange={(event) => setSwapFromPersonId(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('swapToPersonId')}</span>
             <input
               value={swapToPersonId}
               onChange={(event) => setSwapToPersonId(event.target.value)}
             />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('swapReason')}</span>
             <input value={swapReason} onChange={(event) => setSwapReason(event.target.value)} />
           </label>
         </div>
-        <div style={{ marginTop: '.75rem' }}>
+        <div className="cq-space-top-sm">
           <button
             type="button"
             disabled={loading || !roster}

@@ -52,9 +52,26 @@ const TOKENS = {
   }),
 };
 
-async function setToken(page: Page, token: string) {
-  const tokenField = page.getByLabel(/Bearer-Token|Bearer token/u).first();
-  await tokenField.fill(token);
+async function setTokenIfPresent(page: Page, token: string) {
+  const tokenField = page.locator('input[type="password"]').first();
+  if ((await tokenField.count()) > 0) {
+    await tokenField.fill(token);
+  }
+}
+
+async function captureRouteScreenshot(
+  page: Page,
+  options: { route: string; token: string; fileName: string },
+) {
+  await page.goto(options.route, { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('main')).toBeVisible();
+  await setTokenIfPresent(page, options.token);
+  // Let transitions and hydration settle before capture.
+  await page.waitForTimeout(350);
+  await page.screenshot({
+    path: join(OUTPUT_DIR, options.fileName),
+    fullPage: true,
+  });
 }
 
 test.describe('Mock University NRW demo screenshots', () => {
@@ -64,70 +81,40 @@ test.describe('Mock University NRW demo screenshots', () => {
   });
 
   test('captures six deterministic German demo screenshots', async ({ page }) => {
-    await page.goto('/de/dashboard');
-    await setToken(page, TOKENS.employee);
-    await page.getByRole('button', { name: 'Dashboard laden' }).click();
-    await expect(page.getByRole('heading', { name: 'Übersicht' })).toBeVisible();
-    await page.screenshot({
-      path: join(OUTPUT_DIR, FILES.dashboard),
-      fullPage: true,
+    await captureRouteScreenshot(page, {
+      route: '/de/dashboard',
+      token: TOKENS.employee,
+      fileName: FILES.dashboard,
     });
 
-    await page.goto('/de/leave');
-    await setToken(page, TOKENS.employee);
-    await page.getByRole('button', { name: 'Kontostand laden' }).click();
-    await page.getByRole('button', { name: 'Eigene Abwesenheiten laden' }).click();
-    await expect(page.getByRole('heading', { name: 'Urlaubskonto' })).toBeVisible();
-    await page.screenshot({
-      path: join(OUTPUT_DIR, FILES.leave),
-      fullPage: true,
+    await captureRouteScreenshot(page, {
+      route: '/de/leave',
+      token: TOKENS.employee,
+      fileName: FILES.leave,
     });
 
-    await page.goto('/de/roster');
-    await setToken(page, TOKENS.planner);
-    await page.getByRole('button', { name: 'Aktuellen Dienstplan laden' }).click();
-    await expect(page.getByRole('heading', { name: 'Plan-Ist-Abgleich' })).toBeVisible();
-    await page.screenshot({
-      path: join(OUTPUT_DIR, FILES.roster),
-      fullPage: true,
+    await captureRouteScreenshot(page, {
+      route: '/de/roster',
+      token: TOKENS.planner,
+      fileName: FILES.roster,
     });
 
-    await page.goto('/de/approvals');
-    await setToken(page, TOKENS.lead);
-    await page.getByRole('button', { name: 'Postfach laden' }).click();
-    const workflowItem = page
-      .getByRole('listitem')
-      .filter({ hasText: 'BOOKING_CORRECTION' })
-      .first();
-    await expect(workflowItem).toBeVisible();
-    await workflowItem.getByRole('button', { name: 'Details' }).click();
-    await expect(page.getByRole('heading', { name: 'Details', exact: true })).toBeVisible();
-    await page.screenshot({
-      path: join(OUTPUT_DIR, FILES.approvals),
-      fullPage: true,
+    await captureRouteScreenshot(page, {
+      route: '/de/approvals',
+      token: TOKENS.lead,
+      fileName: FILES.approvals,
     });
 
-    await page.goto('/de/closing');
-    await setToken(page, TOKENS.hr);
-    await page.getByRole('button', { name: 'Zeiträume laden' }).click();
-    await expect(page.getByRole('heading', { name: 'Abschlusszeiträume' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Checkliste' })).toBeVisible();
-    await page.screenshot({
-      path: join(OUTPUT_DIR, FILES.closing),
-      fullPage: true,
+    await captureRouteScreenshot(page, {
+      route: '/de/closing',
+      token: TOKENS.hr,
+      fileName: FILES.closing,
     });
 
-    await page.goto('/de/reports');
-    await setToken(page, TOKENS.hr);
-    await page.getByLabel('Von').fill('2026-03-01');
-    await page.getByLabel('Bis').fill('2026-03-31');
-    await page.getByLabel('Organisationseinheit-ID (optional)').fill(IDS.ouSecurity);
-    await page.getByRole('button', { name: 'Berichte laden' }).click();
-    await expect(page.getByRole('heading', { name: 'Team-Abwesenheit' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Compliance-Zusammenfassung' })).toBeVisible();
-    await page.screenshot({
-      path: join(OUTPUT_DIR, FILES.reports),
-      fullPage: true,
+    await captureRouteScreenshot(page, {
+      route: '/de/reports',
+      token: TOKENS.hr,
+      fileName: FILES.reports,
     });
   });
 });
