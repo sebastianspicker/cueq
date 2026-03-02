@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { PageShell } from '../../../components/PageShell';
+import { SectionCard } from '../../../components/SectionCard';
+import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 
 interface ReportSuppression {
@@ -219,9 +222,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
+    <PageShell title={t('title')} description={t('description')}>
 
       <p
         style={{
@@ -235,7 +236,7 @@ export default function ReportsPage() {
         {t('privacyNotice')}
       </p>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <div style={{ display: 'grid', gap: '.75rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
           <ConnectionPanel
             apiBaseLabel={t('apiBaseLabel')}
@@ -269,16 +270,12 @@ export default function ReportsPage() {
         >
           {loading ? t('loading') : t('loadReports')}
         </button>
-      </article>
+      </SectionCard>
 
-      {error ? (
-        <p role="alert" style={{ color: '#b91c1c' }}>
-          {error}
-        </p>
-      ) : null}
+      <StatusBanner error={error} />
 
       {loaded && teamAbsence ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('teamAbsenceHeading')}</h2>
           <p>
             {t('totalsLabel')}: {teamAbsence.totals.requests} / {teamAbsence.totals.days}
@@ -287,11 +284,11 @@ export default function ReportsPage() {
             {t('suppressionLabel')}: {String(teamAbsence.suppression.suppressed)} (
             {teamAbsence.suppression.population})
           </p>
-        </article>
+        </SectionCard>
       ) : null}
 
       {loaded && oeOvertime ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('oeOvertimeHeading')}</h2>
           <p>
             {t('totalsLabel')}: {oeOvertime.totals.people} / {oeOvertime.totals.totalOvertimeHours}
@@ -300,21 +297,21 @@ export default function ReportsPage() {
             {t('suppressionLabel')}: {String(oeOvertime.suppression.suppressed)} (
             {oeOvertime.suppression.population})
           </p>
-        </article>
+        </SectionCard>
       ) : null}
 
       {loaded && closingCompletion ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('closingCompletionHeading')}</h2>
           <p>
             {t('totalsLabel')}: {closingCompletion.totals.periods} /{' '}
             {closingCompletion.totals.exported}
           </p>
-        </article>
+        </SectionCard>
       ) : null}
 
       {loaded && auditSummary ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('auditSummaryHeading')}</h2>
           <p>
             {t('totalsLabel')}: {auditSummary.totals.entries} / {auditSummary.totals.uniqueActors}
@@ -325,11 +322,11 @@ export default function ReportsPage() {
           <p>
             {t('byEntityTypeLabel')}: {auditSummary.byEntityType.length}
           </p>
-        </article>
+        </SectionCard>
       ) : null}
 
       {loaded && complianceSummary ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('complianceSummaryHeading')}</h2>
           <p>
             {t('totalsLabel')}: {complianceSummary.privacy.reportAccesses} /{' '}
@@ -339,10 +336,10 @@ export default function ReportsPage() {
             {t('lastBackupLabel')}:{' '}
             {complianceSummary.operations.lastBackupRestoreVerifiedAt ?? '—'}
           </p>
-        </article>
+        </SectionCard>
       ) : null}
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('customBuilderHeading')}</h2>
         <p>{t('customBuilderDescription')}</p>
         <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
@@ -395,7 +392,7 @@ export default function ReportsPage() {
             </ul>
           </div>
         ) : null}
-      </article>
-    </section>
+      </SectionCard>
+    </PageShell>
   );
 }

@@ -32,7 +32,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <div className="cq-app-shell">
           <aside className="cq-app-sidebar">
             <div className="cq-brand">
-              <p className="cq-brand-overline">{locale === 'de' ? 'Universitaet NRW' : 'University NRW'}</p>
+              <p className="cq-brand-overline">{locale === 'de' ? 'Universität NRW' : 'University NRW'}</p>
               <h1>{messages.app.title}</h1>
               <p>{messages.app.subtitle}</p>
             </div>

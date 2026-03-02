@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { PageShell } from '../../../components/PageShell';
+import { SectionCard } from '../../../components/SectionCard';
+import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 
 type WorkflowAction = 'SUBMIT' | 'APPROVE' | 'REJECT' | 'DELEGATE' | 'CANCEL';
@@ -152,9 +155,7 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
+    <PageShell title={t('title')} description={t('description')}>
 
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
@@ -165,7 +166,7 @@ export default function ApprovalsPage() {
         setToken={setToken}
       />
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('filtersTitle')}</h2>
         <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <label style={{ display: 'grid', gap: '.25rem' }}>
@@ -214,16 +215,11 @@ export default function ApprovalsPage() {
             {loading ? t('loading') : t('loadInbox')}
           </button>
         </div>
-      </article>
+      </SectionCard>
 
-      {message ? <p style={{ color: '#0f766e' }}>{message}</p> : null}
-      {error ? (
-        <p role="alert" style={{ color: '#b91c1c' }}>
-          {error}
-        </p>
-      ) : null}
+      <StatusBanner message={message} error={error} />
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('inboxTitle')}</h2>
         {items.length === 0 ? (
           <p>{t('noItems')}</p>
@@ -247,9 +243,9 @@ export default function ApprovalsPage() {
             ))}
           </ul>
         )}
-      </article>
+      </SectionCard>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('details')}</h2>
         {!detail ? (
           <p>{t('selectWorkflow')}</p>
@@ -325,7 +321,7 @@ export default function ApprovalsPage() {
             </button>
           </div>
         )}
-      </article>
-    </section>
+      </SectionCard>
+    </PageShell>
   );
 }

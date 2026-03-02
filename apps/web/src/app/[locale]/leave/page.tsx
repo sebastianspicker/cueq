@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { PageShell } from '../../../components/PageShell';
+import { SectionCard } from '../../../components/SectionCard';
+import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 
 interface LeaveBalanceResponse {
@@ -123,9 +126,7 @@ export default function LeavePage() {
   }
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
+    <PageShell title={t('title')} description={t('description')}>
 
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
@@ -160,7 +161,7 @@ export default function LeavePage() {
         </button>
       </div>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('submitRequest')}</h2>
         <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
           <label style={{ display: 'grid', gap: '.25rem' }}>
@@ -204,17 +205,12 @@ export default function LeavePage() {
             {loading ? t('loading') : t('submitRequest')}
           </button>
         </div>
-      </article>
+      </SectionCard>
 
-      {message ? <p style={{ color: '#0f766e' }}>{message}</p> : null}
-      {error ? (
-        <p role="alert" style={{ color: '#b91c1c' }}>
-          {error}
-        </p>
-      ) : null}
+      <StatusBanner message={message} error={error} />
 
       {balance ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('balanceTitle')}</h2>
           <ul>
             <li>
@@ -242,10 +238,10 @@ export default function LeavePage() {
               {t('adjustments')}: {balance.adjustments}
             </li>
           </ul>
-        </article>
+        </SectionCard>
       ) : null}
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('absencesTitle')}</h2>
         {absences.length === 0 ? (
           <p>{t('noAbsences')}</p>
@@ -259,7 +255,7 @@ export default function LeavePage() {
             ))}
           </ul>
         )}
-      </article>
-    </section>
+      </SectionCard>
+    </PageShell>
   );
 }

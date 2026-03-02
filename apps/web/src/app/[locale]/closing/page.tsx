@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { PageShell } from '../../../components/PageShell';
+import { SectionCard } from '../../../components/SectionCard';
+import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 
 interface ClosingChecklistItem {
@@ -268,9 +271,7 @@ export default function ClosingPage() {
   const period = selectedPeriod();
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
+    <PageShell title={t('title')} description={t('description')}>
 
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
@@ -281,7 +282,7 @@ export default function ClosingPage() {
         setToken={setToken}
       />
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('periodQueryTitle')}</h2>
         <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <label style={{ display: 'grid', gap: '.25rem' }}>
@@ -313,16 +314,11 @@ export default function ClosingPage() {
             {loading ? t('loading') : t('loadPeriods')}
           </button>
         </div>
-      </article>
+      </SectionCard>
 
-      {message ? <p style={{ color: '#0f766e' }}>{message}</p> : null}
-      {error ? (
-        <p role="alert" style={{ color: '#b91c1c' }}>
-          {error}
-        </p>
-      ) : null}
+      <StatusBanner message={message} error={error} />
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('periodListTitle')}</h2>
         {periods.length === 0 ? (
           <p>{t('noPeriods')}</p>
@@ -346,10 +342,10 @@ export default function ClosingPage() {
             ))}
           </ul>
         )}
-      </article>
+      </SectionCard>
 
       {period ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('stateLabel')}</h2>
           <p>
             <strong>{t('stateLabel')}:</strong> {period.status}
@@ -363,10 +359,10 @@ export default function ClosingPage() {
           <p>
             <strong>{t('lockLabel')}:</strong> {period.lockedAt ?? '—'} ({period.lockSource ?? '—'})
           </p>
-        </article>
+        </SectionCard>
       ) : null}
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('actionsTitle')}</h2>
         <label
           style={{ display: 'grid', gap: '.25rem', marginBottom: '.75rem', maxWidth: '16rem' }}
@@ -430,9 +426,9 @@ export default function ClosingPage() {
             {t('postCloseCorrection')}
           </button>
         </div>
-      </article>
+      </SectionCard>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('checklistTitle')}</h2>
         {!checklist ? (
           <p>{t('noChecklist')}</p>
@@ -445,9 +441,9 @@ export default function ClosingPage() {
             ))}
           </ul>
         )}
-      </article>
+      </SectionCard>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('correctionTitle')}</h2>
         <div style={{ display: 'grid', gap: '.5rem' }}>
           <label style={{ display: 'grid', gap: '.25rem' }}>
@@ -522,9 +518,9 @@ export default function ClosingPage() {
             {t('applyCorrection')}
           </button>
         </div>
-      </article>
+      </SectionCard>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('exportsTitle')}</h2>
         {!period || period.exportRuns.length === 0 ? (
           <p>{t('noExports')}</p>
@@ -545,7 +541,7 @@ export default function ClosingPage() {
             ))}
           </ul>
         )}
-      </article>
-    </section>
+      </SectionCard>
+    </PageShell>
   );
 }

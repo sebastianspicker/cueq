@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { PageShell } from '../../../components/PageShell';
+import { SectionCard } from '../../../components/SectionCard';
+import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 
 interface RosterMember {
@@ -280,9 +283,7 @@ export default function RosterPage() {
   }
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
+    <PageShell title={t('title')} description={t('description')}>
 
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
@@ -305,15 +306,10 @@ export default function RosterPage() {
         </button>
       </div>
 
-      {message ? <p style={{ color: '#0f766e' }}>{message}</p> : null}
-      {error ? (
-        <p role="alert" style={{ color: '#b91c1c' }}>
-          {error}
-        </p>
-      ) : null}
+      <StatusBanner message={message} error={error} />
 
       {roster ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('rosterDetail')}</h2>
           <p>
             {t('status')}: <strong>{roster.status}</strong>
@@ -321,10 +317,10 @@ export default function RosterPage() {
           <p>
             {t('period')}: {roster.periodStart} - {roster.periodEnd}
           </p>
-        </article>
+        </SectionCard>
       ) : null}
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('createDraft')}</h2>
         <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <label style={{ display: 'grid', gap: '.25rem' }}>
@@ -353,9 +349,9 @@ export default function RosterPage() {
             />
           </label>
         </div>
-      </article>
+      </SectionCard>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('createShift')}</h2>
         <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
           <label style={{ display: 'grid', gap: '.25rem' }}>
@@ -397,9 +393,9 @@ export default function RosterPage() {
             {t('create')}
           </button>
         </div>
-      </article>
+      </SectionCard>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('shifts')}</h2>
         {!roster || roster.shifts.length === 0 ? (
           <p>{t('noShifts')}</p>
@@ -475,9 +471,9 @@ export default function RosterPage() {
             })}
           </ul>
         )}
-      </article>
+      </SectionCard>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('swapTitle')}</h2>
         <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
           <label style={{ display: 'grid', gap: '.25rem' }}>
@@ -512,9 +508,9 @@ export default function RosterPage() {
             {t('swapRequest')}
           </button>
         </div>
-      </article>
+      </SectionCard>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('planVsActual')}</h2>
         {!planVsActual ? (
           <p>{t('noPlanVsActual')}</p>
@@ -552,7 +548,7 @@ export default function RosterPage() {
             </table>
           </>
         )}
-      </article>
-    </section>
+      </SectionCard>
+    </PageShell>
   );
 }

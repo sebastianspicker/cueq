@@ -5,6 +5,9 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { PageShell } from '../../../components/PageShell';
+import { SectionCard } from '../../../components/SectionCard';
+import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 import { ApiRequestError } from '../../../lib/api-client';
 
@@ -153,9 +156,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
+    <PageShell title={t('title')} description={t('description')}>
 
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
@@ -172,15 +173,10 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {message ? <p style={{ color: '#0f766e' }}>{message}</p> : null}
-      {error ? (
-        <p role="alert" style={{ color: '#b91c1c' }}>
-          {error}
-        </p>
-      ) : null}
+      <StatusBanner message={message} error={error} />
 
       {summary ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('summaryTitle')}</h2>
           <p>
             {t('modelName')}: {summary.modelName}
@@ -194,17 +190,17 @@ export default function DashboardPage() {
           <p>
             {t('todayBookingsCount')}: {summary.todayBookingsCount}
           </p>
-        </article>
+        </SectionCard>
       ) : null}
 
       {summary?.showOrientation ? (
-        <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+        <SectionCard>
           <h2>{t('orientationTitle')}</h2>
           <p>{t('orientationBody')}</p>
-        </article>
+        </SectionCard>
       ) : null}
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('quickActionsTitle')}</h2>
         <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
           <button type="button" disabled={loading || !summary} onClick={() => void clockIn()}>
@@ -212,9 +208,9 @@ export default function DashboardPage() {
           </button>
           <Link href={`/${locale}/leave`}>{t('requestLeave')}</Link>
         </div>
-      </article>
+      </SectionCard>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <SectionCard>
         <h2>{t('overtimeTitle')}</h2>
         <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
           <label style={{ display: 'grid', gap: '.25rem' }}>
@@ -258,7 +254,7 @@ export default function DashboardPage() {
             {t('requestOvertime')}
           </button>
         </div>
-      </article>
-    </section>
+      </SectionCard>
+    </PageShell>
   );
 }

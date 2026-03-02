@@ -14,6 +14,7 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     locale: 'de-DE',
     timezoneId: 'Europe/Berlin',
+    colorScheme: 'dark',
     viewport: {
       width: 1440,
       height: 900,
