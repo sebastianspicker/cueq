@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
 import { SEED_IDS } from '../../src/test-utils/seed-ids';
-import { Phase2Service } from '../../src/phase2/phase2.service';
+import { ClosingDomainService } from '../../src/phase2/services/closing-domain.service';
 import { PrismaService } from '../../src/persistence/prisma.service';
 import type { HrMasterProviderPort } from '../../src/phase2/hr-master-provider.port';
 
@@ -254,7 +254,7 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       },
     });
 
-    const service = app.get(Phase2Service);
+    const service = app.get(ClosingDomainService);
     const result = await service.runClosingCutoff(new Date('2026-02-10T12:00:00.000Z'));
     expect(result.enabled).toBe(true);
     expect(result.transitioned).toBeGreaterThan(0);

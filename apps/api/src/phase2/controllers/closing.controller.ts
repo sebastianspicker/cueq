@@ -10,7 +10,7 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Phase2Service } from '../phase2.service';
+import { ClosingDomainService } from '../services/closing-domain.service';
 import type { Response } from 'express';
 import type { ClosingBookingCorrection } from '@cueq/shared';
 import { ClosingExportResponseDto } from '../dto/closing.dto';
@@ -19,7 +19,7 @@ import { ClosingExportResponseDto } from '../dto/closing.dto';
 @ApiBearerAuth()
 @Controller('v1/closing-periods')
 export class ClosingController {
-  constructor(@Inject(Phase2Service) private readonly phase2Service: Phase2Service) {}
+  constructor(@Inject(ClosingDomainService) private readonly closingService: ClosingDomainService) {}
 
   @Get()
   @ApiOperation({ summary: 'List closing periods' })
@@ -32,13 +32,13 @@ export class ClosingController {
     @Query('to') to?: string,
     @Query('organizationUnitId') organizationUnitId?: string,
   ) {
-    return this.phase2Service.listClosingPeriods(user, from, to, organizationUnitId);
+    return this.closingService.listClosingPeriods(user, from, to, organizationUnitId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get closing period details' })
   detail(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
-    return this.phase2Service.getClosingPeriod(user, closingPeriodId);
+    return this.closingService.getClosingPeriod(user, closingPeriodId);
   }
 
   @Post(':id/start-review')
@@ -47,25 +47,25 @@ export class ClosingController {
       'Transition closing period from open to review (manual emergency override, admin-only when enabled)',
   })
   startReview(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
-    return this.phase2Service.startClosingReview(user, closingPeriodId);
+    return this.closingService.startClosingReview(user, closingPeriodId);
   }
 
   @Post(':id/lead-approve')
   @ApiOperation({ summary: 'Record team-lead sign-off for closing period' })
   leadApprove(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
-    return this.phase2Service.leadApproveClosing(user, closingPeriodId);
+    return this.closingService.leadApproveClosing(user, closingPeriodId);
   }
 
   @Get(':id/checklist')
   @ApiOperation({ summary: 'Generate checklist for closing period' })
   checklist(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
-    return this.phase2Service.closingChecklist(user, closingPeriodId);
+    return this.closingService.closingChecklist(user, closingPeriodId);
   }
 
   @Post(':id/approve')
   @ApiOperation({ summary: 'Approve closing period' })
   approve(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
-    return this.phase2Service.approveClosing(user, closingPeriodId);
+    return this.closingService.approveClosing(user, closingPeriodId);
   }
 
   @Post(':id/export')
@@ -84,7 +84,7 @@ export class ClosingController {
     @Param('id') closingPeriodId: string,
     @Body() payload?: unknown,
   ) {
-    return this.phase2Service.exportClosing(user, closingPeriodId, payload);
+    return this.closingService.exportClosing(user, closingPeriodId, payload);
   }
 
   @Get(':closingPeriodId/export-runs/:runId/csv')
@@ -96,7 +96,7 @@ export class ClosingController {
     @Param('runId') runId: string,
     @Res() response: Response,
   ) {
-    const result = await this.phase2Service.getExportRunCsv(user, closingPeriodId, runId);
+    const result = await this.closingService.getExportRunCsv(user, closingPeriodId, runId);
     response.setHeader('Content-Type', result.contentType);
     response.setHeader('Content-Disposition', `attachment; filename=\"${result.filename}\"`);
     response.setHeader('X-Checksum-Sha256', result.checksum);
@@ -111,7 +111,7 @@ export class ClosingController {
     @Param('runId') runId: string,
     @Res() response: Response,
   ) {
-    const result = await this.phase2Service.getExportRunArtifact(user, closingPeriodId, runId);
+    const result = await this.closingService.getExportRunArtifact(user, closingPeriodId, runId);
     response.setHeader('Content-Type', result.contentType);
     response.setHeader('Content-Disposition', `attachment; filename=\"${result.filename}\"`);
     response.setHeader('X-Checksum-Sha256', result.checksum);
@@ -125,7 +125,7 @@ export class ClosingController {
     @Param('id') closingPeriodId: string,
     @Body() payload: { reason?: string },
   ): Promise<unknown> {
-    return this.phase2Service.postCloseCorrection(user, closingPeriodId, payload?.reason);
+    return this.closingService.postCloseCorrection(user, closingPeriodId, payload?.reason);
   }
 
   @Post(':id/corrections/bookings')
@@ -150,12 +150,12 @@ export class ClosingController {
     @Param('id') closingPeriodId: string,
     @Body() payload: ClosingBookingCorrection,
   ) {
-    return this.phase2Service.applyPostCloseBookingCorrection(user, closingPeriodId, payload);
+    return this.closingService.applyPostCloseBookingCorrection(user, closingPeriodId, payload);
   }
 
   @Post(':id/reopen')
   @ApiOperation({ summary: 'Re-open closing period from review state (HR only)' })
   reopen(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
-    return this.phase2Service.reopenClosing(user, closingPeriodId);
+    return this.closingService.reopenClosing(user, closingPeriodId);
   }
 }

@@ -1,6 +1,5 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import {
-  AbsenceStatus,
   ClosingStatus,
   Role,
 } from '@cueq/database';
@@ -16,26 +15,15 @@ import {
 import { PrismaService } from '../../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { AuditHelper } from '../helpers/audit.helper';
-
-const REPORT_ALLOWED_ROLES = new Set<Role>([
-  Role.TEAM_LEAD,
-  Role.HR,
-  Role.ADMIN,
-  Role.DATA_PROTECTION,
-  Role.WORKS_COUNCIL,
-]);
-const SENSITIVE_REPORT_ALLOWED_ROLES = new Set<Role>([
-  Role.HR,
-  Role.ADMIN,
-  Role.DATA_PROTECTION,
-  Role.WORKS_COUNCIL,
-]);
+import { PersonHelper } from '../helpers/person.helper';
+import { REPORT_ALLOWED_ROLES, SENSITIVE_REPORT_ALLOWED_ROLES } from '../helpers/role-constants';
 
 @Injectable()
 export class ReportingService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
+    @Inject(PersonHelper) private readonly personHelper: PersonHelper,
   ) {}
 
   private minGroupSize(): number {
@@ -55,33 +43,9 @@ export class ReportingService {
     }
   }
 
-  private async resolvePersonForUser(user: AuthenticatedIdentity) {
-    const personBySubject = await this.prisma.person.findFirst({
-      where: {
-        OR: [{ id: user.subject }, { externalId: user.subject }],
-      },
-      select: { id: true, organizationUnitId: true },
-    });
-
-    if (personBySubject) {
-      return personBySubject;
-    }
-
-    const person = await this.prisma.person.findUnique({
-      where: { email: user.email },
-      select: { id: true, organizationUnitId: true },
-    });
-
-    if (!person) {
-      throw new ForbiddenException('Authenticated person was not found.');
-    }
-
-    return person;
-  }
-
   async reportTeamAbsence(user: AuthenticatedIdentity, query: unknown) {
     this.assertCanReadReports(user);
-    const actor = await this.resolvePersonForUser(user);
+    const actor = await this.personHelper.personForUser(user);
     const parsed = TeamAbsenceQuerySchema.parse(query ?? {});
     const targetOuId = parsed.organizationUnitId ?? actor.organizationUnitId;
 
@@ -161,7 +125,7 @@ export class ReportingService {
 
   async reportOeOvertime(user: AuthenticatedIdentity, query: unknown) {
     this.assertCanReadReports(user);
-    const actor = await this.resolvePersonForUser(user);
+    const actor = await this.personHelper.personForUser(user);
     const parsed = OeOvertimeQuerySchema.parse(query ?? {});
     const targetOuId = parsed.organizationUnitId ?? actor.organizationUnitId;
 
@@ -228,7 +192,7 @@ export class ReportingService {
 
   async reportClosingCompletion(user: AuthenticatedIdentity, query: unknown) {
     this.assertCanReadReports(user);
-    const actor = await this.resolvePersonForUser(user);
+    const actor = await this.personHelper.personForUser(user);
     const parsed = ClosingCompletionQuerySchema.parse(query ?? {});
     const from = new Date(`${parsed.from}T00:00:00.000Z`);
     const to = new Date(`${parsed.to}T23:59:59.000Z`);
@@ -277,7 +241,7 @@ export class ReportingService {
 
   async reportAuditSummary(user: AuthenticatedIdentity, query: unknown) {
     this.assertCanReadSensitiveReports(user);
-    const actor = await this.resolvePersonForUser(user);
+    const actor = await this.personHelper.personForUser(user);
     const parsed = AuditSummaryQuerySchema.parse(query ?? {});
     const from = new Date(`${parsed.from}T00:00:00.000Z`);
     const to = new Date(`${parsed.to}T23:59:59.999Z`);
@@ -342,7 +306,7 @@ export class ReportingService {
 
   async reportComplianceSummary(user: AuthenticatedIdentity, query: unknown) {
     this.assertCanReadSensitiveReports(user);
-    const actor = await this.resolvePersonForUser(user);
+    const actor = await this.personHelper.personForUser(user);
     const parsed = ComplianceSummaryQuerySchema.parse(query ?? {});
     const from = new Date(`${parsed.from}T00:00:00.000Z`);
     const to = new Date(`${parsed.to}T23:59:59.999Z`);

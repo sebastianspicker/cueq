@@ -21,6 +21,7 @@ import type {
   WorkflowPolicyUpsert,
 } from '@cueq/shared';
 import { PrismaService } from '../persistence/prisma.service';
+import { HR_LIKE_ROLES } from './helpers/role-constants';
 
 const TYPE_ROLE_MATRIX: Record<WorkflowType, Role[]> = {
   [WorkflowType.LEAVE_REQUEST]: [Role.TEAM_LEAD, Role.HR, Role.ADMIN],
@@ -30,7 +31,7 @@ const TYPE_ROLE_MATRIX: Record<WorkflowType, Role[]> = {
   [WorkflowType.OVERTIME_APPROVAL]: [Role.TEAM_LEAD, Role.HR, Role.ADMIN],
 };
 
-const HR_ADMIN_ROLES = new Set<Role>([Role.HR, Role.ADMIN]);
+const HR_ADMIN_ROLES = HR_LIKE_ROLES;
 
 const DEFAULT_POLICIES: Record<
   WorkflowType,

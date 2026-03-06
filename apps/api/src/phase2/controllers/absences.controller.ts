@@ -9,7 +9,7 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Phase2Service } from '../phase2.service';
+import { AbsenceDomainService } from '../services/absence-domain.service';
 import { TimeEngineDomainService } from '../services/time-engine-domain.service';
 import { AbsenceDto, CreateAbsenceDto } from '../dto/absence.dto';
 
@@ -18,7 +18,7 @@ import { AbsenceDto, CreateAbsenceDto } from '../dto/absence.dto';
 @Controller('v1/absences')
 export class AbsencesController {
   constructor(
-    @Inject(Phase2Service) private readonly phase2Service: Phase2Service,
+    @Inject(AbsenceDomainService) private readonly absenceService: AbsenceDomainService,
     @Inject(TimeEngineDomainService)
     private readonly timeEngineDomainService: TimeEngineDomainService,
   ) {}
@@ -28,7 +28,7 @@ export class AbsencesController {
   @ApiBody({ type: CreateAbsenceDto })
   @ApiCreatedResponse({ type: AbsenceDto })
   create(@CurrentUser() user: AuthenticatedIdentity, @Body() payload: unknown): Promise<unknown> {
-    return this.phase2Service.createAbsence(user, payload);
+    return this.absenceService.createAbsence(user, payload);
   }
 
   @Post('prorated-target')
@@ -49,7 +49,7 @@ export class AbsencesController {
   @ApiOperation({ summary: 'List authenticated user absences' })
   @ApiOkResponse({ type: AbsenceDto, isArray: true })
   listMine(@CurrentUser() user: AuthenticatedIdentity): Promise<unknown> {
-    return this.phase2Service.listMyAbsences(user);
+    return this.absenceService.listMyAbsences(user);
   }
 
   @Post(':id/cancel')
@@ -59,6 +59,6 @@ export class AbsencesController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Param('id') absenceId: string,
   ): Promise<unknown> {
-    return this.phase2Service.cancelAbsence(user, absenceId);
+    return this.absenceService.cancelAbsence(user, absenceId);
   }
 }

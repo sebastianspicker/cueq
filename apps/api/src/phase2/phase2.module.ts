@@ -32,9 +32,15 @@ import { AuditHelper } from './helpers/audit.helper';
 import { ClosingLockHelper } from './helpers/closing-lock.helper';
 import { EventOutboxHelper } from './helpers/event-outbox.helper';
 import { HolidayProvider } from './helpers/holiday.provider';
+import { PersonHelper } from './helpers/person.helper';
 import { PolicyQueryService } from './services/policy-query.service';
 import { TimeEngineDomainService } from './services/time-engine-domain.service';
 import { ReportingService } from './services/reporting.service';
+import { ClosingDomainService } from './services/closing-domain.service';
+import { RosterDomainService } from './services/roster-domain.service';
+import { WebhookDomainService } from './services/webhook-domain.service';
+import { AbsenceDomainService } from './services/absence-domain.service';
+import { BookingDomainService } from './services/booking-domain.service';
 
 @Module({
   providers: [
@@ -42,10 +48,13 @@ import { ReportingService } from './services/reporting.service';
     ClosingLockHelper,
     EventOutboxHelper,
     HolidayProvider,
+    PersonHelper,
     Phase2Service,
     PolicyQueryService,
     TimeEngineDomainService,
     ReportingService,
+    ClosingDomainService,
+    RosterDomainService,
     TerminalGatewayService,
     HrImportService,
     {
@@ -64,6 +73,9 @@ import { ReportingService } from './services/reporting.service';
     DashboardBookingsService,
     OncallDomainService,
     WorkflowsDomainService,
+    WebhookDomainService,
+    AbsenceDomainService,
+    BookingDomainService,
   ],
   controllers: [
     MeController,
@@ -90,16 +102,22 @@ import { ReportingService } from './services/reporting.service';
     ClosingLockHelper,
     EventOutboxHelper,
     HolidayProvider,
+    PersonHelper,
     Phase2Service,
     PolicyQueryService,
     TimeEngineDomainService,
     ReportingService,
+    ClosingDomainService,
+    RosterDomainService,
     TerminalGatewayService,
     HrImportService,
     WorkflowRuntimeService,
     DashboardBookingsService,
     OncallDomainService,
     WorkflowsDomainService,
+    WebhookDomainService,
+    AbsenceDomainService,
+    BookingDomainService,
   ],
 })
 export class Phase2Module {}
