@@ -1,3 +1,4 @@
+import { parseIsoDateTime } from '@cueq/shared';
 import type { PlausibilityIssue, RuleViolation } from './types';
 
 export const HOURS_PER_DAY = 24;
@@ -6,18 +7,12 @@ export function roundToTwo(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-export function safeDate(input: string): Date {
-  const date = new Date(input);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`Invalid ISO date: ${input}`);
-  }
-
-  return date;
-}
+/** @deprecated Use `parseIsoDateTime` from `@cueq/shared` directly. */
+export const safeDate = parseIsoDateTime;
 
 export function diffHours(startIso: string, endIso: string): number {
-  const start = safeDate(startIso);
-  const end = safeDate(endIso);
+  const start = parseIsoDateTime(startIso);
+  const end = parseIsoDateTime(endIso);
   return (end.getTime() - start.getTime()) / 3_600_000;
 }
 

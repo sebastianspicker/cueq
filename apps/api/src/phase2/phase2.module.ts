@@ -28,10 +28,24 @@ import { ClosingCutoffService } from './closing-cutoff.service';
 import { DashboardBookingsService } from './services/dashboard-bookings.service';
 import { OncallDomainService } from './services/oncall-domain.service';
 import { WorkflowsDomainService } from './services/workflows-domain.service';
+import { AuditHelper } from './helpers/audit.helper';
+import { ClosingLockHelper } from './helpers/closing-lock.helper';
+import { EventOutboxHelper } from './helpers/event-outbox.helper';
+import { HolidayProvider } from './helpers/holiday.provider';
+import { PolicyQueryService } from './services/policy-query.service';
+import { TimeEngineDomainService } from './services/time-engine-domain.service';
+import { ReportingService } from './services/reporting.service';
 
 @Module({
   providers: [
+    AuditHelper,
+    ClosingLockHelper,
+    EventOutboxHelper,
+    HolidayProvider,
     Phase2Service,
+    PolicyQueryService,
+    TimeEngineDomainService,
+    ReportingService,
     TerminalGatewayService,
     HrImportService,
     {
@@ -72,7 +86,14 @@ import { WorkflowsDomainService } from './services/workflows-domain.service';
     TimeEngineController,
   ],
   exports: [
+    AuditHelper,
+    ClosingLockHelper,
+    EventOutboxHelper,
+    HolidayProvider,
     Phase2Service,
+    PolicyQueryService,
+    TimeEngineDomainService,
+    ReportingService,
     TerminalGatewayService,
     HrImportService,
     WorkflowRuntimeService,

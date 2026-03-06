@@ -10,13 +10,18 @@ import {
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Phase2Service } from '../phase2.service';
+import { TimeEngineDomainService } from '../services/time-engine-domain.service';
 import { AbsenceDto, CreateAbsenceDto } from '../dto/absence.dto';
 
 @ApiTags('absences')
 @ApiBearerAuth()
 @Controller('v1/absences')
 export class AbsencesController {
-  constructor(@Inject(Phase2Service) private readonly phase2Service: Phase2Service) {}
+  constructor(
+    @Inject(Phase2Service) private readonly phase2Service: Phase2Service,
+    @Inject(TimeEngineDomainService)
+    private readonly timeEngineDomainService: TimeEngineDomainService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create absence request' })
@@ -37,7 +42,7 @@ export class AbsencesController {
       segments: Array<{ from: string; to: string; weeklyHours: number }>;
     },
   ) {
-    return this.phase2Service.computeProratedTarget(payload);
+    return this.timeEngineDomainService.computeProratedTarget(payload);
   }
 
   @Get('me')

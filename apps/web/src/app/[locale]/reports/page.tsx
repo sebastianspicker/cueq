@@ -225,13 +225,7 @@ export default function ReportsPage() {
     <PageShell title={t('title')} description={t('description')}>
 
       <p
-        style={{
-          marginTop: '0.25rem',
-          padding: '.75rem',
-          border: '1px solid #d0d7de',
-          borderRadius: '.5rem',
-          backgroundColor: '#f8fafc',
-        }}
+        className="cq-privacy-notice"
       >
         {t('privacyNotice')}
       </p>
@@ -254,7 +248,7 @@ export default function ReportsPage() {
             <span>{t('toLabel')}</span>
             <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
           </label>
-          <label style={{ display: 'grid', gap: '.25rem', gridColumn: '1 / -1' }}>
+          <label className="cq-stack-xs cq-full-span">
             <span>{t('organizationUnitIdLabel')}</span>
             <input
               value={organizationUnitId}

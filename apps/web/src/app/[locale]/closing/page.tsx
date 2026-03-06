@@ -365,7 +365,8 @@ export default function ClosingPage() {
       <SectionCard>
         <h2>{t('actionsTitle')}</h2>
         <label
-          style={{ display: 'grid', gap: '.25rem', marginBottom: '.75rem', maxWidth: '16rem' }}
+          className="cq-stack-xs"
+          style={{ marginBottom: '.75rem', maxWidth: '16rem' }}
         >
           <span>{t('exportFormatLabel')}</span>
           <select

@@ -1,6 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { ApiProvider } from '../../lib/api-context';
 
 const locales = ['de', 'en'] as const;
@@ -29,8 +30,11 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <ApiProvider>
+        <a className="cq-skip-link" href="#main-content">
+          {locale === 'de' ? 'Zum Inhalt springen' : 'Skip to content'}
+        </a>
         <div className="cq-app-shell">
-          <aside className="cq-app-sidebar">
+          <aside className="cq-app-sidebar" role="complementary">
             <div className="cq-brand">
               <p className="cq-brand-overline">{locale === 'de' ? 'Universität NRW' : 'University NRW'}</p>
               <h1>{messages.app.title}</h1>
@@ -79,6 +83,17 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
                 <Link className="cq-nav-link" href={`/${locale}/time-engine`}>
                   {messages.app.nav.timeEngine}
                 </Link>
+                <Link className="cq-nav-link" href={`/${locale}/audit`}>
+                  {messages.app.nav.audit}
+                </Link>
+              </nav>
+            </div>
+
+            <div className="cq-nav-block">
+              <nav className="cq-app-nav">
+                <Link className="cq-nav-link" href={`/${locale}/settings`}>
+                  {messages.app.nav.settings}
+                </Link>
               </nav>
             </div>
 
@@ -90,7 +105,9 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
             </div>
           </aside>
 
-          <main className="cq-app-main">{children}</main>
+          <main id="main-content" className="cq-app-main">
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </main>
         </div>
       </ApiProvider>
     </NextIntlClientProvider>

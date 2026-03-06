@@ -1,6 +1,4 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   BadRequestException,
   ConflictException,
@@ -24,29 +22,18 @@ import {
 } from '@cueq/database';
 import {
   applyCutoffLock,
-  buildAuditEntry,
   calculateAbsenceWorkingDays,
   calculateLeaveLedger,
-  calculateProratedMonthlyTarget,
   evaluatePlanVsActualCoverage,
-  evaluateTimeRules as evaluateTimeRulesCore,
   evaluateOnCallRestCompliance,
   generateClosingChecklist,
 } from '@cueq/core';
+import { DEFAULT_LEAVE_RULE } from '@cueq/policy';
 import {
-  DEFAULT_LEAVE_RULE,
-  getActivePolicyBundle,
-  getPolicyHistory,
-  type PolicyRuleType,
-} from '@cueq/policy';
-import {
-  AuditSummaryQuerySchema,
   BookingCorrectionSchema,
   ClosingBookingCorrectionSchema,
   ClosingExportRequestSchema,
   ClosingPeriodMonthQuerySchema,
-  ClosingCompletionQuerySchema,
-  ComplianceSummaryQuerySchema,
   CreateAbsenceSchema,
   CreateBookingSchema,
   CreateLeaveAdjustmentSchema,
@@ -59,14 +46,8 @@ import {
   ListOnCallDeploymentsQuerySchema,
   ListOnCallRotationsQuerySchema,
   LeaveAdjustmentQuerySchema,
-  OeOvertimeQuerySchema,
-  CustomReportPreviewQuerySchema,
   OutboxQuerySchema,
-  PolicyBundleQuerySchema,
-  PolicyHistoryQuerySchema,
-  TeamAbsenceQuerySchema,
   TeamCalendarQuerySchema,
-  TimeRuleEvaluationRequestSchema,
   ShiftSwapRequestSchema,
   OvertimeApprovalRequestSchema,
   UpdateShiftSchema,
@@ -75,7 +56,6 @@ import {
   WorkflowInboxQuerySchema,
   WorkflowPolicyUpsertSchema,
   WorkflowTypeSchema,
-  CustomReportOptionsSchema,
   CreateWorkflowDelegationRuleSchema,
   UpdateWorkflowDelegationRuleSchema,
   AssignShiftSchema,
@@ -84,6 +64,10 @@ import { PrismaService } from '../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../common/auth/auth.types';
 import { assertWebhookDispatchTargetUrl, assertWebhookTargetUrl } from '../common/http/webhook-url';
 import { readResponseBodyWithLimit } from '../common/http/read-response-body';
+import { AuditHelper } from './helpers/audit.helper';
+import { ClosingLockHelper } from './helpers/closing-lock.helper';
+import { EventOutboxHelper } from './helpers/event-outbox.helper';
+import { HolidayProvider } from './helpers/holiday.provider';
 import { TerminalGatewayService } from './terminal-gateway.service';
 import { WorkflowRuntimeService } from './workflow-runtime.service';
 
@@ -91,25 +75,6 @@ const HR_LIKE_ROLES = new Set<Role>([Role.HR, Role.ADMIN]);
 const EXPORT_DOWNLOAD_ROLES = new Set<Role>([Role.HR, Role.ADMIN, Role.PAYROLL]);
 const APPROVAL_ROLES = new Set<Role>([Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN]);
 const CLOSING_READ_ROLES = new Set<Role>([Role.TEAM_LEAD, Role.HR, Role.ADMIN]);
-const REPORT_ALLOWED_ROLES = new Set<Role>([
-  Role.TEAM_LEAD,
-  Role.HR,
-  Role.ADMIN,
-  Role.DATA_PROTECTION,
-  Role.WORKS_COUNCIL,
-]);
-const SENSITIVE_REPORT_ALLOWED_ROLES = new Set<Role>([
-  Role.HR,
-  Role.ADMIN,
-  Role.DATA_PROTECTION,
-  Role.WORKS_COUNCIL,
-]);
-const TIME_ENGINE_ALLOWED_ROLES = new Set<Role>([
-  Role.TEAM_LEAD,
-  Role.SHIFT_PLANNER,
-  Role.HR,
-  Role.ADMIN,
-]);
 const ABSENCE_TYPES_WITH_APPROVAL = new Set<AbsenceType>([
   AbsenceType.ANNUAL_LEAVE,
   AbsenceType.SPECIAL_LEAVE,
@@ -120,11 +85,6 @@ const ABSENCE_TYPES_WITH_APPROVAL = new Set<AbsenceType>([
   AbsenceType.UNPAID,
 ]);
 const ABSENCE_TYPES_AUTO_APPROVED = new Set<AbsenceType>([AbsenceType.SICK, AbsenceType.PARENTAL]);
-const HOLIDAY_FIXTURE_PATHS = [
-  resolve(__dirname, '../../../../fixtures/calendars'),
-  resolve(process.cwd(), 'fixtures/calendars'),
-  resolve(process.cwd(), '../../fixtures/calendars'),
-];
 const WEBHOOK_RESPONSE_BODY_MAX_CHARS = 8_000;
 const WEBHOOK_ERROR_MAX_CHARS = 1_000;
 
@@ -209,12 +169,14 @@ function toPersistenceClosingStatus(status: CoreClosingStatus): ClosingStatus {
 
 @Injectable()
 export class Phase2Service {
-  private readonly holidayCache = new Map<number, Set<string>>();
-
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TerminalGatewayService) private readonly terminalGatewayService: TerminalGatewayService,
     @Inject(WorkflowRuntimeService) private readonly workflowRuntimeService: WorkflowRuntimeService,
+    @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
+    @Inject(ClosingLockHelper) private readonly closingLockHelper: ClosingLockHelper,
+    @Inject(EventOutboxHelper) private readonly eventOutboxHelper: EventOutboxHelper,
+    @Inject(HolidayProvider) private readonly holidayProvider: HolidayProvider,
   ) {}
 
   private async personForUser(user: AuthenticatedIdentity) {
@@ -274,34 +236,7 @@ export class Phase2Service {
     after?: Prisma.JsonValue;
     reason?: string;
   }) {
-    const draft = buildAuditEntry({
-      actorId: input.actorId,
-      action: input.action,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      before: input.before,
-      after: input.after,
-      reason: input.reason,
-    });
-
-    await this.prisma.auditEntry.create({
-      data: {
-        id: draft.id,
-        timestamp: new Date(draft.timestamp),
-        actorId: draft.actorId,
-        action: draft.action,
-        entityType: draft.entityType,
-        entityId: draft.entityId,
-        before: draft.before as Prisma.InputJsonValue,
-        after: draft.after as Prisma.InputJsonValue,
-        reason: draft.reason ?? undefined,
-      },
-    });
-  }
-
-  private minGroupSize(): number {
-    const parsed = Number(process.env.REPORT_MIN_GROUP_SIZE ?? '5');
-    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 5;
+    return this.auditHelper.appendAudit(input);
   }
 
   private webhookBatchSize(): number {
@@ -422,12 +357,7 @@ export class Phase2Service {
   }
 
   private async resolveSystemActorId(): Promise<string | null> {
-    const actor = await this.prisma.person.findFirst({
-      where: { role: { in: [Role.ADMIN, Role.HR] } },
-      select: { id: true },
-      orderBy: { createdAt: 'asc' },
-    });
-    return actor?.id ?? null;
+    return this.auditHelper.resolveSystemActorId();
   }
 
   async runClosingCutoff(now: Date = new Date()) {
@@ -501,26 +431,7 @@ export class Phase2Service {
     from: Date;
     to: Date;
   }) {
-    const where: Prisma.ClosingPeriodWhereInput = {
-      periodStart: { lte: input.to },
-      periodEnd: { gte: input.from },
-      status: {
-        in: [ClosingStatus.REVIEW, ClosingStatus.CLOSED, ClosingStatus.EXPORTED],
-      },
-      ...(input.organizationUnitId
-        ? {
-            OR: [
-              { organizationUnitId: input.organizationUnitId },
-              { organizationUnitId: null },
-            ] as Prisma.ClosingPeriodWhereInput[],
-          }
-        : { organizationUnitId: null }),
-    };
-
-    return this.prisma.closingPeriod.findFirst({
-      where,
-      orderBy: { periodStart: 'desc' },
-    });
+    return this.closingLockHelper.findOverlappingLockedClosingPeriod(input);
   }
 
   private async assertClosingPeriodUnlockedForRange(input: {
@@ -532,58 +443,7 @@ export class Phase2Service {
     entityType: string;
     entityId: string;
   }) {
-    const period = await this.findOverlappingLockedClosingPeriod({
-      organizationUnitId: input.organizationUnitId,
-      from: input.from,
-      to: input.to,
-    });
-
-    if (!period) {
-      return;
-    }
-
-    await this.appendAudit({
-      actorId: input.actorId,
-      action: 'CLOSING_LOCK_BLOCKED',
-      entityType: input.entityType,
-      entityId: input.entityId,
-      before: {
-        attemptedAction: input.attemptedAction,
-        from: input.from.toISOString(),
-        to: input.to.toISOString(),
-        organizationUnitId: input.organizationUnitId,
-      },
-      after: {
-        closingPeriodId: period.id,
-        status: toCoreClosingStatus(period.status),
-        periodStart: period.periodStart.toISOString(),
-        periodEnd: period.periodEnd.toISOString(),
-        lockedAt: period.lockedAt?.toISOString() ?? null,
-        lockSource: period.lockSource ?? null,
-      },
-    });
-
-    throw new ConflictException({
-      code: 'CLOSING_PERIOD_LOCKED',
-      message: 'Requested mutation overlaps with a locked closing period.',
-      closingPeriodId: period.id,
-      status: toCoreClosingStatus(period.status),
-      periodStart: period.periodStart.toISOString(),
-      periodEnd: period.periodEnd.toISOString(),
-      lockSource: period.lockSource ?? null,
-    });
-  }
-
-  private assertCanReadReports(user: AuthenticatedIdentity) {
-    if (!REPORT_ALLOWED_ROLES.has(user.role)) {
-      throw new ForbiddenException('Role does not permit report access.');
-    }
-  }
-
-  private assertCanReadSensitiveReports(user: AuthenticatedIdentity) {
-    if (!SENSITIVE_REPORT_ALLOWED_ROLES.has(user.role)) {
-      throw new ForbiddenException('Role does not permit sensitive report access.');
-    }
+    return this.closingLockHelper.assertClosingPeriodUnlockedForRange(input);
   }
 
   private assertHrLikeRole(user: AuthenticatedIdentity) {
@@ -593,45 +453,11 @@ export class Phase2Service {
   }
 
   private loadHolidayDates(year: number): Set<string> {
-    const cached = this.holidayCache.get(year);
-    if (cached) {
-      return cached;
-    }
-
-    for (const basePath of HOLIDAY_FIXTURE_PATHS) {
-      const filePath = resolve(basePath, `nrw-holidays-${year}.json`);
-      try {
-        const raw = readFileSync(filePath, 'utf8');
-        const parsed = JSON.parse(raw) as {
-          holidays?: Array<{ date?: string }>;
-        };
-        const dates = new Set(
-          (parsed.holidays ?? []).map((entry) => entry.date).filter(Boolean) as string[],
-        );
-        this.holidayCache.set(year, dates);
-        return dates;
-      } catch {
-        // try next lookup location
-      }
-    }
-
-    const empty = new Set<string>();
-    this.holidayCache.set(year, empty);
-    return empty;
+    return this.holidayProvider.loadHolidayDates(year);
   }
 
   private holidayDatesBetween(start: string, end: string): string[] {
-    const startDate = new Date(`${start}T00:00:00.000Z`);
-    const endDate = new Date(`${end}T00:00:00.000Z`);
-    const holidays = new Set<string>();
-
-    for (let year = startDate.getUTCFullYear(); year <= endDate.getUTCFullYear(); year += 1) {
-      for (const holiday of this.loadHolidayDates(year)) {
-        holidays.add(holiday);
-      }
-    }
-
-    return [...holidays];
+    return this.holidayProvider.holidayDatesBetween(start, end);
   }
 
   private defaultAsOfDate(targetYear: number): string {
@@ -897,16 +723,7 @@ export class Phase2Service {
     aggregateId: string;
     payload: Record<string, unknown>;
   }) {
-    return this.prisma.domainEventOutbox.create({
-      data: {
-        eventType: input.eventType,
-        aggregateType: input.aggregateType,
-        aggregateId: input.aggregateId,
-        payload: input.payload as Prisma.InputJsonValue,
-        status: OutboxStatus.PENDING,
-        attempts: 0,
-      },
-    });
+    return this.eventOutboxHelper.enqueueDomainEvent(input);
   }
 
   private parseMonthToRange(month: string) {
@@ -3212,33 +3029,6 @@ export class Phase2Service {
     };
   }
 
-  async timeEngineEvaluate(user: AuthenticatedIdentity, payload: unknown) {
-    if (!TIME_ENGINE_ALLOWED_ROLES.has(user.role)) {
-      throw new ForbiddenException('Role does not permit time-engine rule evaluation.');
-    }
-
-    const actor = await this.personForUser(user);
-    const parsed = TimeRuleEvaluationRequestSchema.parse(payload ?? {});
-    const result = evaluateTimeRulesCore(parsed);
-
-    await this.appendAudit({
-      actorId: actor.id,
-      action: 'TIME_RULES_EVALUATED',
-      entityType: 'TimeRuleEvaluation',
-      entityId: `${parsed.week}:${new Date().toISOString()}`,
-      after: {
-        week: parsed.week,
-        timezone: parsed.timezone ?? 'Europe/Berlin',
-        intervalCount: parsed.intervals.length,
-        violations: result.violations.length,
-        warnings: result.warnings.length,
-        surchargeLines: result.surchargeMinutes,
-      },
-    });
-
-    return result;
-  }
-
   async listClosingPeriods(
     user: AuthenticatedIdentity,
     fromMonth?: string,
@@ -4216,77 +4006,6 @@ export class Phase2Service {
     };
   }
 
-  async policyBundle(query: unknown) {
-    const parsed = PolicyBundleQuerySchema.parse(query ?? {});
-    const asOf = parsed.asOf ?? new Date().toISOString().slice(0, 10);
-    const policies = getActivePolicyBundle(asOf).map((entry) => {
-      const {
-        type,
-        id,
-        name,
-        description,
-        version,
-        effectiveFrom,
-        effectiveTo,
-        createdAt,
-        createdBy,
-        ...payload
-      } = entry;
-      return {
-        type,
-        id,
-        name,
-        description,
-        version,
-        effectiveFrom,
-        effectiveTo,
-        createdAt,
-        createdBy,
-        payload,
-      };
-    });
-
-    return {
-      asOf,
-      policies,
-    };
-  }
-
-  async policyHistory(query: unknown) {
-    const parsed = PolicyHistoryQuerySchema.parse(query ?? {});
-    const entries = getPolicyHistory(parsed.type as PolicyRuleType | undefined).map((entry) => {
-      const {
-        type,
-        id,
-        name,
-        description,
-        version,
-        effectiveFrom,
-        effectiveTo,
-        createdAt,
-        createdBy,
-        ...payload
-      } = entry;
-      return {
-        type,
-        id,
-        name,
-        description,
-        version,
-        effectiveFrom,
-        effectiveTo,
-        createdAt,
-        createdBy,
-        payload,
-      };
-    });
-
-    return {
-      total: entries.length,
-      entries,
-    };
-  }
-
   async createWebhookEndpoint(user: AuthenticatedIdentity, payload: unknown) {
     if (!HR_LIKE_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin can configure webhooks.');
@@ -4582,530 +4301,6 @@ export class Phase2Service {
     };
   }
 
-  async reportTeamAbsence(user: AuthenticatedIdentity, query: unknown) {
-    this.assertCanReadReports(user);
-    const actor = await this.personForUser(user);
-    const parsed = TeamAbsenceQuerySchema.parse(query ?? {});
-    const targetOuId = parsed.organizationUnitId ?? actor.organizationUnitId;
-
-    if (user.role === Role.TEAM_LEAD && targetOuId !== actor.organizationUnitId) {
-      throw new ForbiddenException('Team leads can only access reports for their own unit.');
-    }
-
-    const from = new Date(`${parsed.from}T00:00:00.000Z`);
-    const to = new Date(`${parsed.to}T23:59:59.000Z`);
-
-    const population = await this.prisma.person.count({
-      where: {
-        organizationUnitId: targetOuId,
-        role: { in: [Role.EMPLOYEE, Role.TEAM_LEAD, Role.SHIFT_PLANNER] },
-      },
-    });
-    const minGroupSize = this.minGroupSize();
-    const suppressed = population < minGroupSize;
-
-    let totals = { requests: 0, days: 0 };
-    let buckets: Array<{ type: string; requests: number; days: number }> = [];
-
-    if (!suppressed) {
-      const absences = await this.prisma.absence.findMany({
-        where: {
-          person: { organizationUnitId: targetOuId },
-          startDate: { lte: to },
-          endDate: { gte: from },
-        },
-      });
-
-      const byType = new Map<string, { requests: number; days: number }>();
-      for (const absence of absences) {
-        const type = absence.type;
-        const current = byType.get(type) ?? { requests: 0, days: 0 };
-        current.requests += 1;
-        current.days += Number(absence.days);
-        byType.set(type, current);
-      }
-
-      totals = {
-        requests: absences.length,
-        days: Number(absences.reduce((sum, absence) => sum + Number(absence.days), 0).toFixed(2)),
-      };
-      buckets = [...byType.entries()].map(([type, value]) => ({
-        type,
-        requests: value.requests,
-        days: Number(value.days.toFixed(2)),
-      }));
-    }
-
-    await this.appendAudit({
-      actorId: actor.id,
-      action: 'REPORT_ACCESSED',
-      entityType: 'Report',
-      entityId: `team-absence:${targetOuId}:${parsed.from}:${parsed.to}`,
-      after: {
-        report: 'team-absence',
-        organizationUnitId: targetOuId,
-        suppressed,
-      },
-    });
-
-    return {
-      organizationUnitId: targetOuId,
-      from: parsed.from,
-      to: parsed.to,
-      suppression: {
-        suppressed,
-        minGroupSize,
-        population,
-      },
-      totals,
-      buckets,
-    };
-  }
-
-  async reportOeOvertime(user: AuthenticatedIdentity, query: unknown) {
-    this.assertCanReadReports(user);
-    const actor = await this.personForUser(user);
-    const parsed = OeOvertimeQuerySchema.parse(query ?? {});
-    const targetOuId = parsed.organizationUnitId ?? actor.organizationUnitId;
-
-    if (user.role === Role.TEAM_LEAD && targetOuId !== actor.organizationUnitId) {
-      throw new ForbiddenException('Team leads can only access reports for their own unit.');
-    }
-
-    const from = new Date(`${parsed.from}T00:00:00.000Z`);
-    const to = new Date(`${parsed.to}T23:59:59.000Z`);
-    const minGroupSize = this.minGroupSize();
-
-    const accounts = await this.prisma.timeAccount.findMany({
-      where: {
-        person: { organizationUnitId: targetOuId },
-        periodStart: { lte: to },
-        periodEnd: { gte: from },
-      },
-      select: { personId: true, balance: true, overtimeHours: true },
-    });
-
-    const distinctPeople = new Set(accounts.map((account) => account.personId));
-    const population = distinctPeople.size;
-    const suppressed = population < minGroupSize;
-
-    const totalBalanceHours = suppressed
-      ? 0
-      : Number(accounts.reduce((sum, account) => sum + Number(account.balance), 0).toFixed(2));
-    const totalOvertimeHours = suppressed
-      ? 0
-      : Number(
-          accounts.reduce((sum, account) => sum + Number(account.overtimeHours), 0).toFixed(2),
-        );
-
-    await this.appendAudit({
-      actorId: actor.id,
-      action: 'REPORT_ACCESSED',
-      entityType: 'Report',
-      entityId: `oe-overtime:${targetOuId}:${parsed.from}:${parsed.to}`,
-      after: {
-        report: 'oe-overtime',
-        organizationUnitId: targetOuId,
-        suppressed,
-      },
-    });
-
-    return {
-      organizationUnitId: targetOuId,
-      from: parsed.from,
-      to: parsed.to,
-      suppression: {
-        suppressed,
-        minGroupSize,
-        population,
-      },
-      totals: {
-        people: suppressed ? 0 : population,
-        totalBalanceHours,
-        totalOvertimeHours,
-        avgBalanceHours:
-          suppressed || population === 0 ? 0 : Number((totalBalanceHours / population).toFixed(2)),
-      },
-    };
-  }
-
-  async reportClosingCompletion(user: AuthenticatedIdentity, query: unknown) {
-    this.assertCanReadReports(user);
-    const actor = await this.personForUser(user);
-    const parsed = ClosingCompletionQuerySchema.parse(query ?? {});
-    const from = new Date(`${parsed.from}T00:00:00.000Z`);
-    const to = new Date(`${parsed.to}T23:59:59.000Z`);
-
-    const periods = await this.prisma.closingPeriod.findMany({
-      where: {
-        periodStart: { lte: to },
-        periodEnd: { gte: from },
-      },
-      select: { status: true },
-    });
-
-    const totals = {
-      periods: periods.length,
-      exported: periods.filter((period) => period.status === ClosingStatus.EXPORTED).length,
-      approved: periods.filter((period) => period.status === ClosingStatus.CLOSED).length,
-      review: periods.filter((period) => period.status === ClosingStatus.REVIEW).length,
-      open: periods.filter((period) => period.status === ClosingStatus.OPEN).length,
-      completionRate:
-        periods.length === 0
-          ? 0
-          : Number(
-              (
-                periods.filter((period) => period.status === ClosingStatus.EXPORTED).length /
-                periods.length
-              ).toFixed(4),
-            ),
-    };
-
-    await this.appendAudit({
-      actorId: actor.id,
-      action: 'REPORT_ACCESSED',
-      entityType: 'Report',
-      entityId: `closing-completion:${parsed.from}:${parsed.to}`,
-      after: {
-        report: 'closing-completion',
-      },
-    });
-
-    return {
-      from: parsed.from,
-      to: parsed.to,
-      totals,
-    };
-  }
-
-  async reportAuditSummary(user: AuthenticatedIdentity, query: unknown) {
-    this.assertCanReadSensitiveReports(user);
-    const actor = await this.personForUser(user);
-    const parsed = AuditSummaryQuerySchema.parse(query ?? {});
-    const from = new Date(`${parsed.from}T00:00:00.000Z`);
-    const to = new Date(`${parsed.to}T23:59:59.999Z`);
-
-    const entries = await this.prisma.auditEntry.findMany({
-      where: {
-        timestamp: {
-          gte: from,
-          lte: to,
-        },
-      },
-      select: {
-        actorId: true,
-        action: true,
-        entityType: true,
-      },
-    });
-
-    const uniqueActors = new Set<string>();
-    const byAction = new Map<string, number>();
-    const byEntityType = new Map<string, number>();
-
-    for (const entry of entries) {
-      uniqueActors.add(entry.actorId);
-      byAction.set(entry.action, (byAction.get(entry.action) ?? 0) + 1);
-      byEntityType.set(entry.entityType, (byEntityType.get(entry.entityType) ?? 0) + 1);
-    }
-
-    const reportAccesses = byAction.get('REPORT_ACCESSED') ?? 0;
-    const exportsTriggered = byAction.get('CLOSING_EXPORTED') ?? 0;
-    const lockBlocks = byAction.get('CLOSING_LOCK_BLOCKED') ?? 0;
-
-    await this.appendAudit({
-      actorId: actor.id,
-      action: 'REPORT_ACCESSED',
-      entityType: 'Report',
-      entityId: `audit-summary:${parsed.from}:${parsed.to}`,
-      after: {
-        report: 'audit-summary',
-        suppressed: false,
-      },
-    });
-
-    return {
-      from: parsed.from,
-      to: parsed.to,
-      totals: {
-        entries: entries.length,
-        uniqueActors: uniqueActors.size,
-        reportAccesses,
-        exportsTriggered,
-        lockBlocks,
-      },
-      byAction: [...byAction.entries()]
-        .map(([action, count]) => ({ action, count }))
-        .sort((left, right) => left.action.localeCompare(right.action)),
-      byEntityType: [...byEntityType.entries()]
-        .map(([entityType, count]) => ({ entityType, count }))
-        .sort((left, right) => left.entityType.localeCompare(right.entityType)),
-    };
-  }
-
-  async reportComplianceSummary(user: AuthenticatedIdentity, query: unknown) {
-    this.assertCanReadSensitiveReports(user);
-    const actor = await this.personForUser(user);
-    const parsed = ComplianceSummaryQuerySchema.parse(query ?? {});
-    const from = new Date(`${parsed.from}T00:00:00.000Z`);
-    const to = new Date(`${parsed.to}T23:59:59.999Z`);
-
-    const [reportAccessEntries, lockBlocks, postCloseCorrections, periods, exportRuns, backupRun] =
-      await Promise.all([
-        this.prisma.auditEntry.findMany({
-          where: {
-            action: 'REPORT_ACCESSED',
-            timestamp: {
-              gte: from,
-              lte: to,
-            },
-          },
-          select: {
-            after: true,
-          },
-        }),
-        this.prisma.auditEntry.count({
-          where: {
-            action: 'CLOSING_LOCK_BLOCKED',
-            timestamp: {
-              gte: from,
-              lte: to,
-            },
-          },
-        }),
-        this.prisma.auditEntry.count({
-          where: {
-            action: 'POST_CLOSE_CORRECTION_APPLIED',
-            timestamp: {
-              gte: from,
-              lte: to,
-            },
-          },
-        }),
-        this.prisma.closingPeriod.findMany({
-          where: {
-            periodStart: { lte: to },
-            periodEnd: { gte: from },
-          },
-          select: {
-            status: true,
-          },
-        }),
-        this.prisma.exportRun.findMany({
-          where: {
-            exportedAt: {
-              gte: from,
-              lte: to,
-            },
-          },
-          orderBy: {
-            exportedAt: 'desc',
-          },
-          select: {
-            checksum: true,
-            exportedAt: true,
-          },
-        }),
-        this.prisma.auditEntry.findFirst({
-          where: {
-            action: 'BACKUP_RESTORE_VERIFIED',
-            timestamp: {
-              gte: from,
-              lte: to,
-            },
-          },
-          orderBy: {
-            timestamp: 'desc',
-          },
-        }),
-      ]);
-
-    const reportAccesses = reportAccessEntries.length;
-    const suppressedReportAccesses = reportAccessEntries.reduce((total, entry) => {
-      if (
-        entry.after &&
-        typeof entry.after === 'object' &&
-        !Array.isArray(entry.after) &&
-        (entry.after as Record<string, unknown>).suppressed === true
-      ) {
-        return total + 1;
-      }
-      return total;
-    }, 0);
-    const suppressionRate =
-      reportAccesses === 0 ? 0 : Number((suppressedReportAccesses / reportAccesses).toFixed(4));
-
-    const periodsTotal = periods.length;
-    const periodsExported = periods.filter(
-      (period) => period.status === ClosingStatus.EXPORTED,
-    ).length;
-    const completionRate =
-      periodsTotal === 0 ? 0 : Number((periodsExported / periodsTotal).toFixed(4));
-
-    const runs = exportRuns.length;
-    const uniqueChecksums = new Set(exportRuns.map((run) => run.checksum)).size;
-    const duplicateChecksums = runs - uniqueChecksums;
-
-    await this.appendAudit({
-      actorId: actor.id,
-      action: 'REPORT_ACCESSED',
-      entityType: 'Report',
-      entityId: `compliance-summary:${parsed.from}:${parsed.to}`,
-      after: {
-        report: 'compliance-summary',
-        suppressed: false,
-      },
-    });
-
-    return {
-      from: parsed.from,
-      to: parsed.to,
-      privacy: {
-        minGroupSize: this.minGroupSize(),
-        reportAccesses,
-        suppressedReportAccesses,
-        suppressionRate,
-      },
-      closing: {
-        periods: periodsTotal,
-        exported: periodsExported,
-        completionRate,
-        lockBlocks,
-        postCloseCorrections,
-      },
-      payrollExport: {
-        runs,
-        uniqueChecksums,
-        duplicateChecksums,
-        lastRunAt: exportRuns[0]?.exportedAt.toISOString() ?? null,
-      },
-      operations: {
-        lastBackupRestoreVerifiedAt: backupRun?.timestamp.toISOString() ?? null,
-      },
-    };
-  }
-
-  reportCustomOptions(user: AuthenticatedIdentity) {
-    if (!REPORT_ALLOWED_ROLES.has(user.role)) {
-      throw new ForbiddenException('Role does not permit access to reports.');
-    }
-
-    return CustomReportOptionsSchema.parse({
-      reportTypes: ['TEAM_ABSENCE', 'OE_OVERTIME', 'CLOSING_COMPLETION'],
-      groupBy: ['ORGANIZATION_UNIT', 'NONE'],
-      metrics: ['requests', 'days', 'people', 'totalOvertimeHours', 'completionRate', 'exported'],
-    });
-  }
-
-  async reportCustomPreview(user: AuthenticatedIdentity, query: unknown) {
-    this.assertCanReadReports(user);
-    const normalizedQuery =
-      query && typeof query === 'object' && !Array.isArray(query)
-        ? { ...(query as Record<string, unknown>) }
-        : {};
-    if (typeof normalizedQuery.metrics === 'string') {
-      normalizedQuery.metrics = [normalizedQuery.metrics];
-    }
-
-    const parsed = CustomReportPreviewQuerySchema.parse(normalizedQuery);
-
-    const metricAllowList: Record<string, Set<string>> = {
-      TEAM_ABSENCE: new Set(['requests', 'days']),
-      OE_OVERTIME: new Set(['people', 'totalOvertimeHours']),
-      CLOSING_COMPLETION: new Set(['completionRate', 'exported']),
-    };
-    const allowedMetrics = metricAllowList[parsed.reportType];
-    const disallowed = parsed.metrics.filter((metric) => !allowedMetrics?.has(metric));
-    if (disallowed.length > 0) {
-      throw new BadRequestException(
-        `Unsupported metrics for ${parsed.reportType}: ${disallowed.join(', ')}`,
-      );
-    }
-
-    if (parsed.reportType === 'TEAM_ABSENCE') {
-      const report = await this.reportTeamAbsence(user, {
-        organizationUnitId: parsed.organizationUnitId,
-        from: parsed.from,
-        to: parsed.to,
-      });
-      const metricValues: Record<string, number> = {};
-      if (parsed.metrics.includes('requests')) {
-        metricValues.requests = report.totals.requests;
-      }
-      if (parsed.metrics.includes('days')) {
-        metricValues.days = report.totals.days;
-      }
-
-      return {
-        reportType: parsed.reportType,
-        groupBy: parsed.groupBy,
-        from: parsed.from,
-        to: parsed.to,
-        suppression: report.suppression,
-        rows: [
-          {
-            group: parsed.groupBy === 'ORGANIZATION_UNIT' ? report.organizationUnitId : 'ALL',
-            metrics: metricValues,
-          },
-        ],
-      };
-    }
-
-    if (parsed.reportType === 'OE_OVERTIME') {
-      const report = await this.reportOeOvertime(user, {
-        organizationUnitId: parsed.organizationUnitId,
-        from: parsed.from,
-        to: parsed.to,
-      });
-      const metricValues: Record<string, number> = {};
-      if (parsed.metrics.includes('people')) {
-        metricValues.people = report.totals.people;
-      }
-      if (parsed.metrics.includes('totalOvertimeHours')) {
-        metricValues.totalOvertimeHours = report.totals.totalOvertimeHours;
-      }
-
-      return {
-        reportType: parsed.reportType,
-        groupBy: parsed.groupBy,
-        from: parsed.from,
-        to: parsed.to,
-        suppression: report.suppression,
-        rows: [
-          {
-            group: parsed.groupBy === 'ORGANIZATION_UNIT' ? report.organizationUnitId : 'ALL',
-            metrics: metricValues,
-          },
-        ],
-      };
-    }
-
-    const report = await this.reportClosingCompletion(user, {
-      from: parsed.from,
-      to: parsed.to,
-    });
-    const metricValues: Record<string, number> = {};
-    if (parsed.metrics.includes('completionRate')) {
-      metricValues.completionRate = report.totals.completionRate;
-    }
-    if (parsed.metrics.includes('exported')) {
-      metricValues.exported = report.totals.exported;
-    }
-
-    return {
-      reportType: parsed.reportType,
-      groupBy: parsed.groupBy,
-      from: parsed.from,
-      to: parsed.to,
-      rows: [
-        {
-          group: 'ALL',
-          metrics: metricValues,
-        },
-      ],
-    };
-  }
-
   async importTerminalBatch(user: AuthenticatedIdentity, payload: unknown) {
     if (!HR_LIKE_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin can import terminal batches.');
@@ -5129,14 +4324,5 @@ export class Phase2Service {
       throw new ForbiddenException('Only HR/Admin can read terminal batches.');
     }
     return this.terminalGatewayService.getBatch(batchId);
-  }
-
-  async computeProratedTarget(payload: {
-    month: string;
-    actualHours: number;
-    transitionAdjustmentHours?: number;
-    segments: Array<{ from: string; to: string; weeklyHours: number }>;
-  }) {
-    return calculateProratedMonthlyTarget(payload);
   }
 }

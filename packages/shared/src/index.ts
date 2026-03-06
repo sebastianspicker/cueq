@@ -20,3 +20,4 @@ export * from './schemas/time-engine';
 export * from './schemas/common';
 export * from './schemas/closing';
 export * from './generated/core-schema-types';
+export * from './date-utils';

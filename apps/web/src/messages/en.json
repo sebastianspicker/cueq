@@ -14,7 +14,9 @@
       "reports": "Reports",
       "policyAdmin": "Policy Admin",
       "bookings": "My Bookings",
-      "oncall": "On-Call"
+      "oncall": "On-Call",
+      "audit": "Audit Log",
+      "settings": "Settings"
     }
   },
   "pages": {
@@ -363,6 +365,42 @@
       "rotationCreated": "Rotation created.",
       "rotationUpdated": "Rotation updated.",
       "deploymentCreated": "Deployment created."
+    },
+    "audit": {
+      "title": "Audit Log",
+      "description": "Append-only activity trail for compliance verification.",
+      "apiBaseLabel": "API base URL",
+      "tokenLabel": "Bearer token",
+      "fromLabel": "From",
+      "toLabel": "To",
+      "entityTypeLabel": "Entity type (optional)",
+      "loadEntries": "Load audit log",
+      "loading": "Loading...",
+      "requestFailed": "Request failed.",
+      "noEntries": "No audit entries for this range.",
+      "timestampLabel": "Timestamp",
+      "actorLabel": "Actor",
+      "actionLabel": "Action",
+      "entityLabel": "Entity",
+      "entityIdLabel": "Entity ID",
+      "reasonLabel": "Reason",
+      "searchPlaceholder": "Search audit entries…"
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Personal preferences and connection setup.",
+      "connectionTitle": "API Connection",
+      "apiBaseLabel": "API base URL",
+      "tokenLabel": "Bearer token",
+      "preferencesTitle": "Preferences",
+      "localeLabel": "Language",
+      "themeLabel": "Theme",
+      "themeSystem": "System",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "pageSizeLabel": "Default page size",
+      "saved": "Settings saved.",
+      "save": "Save preferences"
     }
   }
 }

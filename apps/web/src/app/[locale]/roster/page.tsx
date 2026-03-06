@@ -419,12 +419,7 @@ export default function RosterPage() {
                   {warning ? <div className="cq-status-warning">{warning}</div> : null}
 
                   <div
-                    style={{
-                      display: 'flex',
-                      gap: '.5rem',
-                      alignItems: 'center',
-                      marginTop: '.25rem',
-                    }}
+                    className="cq-flex-center cq-space-top-xs"
                   >
                     <select
                       value={selectedPerson}

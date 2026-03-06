@@ -1,7 +1,38 @@
 export type RuleViolationSeverity = 'ERROR' | 'WARNING' | 'INFO';
 
+/** Known violation codes emitted by the core domain. */
+export type ViolationCode =
+  | 'INVALID_INTERVAL'
+  | 'BREAK_DEFICIT'
+  | 'REST_HOURS_DEFICIT'
+  | 'MAX_DAILY_HOURS_EXCEEDED'
+  | 'MAX_WEEKLY_HOURS_EXCEEDED'
+  | 'ONCALL_REST_DEFICIT'
+  | 'INVALID_SHIFT_INTERVAL'
+  | 'INVALID_TRANSITION'
+  | 'INVALID_CLOSING_TRANSITION'
+  | 'CHECKLIST_NOT_GREEN'
+  | 'ROLE_FORBIDDEN'
+  | 'UNSUPPORTED_ACTION'
+  | 'NEGATIVE_WEEKLY_HOURS'
+  | 'OVERLAP';
+
+/** Known warning codes emitted by the core domain. */
+export type WarningCode = 'MAX_DAILY_HOURS_EXTENDED_RANGE';
+
+/** Typed context payloads for specific violation codes. */
+export interface ViolationContextMap {
+  BREAK_DEFICIT: { day: string; requiredBreakMinutes: number; breakMinutes: number };
+  REST_HOURS_DEFICIT: { previousEnd: string; nextStart: string; restHours: number };
+  MAX_DAILY_HOURS_EXCEEDED: { day: string; workedHours: number };
+  INVALID_INTERVAL: { start: string; end: string; type: string };
+  ONCALL_REST_DEFICIT: { previousEnd: string; nextStart: string; gapHours: number };
+  INVALID_SHIFT_INTERVAL: { start: string; end: string };
+  INVALID_TRANSITION: { workflowId?: string; actorId?: string; reason?: string | null };
+}
+
 export interface RuleViolation {
-  code: string;
+  code: ViolationCode | (string & {});
   severity: RuleViolationSeverity;
   message: string;
   ruleId?: string;
@@ -10,7 +41,7 @@ export interface RuleViolation {
 }
 
 export interface DomainWarning {
-  code: string;
+  code: WarningCode | (string & {});
   message: string;
   context?: Record<string, unknown>;
 }

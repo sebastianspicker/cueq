@@ -1,6 +1,8 @@
 import { DEFAULT_BREAK_RULE, DEFAULT_REST_RULE } from '@cueq/policy';
 import type { BreakRule, RestRule } from '@cueq/policy';
 import type { CoreShiftComplianceContract } from '@cueq/shared';
+import { requiredBreakMinutes } from '../break-utils';
+import { WORK_INTERVAL_TYPES } from '../constants';
 import type { RuleViolation } from '../types';
 import { diffHours, roundToTwo, toViolation } from '../utils';
 
@@ -19,19 +21,6 @@ export type ShiftComplianceInput = CoreShiftComplianceContract['input'] & {
 export type ShiftComplianceResult = Omit<CoreShiftComplianceContract['output'], 'violations'> & {
   violations: RuleViolation[];
 };
-
-function requiredBreakForShift(shiftType: string, durationHours: number, rule: BreakRule): number {
-  const requiredByThreshold = rule.thresholds
-    .filter((threshold) => durationHours >= threshold.workedHoursMin)
-    .reduce((current, threshold) => Math.max(current, threshold.requiredBreakMinutes), 0);
-
-  // Pforte night shifts use a stricter operational baseline.
-  if (shiftType.toUpperCase() === 'NIGHT') {
-    return Math.max(requiredByThreshold, 45);
-  }
-
-  return requiredByThreshold;
-}
 
 export function evaluateShiftCompliance(
   input: ShiftComplianceInput,
@@ -57,13 +46,13 @@ export function evaluateShiftCompliance(
     };
   }
 
-  const requiredBreakMinutes = requiredBreakForShift(input.shift.type, shiftHours, breakRule);
+  const requiredBreak = requiredBreakMinutes(shiftHours, breakRule, input.shift.type);
 
-  if (input.recordedBreakMinutes < requiredBreakMinutes) {
+  if (input.recordedBreakMinutes < requiredBreak) {
     violations.push(
       toViolation({
         code: 'BREAK_DEFICIT',
-        message: `Shift requires ${requiredBreakMinutes} minutes break but ${input.recordedBreakMinutes} were recorded.`,
+        message: `Shift requires ${requiredBreak} minutes break but ${input.recordedBreakMinutes} were recorded.`,
         ruleId: breakRule.id,
         ruleName: breakRule.name,
       }),
@@ -86,7 +75,7 @@ export function evaluateShiftCompliance(
 
   return {
     workedHours: roundToTwo(shiftHours - input.recordedBreakMinutes / 60),
-    requiredBreakMinutes,
+    requiredBreakMinutes: requiredBreak,
     violations,
   };
 }
@@ -201,7 +190,7 @@ export function evaluatePlanVsActualCoverage(
     };
   }
 
-  const allowedCategories = new Set(['WORK', 'DEPLOYMENT']);
+  const allowedCategories = WORK_INTERVAL_TYPES;
 
   const slotResults = slots.map((slot): PlanVsActualCoverageSlotResult => {
     const assignedHeadcount = new Set(slot.assignedPersonIds).size;

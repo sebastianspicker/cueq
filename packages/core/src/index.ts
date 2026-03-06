@@ -1,4 +1,6 @@
 export * from './core/types';
+export * from './core/constants';
+export * from './core/break-utils';
 export * from './core/time-engine';
 export * from './core/absence';
 export * from './core/workflow';

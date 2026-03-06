@@ -78,7 +78,7 @@ export default function TimeEnginePage() {
   }
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
+    <section className="cq-stack">
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
 
@@ -97,7 +97,7 @@ export default function TimeEnginePage() {
           rows={18}
           value={payload}
           onChange={(event) => setPayload(event.target.value)}
-          style={{ fontFamily: 'monospace', fontSize: '.9rem' }}
+          className="cq-code-input"
         />
       </label>
 
@@ -108,12 +108,12 @@ export default function TimeEnginePage() {
       </div>
 
       {error ? (
-        <p role="alert" style={{ color: '#b91c1c' }}>
+        <p role="alert" className="cq-text-error">
           {error}
         </p>
       ) : null}
 
-      <section style={{ display: 'grid', gap: '.75rem' }}>
+      <section className="cq-list-stack">
         <h2>{t('resultTitle')}</h2>
         {!result ? (
           <p>{t('emptyResult')}</p>

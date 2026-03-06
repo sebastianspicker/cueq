@@ -2,7 +2,7 @@ import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Phase2Service } from '../phase2.service';
+import { ReportingService } from '../services/reporting.service';
 import type {
   AuditSummaryQueryDto,
   ClosingCompletionQueryDto,
@@ -22,7 +22,9 @@ import {
 @ApiBearerAuth()
 @Controller('v1/reports')
 export class ReportsController {
-  constructor(@Inject(Phase2Service) private readonly phase2Service: Phase2Service) {}
+  constructor(
+    @Inject(ReportingService) private readonly reportingService: ReportingService,
+  ) {}
 
   @Get('team-absence')
   @ApiOperation({ summary: 'Team absence report with privacy suppression guardrails' })
@@ -31,7 +33,7 @@ export class ReportsController {
   @ApiQuery({ name: 'from', required: true, type: String })
   @ApiQuery({ name: 'to', required: true, type: String })
   teamAbsence(@CurrentUser() user: AuthenticatedIdentity, @Query() query: TeamAbsenceQueryDto) {
-    return this.phase2Service.reportTeamAbsence(user, query);
+    return this.reportingService.reportTeamAbsence(user, query);
   }
 
   @Get('oe-overtime')
@@ -43,7 +45,7 @@ export class ReportsController {
   @ApiQuery({ name: 'from', required: true, type: String })
   @ApiQuery({ name: 'to', required: true, type: String })
   oeOvertime(@CurrentUser() user: AuthenticatedIdentity, @Query() query: OeOvertimeQueryDto) {
-    return this.phase2Service.reportOeOvertime(user, query);
+    return this.reportingService.reportOeOvertime(user, query);
   }
 
   @Get('closing-completion')
@@ -55,7 +57,7 @@ export class ReportsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Query() query: ClosingCompletionQueryDto,
   ) {
-    return this.phase2Service.reportClosingCompletion(user, query);
+    return this.reportingService.reportClosingCompletion(user, query);
   }
 
   @Get('audit-summary')
@@ -64,7 +66,7 @@ export class ReportsController {
   @ApiQuery({ name: 'from', required: true, type: String })
   @ApiQuery({ name: 'to', required: true, type: String })
   auditSummary(@CurrentUser() user: AuthenticatedIdentity, @Query() query: AuditSummaryQueryDto) {
-    return this.phase2Service.reportAuditSummary(user, query);
+    return this.reportingService.reportAuditSummary(user, query);
   }
 
   @Get('compliance-summary')
@@ -76,13 +78,13 @@ export class ReportsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Query() query: ComplianceSummaryQueryDto,
   ) {
-    return this.phase2Service.reportComplianceSummary(user, query);
+    return this.reportingService.reportComplianceSummary(user, query);
   }
 
   @Get('custom/options')
   @ApiOperation({ summary: 'List whitelisted custom report builder options' })
   customOptions(@CurrentUser() user: AuthenticatedIdentity) {
-    return this.phase2Service.reportCustomOptions(user);
+    return this.reportingService.reportCustomOptions(user);
   }
 
   @Get('custom/preview')
@@ -91,6 +93,6 @@ export class ReportsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Query() query: Record<string, unknown>,
   ) {
-    return this.phase2Service.reportCustomPreview(user, query);
+    return this.reportingService.reportCustomPreview(user, query);
   }
 }

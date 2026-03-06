@@ -41,7 +41,7 @@ export default function TeamCalendarPage() {
   }
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
+    <section className="cq-stack">
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
 
@@ -54,12 +54,12 @@ export default function TeamCalendarPage() {
         setToken={setToken}
       />
 
-      <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-        <label style={{ display: 'grid', gap: '.25rem' }}>
+      <div className="cq-grid-2">
+        <label className="cq-stack-xs">
           <span>{t('startLabel')}</span>
           <input type="date" value={start} onChange={(event) => setStart(event.target.value)} />
         </label>
-        <label style={{ display: 'grid', gap: '.25rem' }}>
+        <label className="cq-stack-xs">
           <span>{t('endLabel')}</span>
           <input type="date" value={end} onChange={(event) => setEnd(event.target.value)} />
         </label>
@@ -72,7 +72,7 @@ export default function TeamCalendarPage() {
       </div>
 
       {error ? (
-        <p role="alert" style={{ color: '#b91c1c' }}>
+        <p role="alert" className="cq-text-error">
           {error}
         </p>
       ) : null}
@@ -80,11 +80,11 @@ export default function TeamCalendarPage() {
       {entries.length === 0 ? (
         <p>{t('noEntries')}</p>
       ) : (
-        <ul style={{ display: 'grid', gap: '.75rem', padding: 0, listStyle: 'none' }}>
+        <ul className="cq-calendar-list">
           {entries.map((entry) => (
             <li
               key={entry.id}
-              style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '.75rem' }}
+              className="cq-list-item"
             >
               <p>
                 <strong>{t('person')}:</strong> {entry.personName}

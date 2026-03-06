@@ -256,7 +256,7 @@ export default function OnCallPage() {
         setToken={setToken}
       />
 
-      <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+      <div className="cq-flex-wrap">
         <button type="button" disabled={loading} onClick={() => void loadRotations()}>
           {loading ? t('loading') : t('loadRotations')}
         </button>
@@ -272,7 +272,7 @@ export default function OnCallPage() {
 
       <SectionCard>
         <h2>{t('createDeploymentTitle')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        <div className="cq-grid-2">
           <FormField label={t('personIdLabel')}>
             <input value={personId} onChange={(event) => setPersonId(event.target.value)} />
           </FormField>
@@ -337,7 +337,7 @@ export default function OnCallPage() {
             </select>
           </FormField>
         </div>
-        <div style={{ display: 'flex', gap: '.5rem', marginTop: '.75rem', flexWrap: 'wrap' }}>
+        <div className="cq-flex-wrap cq-space-top-sm">
           <button type="button" disabled={loading} onClick={() => void createDeployment()}>
             {loading ? t('loading') : t('createDeployment')}
           </button>
@@ -365,7 +365,7 @@ export default function OnCallPage() {
         {rotations.length === 0 ? (
           <p>{t('noRotations')}</p>
         ) : (
-          <ul style={{ display: 'grid', gap: '.5rem', paddingLeft: '1.2rem' }}>
+          <ul className="cq-list-stack-indented cq-stack-sm">
             {rotations.map((rotation) => (
               <li key={rotation.id}>
                 {rotation.id} | {rotation.personId} | {rotation.startTime} - {rotation.endTime}
@@ -380,7 +380,7 @@ export default function OnCallPage() {
         {deployments.length === 0 ? (
           <p>{t('noDeployments')}</p>
         ) : (
-          <ul style={{ display: 'grid', gap: '.5rem', paddingLeft: '1.2rem' }}>
+          <ul className="cq-list-stack-indented cq-stack-sm">
             {deployments.map((deployment) => (
               <li key={deployment.id}>
                 {deployment.id} | {deployment.personId} | {deployment.startTime} -{' '}

@@ -74,6 +74,14 @@ function resolveNextStatus(
   return currentStatus;
 }
 
+/**
+ * Approval workflow state machine: DRAFT → SUBMITTED → PENDING → APPROVED/REJECTED.
+ *
+ * Validates the requested decision against the allowed transitions for the
+ * current status. Supports DELEGATE (keeps status), ESCALATE (PENDING → ESCALATED),
+ * and CANCEL from any non-terminal state. Returns ok=false with violations
+ * when a transition is not permitted.
+ */
 export function transitionWorkflow(input: TransitionWorkflowInput): TransitionWorkflowResult {
   const nextStatus = resolveNextStatus(input.currentStatus, input.decision);
   const allowed = ALLOWED_DECISIONS[input.currentStatus];
@@ -145,6 +153,13 @@ function isActiveAt(candidate: DelegationCandidate, at: Date): boolean {
   return at >= from && at <= to;
 }
 
+/**
+ * Walk the delegation fallback chain to find an available approver.
+ *
+ * Skips the requester (to prevent self-approval), detects cycles, and
+ * respects activeFrom/activeTo availability windows. Falls back to the
+ * primary approver if no eligible delegate is found within maxDepth.
+ */
 export function resolveDelegation(input: ResolveDelegationInput): ResolveDelegationResult {
   const at = new Date(input.at);
   const maxDepth = Number.isFinite(input.maxDepth)
@@ -200,6 +215,12 @@ export interface EscalationInput {
   escalationDeadlineHours: number;
 }
 
+/**
+ * Check whether a PENDING workflow should be auto-escalated based on elapsed time.
+ *
+ * Returns true when the workflow has been in PENDING status for longer than
+ * the configured escalation deadline (in hours).
+ */
 export function shouldEscalate(input: EscalationInput): boolean {
   if (input.currentStatus !== 'PENDING') {
     return false;

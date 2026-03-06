@@ -1,3 +1,4 @@
+import { parseDateOnlyToTimestamp } from '@cueq/shared';
 import { DEFAULT_BREAK_RULE, type BreakRule } from './rules/break-rules';
 import { DEFAULT_LEAVE_RULE, type LeaveRule } from './rules/leave-rules';
 import { DEFAULT_MAX_HOURS_RULE, type MaxHoursRule } from './rules/max-hours-rules';
@@ -13,13 +14,9 @@ export type PolicyRuleType =
 
 export type PolicyCatalogRule = BreakRule | RestRule | MaxHoursRule | LeaveRule | SurchargeRule;
 
-function parseDate(date: string): number {
-  return new Date(`${date}T00:00:00.000Z`).getTime();
-}
-
 function inRange(asOf: string, effectiveFrom: string, effectiveTo: string | null): boolean {
-  const asOfTs = parseDate(asOf);
-  const fromTs = parseDate(effectiveFrom);
+  const asOfTs = parseDateOnlyToTimestamp(asOf);
+  const fromTs = parseDateOnlyToTimestamp(effectiveFrom);
   if (asOfTs < fromTs) {
     return false;
   }
@@ -28,7 +25,7 @@ function inRange(asOf: string, effectiveFrom: string, effectiveTo: string | null
     return true;
   }
 
-  return asOfTs <= parseDate(effectiveTo);
+  return asOfTs <= parseDateOnlyToTimestamp(effectiveTo);
 }
 
 export const POLICY_HISTORY: ReadonlyArray<PolicyCatalogRule> = Object.freeze([

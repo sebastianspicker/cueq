@@ -101,7 +101,7 @@ export default function BookingsPage() {
 
       <SectionCard>
         <h2>{t('correctionTitle')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        <div className="cq-grid-2">
           <FormField label={t('bookingIdLabel')}>
             <input value={bookingId} onChange={(event) => setBookingId(event.target.value)} />
           </FormField>
@@ -118,7 +118,7 @@ export default function BookingsPage() {
             <input value={reason} onChange={(event) => setReason(event.target.value)} />
           </FormField>
         </div>
-        <div style={{ marginTop: '.75rem' }}>
+        <div className="cq-space-top-sm">
           <button type="button" disabled={loading} onClick={() => void requestCorrection()}>
             {loading ? t('loading') : t('submitCorrection')}
           </button>
@@ -130,7 +130,7 @@ export default function BookingsPage() {
         {bookings.length === 0 ? (
           <p>{t('noBookings')}</p>
         ) : (
-          <ul style={{ display: 'grid', gap: '.5rem', paddingLeft: '1.2rem' }}>
+          <ul className="cq-list-stack-indented cq-stack-sm">
             {bookings.map((booking) => (
               <li key={booking.id}>
                 {booking.id} | {booking.timeTypeCode} | {booking.startTime} -{' '}

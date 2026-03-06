@@ -33,6 +33,17 @@ export const PaginationSchema = z.object({
 });
 export type Pagination = z.infer<typeof PaginationSchema>;
 
+/** Paginated response wrapper */
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
 /** Standard API error response */
 export const ApiErrorSchema = z.object({
   statusCode: z.number().int(),

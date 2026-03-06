@@ -81,7 +81,7 @@ export default function PolicyAdminPage() {
   }
 
   return (
-    <section style={{ display: 'grid', gap: '1rem' }}>
+    <section className="cq-stack">
       <h1>{t('title')}</h1>
       <p>{t('description')}</p>
 
@@ -94,14 +94,14 @@ export default function PolicyAdminPage() {
         setToken={setToken}
       />
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <article className="cq-list-item">
         <h2>{t('bundleTitle')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        <div className="cq-grid-2">
           <label style={{ display: 'grid', gap: '.25rem' }}>
             <span>{t('asOfLabel')}</span>
             <input value={asOf} onChange={(event) => setAsOf(event.target.value)} />
           </label>
-          <div style={{ display: 'flex', alignItems: 'end' }}>
+          <div className="cq-flex-end">
             <button type="button" disabled={loading} onClick={() => void loadBundle()}>
               {loading ? t('loading') : t('loadBundle')}
             </button>
@@ -109,11 +109,11 @@ export default function PolicyAdminPage() {
         </div>
 
         {bundle ? (
-          <ul style={{ display: 'grid', gap: '.5rem', marginTop: '.75rem' }}>
+          <ul className="cq-stack-sm cq-space-top-sm">
             {bundle.policies.map((entry) => (
               <li
                 key={entry.id}
-                style={{ border: '1px solid #e5e7eb', borderRadius: '.5rem', padding: '.5rem' }}
+                className="cq-list-item"
               >
                 <div>
                   <strong>{entry.type}</strong> | {entry.name} v{entry.version}
@@ -128,13 +128,13 @@ export default function PolicyAdminPage() {
             ))}
           </ul>
         ) : (
-          <p style={{ marginTop: '.75rem' }}>{t('noBundle')}</p>
+          <p className="cq-space-top-sm">{t('noBundle')}</p>
         )}
       </article>
 
-      <article style={{ border: '1px solid #d0d7de', borderRadius: '.5rem', padding: '1rem' }}>
+      <article className="cq-list-item">
         <h2>{t('historyTitle')}</h2>
-        <div style={{ display: 'grid', gap: '.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        <div className="cq-grid-2">
           <label style={{ display: 'grid', gap: '.25rem' }}>
             <span>{t('typeFilterLabel')}</span>
             <input
@@ -143,7 +143,7 @@ export default function PolicyAdminPage() {
               placeholder="REST_RULE"
             />
           </label>
-          <div style={{ display: 'flex', alignItems: 'end' }}>
+          <div className="cq-flex-end">
             <button type="button" disabled={loading} onClick={() => void loadHistory()}>
               {loading ? t('loading') : t('loadHistory')}
             </button>
@@ -151,11 +151,11 @@ export default function PolicyAdminPage() {
         </div>
 
         {history ? (
-          <ul style={{ display: 'grid', gap: '.5rem', marginTop: '.75rem' }}>
+          <ul className="cq-stack-sm cq-space-top-sm">
             {history.entries.map((entry) => (
               <li
                 key={entry.id}
-                style={{ border: '1px solid #e5e7eb', borderRadius: '.5rem', padding: '.5rem' }}
+                className="cq-list-item"
               >
                 <div>
                   <strong>{entry.type}</strong> | {entry.name} v{entry.version}
@@ -167,13 +167,13 @@ export default function PolicyAdminPage() {
             ))}
           </ul>
         ) : (
-          <p style={{ marginTop: '.75rem' }}>{t('noHistory')}</p>
+          <p className="cq-space-top-sm">{t('noHistory')}</p>
         )}
       </article>
 
-      {message ? <p style={{ color: '#0f766e' }}>{message}</p> : null}
+      {message ? <p className="cq-text-success">{message}</p> : null}
       {error ? (
-        <p role="alert" style={{ color: '#b91c1c' }}>
+        <p role="alert" className="cq-text-error">
           {error}
         </p>
       ) : null}

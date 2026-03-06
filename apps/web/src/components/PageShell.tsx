@@ -6,7 +6,7 @@ interface PageShellProps {
 
 export function PageShell({ title, description, children }: PageShellProps) {
   return (
-    <section className="cq-page-shell">
+    <section className="cq-page-shell" aria-label={title}>
       <header className="cq-page-header">
         <h1>{title}</h1>
         {description ? <p>{description}</p> : null}

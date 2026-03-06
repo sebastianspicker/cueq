@@ -22,6 +22,13 @@ function statusFor(count: number): ChecklistItem['status'] {
   return count === 0 ? 'RESOLVED' : 'OPEN';
 }
 
+/**
+ * Generate a compliance checklist for a monthly closing period.
+ *
+ * Evaluates missing bookings, gaps, open corrections/leave, rule violations,
+ * roster mismatches, and balance anomalies. Each item is classified as
+ * INFO, WARNING, or ERROR to guide the HR review process.
+ */
 export function generateClosingChecklist(input: ClosingChecklistInput): ClosingChecklistResult {
   const items: ChecklistItem[] = [
     {
@@ -93,6 +100,13 @@ export interface CutoffTransitionResult {
   violations: RuleViolation[];
 }
 
+/**
+ * Closing period state machine: OPEN → REVIEW → APPROVED → EXPORTED.
+ *
+ * Enforces valid transitions, role-based access (HR/Admin for reopen and
+ * post-close correction), and blocks approval while checklist has errors.
+ * Returns the next status and any transition violations.
+ */
 export function applyCutoffLock(input: CutoffTransitionInput): CutoffTransitionResult {
   const violations: RuleViolation[] = [];
 

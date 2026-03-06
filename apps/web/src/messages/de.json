@@ -14,7 +14,9 @@
       "reports": "Berichte",
       "policyAdmin": "Policy-Admin",
       "bookings": "Meine Buchungen",
-      "oncall": "Rufbereitschaft"
+      "oncall": "Rufbereitschaft",
+      "audit": "Audit-Protokoll",
+      "settings": "Einstellungen"
     }
   },
   "pages": {
@@ -363,6 +365,42 @@
       "rotationCreated": "Rotation erstellt.",
       "rotationUpdated": "Rotation aktualisiert.",
       "deploymentCreated": "Einsatz erstellt."
+    },
+    "audit": {
+      "title": "Audit-Protokoll",
+      "description": "Unveränderliche Aktivitätsverfolgung zur Compliance-Prüfung.",
+      "apiBaseLabel": "API-Basis-URL",
+      "tokenLabel": "Bearer-Token",
+      "fromLabel": "Von",
+      "toLabel": "Bis",
+      "entityTypeLabel": "Entitätstyp (optional)",
+      "loadEntries": "Audit-Protokoll laden",
+      "loading": "Lädt...",
+      "requestFailed": "Anfrage fehlgeschlagen.",
+      "noEntries": "Keine Audit-Einträge im Zeitraum.",
+      "timestampLabel": "Zeitstempel",
+      "actorLabel": "Akteur",
+      "actionLabel": "Aktion",
+      "entityLabel": "Entität",
+      "entityIdLabel": "Entitäts-ID",
+      "reasonLabel": "Begründung",
+      "searchPlaceholder": "Audit-Einträge durchsuchen…"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "description": "Persönliche Einstellungen und Verbindung konfigurieren.",
+      "connectionTitle": "API-Verbindung",
+      "apiBaseLabel": "API-Basis-URL",
+      "tokenLabel": "Bearer-Token",
+      "preferencesTitle": "Einstellungen",
+      "localeLabel": "Sprache",
+      "themeLabel": "Darstellung",
+      "themeSystem": "System",
+      "themeLight": "Hell",
+      "themeDark": "Dunkel",
+      "pageSizeLabel": "Standard-Seitengröße",
+      "saved": "Einstellungen gespeichert.",
+      "save": "Einstellungen speichern"
     }
   }
 }

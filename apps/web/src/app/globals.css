@@ -662,6 +662,277 @@ button:disabled {
   background: var(--cq-text-muted);
 }
 
+/* Button Variants */
+button.cq-btn-secondary {
+  background: var(--cq-surface-solid);
+  color: var(--cq-text);
+  border: 1px solid var(--cq-border);
+  box-shadow: var(--cq-shadow-sm);
+  text-shadow: none;
+}
+
+button.cq-btn-secondary:hover:not(:disabled) {
+  background: var(--cq-surface-elevated);
+  border-color: var(--cq-text-muted);
+  box-shadow: var(--cq-shadow-hover);
+  color: var(--cq-text);
+}
+
+button.cq-btn-danger {
+  background: var(--cq-error);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+button.cq-btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 24px rgba(239, 68, 68, 0.3);
+}
+
+button.cq-btn-ghost {
+  background: transparent;
+  color: var(--cq-text-muted);
+  box-shadow: none;
+  text-shadow: none;
+}
+
+button.cq-btn-ghost:hover:not(:disabled) {
+  background: var(--cq-accent-soft);
+  color: var(--cq-accent);
+  box-shadow: none;
+}
+
+button.cq-btn-ghost::before {
+  display: none;
+}
+
+/* Button Sizes */
+button.cq-btn-sm {
+  min-height: 2.25rem;
+  padding: 0.35rem 1rem;
+  font-size: 0.875rem;
+  border-radius: var(--cq-radius-sm);
+}
+
+button.cq-btn-lg {
+  min-height: 3.5rem;
+  padding: 0.75rem 2rem;
+  font-size: 1.125rem;
+}
+
+/* Loading State */
+button.cq-btn-loading {
+  position: relative;
+  color: transparent;
+}
+
+button.cq-btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 1.1em;
+  height: 1.1em;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: cq-spin 0.6s linear infinite;
+}
+
+button.cq-btn-secondary.cq-btn-loading::after,
+button.cq-btn-ghost.cq-btn-loading::after {
+  border-color: rgba(0, 0, 0, 0.15);
+  border-top-color: var(--cq-accent);
+}
+
+@keyframes cq-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* -------------------------------------
+   Form Field States
+------------------------------------- */
+
+.cq-form-required {
+  color: var(--cq-error);
+  font-weight: 700;
+}
+
+.cq-form-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--cq-text-muted);
+}
+
+.cq-form-error {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--cq-error);
+}
+
+.cq-form-field-error input,
+.cq-form-field-error select,
+.cq-form-field-error textarea {
+  border-color: var(--cq-error-border);
+}
+
+.cq-form-field-error input:focus-visible,
+.cq-form-field-error select:focus-visible,
+.cq-form-field-error textarea:focus-visible {
+  border-color: var(--cq-error);
+  box-shadow: 0 0 0 4px var(--cq-error-soft), 0 0 16px rgba(239, 68, 68, 0.15);
+}
+
+/* -------------------------------------
+   Loading & Empty States
+------------------------------------- */
+
+.cq-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  color: var(--cq-text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.cq-loading-spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2.5px solid var(--cq-border);
+  border-top-color: var(--cq-accent);
+  border-radius: 50%;
+  animation: cq-spin 0.6s linear infinite;
+}
+
+.cq-empty-state {
+  padding: 2rem;
+  text-align: center;
+  color: var(--cq-text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Screen-reader only utility */
+.cq-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* -------------------------------------
+   Skip-to-Content (Accessibility)
+------------------------------------- */
+
+.cq-skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--cq-radius-sm);
+  background: var(--cq-accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+
+.cq-skip-link:focus {
+  top: 1rem;
+}
+
+/* Global Focus Visible */
+*:focus-visible {
+  outline: 2px solid var(--cq-accent);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: none;
+}
+
+button:focus-visible {
+  box-shadow: 0 0 0 3px var(--cq-accent-soft), 0 0 12px var(--cq-accent-glow);
+}
+
+/* -------------------------------------
+   Inline Style Replacements
+------------------------------------- */
+
+.cq-flex-wrap {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cq-flex-center {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.cq-flex-end {
+  display: flex;
+  align-items: flex-end;
+}
+
+.cq-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.cq-stack-sm {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.cq-stack-xs {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cq-code-input {
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.cq-full-span {
+  grid-column: 1 / -1;
+}
+
+.cq-privacy-notice {
+  margin-top: 0.25rem;
+  padding: 0.75rem;
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius-sm);
+  background: var(--cq-surface);
+}
+
+.cq-calendar-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.cq-text-error {
+  color: var(--cq-error);
+}
+
+.cq-text-success {
+  color: var(--cq-ok);
+}
+
 /* -------------------------------------
    Badges / Status (Glowing Signals)
 ------------------------------------- */
@@ -700,6 +971,106 @@ button:disabled {
   border: 1px solid var(--cq-error-border);
   background: var(--cq-error-soft);
   box-shadow: 0 4px 20px rgba(239, 68, 68, 0.1);
+}
+
+/* -------------------------------------
+   Pagination
+------------------------------------- */
+
+.cq-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+}
+
+.cq-pagination-info {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--cq-text-muted);
+  min-width: 4rem;
+  text-align: center;
+}
+
+/* -------------------------------------
+   Search Input
+------------------------------------- */
+
+.cq-search-input {
+  position: relative;
+}
+
+.cq-search-field {
+  padding-left: 1.25rem;
+}
+
+/* -------------------------------------
+   Data Table
+------------------------------------- */
+
+.cq-data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cq-data-table th {
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--cq-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--cq-border);
+}
+
+.cq-data-table td {
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  border-bottom: 1px solid var(--cq-border-soft);
+}
+
+.cq-data-table tbody tr:hover {
+  background: var(--cq-accent-soft);
+}
+
+/* Badge */
+.cq-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.cq-badge-ok {
+  color: var(--cq-ok);
+  background: var(--cq-ok-soft);
+}
+
+.cq-badge-error {
+  color: var(--cq-error);
+  background: var(--cq-error-soft);
+}
+
+.cq-badge-muted {
+  color: var(--cq-text-muted);
+  background: var(--cq-surface-elevated);
+}
+
+/* Toolbar */
+.cq-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cq-toolbar-spacer {
+  flex: 1;
 }
 
 /* -------------------------------------
