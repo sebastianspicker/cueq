@@ -20,7 +20,7 @@
   "dependencies": {
     "@cueq/policy": "workspace:*",
     "@cueq/shared": "workspace:*",
-    "zod": "^3.24.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.4",
