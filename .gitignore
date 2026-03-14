@@ -43,5 +43,15 @@ apps/web/playwright-report/
 npm-debug.log*
 pnpm-debug.log*
 
+# Secrets & credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+credentials.json
+service-account*.json
+.env.production
+
 # Misc
 *.tsbuildinfo
