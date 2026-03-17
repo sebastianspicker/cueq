@@ -20,6 +20,7 @@ import { AuditHelper } from '../helpers/audit.helper';
 import { ClosingLockHelper } from '../helpers/closing-lock.helper';
 import { EventOutboxHelper } from '../helpers/event-outbox.helper';
 import { HR_LIKE_ROLES } from '../helpers/role-constants';
+import { assignedPersonIdsForShift } from '../helpers/roster-utils';
 
 const ROSTER_DETAIL_INCLUDE = {
   shifts: {
@@ -94,17 +95,6 @@ export class RosterDomainService {
     if (start < roster.periodStart || end > roster.periodEnd) {
       throw new BadRequestException('Shift interval must be inside roster period.');
     }
-  }
-
-  private assignedPersonIdsForShift(shift: {
-    personId: string | null;
-    assignments: Array<{ personId: string }>;
-  }) {
-    const assignmentIds = shift.assignments.map((assignment) => assignment.personId);
-    if (shift.personId && !assignmentIds.includes(shift.personId)) {
-      assignmentIds.push(shift.personId);
-    }
-    return assignmentIds;
   }
 
   private async ensureNoOverlappingAssignedShift(
@@ -200,7 +190,7 @@ export class RosterDomainService {
         endTime: shift.endTime.toISOString(),
         shiftType: shift.shiftType,
         minStaffing: shift.minStaffing,
-        assignedPersonIds: this.assignedPersonIdsForShift(shift),
+        assignedPersonIds: assignedPersonIdsForShift(shift),
       })),
       bookings.map((booking) => ({
         personId: booking.personId,
@@ -829,7 +819,7 @@ export class RosterDomainService {
 
     const shortfalls = roster.shifts
       .map((shift) => {
-        const assigned = this.assignedPersonIdsForShift(shift).length;
+        const assigned = assignedPersonIdsForShift(shift).length;
         const shortfall = Math.max(shift.minStaffing - assigned, 0);
         return {
           shiftId: shift.id,

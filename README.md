@@ -1,6 +1,6 @@
 # cueq
 
-> **Integrated time-tracking, absence-management, and shift-planning system** for a German university (NRW / TV-L).
+> Time-tracking, absence management, and shift planning for a German university (NRW / TV-L).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 

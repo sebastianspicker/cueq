@@ -69,8 +69,8 @@ export default function PolicyAdminPage() {
       if (historyType) {
         query.set('type', historyType);
       }
-      const suffix = query.toString() ? `?${query.toString()}` : '';
-      const data = await apiRequest<PolicyHistoryResponse>(`/v1/policies/history${suffix}`);
+      const qs = query.toString();
+      const data = await apiRequest<PolicyHistoryResponse>(`/v1/policies/history${qs ? `?${qs}` : ''}`);
       setHistory(data);
       setMessage(t('historyLoaded'));
     } catch (cause) {

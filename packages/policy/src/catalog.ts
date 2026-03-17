@@ -59,19 +59,17 @@ export function getActivePolicyBundle(asOf: string): PolicyCatalogRule[] {
       grouped.set(type, []);
     }
 
-    grouped.get(type)?.push(entry);
+    grouped.get(type)!.push(entry);
   }
 
   const resolved: PolicyCatalogRule[] = [];
   for (const [type, entries] of grouped.entries()) {
     const latest = [...entries].sort((a, b) => b.version - a.version)[0];
-    if (latest) {
-      resolved.push(latest);
-    }
-
     if (!latest) {
       throw new Error(`No active policy found for ${type} on ${asOf}`);
     }
+
+    resolved.push(latest);
   }
 
   return resolved.sort((a, b) => a.type.localeCompare(b.type));

@@ -32,7 +32,7 @@ Data minimization is a legal requirement (GDPR / DSGVO) and an institutional exp
 
 The university has diverse employee groups (TV-L admin, shifts, student assistants, lecturers, potentially civil servants) and four distinct shift domains (Pforte, IT, Hausdienst, Veranstaltungstechnik). Rules differ across groups:
 
-- Work-time models, pause rules, surcharge rules, and leave quotas are **data, not code**
+- Work-time models, pause rules, surcharge rules, and leave quotas are data, not code
 - Rule sets are assigned per employee group / organizational unit
 - Changes to rules take effect from a configurable date (not retroactively by default)
 
@@ -45,7 +45,7 @@ Every interface boundary is defined by a machine-readable schema:
 - **Events** → JSON Schema event envelopes
 - **Exports** → Schema-defined column/field layouts
 
-Types are **generated from schemas**, not hand-written. If the schema and the code disagree, the schema wins.
+Types are generated from schemas, not hand-written. If the schema and the code disagree, the schema wins.
 
 ## 6. Offline Resilience
 
@@ -54,7 +54,7 @@ Honeywell terminals can go offline. The system must:
 - Buffer bookings locally at the terminal or gateway
 - Synchronize without data loss when connectivity returns
 - Flag and resolve conflicts (duplicate bookings, out-of-order timestamps)
-- Support a **manual fallback process** (emergency bookings with approval)
+- Support a manual fallback process (emergency bookings with approval)
 
 ## 7. Small, Verifiable Changes
 

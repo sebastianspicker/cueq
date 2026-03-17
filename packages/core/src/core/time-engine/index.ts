@@ -138,7 +138,7 @@ export function evaluateTimeRules(
           matchedCategories.push('NIGHT');
         }
 
-        const selected = selectSurchargeCategory(matchedCategories, surchargeRule);
+        const selected = selectSurchargeCategory(matchedCategories, categoryConfigByCategory);
         if (selected) {
           surchargeBuckets.set(selected, (surchargeBuckets.get(selected) ?? 0) + 1);
         }

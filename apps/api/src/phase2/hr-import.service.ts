@@ -1,11 +1,10 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@cueq/database';
-import { Role, WorkTimeModelType } from '@cueq/database';
+import { type Prisma, Role, WorkTimeModelType } from '@cueq/database';
 import { z } from 'zod';
-import { buildAuditEntry } from '@cueq/core';
 import { PrismaService } from '../persistence/prisma.service';
 import { assertIntegrationToken } from '../common/integrations/integration-token';
 import { parseCsvRecords } from '../common/csv/parse-csv';
+import { AuditHelper } from './helpers/audit.helper';
 import {
   HR_MASTER_PROVIDER,
   type HrMasterProviderPort,
@@ -13,6 +12,9 @@ import {
 } from './hr-master-provider.port';
 
 const MAX_HR_IMPORT_CSV_BYTES = 2_000_000;
+// TV-L full-time: 39 h 50 min/week (39.83 h), 7.97 h/day
+const DEFAULT_WEEKLY_HOURS = 39.83;
+const DEFAULT_DAILY_TARGET_HOURS = 7.97;
 
 const HrImportPayloadSchema = z.object({
   source: z.enum(['FILE', 'API']).default('FILE'),
@@ -31,6 +33,7 @@ export class HrImportService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(HR_MASTER_PROVIDER) private readonly provider: HrMasterProviderPort,
+    @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
   ) {}
 
   private parseCsv(csv: string): ParsedRow[] {
@@ -44,8 +47,8 @@ export class HrImportService {
         role: row.role ?? 'EMPLOYEE',
         organizationUnit: row.organizationUnit ?? 'Unassigned',
         workTimeModel: row.workTimeModel ?? 'Default',
-        weeklyHours: row.weeklyHours ?? '39.83',
-        dailyTargetHours: row.dailyTargetHours ?? '7.97',
+        weeklyHours: row.weeklyHours ?? String(DEFAULT_WEEKLY_HOURS),
+        dailyTargetHours: row.dailyTargetHours ?? String(DEFAULT_DAILY_TARGET_HOURS),
         supervisorExternalId: row.supervisorExternalId || undefined,
       };
     });
@@ -58,40 +61,6 @@ export class HrImportService {
     }
 
     return Role.EMPLOYEE;
-  }
-
-  private async appendAudit(input: {
-    actorId: string;
-    action: string;
-    entityType: string;
-    entityId: string;
-    before?: Prisma.JsonValue;
-    after?: Prisma.JsonValue;
-    reason?: string;
-  }) {
-    const draft = buildAuditEntry({
-      actorId: input.actorId,
-      action: input.action,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      before: input.before,
-      after: input.after,
-      reason: input.reason,
-    });
-
-    await this.prisma.auditEntry.create({
-      data: {
-        id: draft.id,
-        timestamp: new Date(draft.timestamp),
-        actorId: draft.actorId,
-        action: draft.action,
-        entityType: draft.entityType,
-        entityId: draft.entityId,
-        before: draft.before as Prisma.InputJsonValue,
-        after: draft.after as Prisma.InputJsonValue,
-        reason: draft.reason ?? undefined,
-      },
-    });
   }
 
   async runImport(token: string | string[] | undefined, payload: unknown) {
@@ -145,22 +114,22 @@ export class HrImportService {
         });
 
         const modelId = `wtm_${row.workTimeModel.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`;
-        const weeklyHours = Number(row.weeklyHours || '39.83');
-        const dailyTargetHours = Number(row.dailyTargetHours || '7.97');
+        const weeklyHours = Number(row.weeklyHours || DEFAULT_WEEKLY_HOURS);
+        const dailyTargetHours = Number(row.dailyTargetHours || DEFAULT_DAILY_TARGET_HOURS);
         await this.prisma.workTimeModel.upsert({
           where: { id: modelId },
           create: {
             id: modelId,
             name: row.workTimeModel,
             type: WorkTimeModelType.FLEXTIME,
-            weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : 39.83,
-            dailyTargetHours: Number.isFinite(dailyTargetHours) ? dailyTargetHours : 7.97,
+            weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : DEFAULT_WEEKLY_HOURS,
+            dailyTargetHours: Number.isFinite(dailyTargetHours) ? dailyTargetHours : DEFAULT_DAILY_TARGET_HOURS,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
           },
           update: {
             name: row.workTimeModel,
-            weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : 39.83,
-            dailyTargetHours: Number.isFinite(dailyTargetHours) ? dailyTargetHours : 7.97,
+            weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : DEFAULT_WEEKLY_HOURS,
+            dailyTargetHours: Number.isFinite(dailyTargetHours) ? dailyTargetHours : DEFAULT_DAILY_TARGET_HOURS,
           },
         });
 
@@ -260,7 +229,7 @@ export class HrImportService {
       },
     });
 
-    await this.appendAudit({
+    await this.auditHelper.appendAudit({
       actorId: 'system:hr-import',
       action: 'HR_MASTER_IMPORT_COMPLETED',
       entityType: 'HrImportRun',
@@ -284,7 +253,7 @@ export class HrImportService {
     };
   }
 
-  async getRun(token: string | string[] | undefined, runId: string) {
+  async getRun(token: string | string[] | undefined, runId: string): Promise<unknown> {
     assertIntegrationToken(token, 'HR_IMPORT_TOKEN', 'dev-hr-token');
 
     const run = await this.prisma.hrImportRun.findUnique({ where: { id: runId } });

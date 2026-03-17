@@ -7,7 +7,7 @@
 
 ## 1. Summary
 
-Unlike traditional time-tracking systems where rules are buried in configuration UIs or hard-coded, CueQ treats **policy rules as first-class code artifacts**:
+Unlike traditional time-tracking systems where rules are buried in configuration UIs or hard-coded, CueQ treats policy rules as first-class code artifacts:
 
 - **Versioned**: every rule has `effectiveFrom`/`effectiveTo` dates and a monotonic version number
 - **Testable**: a "golden-case" test suite validates all rules in CI — no policy change ships without passing

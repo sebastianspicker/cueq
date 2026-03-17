@@ -7,15 +7,15 @@
 
 ## 1. Summary
 
-In a works-council (Personalrat) environment, reporting that enables individual performance or behavior monitoring is **legally and politically toxic**. CueQ's reporting system is designed with **privacy guardrails built in from day one**, not bolted on as a filter.
+In a works-council (Personalrat) environment, reporting that enables individual performance or behavior monitoring creates legal and political problems — it requires works-council co-determination and can block rollout entirely. CueQ's reporting system treats privacy guardrails as a first-class design constraint, not a filter bolted on after the fact.
 
 ## 2. Design Principles
 
 ### Default: Aggregation
 
-- All standard reports default to **aggregated** views (team, OE, or organization level)
-- Individual-level reports require explicit role authorization AND are logged in the audit trail
-- Minimum group size for aggregated statistics: **configurable, default ≥5 people** to prevent re-identification
+- All standard reports default to aggregated views (team, OE, or organization level)
+- Individual-level reports require explicit role authorization and are logged in the audit trail
+- Minimum group size for aggregated statistics: configurable, default ≥5 people to prevent re-identification
 
 ### Review Gate for New Reports
 
@@ -43,7 +43,7 @@ Required PR linkage format:
 
 ### Forbidden Patterns
 
-The following report types are **explicitly prohibited** unless approved by works council:
+The following report types are prohibited unless explicitly approved by the works council:
 
 | Pattern                           | Why Forbidden                  |
 | --------------------------------- | ------------------------------ |

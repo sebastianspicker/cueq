@@ -37,7 +37,7 @@ cueq uses DDD-inspired patterns without the full ceremonial weight:
          └──────────────────┘
 ```
 
-- `packages/core/src/core/` contains **zero imports from frameworks, databases, or HTTP libraries**.
+- `packages/core/src/core/` contains zero imports from frameworks, databases, or HTTP libraries.
 - All I/O happens through **port interfaces** defined in core, implemented by adapters.
 - This guarantees core logic is testable with plain unit tests — no mocking frameworks needed.
 

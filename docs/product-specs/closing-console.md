@@ -7,7 +7,7 @@
 
 ## 1. Summary
 
-The Closing Console is CueQ's structured end-of-month process that replaces ad-hoc Excel reconciliation with a traceable, audit-grade workflow. It is designed as a **first-class UI and API surface**, not buried in admin settings.
+The Closing Console is CueQ's structured end-of-month process that replaces ad-hoc Excel reconciliation with a traceable, audit-grade workflow. It has dedicated UI and API surfaces, not tucked away in admin settings.
 
 ## 2. Closing Workflow
 

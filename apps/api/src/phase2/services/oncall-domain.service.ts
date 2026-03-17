@@ -19,7 +19,7 @@ import { PrismaService } from '../../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { PersonHelper } from '../helpers/person.helper';
 import { AuditHelper } from '../helpers/audit.helper';
-import { APPROVAL_ROLES, HR_LIKE_ROLES } from '../helpers/role-constants';
+import { APPROVAL_ROLES, assertCanActForPerson } from '../helpers/role-constants';
 
 @Injectable()
 export class OncallDomainService {
@@ -28,20 +28,6 @@ export class OncallDomainService {
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
   ) {}
-
-  private assertCanActForPerson(
-    user: AuthenticatedIdentity,
-    actorPersonId: string,
-    targetPersonId: string,
-  ) {
-    if (targetPersonId === actorPersonId) {
-      return;
-    }
-
-    if (!HR_LIKE_ROLES.has(user.role)) {
-      throw new ForbiddenException('Cross-person action is restricted to HR/Admin roles.');
-    }
-  }
 
   async createOnCallRotation(user: AuthenticatedIdentity, payload: unknown): Promise<unknown> {
     const actor = await this.personHelper.personForUser(user);
@@ -263,7 +249,7 @@ export class OncallDomainService {
     }
     const parsed = parsedPayload.data;
 
-    this.assertCanActForPerson(user, actor.id, parsed.personId);
+    assertCanActForPerson(user, actor.id, parsed.personId);
 
     const rotation = await this.prisma.onCallRotation.findUnique({
       where: { id: parsed.rotationId },
@@ -358,7 +344,7 @@ export class OncallDomainService {
     const actor = await this.personHelper.personForUser(user);
     const targetPersonId = personId ?? actor.id;
 
-    this.assertCanActForPerson(user, actor.id, targetPersonId);
+    assertCanActForPerson(user, actor.id, targetPersonId);
 
     if (!nextShiftStart) {
       throw new BadRequestException('nextShiftStart query parameter is required.');

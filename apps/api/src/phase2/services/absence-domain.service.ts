@@ -333,7 +333,7 @@ export class AbsenceDomainService {
     ]);
 
     const modelWeeklyHours = Number(
-      workTimeModel?.weeklyHours ?? DEFAULT_LEAVE_RULE.fullTimeWeeklyHours ?? 39.83,
+      workTimeModel?.weeklyHours ?? DEFAULT_LEAVE_RULE.fullTimeWeeklyHours,
     );
     const employmentStartDate = person.employmentStartDate?.toISOString().slice(0, 10);
     const employmentEndDate = person.employmentEndDate?.toISOString().slice(0, 10);
@@ -471,8 +471,8 @@ export class AbsenceDomainService {
       throw new BadRequestException('start must be on or before end.');
     }
 
-    const includePending = user.role === Role.TEAM_LEAD || HR_LIKE_ROLES.has(user.role);
-    const visibleStatuses = includePending
+    const isPrivilegedViewer = user.role === Role.TEAM_LEAD || HR_LIKE_ROLES.has(user.role);
+    const visibleStatuses = isPrivilegedViewer
       ? [AbsenceStatus.REQUESTED, AbsenceStatus.APPROVED]
       : [AbsenceStatus.APPROVED];
     const absences = await this.prisma.absence.findMany({
@@ -486,8 +486,6 @@ export class AbsenceDomainService {
       orderBy: { startDate: 'asc' },
     });
 
-    const maySeeReason = user.role === Role.TEAM_LEAD || HR_LIKE_ROLES.has(user.role);
-
     return absences.map((absence) => ({
       id: absence.id,
       personId: absence.personId,
@@ -496,8 +494,8 @@ export class AbsenceDomainService {
       endDate: absence.endDate.toISOString().slice(0, 10),
       status: absence.status,
       visibilityStatus: 'ABSENT' as const,
-      type: maySeeReason ? absence.type : undefined,
-      note: maySeeReason ? absence.note : undefined,
+      type: isPrivilegedViewer ? absence.type : undefined,
+      note: isPrivilegedViewer ? absence.note : undefined,
     }));
   }
 }

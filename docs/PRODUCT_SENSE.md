@@ -12,7 +12,7 @@ A German university (NRW, TV-L) currently tracks working hours through fragmente
 - **HR burden**: monthly closing requires manual reconciliation across systems
 - **Privacy gaps**: unclear who sees what absence data; no systematic GDPR controls
 
-cueq replaces this with a **single, integrated system** that is legally sound, operationally smooth, and transparent to employees.
+cueq replaces this with one system that covers all of it — legally sound, operationally smooth, and transparent to employees.
 
 ---
 
@@ -55,11 +55,11 @@ The goal is that HR only handles exceptions and monthly closing.
 
 ### "Configuration, Not Customization"
 
-The university has diverse employment groups and four distinct shift domains. The system must handle this diversity through **data-driven configuration** (rule sets, work-time models, shift templates), not custom code per department.
+The university has diverse employment groups and four distinct shift domains. The system handles this diversity through data-driven configuration — rule sets, work-time models, shift templates — not custom code per department.
 
 ### "Privacy Is a Feature"
 
-In a works-council environment, privacy controls are not a constraint to work around — they are a feature that builds trust and enables adoption. The system must make it **easy** to do the right thing and **hard** to accidentally expose sensitive data.
+In a works-council environment, privacy controls are not a constraint to work around — they are a feature that builds trust and enables adoption. The system makes it easy to do the right thing and hard to accidentally expose sensitive data.
 
 ---
 

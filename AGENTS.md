@@ -210,4 +210,3 @@ For the full glossary, see [`docs/design-docs/core-beliefs.md`](docs/design-docs
 - [`docs/RELIABILITY.md`](docs/RELIABILITY.md) — Reliability and operations
 - [`docs/QUALITY_SCORE.md`](docs/QUALITY_SCORE.md) — Quality metrics
 - [`docs/product-specs/index.md`](docs/product-specs/index.md) — Product specifications
-- [`docs/PLANS.md`](docs/PLANS.md) — Execution phases and deliverables

@@ -16,16 +16,21 @@ async function bootstrap() {
 
   // ---------------------------------------------------------------------------
   // OpenAPI / Swagger setup
-  // The generated spec is served at /api/docs and can be exported as JSON
-  // for CI validation against the checked-in spec.
+  // Only served in non-production environments. In production, the spec is
+  // generated for CI validation (openapi:check) but never mounted on the server.
+  // SwaggerModule routes bypass the APP_GUARD, so they must not be exposed in prod.
   // ---------------------------------------------------------------------------
-  const document = buildOpenApiDocument(app);
-  SwaggerModule.setup('api/docs', app, document);
+  if (process.env.NODE_ENV !== 'production') {
+    const document = buildOpenApiDocument(app);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
   console.log(`🚀 cueq API running on http://localhost:${port}`);
-  console.log(`📖 OpenAPI docs at http://localhost:${port}/api/docs`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`📖 OpenAPI docs at http://localhost:${port}/api/docs`);
+  }
 }
 
 bootstrap();

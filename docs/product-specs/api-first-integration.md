@@ -7,12 +7,12 @@
 
 ## 1. Summary
 
-CueQ's API is not an implementation detail — it is a **product surface**. External systems (terminals, HR, payroll, ticketing, facility management) integrate through a documented, contract-tested, versioned API.
+CueQ's API is not an implementation detail — it is a product surface. External systems (terminals, HR, payroll, ticketing, facility management) integrate through a documented, contract-tested, versioned API.
 
 ## 2. OpenAPI Contract
 
 - **Source**: Generated from NestJS decorators via `@nestjs/swagger`
-- **Location**: Served at `/api/docs` (Swagger UI) and exportable as JSON
+- **Location**: Served at `/api/docs` (Swagger UI) in non-production environments; exported as JSON for CI validation
 - **CI validation**: The generated spec is checked against the last committed snapshot; drift fails the build
 - **Versioning**: API version in URL prefix (`/v1/`) once stable
 

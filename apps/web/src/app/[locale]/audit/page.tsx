@@ -66,8 +66,8 @@ export default function AuditPage() {
       );
       setEntries(result?.entries ?? []);
       setPage(1);
-    } catch {
-      setError(t('requestFailed'));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
       setLoading(false);
     }

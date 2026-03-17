@@ -33,8 +33,9 @@ export const PaginationSchema = z.object({
 });
 export type Pagination = z.infer<typeof PaginationSchema>;
 
-/** Paginated response wrapper */
-export interface PaginatedResponse<T> {
+/** Paginated response wrapper — generic, cannot be expressed as a Zod schema */
+// eslint-disable-next-line cueq/no-manual-schema-types
+export type PaginatedResponse<T> = {
   data: T[];
   meta: {
     page: number;
@@ -42,7 +43,7 @@ export interface PaginatedResponse<T> {
     totalItems: number;
     totalPages: number;
   };
-}
+};
 
 /** Standard API error response */
 export const ApiErrorSchema = z.object({

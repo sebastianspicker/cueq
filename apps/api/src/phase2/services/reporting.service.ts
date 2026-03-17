@@ -18,6 +18,12 @@ import { AuditHelper } from '../helpers/audit.helper';
 import { PersonHelper } from '../helpers/person.helper';
 import { REPORT_ALLOWED_ROLES, SENSITIVE_REPORT_ALLOWED_ROLES } from '../helpers/role-constants';
 
+const METRIC_ALLOW_LIST: Record<string, Set<string>> = {
+  TEAM_ABSENCE: new Set(['requests', 'days']),
+  OE_OVERTIME: new Set(['people', 'totalOvertimeHours']),
+  CLOSING_COMPLETION: new Set(['completionRate', 'exported']),
+};
+
 @Injectable()
 export class ReportingService {
   constructor(
@@ -470,12 +476,7 @@ export class ReportingService {
 
     const parsed = CustomReportPreviewQuerySchema.parse(normalizedQuery);
 
-    const metricAllowList: Record<string, Set<string>> = {
-      TEAM_ABSENCE: new Set(['requests', 'days']),
-      OE_OVERTIME: new Set(['people', 'totalOvertimeHours']),
-      CLOSING_COMPLETION: new Set(['completionRate', 'exported']),
-    };
-    const allowedMetrics = metricAllowList[parsed.reportType];
+    const allowedMetrics = METRIC_ALLOW_LIST[parsed.reportType];
     const disallowed = parsed.metrics.filter((metric) => !allowedMetrics?.has(metric));
     if (disallowed.length > 0) {
       throw new BadRequestException(

@@ -1,4 +1,4 @@
-import type { SurchargeCategory, SurchargeRule } from '@cueq/policy';
+import type { SurchargeCategory } from '@cueq/policy';
 import { WORK_INTERVAL_TYPES } from '../constants';
 
 const WEEKDAY_TO_INDEX: Record<string, number> = {
@@ -89,15 +89,11 @@ export function isWorkIntervalType(type: string): boolean {
 
 export function selectSurchargeCategory(
   categories: SurchargeCategory[],
-  surchargeRule: SurchargeRule,
+  configByCategory: ReadonlyMap<SurchargeCategory, { priority: number }>,
 ): SurchargeCategory | null {
   if (categories.length === 0) {
     return null;
   }
-
-  const configByCategory = new Map(
-    surchargeRule.categories.map((entry) => [entry.category, entry]),
-  );
 
   return (
     [...categories].sort((left, right) => {

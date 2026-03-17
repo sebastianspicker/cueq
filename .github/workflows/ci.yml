@@ -21,6 +21,7 @@ concurrency:
 env:
   NODE_ENV: test
   SKIP_DOCKER: 1
+  HUSKY: 0
   DATABASE_URL: postgresql://cueq:cueq_ci_password@localhost:5432/cueq?schema=public
 
 jobs:
@@ -102,6 +103,7 @@ jobs:
     env:
       NODE_ENV: test
       SKIP_DOCKER: 1
+      HUSKY: 0
       DATABASE_URL: postgresql://cueq:cueq_ci_password@localhost:5432/cueq?schema=public
     services:
       postgres:

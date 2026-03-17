@@ -29,7 +29,8 @@ import {
 import { PrismaService } from '../../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { AuditHelper } from '../helpers/audit.helper';
-import { ClosingLockHelper } from '../helpers/closing-lock.helper';
+import { ClosingLockHelper, toCoreClosingStatus } from '../helpers/closing-lock.helper';
+import { assignedPersonIdsForShift } from '../helpers/roster-utils';
 import { EventOutboxHelper } from '../helpers/event-outbox.helper';
 import { PersonHelper } from '../helpers/person.helper';
 import {
@@ -87,14 +88,6 @@ function escapeXml(value: string): string {
     .replaceAll("'", '&apos;');
 }
 
-export function toCoreClosingStatus(status: ClosingStatus): CoreClosingStatus {
-  if (status === ClosingStatus.CLOSED) {
-    return 'APPROVED';
-  }
-
-  return status;
-}
-
 function toPersistenceClosingStatus(status: CoreClosingStatus): ClosingStatus {
   if (status === 'APPROVED') {
     return ClosingStatus.CLOSED;
@@ -110,19 +103,6 @@ function toPersistenceClosingStatus(status: CoreClosingStatus): ClosingStatus {
 
   return ClosingStatus.EXPORTED;
 }
-
-function assignedPersonIdsForShift(shift: {
-  personId: string | null;
-  assignments: Array<{ personId: string }>;
-}) {
-  const assignmentIds = shift.assignments.map((assignment) => assignment.personId);
-  if (shift.personId && !assignmentIds.includes(shift.personId)) {
-    assignmentIds.push(shift.personId);
-  }
-  return assignmentIds;
-}
-
-/* ── Shared Response Mapper (deduped from two call-sites) ── */
 
 function mapClosingPeriodResponse(period: {
   id: string;
@@ -760,7 +740,7 @@ export class ClosingDomainService {
       if (!bookingsByPerson.has(booking.personId)) {
         bookingsByPerson.set(booking.personId, []);
       }
-      bookingsByPerson.get(booking.personId)?.push({
+      bookingsByPerson.get(booking.personId)!.push({
         startTime: booking.startTime,
         endTime: booking.endTime,
       });

@@ -1,5 +1,4 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { PrismaService } from '../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../common/auth/auth.types';
 import { PersonHelper } from './helpers/person.helper';
 import { HR_LIKE_ROLES } from './helpers/role-constants';
@@ -20,21 +19,13 @@ export class Phase2Service {
   ) {}
 
   async importTerminalBatch(user: AuthenticatedIdentity, payload: unknown) {
-    if (!HR_LIKE_ROLES.has(user.role)) {
-      throw new ForbiddenException('Only HR/Admin can import terminal batches.');
-    }
-
-    const actor = await this.personHelper.personForUser(user);
-    return this.terminalGatewayService.importBatch(user, actor.id, payload);
+    const actorId = await this.requireHrActor(user);
+    return this.terminalGatewayService.importBatch(user, actorId, payload);
   }
 
   async importTerminalBatchFile(user: AuthenticatedIdentity, payload: unknown) {
-    if (!HR_LIKE_ROLES.has(user.role)) {
-      throw new ForbiddenException('Only HR/Admin can import terminal batches.');
-    }
-
-    const actor = await this.personHelper.personForUser(user);
-    return this.terminalGatewayService.importBatchFile(user, actor.id, payload);
+    const actorId = await this.requireHrActor(user);
+    return this.terminalGatewayService.importBatchFile(user, actorId, payload);
   }
 
   async getTerminalBatch(user: AuthenticatedIdentity, batchId: string): Promise<unknown> {
@@ -42,5 +33,13 @@ export class Phase2Service {
       throw new ForbiddenException('Only HR/Admin can read terminal batches.');
     }
     return this.terminalGatewayService.getBatch(batchId);
+  }
+
+  private async requireHrActor(user: AuthenticatedIdentity): Promise<string> {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can import terminal batches.');
+    }
+    const actor = await this.personHelper.personForUser(user);
+    return actor.id;
   }
 }

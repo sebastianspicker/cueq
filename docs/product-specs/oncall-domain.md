@@ -7,7 +7,7 @@
 
 ## 1. Summary
 
-Most time-tracking systems model on-call as a generic "time type". CueQ treats it as a **dedicated subdomain** with:
+Most time-tracking systems model on-call as a generic "time type". CueQ treats it as a dedicated subdomain with:
 
 - Rotation scheduling (weekly, daily, custom)
 - Deployment/incident entries with optional ticket and event references

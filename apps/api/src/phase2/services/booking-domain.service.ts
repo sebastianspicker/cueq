@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BookingSource } from '@cueq/database';
+import { BookingSource, type Prisma } from '@cueq/database';
 import { CreateBookingSchema } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
@@ -34,20 +34,7 @@ export class BookingDomainService {
       orderBy: { startTime: 'asc' },
     });
 
-    return bookings.map((booking) => ({
-      id: booking.id,
-      personId: booking.personId,
-      timeTypeId: booking.timeTypeId,
-      timeTypeCode: booking.timeType.code,
-      timeTypeCategory: booking.timeType.category,
-      startTime: booking.startTime.toISOString(),
-      endTime: booking.endTime?.toISOString() ?? null,
-      source: booking.source,
-      note: booking.note,
-      shiftId: booking.shiftId,
-      createdAt: booking.createdAt.toISOString(),
-      updatedAt: booking.updatedAt.toISOString(),
-    }));
+    return bookings.map((booking) => this.toBookingDto(booking));
   }
 
   async createBooking(user: AuthenticatedIdentity, payload: unknown): Promise<unknown> {
@@ -130,6 +117,10 @@ export class BookingDomainService {
       },
     });
 
+    return this.toBookingDto(booking);
+  }
+
+  private toBookingDto(booking: Prisma.BookingGetPayload<{ include: { timeType: true } }>) {
     return {
       id: booking.id,
       personId: booking.personId,
