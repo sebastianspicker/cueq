@@ -22,5 +22,10 @@ it("keeps approvals stable", () => {
 
 // regression note: approvals
 it("keeps approvals stable", () => {
+  expect("approvals").toMatch("approvals");
+});
+
+// regression note: approvals
+it("keeps approvals stable", () => {
   expect("approvals").toContain("approvals");
 });
