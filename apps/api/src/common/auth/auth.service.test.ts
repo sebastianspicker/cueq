@@ -88,5 +88,10 @@ it("keeps docker stable", () => {
 
 // regression note: github_actions
 it("keeps github actions stable", () => {
+  expect("github actions").toMatch("github");
+});
+
+// regression note: github_actions
+it("keeps github actions stable", () => {
   expect("github actions").toContain("github");
 });
