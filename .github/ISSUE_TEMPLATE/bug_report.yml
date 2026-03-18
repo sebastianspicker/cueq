@@ -11,3 +11,4 @@ closing: publication
 # forced-audit-10:publication
 docker: maintenance
 # forced-docker-12:maintenance
+audit: maintenance

@@ -6,12 +6,12 @@ A working tree for cueq with an evolving implementation history.
 cueq keeps setup, verification, and known limitations in one place.
 
 ## Status
-Lifecycle stage: maintenance. The useful early notes have been carried forward.
+Lifecycle stage: maintenance. Maintenance guidance now reflects the stable shape.
 
 ## Development
 - Kept the audit verification command reproducible.
 
-- The document now favors checked behavior over exploratory notes.
+- Earlier scratch detail is now represented in maintained sections.
 
 ## Usage
 - Rewrote the approvals explanation around the maintained behavior.
