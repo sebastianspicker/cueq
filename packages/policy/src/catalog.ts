@@ -36,20 +36,24 @@ export const POLICY_HISTORY: ReadonlyArray<PolicyCatalogRule> = Object.freeze([
   DEFAULT_SURCHARGE_RULE,
 ]);
 
-export function getPolicyHistory(type?: PolicyRuleType): PolicyCatalogRule[] {
+export function getPolicyHistory(
+  type?: PolicyRuleType,
+  history: ReadonlyArray<PolicyCatalogRule> = POLICY_HISTORY,
+): PolicyCatalogRule[] {
   if (!type) {
-    return [...POLICY_HISTORY].sort((a, b) => a.type.localeCompare(b.type));
+    return [...history].sort((a, b) => a.type.localeCompare(b.type));
   }
 
-  return POLICY_HISTORY.filter((entry) => entry.type === type).sort(
-    (a, b) => b.version - a.version,
-  );
+  return history.filter((entry) => entry.type === type).sort((a, b) => b.version - a.version);
 }
 
-export function getActivePolicyBundle(asOf: string): PolicyCatalogRule[] {
+export function getActivePolicyBundle(
+  asOf: string,
+  history: ReadonlyArray<PolicyCatalogRule> = POLICY_HISTORY,
+): PolicyCatalogRule[] {
   const grouped = new Map<PolicyRuleType, PolicyCatalogRule[]>();
 
-  for (const entry of POLICY_HISTORY) {
+  for (const entry of history) {
     if (!inRange(asOf, entry.effectiveFrom, entry.effectiveTo)) {
       continue;
     }
