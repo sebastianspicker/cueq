@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { PageShell } from '../../../components/PageShell';
+import { SectionCard } from '../../../components/SectionCard';
+import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 
 const DEFAULT_PAYLOAD = JSON.stringify(
@@ -78,10 +81,7 @@ export default function TimeEnginePage() {
   }
 
   return (
-    <section className="cq-stack">
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
-
+    <PageShell title={t('title')} description={t('description')}>
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}
@@ -91,36 +91,34 @@ export default function TimeEnginePage() {
         setToken={setToken}
       />
 
-      <label style={{ display: 'grid', gap: '.25rem' }}>
-        <span>{t('payloadLabel')}</span>
-        <textarea
-          rows={18}
-          value={payload}
-          onChange={(event) => setPayload(event.target.value)}
-          className="cq-code-input"
-        />
-      </label>
+      <SectionCard>
+        <label className="cq-form-field">
+          <span>{t('payloadLabel')}</span>
+          <textarea
+            rows={18}
+            value={payload}
+            onChange={(event) => setPayload(event.target.value)}
+            className="cq-code-input"
+          />
+        </label>
+        <div className="cq-space-top-sm">
+          <button type="button" onClick={() => void evaluate()} disabled={loading}>
+            {loading ? t('executing') : t('execute')}
+          </button>
+        </div>
+      </SectionCard>
 
-      <div>
-        <button type="button" onClick={() => void evaluate()} disabled={loading}>
-          {loading ? t('executing') : t('execute')}
-        </button>
-      </div>
+      <StatusBanner error={error} />
 
-      {error ? (
-        <p role="alert" className="cq-text-error">
-          {error}
-        </p>
-      ) : null}
-
-      <section className="cq-list-stack">
+      <SectionCard>
         <h2>{t('resultTitle')}</h2>
         {!result ? (
           <p>{t('emptyResult')}</p>
         ) : (
           <>
             <p>
-              actualHours={result.actualHours}, deltaHours={result.deltaHours}
+              {t('actualHoursLabel')}: {result.actualHours}, {t('deltaHoursLabel')}:{' '}
+              {result.deltaHours}
             </p>
             <article>
               <h3>{t('violations')}</h3>
@@ -157,7 +155,7 @@ export default function TimeEnginePage() {
             </article>
           </>
         )}
-      </section>
-    </section>
+      </SectionCard>
+    </PageShell>
   );
 }

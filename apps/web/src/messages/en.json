@@ -3,6 +3,12 @@
     "title": "cueq",
     "subtitle": "Integrated time-tracking, absence, and roster planning",
     "localeSwitch": "Language",
+    "skipLink": "Skip to content",
+    "workforceSection": "Workforce",
+    "operationsSection": "HR & Operations",
+    "universityName": "University NRW",
+    "errorTitle": "Something went wrong",
+    "errorRetry": "Try again",
     "nav": {
       "dashboard": "Dashboard",
       "teamCalendar": "Team Calendar",
@@ -155,7 +161,10 @@
       "delta": "Delta",
       "compliant": "Compliant",
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "assignPersonLabel": "Assign person to shift",
+      "removeAssignment": "Remove assignment",
+      "planVsActualCaption": "Plan-vs-actual comparison"
     },
     "approvals": {
       "title": "Approval Inbox",
@@ -309,7 +318,9 @@
       "surcharge": "Surcharge Minutes",
       "emptyResult": "No evaluation result yet.",
       "invalidJson": "Payload must be valid JSON.",
-      "requestFailed": "Request failed."
+      "requestFailed": "Request failed.",
+      "actualHoursLabel": "Actual hours",
+      "deltaHoursLabel": "Delta hours"
     },
     "bookings": {
       "title": "My Bookings",
@@ -362,6 +373,11 @@
       "updateRotation": "Update rotation",
       "createDeployment": "Create deployment",
       "complianceTitle": "Compliance",
+      "compliantLabel": "Compliant",
+      "compliantYes": "Yes",
+      "compliantNo": "No",
+      "requiredRestLabel": "Required rest (h)",
+      "actualRestLabel": "Actual rest (h)",
       "rotationCreated": "Rotation created.",
       "rotationUpdated": "Rotation updated.",
       "deploymentCreated": "Deployment created."
@@ -384,7 +400,12 @@
       "entityLabel": "Entity",
       "entityIdLabel": "Entity ID",
       "reasonLabel": "Reason",
-      "searchPlaceholder": "Search audit entries…"
+      "searchPlaceholder": "Search audit entries…",
+      "entriesCount": "{count} entries",
+      "tableCaption": "Audit log entries",
+      "paginationLabel": "Pagination",
+      "previousPage": "Previous page",
+      "nextPage": "Next page"
     },
     "settings": {
       "title": "Settings",

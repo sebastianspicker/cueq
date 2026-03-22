@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { PageShell } from '../../../components/PageShell';
+import { SectionCard } from '../../../components/SectionCard';
+import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 
 interface PolicyPayload {
@@ -83,10 +86,7 @@ export default function PolicyAdminPage() {
   }
 
   return (
-    <section className="cq-stack">
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
-
+    <PageShell title={t('title')} description={t('description')}>
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}
@@ -96,10 +96,12 @@ export default function PolicyAdminPage() {
         setToken={setToken}
       />
 
-      <article className="cq-list-item">
+      <StatusBanner message={message} error={error} />
+
+      <SectionCard>
         <h2>{t('bundleTitle')}</h2>
         <div className="cq-grid-2">
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('asOfLabel')}</span>
             <input value={asOf} onChange={(event) => setAsOf(event.target.value)} />
           </label>
@@ -129,18 +131,14 @@ export default function PolicyAdminPage() {
         ) : (
           <p className="cq-space-top-sm">{t('noBundle')}</p>
         )}
-      </article>
+      </SectionCard>
 
-      <article className="cq-list-item">
+      <SectionCard>
         <h2>{t('historyTitle')}</h2>
         <div className="cq-grid-2">
-          <label style={{ display: 'grid', gap: '.25rem' }}>
+          <label className="cq-form-field">
             <span>{t('typeFilterLabel')}</span>
-            <input
-              value={historyType}
-              onChange={(event) => setHistoryType(event.target.value)}
-              placeholder="REST_RULE"
-            />
+            <input value={historyType} onChange={(event) => setHistoryType(event.target.value)} />
           </label>
           <div className="cq-flex-end">
             <button type="button" disabled={loading} onClick={() => void loadHistory()}>
@@ -165,14 +163,7 @@ export default function PolicyAdminPage() {
         ) : (
           <p className="cq-space-top-sm">{t('noHistory')}</p>
         )}
-      </article>
-
-      {message ? <p className="cq-text-success">{message}</p> : null}
-      {error ? (
-        <p role="alert" className="cq-text-error">
-          {error}
-        </p>
-      ) : null}
-    </section>
+      </SectionCard>
+    </PageShell>
   );
 }

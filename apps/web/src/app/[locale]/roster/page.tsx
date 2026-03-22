@@ -419,6 +419,7 @@ export default function RosterPage() {
 
                   <div className="cq-flex-center cq-space-top-xs">
                     <select
+                      aria-label={t('assignPersonLabel')}
                       value={selectedPerson}
                       onChange={(event) =>
                         setAssignSelection((current) => ({
@@ -449,6 +450,7 @@ export default function RosterPage() {
                           {assignment.firstName} {assignment.lastName}{' '}
                           <button
                             type="button"
+                            aria-label={`${t('removeAssignment')}: ${assignment.firstName} ${assignment.lastName}`}
                             disabled={loading}
                             onClick={() => void unassignShift(shift.id, assignment.id)}
                           >
@@ -517,6 +519,7 @@ export default function RosterPage() {
               {planVsActual.coverageRate}
             </p>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <caption className="cq-sr-only">{t('planVsActualCaption')}</caption>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left' }}>{t('shift')}</th>

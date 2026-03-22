@@ -395,8 +395,16 @@ export default function OnCallPage() {
         <SectionCard>
           <h2>{t('complianceTitle')}</h2>
           <p>
-            person={compliance.personId}, compliant={String(compliance.compliant)}, requiredRest=
-            {compliance.requiredRestHours}, actualRest={compliance.actualRestHours}
+            {t('personIdLabel')}: {compliance.personId}
+          </p>
+          <p>
+            {t('compliantLabel')}: {compliance.compliant ? t('compliantYes') : t('compliantNo')}
+          </p>
+          <p>
+            {t('requiredRestLabel')}: {compliance.requiredRestHours}
+          </p>
+          <p>
+            {t('actualRestLabel')}: {compliance.actualRestHours}
           </p>
           {compliance.violation ? <p>{compliance.violation}</p> : null}
         </SectionCard>

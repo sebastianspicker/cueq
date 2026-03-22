@@ -4,19 +4,29 @@ interface PaginationProps {
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  ariaLabel?: string;
+  previousLabel?: string;
+  nextLabel?: string;
 }
 
-export function Pagination({ page, totalPages, onPageChange }: PaginationProps) {
+export function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+  ariaLabel,
+  previousLabel,
+  nextLabel,
+}: PaginationProps) {
   if (totalPages <= 1) return null;
 
   return (
-    <nav className="cq-pagination" aria-label="Pagination">
+    <nav className="cq-pagination" aria-label={ariaLabel ?? 'Pagination'}>
       <Button
         variant="ghost"
         size="sm"
         disabled={page <= 1}
         onClick={() => onPageChange(page - 1)}
-        aria-label="Previous page"
+        aria-label={previousLabel ?? 'Previous page'}
       >
         &larr;
       </Button>
@@ -28,7 +38,7 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
         size="sm"
         disabled={page >= totalPages}
         onClick={() => onPageChange(page + 1)}
-        aria-label="Next page"
+        aria-label={nextLabel ?? 'Next page'}
       >
         &rarr;
       </Button>

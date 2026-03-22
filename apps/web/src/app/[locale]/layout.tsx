@@ -24,21 +24,19 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
   const messages = (await import(`../../messages/${locale}.json`)).default;
   const altLocale = locale === 'de' ? 'en' : 'de';
-  const workforceLabel = locale === 'de' ? 'Mitarbeitende' : 'Workforce';
-  const operationsLabel = locale === 'de' ? 'HR & Betrieb' : 'HR & Operations';
+  const workforceLabel = messages.app.workforceSection;
+  const operationsLabel = messages.app.operationsSection;
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <ApiProvider>
         <a className="cq-skip-link" href="#main-content">
-          {locale === 'de' ? 'Zum Inhalt springen' : 'Skip to content'}
+          {messages.app.skipLink}
         </a>
         <div className="cq-app-shell">
           <aside className="cq-app-sidebar" role="complementary">
             <div className="cq-brand">
-              <p className="cq-brand-overline">
-                {locale === 'de' ? 'Universität NRW' : 'University NRW'}
-              </p>
+              <p className="cq-brand-overline">{messages.app.universityName}</p>
               <h1>{messages.app.title}</h1>
               <p>{messages.app.subtitle}</p>
             </div>
@@ -108,7 +106,12 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           </aside>
 
           <main id="main-content" className="cq-app-main">
-            <ErrorBoundary>{children}</ErrorBoundary>
+            <ErrorBoundary
+              fallbackTitle={messages.app.errorTitle}
+              fallbackAction={messages.app.errorRetry}
+            >
+              {children}
+            </ErrorBoundary>
           </main>
         </div>
       </ApiProvider>

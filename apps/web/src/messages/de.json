@@ -3,6 +3,12 @@
     "title": "cueq",
     "subtitle": "Integriertes Zeiterfassungs-, Abwesenheits- und Dienstplansystem",
     "localeSwitch": "Sprache",
+    "skipLink": "Zum Inhalt springen",
+    "workforceSection": "Mitarbeitende",
+    "operationsSection": "HR & Betrieb",
+    "universityName": "Universität NRW",
+    "errorTitle": "Etwas ist schiefgelaufen",
+    "errorRetry": "Erneut versuchen",
     "nav": {
       "dashboard": "Dashboard",
       "teamCalendar": "Team-Kalender",
@@ -155,7 +161,10 @@
       "delta": "Delta",
       "compliant": "Konform",
       "yes": "Ja",
-      "no": "Nein"
+      "no": "Nein",
+      "assignPersonLabel": "Person Schicht zuweisen",
+      "removeAssignment": "Zuweisung entfernen",
+      "planVsActualCaption": "Plan-Ist-Vergleich"
     },
     "approvals": {
       "title": "Freigabe-Postfach",
@@ -309,7 +318,9 @@
       "surcharge": "Zuschlagsminuten",
       "emptyResult": "Noch kein Auswertungsergebnis vorhanden.",
       "invalidJson": "Payload muss gültiges JSON sein.",
-      "requestFailed": "Anfrage fehlgeschlagen."
+      "requestFailed": "Anfrage fehlgeschlagen.",
+      "actualHoursLabel": "Ist-Stunden",
+      "deltaHoursLabel": "Delta-Stunden"
     },
     "bookings": {
       "title": "Meine Buchungen",
@@ -362,6 +373,11 @@
       "updateRotation": "Rotation aktualisieren",
       "createDeployment": "Einsatz erstellen",
       "complianceTitle": "Compliance",
+      "compliantLabel": "Konform",
+      "compliantYes": "Ja",
+      "compliantNo": "Nein",
+      "requiredRestLabel": "Erforderliche Ruhezeit (Std.)",
+      "actualRestLabel": "Tatsächliche Ruhezeit (Std.)",
       "rotationCreated": "Rotation erstellt.",
       "rotationUpdated": "Rotation aktualisiert.",
       "deploymentCreated": "Einsatz erstellt."
@@ -384,7 +400,12 @@
       "entityLabel": "Entität",
       "entityIdLabel": "Entitäts-ID",
       "reasonLabel": "Begründung",
-      "searchPlaceholder": "Audit-Einträge durchsuchen…"
+      "searchPlaceholder": "Audit-Einträge durchsuchen…",
+      "entriesCount": "{count} Einträge",
+      "tableCaption": "Audit-Protokolleinträge",
+      "paginationLabel": "Seitennavigation",
+      "previousPage": "Vorherige Seite",
+      "nextPage": "Nächste Seite"
     },
     "settings": {
       "title": "Einstellungen",

@@ -117,10 +117,13 @@ export default function AuditPage() {
               placeholder={t('searchPlaceholder')}
             />
             <span className="cq-toolbar-spacer" />
-            <span className="cq-badge cq-badge-muted">{filtered.length} entries</span>
+            <span className="cq-badge cq-badge-muted">
+              {t('entriesCount', { count: filtered.length })}
+            </span>
           </div>
 
           <table className="cq-data-table">
+            <caption className="cq-sr-only">{t('tableCaption')}</caption>
             <thead>
               <tr>
                 <th>{t('timestampLabel')}</th>
@@ -147,7 +150,14 @@ export default function AuditPage() {
             </tbody>
           </table>
 
-          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            ariaLabel={t('paginationLabel')}
+            previousLabel={t('previousPage')}
+            nextLabel={t('nextPage')}
+          />
         </SectionCard>
       ) : entries.length === 0 && !loading ? (
         <SectionCard>

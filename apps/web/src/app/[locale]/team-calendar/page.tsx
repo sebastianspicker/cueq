@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { PageShell } from '../../../components/PageShell';
+import { SectionCard } from '../../../components/SectionCard';
+import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 
 interface TeamCalendarEntry {
@@ -41,10 +44,7 @@ export default function TeamCalendarPage() {
   }
 
   return (
-    <section className="cq-stack">
-      <h1>{t('title')}</h1>
-      <p>{t('description')}</p>
-
+    <PageShell title={t('title')} description={t('description')}>
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}
@@ -54,61 +54,60 @@ export default function TeamCalendarPage() {
         setToken={setToken}
       />
 
-      <div className="cq-grid-2">
-        <label className="cq-stack-xs">
-          <span>{t('startLabel')}</span>
-          <input type="date" value={start} onChange={(event) => setStart(event.target.value)} />
-        </label>
-        <label className="cq-stack-xs">
-          <span>{t('endLabel')}</span>
-          <input type="date" value={end} onChange={(event) => setEnd(event.target.value)} />
-        </label>
-      </div>
+      <SectionCard>
+        <div className="cq-grid-2">
+          <label className="cq-form-field">
+            <span>{t('startLabel')}</span>
+            <input type="date" value={start} onChange={(event) => setStart(event.target.value)} />
+          </label>
+          <label className="cq-form-field">
+            <span>{t('endLabel')}</span>
+            <input type="date" value={end} onChange={(event) => setEnd(event.target.value)} />
+          </label>
+        </div>
+        <div className="cq-space-top-sm">
+          <button type="button" disabled={loading} onClick={() => void load()}>
+            {loading ? t('loading') : t('load')}
+          </button>
+        </div>
+      </SectionCard>
 
-      <div>
-        <button type="button" disabled={loading} onClick={() => void load()}>
-          {loading ? t('loading') : t('load')}
-        </button>
-      </div>
+      <StatusBanner error={error} />
 
-      {error ? (
-        <p role="alert" className="cq-text-error">
-          {error}
-        </p>
-      ) : null}
-
-      {entries.length === 0 ? (
-        <p>{t('noEntries')}</p>
-      ) : (
-        <ul className="cq-calendar-list">
-          {entries.map((entry) => (
-            <li key={entry.id} className="cq-list-item">
-              <p>
-                <strong>{t('person')}:</strong> {entry.personName}
-              </p>
-              <p>
-                <strong>{t('period')}:</strong> {entry.startDate} - {entry.endDate}
-              </p>
-              <p>
-                <strong>{t('status')}:</strong> {entry.status}
-              </p>
-              <p>
-                <strong>{t('visibilityStatus')}:</strong> {entry.visibilityStatus}
-              </p>
-              {entry.type ? (
+      <SectionCard>
+        {entries.length === 0 ? (
+          <p>{t('noEntries')}</p>
+        ) : (
+          <ul className="cq-calendar-list">
+            {entries.map((entry) => (
+              <li key={entry.id} className="cq-list-item">
                 <p>
-                  <strong>{t('type')}:</strong> {entry.type}
+                  <strong>{t('person')}:</strong> {entry.personName}
                 </p>
-              ) : null}
-              {entry.note ? (
                 <p>
-                  <strong>{t('note')}:</strong> {entry.note}
+                  <strong>{t('period')}:</strong> {entry.startDate} - {entry.endDate}
                 </p>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+                <p>
+                  <strong>{t('status')}:</strong> {entry.status}
+                </p>
+                <p>
+                  <strong>{t('visibilityStatus')}:</strong> {entry.visibilityStatus}
+                </p>
+                {entry.type ? (
+                  <p>
+                    <strong>{t('type')}:</strong> {entry.type}
+                  </p>
+                ) : null}
+                {entry.note ? (
+                  <p>
+                    <strong>{t('note')}:</strong> {entry.note}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+    </PageShell>
   );
 }
