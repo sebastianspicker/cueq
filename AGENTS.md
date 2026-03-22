@@ -80,26 +80,35 @@ All changes to this repo MUST follow these rules:
 
 > **Status:** Phase 0 harness commands are implemented and CI-enforced.
 
-| Command                 | What It Does                                                                                                            | Status         |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------- |
-| `make setup`            | Install dependencies, start Docker services, generate Prisma client, push schema                                        | ✅ Implemented |
-| `make check`            | Full validation: lint + format + type-check + docs link check + schema/fixture validation + tests + OpenAPI drift check | ✅ Implemented |
-| `make quick`            | Fast local validation: lint + type-check + unit tests only                                                              | ✅ Implemented |
-| `make docs-check`       | Run markdown cross-link validation only                                                                                 | ✅ Implemented |
-| `make lint`             | Run linter in check mode (no auto-fix)                                                                                  | ✅ Implemented |
-| `make lint-fix`         | Auto-fix lint + formatting issues                                                                                       | ✅ Implemented |
-| `make typecheck`        | TypeScript compiler in `--noEmit` mode                                                                                  | ✅ Implemented |
-| `make schemas`          | Validate all JSON Schemas and fixture contracts                                                                         | ✅ Implemented |
-| `make generate`         | Generate Prisma client + OpenAPI snapshot + generated schema docs                                                       | ✅ Implemented |
-| `make openapi-check`    | Compare generated OpenAPI document to committed snapshot                                                                | ✅ Implemented |
-| `make test-unit`        | Run unit tests only (target: <10s)                                                                                      | ✅ Implemented |
-| `make test-integration` | Run integration tests (requires Docker)                                                                                 | ✅ Implemented |
-| `make test-acceptance`  | Run acceptance tests (full stack)                                                                                       | ✅ Implemented |
-| `make test-compliance`  | Run GDPR/audit compliance tests                                                                                         | ✅ Implemented |
-| `make test-all`         | Run all test suites                                                                                                     | ✅ Implemented |
-| `make docs`             | Generate documentation site from markdown                                                                               | 🔜 Planned     |
-| `make dev`              | Start development server with hot reload                                                                                | ✅ Implemented |
-| `make clean`            | Remove build artifacts, stop Docker, prune volumes                                                                      | ✅ Implemented |
+| Command                    | What It Does                                                                                                            | Status         |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `make setup`               | Install dependencies, start Docker services, generate Prisma client, push schema                                        | ✅ Implemented |
+| `make check`               | Full validation: lint + format + type-check + docs link check + schema/fixture validation + tests + OpenAPI drift check | ✅ Implemented |
+| `make quick`               | Fast local validation: lint + type-check + unit tests only                                                              | ✅ Implemented |
+| `make docs-check`          | Run markdown cross-link validation only                                                                                 | ✅ Implemented |
+| `make lint`                | Run linter in check mode (no auto-fix)                                                                                  | ✅ Implemented |
+| `make lint-fix`            | Auto-fix lint + formatting issues                                                                                       | ✅ Implemented |
+| `make format`              | Check code formatting                                                                                                   | ✅ Implemented |
+| `make format-fix`          | Auto-fix formatting                                                                                                     | ✅ Implemented |
+| `make typecheck`           | TypeScript compiler in `--noEmit` mode                                                                                  | ✅ Implemented |
+| `make schemas`             | Validate all JSON Schemas and fixture contracts                                                                         | ✅ Implemented |
+| `make generate`            | Generate Prisma client + OpenAPI snapshot + generated schema docs                                                       | ✅ Implemented |
+| `make openapi-check`       | Compare generated OpenAPI document to committed snapshot                                                                | ✅ Implemented |
+| `make build`               | Build all packages and apps                                                                                             | ✅ Implemented |
+| `make test`                | Run all tests                                                                                                           | ✅ Implemented |
+| `make test-unit`           | Run unit tests only (target: <10s)                                                                                      | ✅ Implemented |
+| `make test-integration`    | Run integration tests (requires Docker)                                                                                 | ✅ Implemented |
+| `make test-acceptance`     | Run acceptance tests (full stack)                                                                                       | ✅ Implemented |
+| `make test-compliance`     | Run GDPR/audit compliance tests                                                                                         | ✅ Implemented |
+| `make test-backup-restore` | Run backup/restore verification (AT-08)                                                                                 | ✅ Implemented |
+| `make test-all`            | Run all test suites                                                                                                     | ✅ Implemented |
+| `make db-generate`         | Generate Prisma client from schema                                                                                      | ✅ Implemented |
+| `make db-push`             | Push schema to database (development)                                                                                   | ✅ Implemented |
+| `make db-migrate`          | Run database migrations                                                                                                 | ✅ Implemented |
+| `make demo-screenshots`    | Generate local German demo screenshots (mock university dataset)                                                        | ✅ Implemented |
+| `make dev`                 | Start development server with hot reload                                                                                | ✅ Implemented |
+| `make clean`               | Remove build artifacts, stop Docker, prune volumes                                                                      | ✅ Implemented |
+| `make help`                | Show available commands                                                                                                 | ✅ Implemented |
 
 ---
 

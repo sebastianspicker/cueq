@@ -141,7 +141,7 @@ build: ## Build all packages and apps
 .PHONY: clean
 clean: ## Remove build artifacts, stop Docker, prune volumes
 	$(SCRIPTS)/pnpm.sh clean
-	docker-compose down -v
+	$(if $(shell command -v docker-compose 2>/dev/null),docker-compose,docker compose) down -v
 	rm -rf node_modules .turbo
 
 # ---------------------------------------------------------------------------

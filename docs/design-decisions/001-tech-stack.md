@@ -42,6 +42,7 @@ cueq/
 │   ├── api/          # NestJS API server
 │   └── web/          # Next.js frontend
 ├── packages/
+│   ├── core/         # Domain core logic helpers (@cueq/core)
 │   ├── database/     # Prisma schema + client
 │   ├── shared/       # Zod schemas + shared types
 │   └── policy/       # Policy-as-code rule definitions + golden tests

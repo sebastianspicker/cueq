@@ -12,13 +12,22 @@ if (!AppModule || !buildOpenApiDocument) {
   throw new Error('Unable to resolve AppModule/buildOpenApiDocument from compiled API artifacts.');
 }
 
-const outputPath = resolve(
-  process.cwd(),
-  process.argv[2] ?? 'contracts/openapi/openapi.generated.json',
-);
-const app = await NestFactory.create(AppModule, { logger: false });
-const document = buildOpenApiDocument(app);
+async function main() {
+  const outputPath = resolve(
+    process.cwd(),
+    process.argv[2] ?? 'contracts/openapi/openapi.generated.json',
+  );
+  const app = await NestFactory.create(AppModule, { logger: false });
+  try {
+    const document = buildOpenApiDocument(app);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, JSON.stringify(document, null, 2), 'utf8');
+  } finally {
+    await app.close();
+  }
+}
 
-await mkdir(dirname(outputPath), { recursive: true });
-await writeFile(outputPath, JSON.stringify(document, null, 2), 'utf8');
-await app.close();
+main().catch((error) => {
+  console.error('OpenAPI export failed:', error);
+  process.exit(1);
+});

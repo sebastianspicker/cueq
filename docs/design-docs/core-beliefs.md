@@ -121,6 +121,22 @@ Complexity kills correctness. Every change to cueq must be:
 | Pforte                     | Security desk         | University reception/security (24/7 shift operation)                     |
 | Hausdienst                 | Facility services     | Building maintenance and caretaking                                      |
 | Veranstaltungstechnik (VT) | Event technology      | Audio/visual/staging tech services                                       |
+| Verwaltung                 | Administration        | Administrative department / org unit                                     |
+| Mitarbeitende              | Employee              | Staff member (used as role identifier in the system)                     |
+| Teamleitung                | Team lead             | Direct supervisor responsible for team management                        |
+| Vorgesetzte                | Supervisor            | Line manager with approval authority                                     |
+| Personalstelle             | HR department         | Human resources office handling personnel matters                        |
+| Dienstplaner               | Shift planner         | Role responsible for creating and managing rosters                       |
+| Vollzeit                   | Full-time             | Full-time employment (as opposed to part-time / Teilzeit)                |
+| Schicht                    | Shift                 | A single scheduled work period within a roster                           |
+| Arbeit                     | Work                  | Time type category for actual work performed                             |
+| Pause                      | Break                 | Time type category for mandatory or voluntary breaks                     |
+| Homeoffice                 | Home office           | Remote work from home (time type category)                               |
+| Fortbildung                | Training              | Continuing education or professional development                         |
+| Dienstreise                | Business travel       | Official travel on behalf of the employer                                |
+| Erholungsurlaub            | Annual leave          | Statutory paid vacation per TV-L entitlement                             |
+| Unbezahlter Urlaub         | Unpaid leave          | Leave of absence without pay                                             |
+| Elternzeit                 | Parental leave        | Statutory parental leave (up to 3 years per child)                       |
 | TV-L                       | TV-L                  | Collective agreement for public-sector employees of German states        |
 | NRW                        | NRW                   | Nordrhein-Westfalen (North Rhine-Westphalia)                             |
 | DSGVO                      | GDPR                  | General Data Protection Regulation (EU)                                  |
