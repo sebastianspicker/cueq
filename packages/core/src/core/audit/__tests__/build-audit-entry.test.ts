@@ -79,7 +79,7 @@ describe('buildAuditEntry', () => {
 
       // Structure validation
       expect(entry.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
-      expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(entry.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
       expect(entry.actorId).toBe('actor-1');
       expect(entry.action).toBe(action);
       expect(entry.entityType).toBe(entityType);

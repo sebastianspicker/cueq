@@ -50,6 +50,15 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
     expect(response.body.duplicates).toBe(1);
     expect(response.body.sorted).toBe(true);
     expect(response.body.conflictFlags.length).toBeGreaterThan(0);
+    expect(response.body.batchId).toBeTruthy();
+    expect(response.body.created).toBe(1);
+
+    // Verify the batch detail is retrievable and contains records
+    const detail = await request(app.getHttpServer())
+      .get(`/v1/terminal/sync/batches/${response.body.batchId}`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.terminalId).toBe('T-01');
   });
 
   it('AT-02 correction delegation and inbox flow', async () => {
@@ -184,6 +193,19 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.compliant).toBe(true);
+
+    // Verify non-compliant path: insufficient rest window
+    const nonCompliant = await request(app.getHttpServer())
+      .get('/v1/oncall/compliance')
+      .query({
+        personId: SEED_IDS.personItOncall,
+        // Next shift immediately after on-call — no rest window
+        nextShiftStart: '2026-03-14T06:00:00.000Z',
+      })
+      .set('Authorization', `Bearer ${TOKENS.hr}`);
+
+    expect(nonCompliant.status).toBe(200);
+    expect(nonCompliant.body.compliant).toBe(false);
   });
 
   it('AT-06 closing export and HR post-close correction', async () => {
@@ -240,6 +262,9 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
 
     expect(csvDownload.status).toBe(200);
     expect(csvDownload.text).toContain('personId,targetHours,actualHours,balance');
+    // Verify CSV has data rows beyond the header
+    const csvLines = csvDownload.text.trim().split('\n');
+    expect(csvLines.length).toBeGreaterThanOrEqual(2);
 
     const exportRunAgain = await request(app.getHttpServer())
       .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
@@ -327,12 +352,12 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
 
     const employeeView = await request(app.getHttpServer())
       .get('/v1/calendar/team')
-      .query({ start: '2026-04-01T00:00:00.000Z', end: '2026-04-30T23:59:59.000Z' })
+      .query({ start: '2026-04-01', end: '2026-04-30' })
       .set('Authorization', `Bearer ${TOKENS.employee}`);
 
     const leadView = await request(app.getHttpServer())
       .get('/v1/calendar/team')
-      .query({ start: '2026-04-01T00:00:00.000Z', end: '2026-04-30T23:59:59.000Z' })
+      .query({ start: '2026-04-01', end: '2026-04-30' })
       .set('Authorization', `Bearer ${TOKENS.lead}`);
 
     expect(employeeView.status).toBe(200);
@@ -349,6 +374,14 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
       true,
     );
     expect(leadView.body[0]?.type).toBeDefined();
+
+    // Lead can see absence details that employees cannot
+    const leadEntry = leadView.body.find(
+      (entry: { personId?: string }) => entry.personId === SEED_IDS.personEmployee,
+    );
+    if (leadEntry) {
+      expect(leadEntry.type).toBeDefined();
+    }
   });
 
   it('AT-08 backup and restore verification', async () => {

@@ -32,31 +32,31 @@ describe('generateClosingChecklist', () => {
     });
 
     // Resolved items (count === 0) are INFO + RESOLVED
-    const missing = checklist.items.find((i) => i.code === 'MISSING_BOOKINGS')!;
-    expect(missing.severity).toBe('INFO');
-    expect(missing.status).toBe('RESOLVED');
+    const missing = checklist.items.find((i) => i.code === 'MISSING_BOOKINGS');
+    expect(missing?.severity).toBe('INFO');
+    expect(missing?.status).toBe('RESOLVED');
 
-    const rules = checklist.items.find((i) => i.code === 'RULE_VIOLATIONS')!;
-    expect(rules.severity).toBe('INFO');
-    expect(rules.status).toBe('RESOLVED');
+    const rules = checklist.items.find((i) => i.code === 'RULE_VIOLATIONS');
+    expect(rules?.severity).toBe('INFO');
+    expect(rules?.status).toBe('RESOLVED');
 
     // errorByDefault items with count > 0 are ERROR + OPEN
-    const corrections = checklist.items.find((i) => i.code === 'OPEN_CORRECTIONS')!;
-    expect(corrections.severity).toBe('ERROR');
-    expect(corrections.status).toBe('OPEN');
+    const corrections = checklist.items.find((i) => i.code === 'OPEN_CORRECTIONS');
+    expect(corrections?.severity).toBe('ERROR');
+    expect(corrections?.status).toBe('OPEN');
 
     // non-errorByDefault items with count > 0 are WARNING + OPEN
-    const gaps = checklist.items.find((i) => i.code === 'BOOKING_GAPS')!;
-    expect(gaps.severity).toBe('WARNING');
-    expect(gaps.status).toBe('OPEN');
+    const gaps = checklist.items.find((i) => i.code === 'BOOKING_GAPS');
+    expect(gaps?.severity).toBe('WARNING');
+    expect(gaps?.status).toBe('OPEN');
 
-    const leave = checklist.items.find((i) => i.code === 'OPEN_LEAVE')!;
-    expect(leave.severity).toBe('WARNING');
-    expect(leave.status).toBe('OPEN');
+    const leave = checklist.items.find((i) => i.code === 'OPEN_LEAVE');
+    expect(leave?.severity).toBe('WARNING');
+    expect(leave?.status).toBe('OPEN');
 
-    const roster = checklist.items.find((i) => i.code === 'ROSTER_MISMATCHES')!;
-    expect(roster.severity).toBe('WARNING');
-    expect(roster.status).toBe('OPEN');
+    const roster = checklist.items.find((i) => i.code === 'ROSTER_MISMATCHES');
+    expect(roster?.severity).toBe('WARNING');
+    expect(roster?.status).toBe('OPEN');
 
     // hasErrors = true because OPEN_CORRECTIONS is ERROR + OPEN
     expect(checklist.hasErrors).toBe(true);

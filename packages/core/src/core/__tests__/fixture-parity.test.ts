@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -17,75 +17,62 @@ type Fixture = {
   expected: Record<string, unknown>;
 };
 
-async function readFixture(filePath: string): Promise<Fixture> {
-  const raw = await readFile(filePath, 'utf8');
+async function readFixture(fileName: string): Promise<Fixture> {
+  const raw = await readFile(resolve(fixturesDir, fileName), 'utf8');
   return JSON.parse(raw) as Fixture;
 }
 
 describe('reference fixture parity', () => {
-  it('passes all known phase-1 reference scenarios', async () => {
-    const fixtureFiles = (await readdir(fixturesDir))
-      .filter((file) => file.endsWith('.json'))
-      .sort();
-    expect(fixtureFiles.length).toBe(6);
+  it('flextime-basic-week fixture matches calculateFlextimeWeek output', async () => {
+    const fixture = await readFixture('flextime.json');
+    const result = calculateFlextimeWeek(fixture.input as never);
+    expect(result.actualHours).toBe(fixture.expected.actualHours);
+    expect(result.deltaHours).toBe(fixture.expected.deltaHours);
+    expect(result.violations).toEqual(fixture.expected.violations);
+  });
 
-    for (const file of fixtureFiles) {
-      const fixture = await readFixture(resolve(fixturesDir, file));
+  it('pforte-shift-night fixture matches evaluateShiftCompliance output', async () => {
+    const fixture = await readFixture('pforte-shift.json');
+    const result = evaluateShiftCompliance(fixture.input as never);
+    expect(result.workedHours).toBe(fixture.expected.workedHours);
+    expect(result.requiredBreakMinutes).toBe(fixture.expected.requiredBreakMinutes);
+    expect(result.violations).toEqual(fixture.expected.violations);
+  });
 
-      if (fixture.id === 'flextime-basic-week') {
-        const result = calculateFlextimeWeek(fixture.input as never);
-        expect(result.actualHours).toBe(fixture.expected.actualHours);
-        expect(result.deltaHours).toBe(fixture.expected.deltaHours);
-        expect(result.violations).toEqual(fixture.expected.violations);
-        continue;
-      }
+  it('part-time-model-change fixture matches calculateProratedMonthlyTarget output', async () => {
+    const fixture = await readFixture('part-time-change.json');
+    const result = calculateProratedMonthlyTarget(fixture.input as never);
+    expect(result.proratedTargetHours).toBe(fixture.expected.proratedTargetHours);
+    expect(result.deltaHours).toBe(fixture.expected.deltaHours);
+    expect(result.violations).toEqual(fixture.expected.violations);
+  });
 
-      if (fixture.id === 'pforte-shift-night') {
-        const result = evaluateShiftCompliance(fixture.input as never);
-        expect(result.workedHours).toBe(fixture.expected.workedHours);
-        expect(result.requiredBreakMinutes).toBe(fixture.expected.requiredBreakMinutes);
-        expect(result.violations).toEqual(fixture.expected.violations);
-        continue;
-      }
+  it('it-oncall-deployment-rest fixture matches evaluateOnCallRestCompliance output', async () => {
+    const fixture = await readFixture('it-oncall.json');
+    const result = evaluateOnCallRestCompliance(fixture.input as never);
+    expect(result.restHoursAfterDeployment).toBe(fixture.expected.restHoursAfterDeployment);
+    expect(result.minimumRestHours).toBe(fixture.expected.minimumRestHours);
+    expect(result.compliant).toBe(fixture.expected.compliant);
+    expect(result.violations).toEqual(fixture.expected.violations);
+  });
 
-      if (fixture.id === 'part-time-model-change') {
-        const result = calculateProratedMonthlyTarget(fixture.input as never);
-        expect(result.proratedTargetHours).toBe(fixture.expected.proratedTargetHours);
-        expect(result.deltaHours).toBe(fixture.expected.deltaHours);
-        expect(result.violations).toEqual(fixture.expected.violations);
-        continue;
-      }
+  it('time-engine-surcharge-weekend-night fixture matches evaluateTimeRules output', async () => {
+    const fixture = await readFixture('time-engine-surcharge-weekend-night.json');
+    const result = evaluateTimeRules(fixture.input as never);
+    expect(result.actualHours).toBe(fixture.expected.actualHours);
+    expect(result.deltaHours).toBe(fixture.expected.deltaHours);
+    expect(result.violations).toEqual(fixture.expected.violations);
+    expect(result.warnings).toEqual(fixture.expected.warnings);
+    expect(result.surchargeMinutes).toEqual(fixture.expected.surchargeMinutes);
+  });
 
-      if (fixture.id === 'it-oncall-deployment-rest') {
-        const result = evaluateOnCallRestCompliance(fixture.input as never);
-        expect(result.restHoursAfterDeployment).toBe(fixture.expected.restHoursAfterDeployment);
-        expect(result.minimumRestHours).toBe(fixture.expected.minimumRestHours);
-        expect(result.compliant).toBe(fixture.expected.compliant);
-        expect(result.violations).toEqual(fixture.expected.violations);
-        continue;
-      }
-
-      if (fixture.id === 'time-engine-surcharge-weekend-night') {
-        const result = evaluateTimeRules(fixture.input as never);
-        expect(result.actualHours).toBe(fixture.expected.actualHours);
-        expect(result.deltaHours).toBe(fixture.expected.deltaHours);
-        expect(result.violations).toEqual(fixture.expected.violations);
-        expect(result.warnings).toEqual(fixture.expected.warnings);
-        expect(result.surchargeMinutes).toEqual(fixture.expected.surchargeMinutes);
-        continue;
-      }
-
-      if (fixture.id === 'time-engine-surcharge-holiday-overlap') {
-        const result = evaluateTimeRules(fixture.input as never);
-        expect(result.actualHours).toBe(fixture.expected.actualHours);
-        expect(result.deltaHours).toBe(fixture.expected.deltaHours);
-        expect(result.violations).toEqual(fixture.expected.violations);
-        expect(result.warnings).toEqual(fixture.expected.warnings);
-        expect(result.surchargeMinutes).toEqual(fixture.expected.surchargeMinutes);
-        continue;
-      }
-
-      throw new Error(`Unsupported fixture id: ${fixture.id}`);
-    }
+  it('time-engine-surcharge-holiday-overlap fixture matches evaluateTimeRules output', async () => {
+    const fixture = await readFixture('time-engine-surcharge-holiday-overlap.json');
+    const result = evaluateTimeRules(fixture.input as never);
+    expect(result.actualHours).toBe(fixture.expected.actualHours);
+    expect(result.deltaHours).toBe(fixture.expected.deltaHours);
+    expect(result.violations).toEqual(fixture.expected.violations);
+    expect(result.warnings).toEqual(fixture.expected.warnings);
+    expect(result.surchargeMinutes).toEqual(fixture.expected.surchargeMinutes);
   });
 });

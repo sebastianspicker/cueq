@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { resolveDelegation, shouldEscalate, transitionWorkflow } from '..';
 
 describe('transitionWorkflow', () => {
@@ -68,28 +68,38 @@ describe('transitionWorkflow', () => {
     expect(result.violations[0]?.code).toBe('INVALID_TRANSITION');
   });
 
-  it('sets decidedAt when at is omitted for valid transitions', () => {
-    const result = transitionWorkflow({
-      workflowId: 'wf-6',
-      currentStatus: 'PENDING',
-      decision: 'APPROVE',
-      actorId: 'lead-2',
-    });
+  it('sets decidedAt to current time when at is omitted for valid transitions', () => {
+    vi.useFakeTimers({ now: new Date('2026-06-15T09:30:00.000Z') });
+    try {
+      const result = transitionWorkflow({
+        workflowId: 'wf-6',
+        currentStatus: 'PENDING',
+        decision: 'APPROVE',
+        actorId: 'lead-2',
+      });
 
-    expect(result.ok).toBe(true);
-    expect(result.decidedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(result.ok).toBe(true);
+      expect(result.decidedAt).toBe('2026-06-15T09:30:00.000Z');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it('sets decidedAt when at is omitted for invalid transitions', () => {
-    const result = transitionWorkflow({
-      workflowId: 'wf-7',
-      currentStatus: 'CANCELLED',
-      decision: 'APPROVE',
-      actorId: 'lead-2',
-    });
+  it('sets decidedAt to current time when at is omitted for invalid transitions', () => {
+    vi.useFakeTimers({ now: new Date('2026-06-15T09:30:00.000Z') });
+    try {
+      const result = transitionWorkflow({
+        workflowId: 'wf-7',
+        currentStatus: 'CANCELLED',
+        decision: 'APPROVE',
+        actorId: 'lead-2',
+      });
 
-    expect(result.ok).toBe(false);
-    expect(result.decidedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(result.ok).toBe(false);
+      expect(result.decidedAt).toBe('2026-06-15T09:30:00.000Z');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
