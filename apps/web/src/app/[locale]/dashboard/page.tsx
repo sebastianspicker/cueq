@@ -157,7 +157,6 @@ export default function DashboardPage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}

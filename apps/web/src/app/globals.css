@@ -35,12 +35,9 @@
 
   --cq-glass-blur: blur(48px) saturate(180%);
   --cq-glass-shadow:
-    0 12px 32px -8px rgba(0, 0, 0, 0.06),
-    0 4px 12px -4px rgba(0, 0, 0, 0.03),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.02),
-    inset 1px 0 0 0 rgba(255, 255, 255, 0.4),
-    inset -1px 0 0 0 rgba(255, 255, 255, 0.4);
+    0 12px 32px -8px rgba(0, 0, 0, 0.06), 0 4px 12px -4px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 0 rgba(0, 0, 0, 0.02),
+    inset 1px 0 0 0 rgba(255, 255, 255, 0.4), inset -1px 0 0 0 rgba(255, 255, 255, 0.4);
 
   --cq-shadow-sm: 0 4px 12px -2px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
   --cq-shadow-hover: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 10px 20px -5px rgba(0, 0, 0, 0.04);
@@ -48,7 +45,7 @@
   /* FLUID MOTION */
   --cq-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
   --cq-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --cq-ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+  --cq-ease-out: cubic-bezier(0, 0, 0.2, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -82,15 +79,14 @@
     /* PHYSICALITY / SPATIAL - DARK MODE */
     --cq-glass-blur: blur(48px) saturate(200%);
     --cq-glass-shadow:
-      0 24px 48px -12px rgba(0, 0, 0, 0.8),
-      0 8px 16px -4px rgba(0, 0, 0, 0.6),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-      inset 0 -1px 0 0 rgba(0, 0, 0, 0.4),
-      inset 1px 0 0 0 rgba(255, 255, 255, 0.03),
-      inset -1px 0 0 0 rgba(255, 255, 255, 0.03);
+      0 24px 48px -12px rgba(0, 0, 0, 0.8), 0 8px 16px -4px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 0 rgba(0, 0, 0, 0.4),
+      inset 1px 0 0 0 rgba(255, 255, 255, 0.03), inset -1px 0 0 0 rgba(255, 255, 255, 0.03);
 
     --cq-shadow-sm: 0 8px 16px -4px rgba(0, 0, 0, 0.4), 0 4px 8px -4px rgba(0, 0, 0, 0.3);
-    --cq-shadow-hover: 0 32px 64px -16px rgba(0, 0, 0, 0.6), 0 16px 32px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --cq-shadow-hover:
+      0 32px 64px -16px rgba(0, 0, 0, 0.6), 0 16px 32px -8px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(255, 255, 255, 0.06);
   }
 }
 
@@ -113,7 +109,14 @@ body {
 }
 
 body {
-  font-family: "SF Pro Display", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    'SF Pro Display',
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   color: var(--cq-text);
   line-height: 1.6;
   background-color: var(--cq-bg);
@@ -268,7 +271,9 @@ a {
   border-radius: inherit;
   opacity: 0;
   transform: scale(0.95);
-  transition: opacity 0.3s var(--cq-ease-out), transform 0.3s var(--cq-spring);
+  transition:
+    opacity 0.3s var(--cq-ease-out),
+    transform 0.3s var(--cq-spring);
   z-index: -1;
 }
 
@@ -288,11 +293,11 @@ a {
 }
 
 /* Active State (Pill Glow) */
-.cq-nav-link[aria-current="page"] {
+.cq-nav-link[aria-current='page'] {
   color: var(--cq-accent);
 }
 
-.cq-nav-link[aria-current="page"]::after {
+.cq-nav-link[aria-current='page']::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -303,7 +308,7 @@ a {
 }
 
 @media (prefers-color-scheme: dark) {
-  .cq-nav-link[aria-current="page"]::after {
+  .cq-nav-link[aria-current='page']::after {
     opacity: 0.15;
   }
 }
@@ -353,7 +358,7 @@ a {
 }
 
 /* Thematic Heroes (Page Headers & Full Sections) */
-.cq-app-main>section:not(.cq-page-shell),
+.cq-app-main > section:not(.cq-page-shell),
 .cq-page-header {
   display: flex;
   flex-direction: column;
@@ -369,7 +374,7 @@ a {
   border: 1px solid var(--cq-border);
 }
 
-.cq-app-main>section:not(.cq-page-shell)>h1,
+.cq-app-main > section:not(.cq-page-shell) > h1,
 .cq-page-header h1 {
   margin: 0;
   font-size: 2.5rem;
@@ -381,7 +386,7 @@ a {
   -webkit-text-fill-color: transparent;
 }
 
-.cq-app-main>section:not(.cq-page-shell)>p,
+.cq-app-main > section:not(.cq-page-shell) > p,
 .cq-page-header p {
   margin: 0;
   color: var(--cq-text-muted);
@@ -415,7 +420,10 @@ a {
   border: 1px solid var(--cq-border);
   box-shadow: var(--cq-shadow-sm);
 
-  transition: transform 0.4s var(--cq-spring), box-shadow 0.4s var(--cq-ease-out), border-color 0.4s ease;
+  transition:
+    transform 0.4s var(--cq-spring),
+    box-shadow 0.4s var(--cq-ease-out),
+    border-color 0.4s ease;
   will-change: transform, box-shadow;
 }
 
@@ -558,7 +566,6 @@ textarea {
 }
 
 @media (prefers-color-scheme: dark) {
-
   input,
   select,
   textarea {
@@ -581,7 +588,10 @@ textarea:focus-visible {
   background: var(--cq-surface-solid);
   border-color: var(--cq-accent);
   /* The 2026 Active Glow Ring */
-  box-shadow: 0 0 0 4px var(--cq-accent-soft), 0 0 16px var(--cq-accent-glow), inset 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow:
+    0 0 0 4px var(--cq-accent-soft),
+    0 0 16px var(--cq-accent-glow),
+    inset 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 textarea {
@@ -609,7 +619,9 @@ button,
   letter-spacing: 0.02em;
 
   /* Soft colored shadow aura */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 12px var(--cq-accent-glow);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 4px 12px var(--cq-accent-glow);
   transition: all 0.4s var(--cq-spring);
 
   display: inline-flex;
@@ -645,13 +657,17 @@ button:hover,
 .cq-button-link:hover {
   transform: translateY(-2px) scale(1.02);
   background: var(--cq-accent-hover);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 24px var(--cq-accent-glow);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 8px 24px var(--cq-accent-glow);
 }
 
 button:active,
 .cq-button-link:active {
   transform: translateY(1px) scale(0.98);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 2px 8px var(--cq-accent-glow);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.2),
+    0 2px 8px var(--cq-accent-glow);
 }
 
 button:disabled {
@@ -680,12 +696,16 @@ button.cq-btn-secondary:hover:not(:disabled) {
 
 button.cq-btn-danger {
   background: var(--cq-error);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 button.cq-btn-danger:hover:not(:disabled) {
   background: #dc2626;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 8px 24px rgba(239, 68, 68, 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 8px 24px rgba(239, 68, 68, 0.3);
 }
 
 button.cq-btn-ghost {
@@ -743,7 +763,9 @@ button.cq-btn-ghost.cq-btn-loading::after {
 }
 
 @keyframes cq-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* -------------------------------------
@@ -778,7 +800,9 @@ button.cq-btn-ghost.cq-btn-loading::after {
 .cq-form-field-error select:focus-visible,
 .cq-form-field-error textarea:focus-visible {
   border-color: var(--cq-error);
-  box-shadow: 0 0 0 4px var(--cq-error-soft), 0 0 16px rgba(239, 68, 68, 0.15);
+  box-shadow:
+    0 0 0 4px var(--cq-error-soft),
+    0 0 16px rgba(239, 68, 68, 0.15);
 }
 
 /* -------------------------------------
@@ -862,7 +886,9 @@ button:focus-visible {
 }
 
 button:focus-visible {
-  box-shadow: 0 0 0 3px var(--cq-accent-soft), 0 0 12px var(--cq-accent-glow);
+  box-shadow:
+    0 0 0 3px var(--cq-accent-soft),
+    0 0 12px var(--cq-accent-glow);
 }
 
 /* -------------------------------------
@@ -1113,7 +1139,7 @@ button:focus-visible {
     gap: 1rem;
   }
 
-  .cq-app-main>section:not(.cq-page-shell),
+  .cq-app-main > section:not(.cq-page-shell),
   .cq-page-header {
     padding: 1.5rem;
   }

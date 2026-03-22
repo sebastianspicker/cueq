@@ -127,7 +127,6 @@ export default function LeavePage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}

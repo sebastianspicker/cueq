@@ -6,14 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { OutboxStatus, Role } from '@cueq/database';
-import {
-  CreateWebhookEndpointSchema,
-  OutboxQuerySchema,
-  DeliveryQuerySchema,
-} from '@cueq/shared';
+import { CreateWebhookEndpointSchema, OutboxQuerySchema, DeliveryQuerySchema } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { assertWebhookDispatchTargetUrl, assertWebhookTargetUrl } from '../../common/http/webhook-url';
+import {
+  assertWebhookDispatchTargetUrl,
+  assertWebhookTargetUrl,
+} from '../../common/http/webhook-url';
 import { readResponseBodyWithLimit } from '../../common/http/read-response-body';
 import { PersonHelper } from '../helpers/person.helper';
 import { AuditHelper } from '../helpers/audit.helper';

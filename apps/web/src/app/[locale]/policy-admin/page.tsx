@@ -70,7 +70,9 @@ export default function PolicyAdminPage() {
         query.set('type', historyType);
       }
       const qs = query.toString();
-      const data = await apiRequest<PolicyHistoryResponse>(`/v1/policies/history${qs ? `?${qs}` : ''}`);
+      const data = await apiRequest<PolicyHistoryResponse>(
+        `/v1/policies/history${qs ? `?${qs}` : ''}`,
+      );
       setHistory(data);
       setMessage(t('historyLoaded'));
     } catch (cause) {
@@ -111,10 +113,7 @@ export default function PolicyAdminPage() {
         {bundle ? (
           <ul className="cq-stack-sm cq-space-top-sm">
             {bundle.policies.map((entry) => (
-              <li
-                key={entry.id}
-                className="cq-list-item"
-              >
+              <li key={entry.id} className="cq-list-item">
                 <div>
                   <strong>{entry.type}</strong> | {entry.name} v{entry.version}
                 </div>
@@ -153,10 +152,7 @@ export default function PolicyAdminPage() {
         {history ? (
           <ul className="cq-stack-sm cq-space-top-sm">
             {history.entries.map((entry) => (
-              <li
-                key={entry.id}
-                className="cq-list-item"
-              >
+              <li key={entry.id} className="cq-list-item">
                 <div>
                   <strong>{entry.type}</strong> | {entry.name} v{entry.version}
                 </div>

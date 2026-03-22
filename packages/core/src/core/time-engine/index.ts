@@ -22,17 +22,9 @@ import type { TimeEnginePolicy } from './types';
 export type { TimeEnginePolicy } from './types';
 export type { PlausibilityInterval } from './plausibility';
 export { evaluatePlausibility } from './plausibility';
-export type {
-  FlextimeWeekBooking,
-  FlextimeWeekInput,
-  FlextimeWeekResult,
-} from './flextime';
+export type { FlextimeWeekBooking, FlextimeWeekInput, FlextimeWeekResult } from './flextime';
 export { calculateFlextimeWeek } from './flextime';
-export type {
-  OnCallDeployment,
-  OnCallRestInput,
-  OnCallRestResult,
-} from './oncall-rest';
+export type { OnCallDeployment, OnCallRestInput, OnCallRestResult } from './oncall-rest';
 export { evaluateOnCallRestCompliance } from './oncall-rest';
 
 const MINUTE_MS = 60_000;

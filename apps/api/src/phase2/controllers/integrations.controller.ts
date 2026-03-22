@@ -8,7 +8,9 @@ import { WebhookDomainService } from '../services/webhook-domain.service';
 @ApiBearerAuth()
 @Controller('v1/integrations')
 export class IntegrationsController {
-  constructor(@Inject(WebhookDomainService) private readonly webhookService: WebhookDomainService) {}
+  constructor(
+    @Inject(WebhookDomainService) private readonly webhookService: WebhookDomainService,
+  ) {}
 
   @Post('webhooks/endpoints')
   @ApiOperation({ summary: 'Register a webhook endpoint' })

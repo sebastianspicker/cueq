@@ -19,7 +19,9 @@ import { ClosingExportResponseDto } from '../dto/closing.dto';
 @ApiBearerAuth()
 @Controller('v1/closing-periods')
 export class ClosingController {
-  constructor(@Inject(ClosingDomainService) private readonly closingService: ClosingDomainService) {}
+  constructor(
+    @Inject(ClosingDomainService) private readonly closingService: ClosingDomainService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List closing periods' })

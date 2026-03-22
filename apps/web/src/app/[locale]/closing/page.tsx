@@ -272,7 +272,6 @@ export default function ClosingPage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}
@@ -325,10 +324,7 @@ export default function ClosingPage() {
         ) : (
           <ul className="cq-list-stack">
             {periods.map((row) => (
-              <li
-                key={row.id}
-                className="cq-list-item"
-              >
+              <li key={row.id} className="cq-list-item">
                 <div>
                   <strong>{row.id}</strong> | {row.status}
                 </div>
@@ -364,10 +360,7 @@ export default function ClosingPage() {
 
       <SectionCard>
         <h2>{t('actionsTitle')}</h2>
-        <label
-          className="cq-stack-xs"
-          style={{ marginBottom: '.75rem', maxWidth: '16rem' }}
-        >
+        <label className="cq-stack-xs" style={{ marginBottom: '.75rem', maxWidth: '16rem' }}>
           <span>{t('exportFormatLabel')}</span>
           <select
             value={exportFormat}

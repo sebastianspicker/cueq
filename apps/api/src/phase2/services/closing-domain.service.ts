@@ -1152,7 +1152,11 @@ export class ClosingDomainService {
     };
   }
 
-  async postCloseCorrection(user: AuthenticatedIdentity, closingPeriodId: string, reason?: string): Promise<unknown> {
+  async postCloseCorrection(
+    user: AuthenticatedIdentity,
+    closingPeriodId: string,
+    reason?: string,
+  ): Promise<unknown> {
     if (!HR_LIKE_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin can create post-close corrections.');
     }

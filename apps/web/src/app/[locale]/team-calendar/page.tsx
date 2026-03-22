@@ -82,10 +82,7 @@ export default function TeamCalendarPage() {
       ) : (
         <ul className="cq-calendar-list">
           {entries.map((entry) => (
-            <li
-              key={entry.id}
-              className="cq-list-item"
-            >
+            <li key={entry.id} className="cq-list-item">
               <p>
                 <strong>{t('person')}:</strong> {entry.personName}
               </p>

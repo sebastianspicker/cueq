@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DateTimeSchema } from './common';
 
 // ---------------------------------------------------------------------------
 // Time Type schemas — mirrors the TimeType and TimeTypeCategory enums
@@ -34,5 +35,7 @@ export const TimeTypeSchema = z.object({
   nameEn: z.string().nullable().optional(),
   category: TimeTypeCategorySchema,
   isActive: z.boolean(),
+  createdAt: DateTimeSchema,
+  updatedAt: DateTimeSchema,
 });
 export type TimeType = z.infer<typeof TimeTypeSchema>;

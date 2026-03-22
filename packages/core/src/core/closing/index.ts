@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { CoreClosingContract } from '@cueq/shared';
 import type { ChecklistItem, ChecklistSeverity, RuleViolation } from '../types';
 import { toViolation } from '../utils';
@@ -219,4 +220,37 @@ export function applyCutoffLock(input: CutoffTransitionInput): CutoffTransitionR
       }),
     ],
   };
+}
+
+// ── Export run idempotency ────────────────────────────────────────────
+
+export interface ExportRunInput {
+  periodId: string;
+  periodStart: string;
+  periodEnd: string;
+  checklist: ClosingChecklistResult;
+  data: unknown;
+}
+
+export interface ExportRunResult {
+  checksum: string;
+  periodId: string;
+}
+
+/**
+ * Compute a deterministic checksum for an export run.
+ * Same period + same data = same checksum, enabling idempotent exports.
+ */
+export function computeExportChecksum(input: ExportRunInput): ExportRunResult {
+  const canonical = JSON.stringify({
+    periodId: input.periodId,
+    periodStart: input.periodStart,
+    periodEnd: input.periodEnd,
+    checklist: input.checklist,
+    data: input.data,
+  });
+
+  const checksum = createHash('sha256').update(canonical).digest('hex');
+
+  return { checksum, periodId: input.periodId };
 }

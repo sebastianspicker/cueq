@@ -4,7 +4,9 @@ import { ClosingStatus } from '@cueq/database';
 import { PrismaService } from '../../persistence/prisma.service';
 import { AuditHelper } from './audit.helper';
 
-export function toCoreClosingStatus(status: ClosingStatus): 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED' {
+export function toCoreClosingStatus(
+  status: ClosingStatus,
+): 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED' {
   if (status === ClosingStatus.CLOSED) {
     return 'APPROVED';
   }

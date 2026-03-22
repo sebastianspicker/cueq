@@ -8,7 +8,6 @@ import {
 import type { Prisma, WorkflowInstance, WorkflowPolicy } from '@cueq/database';
 import { Role, WorkflowStatus, WorkflowType } from '@cueq/database';
 import {
-  buildAuditEntry,
   resolveDelegation,
   shouldEscalate,
   transitionWorkflow,
@@ -21,6 +20,7 @@ import type {
   WorkflowPolicyUpsert,
 } from '@cueq/shared';
 import { PrismaService } from '../persistence/prisma.service';
+import { AuditHelper } from './helpers/audit.helper';
 import { HR_LIKE_ROLES } from './helpers/role-constants';
 
 const TYPE_ROLE_MATRIX: Record<WorkflowType, Role[]> = {
@@ -30,8 +30,6 @@ const TYPE_ROLE_MATRIX: Record<WorkflowType, Role[]> = {
   [WorkflowType.SHIFT_SWAP]: [Role.SHIFT_PLANNER, Role.HR, Role.ADMIN],
   [WorkflowType.OVERTIME_APPROVAL]: [Role.TEAM_LEAD, Role.HR, Role.ADMIN],
 };
-
-const HR_ADMIN_ROLES = HR_LIKE_ROLES;
 
 const DEFAULT_POLICIES: Record<
   WorkflowType,
@@ -138,41 +136,10 @@ export interface WorkflowDecisionResult {
 
 @Injectable()
 export class WorkflowRuntimeService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
-
-  private async appendAudit(input: {
-    actorId: string;
-    action: string;
-    entityType: string;
-    entityId: string;
-    before?: Prisma.JsonValue;
-    after?: Prisma.JsonValue;
-    reason?: string;
-  }) {
-    const draft = buildAuditEntry({
-      actorId: input.actorId,
-      action: input.action,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      before: input.before,
-      after: input.after,
-      reason: input.reason,
-    });
-
-    await this.prisma.auditEntry.create({
-      data: {
-        id: draft.id,
-        timestamp: new Date(draft.timestamp),
-        actorId: draft.actorId,
-        action: draft.action,
-        entityType: draft.entityType,
-        entityId: draft.entityId,
-        before: draft.before as Prisma.InputJsonValue,
-        after: draft.after as Prisma.InputJsonValue,
-        reason: draft.reason ?? undefined,
-      },
-    });
-  }
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
+  ) {}
 
   private isRoleAllowedForType(role: Role, type: WorkflowType): boolean {
     return TYPE_ROLE_MATRIX[type].includes(role);
@@ -516,7 +483,7 @@ export class WorkflowRuntimeService {
     if (
       workflow.requesterId !== actor.id &&
       workflow.approverId !== actor.id &&
-      !HR_ADMIN_ROLES.has(actor.role)
+      !HR_LIKE_ROLES.has(actor.role)
     ) {
       throw new ForbiddenException('Workflow is not visible to this actor.');
     }
@@ -670,7 +637,7 @@ export class WorkflowRuntimeService {
       if (
         (actor.role === Role.TEAM_LEAD || actor.role === Role.SHIFT_PLANNER) &&
         delegate.organizationUnitId !== actor.organizationUnitId &&
-        !HR_ADMIN_ROLES.has(delegate.role)
+        !HR_LIKE_ROLES.has(delegate.role)
       ) {
         throw new BadRequestException(
           'Team leads and shift planners can only delegate within their own organization unit or to HR/Admin.',
@@ -695,7 +662,7 @@ export class WorkflowRuntimeService {
       },
     });
 
-    await this.appendAudit({
+    await this.auditHelper.appendAudit({
       actorId: actor.id,
       action:
         action === 'DELEGATE'
@@ -800,7 +767,7 @@ export class WorkflowRuntimeService {
       },
     });
 
-    await this.appendAudit({
+    await this.auditHelper.appendAudit({
       actorId,
       action: 'WORKFLOW_DELEGATION_CREATED',
       entityType: 'WorkflowDelegationRule',
@@ -871,7 +838,7 @@ export class WorkflowRuntimeService {
       },
     });
 
-    await this.appendAudit({
+    await this.auditHelper.appendAudit({
       actorId,
       action: 'WORKFLOW_DELEGATION_UPDATED',
       entityType: 'WorkflowDelegationRule',
@@ -898,7 +865,7 @@ export class WorkflowRuntimeService {
     }
 
     await this.prisma.workflowDelegationRule.delete({ where: { id } });
-    await this.appendAudit({
+    await this.auditHelper.appendAudit({
       actorId,
       action: 'WORKFLOW_DELEGATION_DELETED',
       entityType: 'WorkflowDelegationRule',
@@ -971,7 +938,7 @@ export class WorkflowRuntimeService {
         },
       });
 
-      await this.appendAudit({
+      await this.auditHelper.appendAudit({
         actorId: 'system:workflow-escalation',
         action: 'WORKFLOW_ESCALATED',
         entityType: 'WorkflowInstance',

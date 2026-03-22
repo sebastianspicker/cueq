@@ -26,7 +26,12 @@ export function FormField({ label, children, error, hint, required }: FormFieldP
     <div className={`cq-form-field${error ? ' cq-form-field-error' : ''}`}>
       <label className="cq-form-label" htmlFor={autoId}>
         {label}
-        {required ? <span className="cq-form-required" aria-hidden="true"> *</span> : null}
+        {required ? (
+          <span className="cq-form-required" aria-hidden="true">
+            {' '}
+            *
+          </span>
+        ) : null}
       </label>
       {input}
       {hint && !error ? (

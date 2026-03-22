@@ -61,9 +61,7 @@ export default function AuditPage() {
       if (from) params.set('from', from);
       if (to) params.set('to', to);
       if (entityType) params.set('entityType', entityType);
-      const result = await apiRequest<{ entries: AuditEntry[] }>(
-        `/audit?${params.toString()}`,
-      );
+      const result = await apiRequest<{ entries: AuditEntry[] }>(`/audit?${params.toString()}`);
       setEntries(result?.entries ?? []);
       setPage(1);
     } catch (cause) {
@@ -112,7 +110,10 @@ export default function AuditPage() {
           <div className="cq-toolbar">
             <SearchInput
               value={search}
-              onChange={(v) => { setSearch(v); setPage(1); }}
+              onChange={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
               placeholder={t('searchPlaceholder')}
             />
             <span className="cq-toolbar-spacer" />
@@ -135,7 +136,9 @@ export default function AuditPage() {
                 <tr key={entry.id}>
                   <td>{new Date(entry.timestamp).toLocaleString()}</td>
                   <td>{entry.actorId}</td>
-                  <td><span className="cq-badge cq-badge-muted">{entry.action}</span></td>
+                  <td>
+                    <span className="cq-badge cq-badge-muted">{entry.action}</span>
+                  </td>
                   <td>{entry.entityType}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '.85rem' }}>{entry.entityId}</td>
                   <td>{entry.reason ?? '—'}</td>

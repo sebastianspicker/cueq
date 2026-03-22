@@ -284,7 +284,6 @@ export default function RosterPage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}
@@ -418,9 +417,7 @@ export default function RosterPage() {
                   </div>
                   {warning ? <div className="cq-status-warning">{warning}</div> : null}
 
-                  <div
-                    className="cq-flex-center cq-space-top-xs"
-                  >
+                  <div className="cq-flex-center cq-space-top-xs">
                     <select
                       value={selectedPerson}
                       onChange={(event) =>

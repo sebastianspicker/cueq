@@ -36,10 +36,7 @@ export class WorkflowsDomainService {
 
   /* ── Booking Correction ──────────────────────────────────────── */
 
-  async createBookingCorrection(
-    user: AuthenticatedIdentity,
-    payload: unknown,
-  ): Promise<unknown> {
+  async createBookingCorrection(user: AuthenticatedIdentity, payload: unknown): Promise<unknown> {
     const requester = await this.personHelper.personForUser(user);
     const parsed = BookingCorrectionSchema.parse(payload);
 
@@ -118,10 +115,7 @@ export class WorkflowsDomainService {
 
   /* ── Shift Swap ──────────────────────────────────────────────── */
 
-  async createShiftSwapWorkflow(
-    user: AuthenticatedIdentity,
-    payload: unknown,
-  ): Promise<unknown> {
+  async createShiftSwapWorkflow(user: AuthenticatedIdentity, payload: unknown): Promise<unknown> {
     const requester = await this.personHelper.personForUser(user);
     const parsed = ShiftSwapRequestSchema.parse(payload);
     assertCanActForPerson(user, requester.id, parsed.fromPersonId);
@@ -363,10 +357,7 @@ export class WorkflowsDomainService {
     });
   }
 
-  async createWorkflowDelegation(
-    user: AuthenticatedIdentity,
-    payload: unknown,
-  ): Promise<unknown> {
+  async createWorkflowDelegation(user: AuthenticatedIdentity, payload: unknown): Promise<unknown> {
     assertHrLikeRole(user);
     const actor = await this.personHelper.personForUser(user);
     const parsed = CreateWorkflowDelegationRuleSchema.parse(payload);
@@ -660,9 +651,7 @@ export class WorkflowsDomainService {
       decision.updated.entityType === 'TimeAccount' &&
       decision.action === 'APPROVE'
     ) {
-      const otPayload = OvertimeApprovalRequestSchema.parse(
-        decision.updated.requestPayload ?? {},
-      );
+      const otPayload = OvertimeApprovalRequestSchema.parse(decision.updated.requestPayload ?? {});
       const periodStart = new Date(otPayload.periodStart);
       const periodEnd = new Date(otPayload.periodEnd);
 

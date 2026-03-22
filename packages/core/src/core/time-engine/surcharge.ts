@@ -58,10 +58,7 @@ export function isWithinWindow(
   return localMinuteOfDay >= startMinute || localMinuteOfDay < endMinute;
 }
 
-export function localMinuteInfo(
-  timestamp: number,
-  formatter: Intl.DateTimeFormat,
-): ZonedMinute {
+export function localMinuteInfo(timestamp: number, formatter: Intl.DateTimeFormat): ZonedMinute {
   const parts = formatter.formatToParts(new Date(timestamp));
   const byType = new Map(parts.map((part) => [part.type, part.value]));
   const year = byType.get('year') ?? '1970';

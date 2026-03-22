@@ -17,7 +17,9 @@ import { AbsenceDomainService } from '../services/absence-domain.service';
 @ApiBearerAuth()
 @Controller('v1/leave-adjustments')
 export class LeaveAdjustmentsController {
-  constructor(@Inject(AbsenceDomainService) private readonly absenceService: AbsenceDomainService) {}
+  constructor(
+    @Inject(AbsenceDomainService) private readonly absenceService: AbsenceDomainService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create HR leave adjustment' })

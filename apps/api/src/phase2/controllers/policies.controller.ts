@@ -9,7 +9,9 @@ import { PolicyQueryService } from '../services/policy-query.service';
 @Controller('v1/policies')
 @Roles(Role.HR, Role.ADMIN)
 export class PoliciesController {
-  constructor(@Inject(PolicyQueryService) private readonly policyQueryService: PolicyQueryService) {}
+  constructor(
+    @Inject(PolicyQueryService) private readonly policyQueryService: PolicyQueryService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Resolve active policy bundle for a given date' })

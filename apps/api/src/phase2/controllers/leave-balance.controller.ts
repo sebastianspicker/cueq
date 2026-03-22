@@ -9,7 +9,9 @@ import { LeaveBalanceDto } from '../dto/absence.dto';
 @ApiBearerAuth()
 @Controller('v1/leave-balance')
 export class LeaveBalanceController {
-  constructor(@Inject(AbsenceDomainService) private readonly absenceService: AbsenceDomainService) {}
+  constructor(
+    @Inject(AbsenceDomainService) private readonly absenceService: AbsenceDomainService,
+  ) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get leave balance for the authenticated user' })

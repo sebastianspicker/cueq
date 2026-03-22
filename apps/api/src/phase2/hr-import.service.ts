@@ -123,13 +123,17 @@ export class HrImportService {
             name: row.workTimeModel,
             type: WorkTimeModelType.FLEXTIME,
             weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : DEFAULT_WEEKLY_HOURS,
-            dailyTargetHours: Number.isFinite(dailyTargetHours) ? dailyTargetHours : DEFAULT_DAILY_TARGET_HOURS,
+            dailyTargetHours: Number.isFinite(dailyTargetHours)
+              ? dailyTargetHours
+              : DEFAULT_DAILY_TARGET_HOURS,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
           },
           update: {
             name: row.workTimeModel,
             weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : DEFAULT_WEEKLY_HOURS,
-            dailyTargetHours: Number.isFinite(dailyTargetHours) ? dailyTargetHours : DEFAULT_DAILY_TARGET_HOURS,
+            dailyTargetHours: Number.isFinite(dailyTargetHours)
+              ? dailyTargetHours
+              : DEFAULT_DAILY_TARGET_HOURS,
           },
         });
 

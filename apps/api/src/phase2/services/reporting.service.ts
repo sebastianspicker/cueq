@@ -1,8 +1,5 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import {
-  ClosingStatus,
-  Role,
-} from '@cueq/database';
+import { ClosingStatus, Role } from '@cueq/database';
 import {
   AuditSummaryQuerySchema,
   ClosingCompletionQuerySchema,

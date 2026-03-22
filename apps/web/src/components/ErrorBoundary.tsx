@@ -35,10 +35,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <div className="cq-section-card" role="alert">
           <h2>Something went wrong</h2>
           <p>{this.state.error.message}</p>
-          <button
-            type="button"
-            onClick={() => this.setState({ error: null })}
-          >
+          <button type="button" onClick={() => this.setState({ error: null })}>
             Try again
           </button>
         </div>

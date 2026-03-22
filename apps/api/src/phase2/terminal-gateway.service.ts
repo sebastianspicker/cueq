@@ -1,13 +1,12 @@
 import { createHash } from 'node:crypto';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@cueq/database';
-import { BookingSource } from '@cueq/database';
-import { buildAuditEntry } from '@cueq/core';
+import { BookingSource, type Prisma } from '@cueq/database';
 import { z } from 'zod';
 import { PrismaService } from '../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../common/auth/auth.types';
 import { assertIntegrationToken } from '../common/integrations/integration-token';
 import { parseCsvRecords } from '../common/csv/parse-csv';
+import { AuditHelper } from './helpers/audit.helper';
 
 const TerminalSyncBatchSchema = z.object({
   terminalId: z.string().min(1),
@@ -63,7 +62,10 @@ const TerminalCsvRowSchema = z.object({
 
 @Injectable()
 export class TerminalGatewayService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
+  ) {}
 
   private parseHoneywellCsv(csv: string): {
     records: Array<{
@@ -118,40 +120,6 @@ export class TerminalGatewayService {
     }
 
     return { records, malformedRows };
-  }
-
-  private async appendAudit(input: {
-    actorId: string;
-    action: string;
-    entityType: string;
-    entityId: string;
-    before?: Prisma.JsonValue;
-    after?: Prisma.JsonValue;
-    reason?: string;
-  }) {
-    const draft = buildAuditEntry({
-      actorId: input.actorId,
-      action: input.action,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      before: input.before,
-      after: input.after,
-      reason: input.reason,
-    });
-
-    await this.prisma.auditEntry.create({
-      data: {
-        id: draft.id,
-        timestamp: new Date(draft.timestamp),
-        actorId: draft.actorId,
-        action: draft.action,
-        entityType: draft.entityType,
-        entityId: draft.entityId,
-        before: draft.before as Prisma.InputJsonValue,
-        after: draft.after as Prisma.InputJsonValue,
-        reason: draft.reason ?? undefined,
-      },
-    });
   }
 
   async importBatch(user: AuthenticatedIdentity, actorId: string, payload: unknown) {
@@ -278,7 +246,7 @@ export class TerminalGatewayService {
       },
     });
 
-    await this.appendAudit({
+    await this.auditHelper.appendAudit({
       actorId,
       action: 'TERMINAL_BATCH_IMPORTED',
       entityType: 'TerminalSyncBatch',
@@ -359,7 +327,7 @@ export class TerminalGatewayService {
       },
     });
 
-    await this.appendAudit({
+    await this.auditHelper.appendAudit({
       actorId: 'system:terminal-gateway',
       action: 'TERMINAL_HEARTBEAT_RECORDED',
       entityType: 'TerminalHeartbeat',

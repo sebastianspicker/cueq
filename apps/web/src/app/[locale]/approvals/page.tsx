@@ -156,7 +156,6 @@ export default function ApprovalsPage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}
@@ -226,10 +225,7 @@ export default function ApprovalsPage() {
         ) : (
           <ul className="cq-list-stack">
             {items.map((item) => (
-              <li
-                key={item.id}
-                className="cq-list-item"
-              >
+              <li key={item.id} className="cq-list-item">
                 <div>
                   <strong>{item.type}</strong> | {item.status} | {item.id}
                 </div>

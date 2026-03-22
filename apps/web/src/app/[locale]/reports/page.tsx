@@ -223,12 +223,7 @@ export default function ReportsPage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-
-      <p
-        className="cq-privacy-notice"
-      >
-        {t('privacyNotice')}
-      </p>
+      <p className="cq-privacy-notice">{t('privacyNotice')}</p>
 
       <SectionCard>
         <div className="cq-grid-2">

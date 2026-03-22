@@ -45,6 +45,8 @@ model Person {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  @@index([organizationUnitId])
+  @@index([supervisorId])
   @@map("persons")
 }
 
@@ -82,8 +84,8 @@ model WorkTimeModel {
   id              String   @id @default(cuid())
   name            String   /// e.g. "Gleitzeit Vollzeit", "Schicht Pforte 3x8"
   type            WorkTimeModelType
-  weeklyHours     Decimal  /// e.g. 39.83 for TV-L full-time
-  dailyTargetHours Decimal? /// e.g. 7.97 for 5-day week
+  weeklyHours     Decimal  @db.Decimal(10, 2) /// e.g. 39.83 for TV-L full-time
+  dailyTargetHours Decimal? @db.Decimal(10, 2) /// e.g. 7.97 for 5-day week
   coreTimeStart   String?  /// e.g. "09:00" (Gleitzeit only)
   coreTimeEnd     String?  /// e.g. "15:00" (Gleitzeit only)
   effectiveFrom   DateTime
@@ -121,6 +123,7 @@ model Booking {
   updatedAt   DateTime    @updatedAt
 
   @@index([personId, startTime])
+  @@index([timeTypeId])
   @@map("bookings")
 }
 
@@ -168,10 +171,10 @@ model TimeAccount {
   person      Person   @relation(fields: [personId], references: [id])
   periodStart DateTime /// Start of accounting period (e.g. month start)
   periodEnd   DateTime /// End of accounting period
-  targetHours Decimal  /// Sollzeit for the period
-  actualHours Decimal  /// Istzeit for the period
-  balance     Decimal  /// actualHours - targetHours
-  overtimeHours Decimal @default(0)
+  targetHours Decimal  @db.Decimal(10, 2) /// Sollzeit for the period
+  actualHours Decimal  @db.Decimal(10, 2) /// Istzeit for the period
+  balance     Decimal  @db.Decimal(10, 2) /// actualHours - targetHours
+  overtimeHours Decimal @db.Decimal(10, 2) @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -195,6 +198,7 @@ model Roster {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  @@index([organizationUnitId, periodStart])
   @@map("rosters")
 }
 
@@ -218,6 +222,7 @@ model Shift {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([rosterId])
   @@map("shifts")
 }
 
@@ -246,7 +251,7 @@ model Absence {
   type          AbsenceType
   startDate     DateTime
   endDate       DateTime
-  days          Decimal       /// Number of working days
+  days          Decimal       @db.Decimal(10, 2) /// Number of working days
   status        AbsenceStatus @default(REQUESTED)
   note          String?
   createdAt     DateTime      @default(now())
@@ -261,7 +266,7 @@ model LeaveAdjustment {
   personId  String
   person    Person   @relation(fields: [personId], references: [id])
   year      Int
-  deltaDays Decimal
+  deltaDays Decimal  @db.Decimal(10, 2)
   reason    String
   createdBy String
   createdAt DateTime @default(now())
@@ -312,6 +317,7 @@ model OnCallDeployment {
   updatedAt       DateTime @updatedAt
 
   @@index([personId, startTime])
+  @@index([rotationId])
   @@map("oncall_deployments")
 }
 
@@ -464,6 +470,7 @@ model ExportRun {
   exportedAt      DateTime @default(now())
   exportedById    String
 
+  @@index([closingPeriodId])
   @@map("export_runs")
 }
 

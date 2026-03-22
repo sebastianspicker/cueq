@@ -60,14 +60,14 @@ cueq is an integrated time-tracking, absence-management, and shift-planning syst
 
 ## 4. Core Services
 
-| Service | Responsibility | Source of Truth |
-| ------- | -------------- | --------------- |
-| Time Engine | Rule evaluation: pause enforcement, rest periods, max hours, surcharge calculation, plausibility checks | `packages/core/src/core/time-engine/` |
-| Roster Service | Shift planning, minimum staffing checks, qualification matching, plan-vs-actual comparison | `packages/core/src/core/roster/` |
-| Absence Service | Leave quota calculation, pro-rata targets, carry-over, forfeiture, team calendar visibility | `packages/core/src/core/absence/` |
-| Workflow Service | Approval state machine, delegation chain resolution, escalation triggers, audit side-effects | `packages/core/src/core/workflow/` |
-| Closing Engine | Month-end checklist generation, cut-off lock transitions, export run lifecycle | `packages/core/src/core/closing/` |
-| Audit Service | Append-only audit entry builder; enforces immutability at the type level | `packages/core/src/core/audit/` |
+| Service          | Responsibility                                                                                          | Source of Truth                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Time Engine      | Rule evaluation: pause enforcement, rest periods, max hours, surcharge calculation, plausibility checks | `packages/core/src/core/time-engine/` |
+| Roster Service   | Shift planning, minimum staffing checks, qualification matching, plan-vs-actual comparison              | `packages/core/src/core/roster/`      |
+| Absence Service  | Leave quota calculation, pro-rata targets, carry-over, forfeiture, team calendar visibility             | `packages/core/src/core/absence/`     |
+| Workflow Service | Approval state machine, delegation chain resolution, escalation triggers, audit side-effects            | `packages/core/src/core/workflow/`    |
+| Closing Engine   | Month-end checklist generation, cut-off lock transitions, export run lifecycle                          | `packages/core/src/core/closing/`     |
+| Audit Service    | Append-only audit entry builder; enforces immutability at the type level                                | `packages/core/src/core/audit/`       |
 
 ---
 

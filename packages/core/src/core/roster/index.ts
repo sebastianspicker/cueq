@@ -3,8 +3,8 @@ import type { BreakRule, RestRule } from '@cueq/policy';
 import type { CoreShiftComplianceContract } from '@cueq/shared';
 import { requiredBreakMinutes } from '../break-utils';
 import { WORK_INTERVAL_TYPES } from '../constants';
-import type { RuleViolation } from '../types';
-import { diffHours, roundToTwo, toViolation } from '../utils';
+import type { PlausibilityIssue, RuleViolation } from '../types';
+import { diffHours, overlapExists, roundToTwo, toViolation } from '../utils';
 
 export interface ShiftWindow {
   type: string;
@@ -238,5 +238,131 @@ export function evaluatePlanVsActualCoverage(
     understaffedSlots,
     coverageRate: roundToTwo((slotResults.length - understaffedSlots) / slotResults.length),
     slots: slotResults,
+  };
+}
+
+// ── Shift overlap detection ──────────────────────────────────────────
+
+export interface PersonShift {
+  personCode: string;
+  start: string;
+  end: string;
+}
+
+export interface ShiftOverlapResult {
+  personCode: string;
+  issues: PlausibilityIssue[];
+}
+
+/**
+ * Detect overlapping shifts for each person.
+ * Groups shifts by personCode and delegates to the generic overlapExists utility.
+ */
+export function detectShiftOverlaps(shifts: PersonShift[]): ShiftOverlapResult[] {
+  const byPerson = new Map<string, PersonShift[]>();
+  for (const shift of shifts) {
+    const group = byPerson.get(shift.personCode) ?? [];
+    group.push(shift);
+    byPerson.set(shift.personCode, group);
+  }
+
+  const results: ShiftOverlapResult[] = [];
+  for (const [personCode, personShifts] of byPerson) {
+    const issues = overlapExists(personShifts);
+    if (issues.length > 0) {
+      results.push({ personCode, issues });
+    }
+  }
+
+  return results;
+}
+
+// ── Roster status transitions ────────────────────────────────────────
+
+export type RosterStatus = 'DRAFT' | 'PUBLISHED' | 'CLOSED';
+
+export type RosterAction = 'PUBLISH' | 'CLOSE' | 'REVERT_TO_DRAFT';
+
+export interface RosterTransitionInput {
+  currentStatus: RosterStatus;
+  action: RosterAction;
+  checklistHasErrors: boolean;
+}
+
+export interface RosterTransitionResult {
+  nextStatus: RosterStatus;
+  violations: RuleViolation[];
+}
+
+/**
+ * Roster state machine: DRAFT → PUBLISHED → CLOSED.
+ *
+ * PUBLISH requires no checklist errors (min staffing violations etc.).
+ * CLOSE is only valid from PUBLISHED.
+ * REVERT_TO_DRAFT goes back to DRAFT from PUBLISHED only.
+ */
+export function advanceRosterStatus(input: RosterTransitionInput): RosterTransitionResult {
+  const violations: RuleViolation[] = [];
+
+  if (input.action === 'PUBLISH') {
+    if (input.currentStatus !== 'DRAFT') {
+      violations.push(
+        toViolation({
+          code: 'INVALID_TRANSITION',
+          message: 'Can only publish from DRAFT.',
+        }),
+      );
+      return { nextStatus: input.currentStatus, violations };
+    }
+
+    if (input.checklistHasErrors) {
+      violations.push(
+        toViolation({
+          code: 'CHECKLIST_NOT_GREEN',
+          message: 'Cannot publish roster with unresolved staffing violations.',
+        }),
+      );
+      return { nextStatus: input.currentStatus, violations };
+    }
+
+    return { nextStatus: 'PUBLISHED', violations };
+  }
+
+  if (input.action === 'CLOSE') {
+    if (input.currentStatus !== 'PUBLISHED') {
+      violations.push(
+        toViolation({
+          code: 'INVALID_TRANSITION',
+          message: 'Can only close from PUBLISHED.',
+        }),
+      );
+      return { nextStatus: input.currentStatus, violations };
+    }
+
+    return { nextStatus: 'CLOSED', violations };
+  }
+
+  if (input.action === 'REVERT_TO_DRAFT') {
+    if (input.currentStatus !== 'PUBLISHED') {
+      violations.push(
+        toViolation({
+          code: 'INVALID_TRANSITION',
+          message: 'Can only revert to draft from PUBLISHED.',
+        }),
+      );
+      return { nextStatus: input.currentStatus, violations };
+    }
+
+    return { nextStatus: 'DRAFT', violations };
+  }
+
+  return {
+    nextStatus: input.currentStatus,
+    violations: [
+      toViolation({
+        code: 'UNSUPPORTED_ACTION',
+        message: 'Unsupported roster action.',
+      }),
+    ],
   };
 }

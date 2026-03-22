@@ -9,7 +9,9 @@ import { TeamCalendarEntryDto } from '../dto/absence.dto';
 @ApiBearerAuth()
 @Controller('v1/calendar')
 export class CalendarController {
-  constructor(@Inject(AbsenceDomainService) private readonly absenceService: AbsenceDomainService) {}
+  constructor(
+    @Inject(AbsenceDomainService) private readonly absenceService: AbsenceDomainService,
+  ) {}
 
   @Get('team')
   @ApiOperation({ summary: 'Get team absence calendar with role-based redaction' })

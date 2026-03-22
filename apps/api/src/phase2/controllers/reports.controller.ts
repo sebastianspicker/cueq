@@ -22,9 +22,7 @@ import {
 @ApiBearerAuth()
 @Controller('v1/reports')
 export class ReportsController {
-  constructor(
-    @Inject(ReportingService) private readonly reportingService: ReportingService,
-  ) {}
+  constructor(@Inject(ReportingService) private readonly reportingService: ReportingService) {}
 
   @Get('team-absence')
   @ApiOperation({ summary: 'Team absence report with privacy suppression guardrails' })

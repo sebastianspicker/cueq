@@ -5,14 +5,33 @@ import {
   type PolicyCatalogRule,
   type PolicyRuleType,
 } from '@cueq/policy';
-import {
-  PolicyBundleQuerySchema,
-  PolicyHistoryQuerySchema,
-} from '@cueq/shared';
+import { PolicyBundleQuerySchema, PolicyHistoryQuerySchema } from '@cueq/shared';
 
 function toPolicyDto(entry: PolicyCatalogRule) {
-  const { type, id, name, description, version, effectiveFrom, effectiveTo, createdAt, createdBy, ...payload } = entry;
-  return { type, id, name, description, version, effectiveFrom, effectiveTo, createdAt, createdBy, payload };
+  const {
+    type,
+    id,
+    name,
+    description,
+    version,
+    effectiveFrom,
+    effectiveTo,
+    createdAt,
+    createdBy,
+    ...payload
+  } = entry;
+  return {
+    type,
+    id,
+    name,
+    description,
+    version,
+    effectiveFrom,
+    effectiveTo,
+    createdAt,
+    createdBy,
+    payload,
+  };
 }
 
 @Injectable()
