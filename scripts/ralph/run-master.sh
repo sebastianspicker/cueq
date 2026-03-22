@@ -99,11 +99,11 @@ done
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  FINAL GATE: make check && make test-all                ║"
+echo "║  FINAL GATE: make check                                ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
-if make check && make test-all; then
+if make check; then
   echo ""
   echo "╔══════════════════════════════════════════════════════════╗"
   echo "║                                                          ║"

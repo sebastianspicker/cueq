@@ -98,8 +98,8 @@ case "$PHASE" in
       10 "P4.3-ERROR-HANDLING-COMPLETE" "make test-unit && make test-integration"
 
     echo ""
-    echo "=== Phase 4 Gate: make test-all ==="
-    make test-all
+    echo "=== Phase 4 Gate: make typecheck && make test-unit && make test-integration && make test-compliance ==="
+    make typecheck && make test-unit && make test-integration && make test-compliance
     ;;
 
   5)
@@ -125,14 +125,14 @@ case "$PHASE" in
       15 "P6.1-COVERAGE-ANALYSIS-COMPLETE" "make test-unit"
 
     "$R" .claude/ralph-loops/P6-testing/P6.2-missing-edge-case-tests.md \
-      12 "P6.2-EDGE-CASE-TESTS-COMPLETE" "make test-all"
+      12 "P6.2-EDGE-CASE-TESTS-COMPLETE" "make test-unit && make test-integration && make test-compliance"
 
     "$R" .claude/ralph-loops/P6-testing/P6.3-test-quality-reliability.md \
       10 "P6.3-TEST-QUALITY-COMPLETE" "make test-unit"
 
     echo ""
-    echo "=== Phase 6 Gate: make test-all ==="
-    make test-all
+    echo "=== Phase 6 Gate: make test-unit && make test-integration && make test-compliance ==="
+    make test-unit && make test-integration && make test-compliance
     ;;
 
   7)

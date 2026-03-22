@@ -1,9 +1,12 @@
-import { Controller, Get, Inject, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AbsenceDomainService } from '../services/absence-domain.service';
 import { LeaveBalanceDto } from '../dto/absence.dto';
+
+const YEAR_PATTERN = /^\d{4}$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 @ApiTags('absences')
 @ApiBearerAuth()
@@ -23,6 +26,16 @@ export class LeaveBalanceController {
     @Query('year') year?: string,
     @Query('asOfDate') asOfDate?: string,
   ) {
-    return this.absenceService.leaveBalance(user, year ? Number(year) : undefined, asOfDate);
+    if (year !== undefined && !YEAR_PATTERN.test(year)) {
+      throw new BadRequestException('year must be a 4-digit year (e.g. 2025).');
+    }
+    if (asOfDate !== undefined && !DATE_PATTERN.test(asOfDate)) {
+      throw new BadRequestException('asOfDate must be ISO-8601 date (YYYY-MM-DD).');
+    }
+    const parsedYear = year ? Number(year) : undefined;
+    if (parsedYear !== undefined && (parsedYear < 1970 || parsedYear > 2200)) {
+      throw new BadRequestException('year must be between 1970 and 2200.');
+    }
+    return this.absenceService.leaveBalance(user, parsedYear, asOfDate);
   }
 }

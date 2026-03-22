@@ -1,11 +1,16 @@
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Role } from '@cueq/database';
+import { CreateWebhookEndpointSchema, OutboxQuerySchema, DeliveryQuerySchema } from '@cueq/shared';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { WebhookDomainService } from '../services/webhook-domain.service';
 
 @ApiTags('integrations')
 @ApiBearerAuth()
+@Roles(Role.HR, Role.ADMIN)
 @Controller('v1/integrations')
 export class IntegrationsController {
   constructor(
@@ -14,7 +19,10 @@ export class IntegrationsController {
 
   @Post('webhooks/endpoints')
   @ApiOperation({ summary: 'Register a webhook endpoint' })
-  createEndpoint(@CurrentUser() user: AuthenticatedIdentity, @Body() payload: unknown) {
+  createEndpoint(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Body(new ZodValidationPipe(CreateWebhookEndpointSchema)) payload: unknown,
+  ) {
     return this.webhookService.createWebhookEndpoint(user, payload);
   }
 
@@ -28,7 +36,8 @@ export class IntegrationsController {
   @ApiOperation({ summary: 'List outbox domain events' })
   outbox(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Query() query: Record<string, string | undefined>,
+    @Query(new ZodValidationPipe(OutboxQuerySchema))
+    query: Record<string, string | undefined>,
   ): Promise<unknown> {
     return this.webhookService.listOutboxEvents(user, query);
   }
@@ -43,7 +52,8 @@ export class IntegrationsController {
   @ApiOperation({ summary: 'List webhook delivery attempts' })
   deliveries(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Query() query: Record<string, string | undefined>,
+    @Query(new ZodValidationPipe(DeliveryQuerySchema))
+    query: Record<string, string | undefined>,
   ): Promise<unknown> {
     return this.webhookService.listWebhookDeliveries(user, query);
   }

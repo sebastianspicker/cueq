@@ -30,13 +30,15 @@ export class ZodExceptionFilter extends BaseExceptionFilter {
         status: (code: number) => { json: (payload: unknown) => void };
       }>();
 
+      const details = exception.issues.map((issue) =>
+        typeof issue.message === 'string' ? issue.message : 'Invalid request payload.',
+      );
+
       response.status(400).json({
         statusCode: 400,
         error: 'Bad Request',
-        message: exception.issues.map((issue) =>
-          typeof issue.message === 'string' ? issue.message : 'Invalid request payload.',
-        ),
-        issues: exception.issues,
+        message: details.join('; '),
+        details,
       });
       return;
     }

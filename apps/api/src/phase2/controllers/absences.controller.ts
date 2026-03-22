@@ -7,8 +7,13 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Role } from '@cueq/database';
+import { CreateAbsenceSchema, ProratedTargetRequestSchema } from '@cueq/shared';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { AbsenceDomainService } from '../services/absence-domain.service';
 import { TimeEngineDomainService } from '../services/time-engine-domain.service';
 import { AbsenceDto, CreateAbsenceDto } from '../dto/absence.dto';
@@ -27,22 +32,20 @@ export class AbsencesController {
   @ApiOperation({ summary: 'Create absence request' })
   @ApiBody({ type: CreateAbsenceDto })
   @ApiCreatedResponse({ type: AbsenceDto })
-  create(@CurrentUser() user: AuthenticatedIdentity, @Body() payload: unknown): Promise<unknown> {
+  create(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Body(new ZodValidationPipe(CreateAbsenceSchema)) payload: unknown,
+  ): Promise<unknown> {
     return this.absenceService.createAbsence(user, payload);
   }
 
   @Post('prorated-target')
+  @Roles(Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Calculate prorated monthly target for part-time transitions' })
-  proratedTarget(
-    @Body()
-    payload: {
-      month: string;
-      actualHours: number;
-      transitionAdjustmentHours?: number;
-      segments: Array<{ from: string; to: string; weeklyHours: number }>;
-    },
-  ) {
-    return this.timeEngineDomainService.computeProratedTarget(payload);
+  proratedTarget(@Body(new ZodValidationPipe(ProratedTargetRequestSchema)) payload: unknown) {
+    return this.timeEngineDomainService.computeProratedTarget(
+      payload as Parameters<TimeEngineDomainService['computeProratedTarget']>[0],
+    );
   }
 
   @Get('me')
@@ -57,7 +60,7 @@ export class AbsencesController {
   @ApiCreatedResponse({ type: AbsenceDto })
   cancel(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Param('id') absenceId: string,
+    @Param('id', ParseCuidPipe) absenceId: string,
   ): Promise<unknown> {
     return this.absenceService.cancelAbsence(user, absenceId);
   }

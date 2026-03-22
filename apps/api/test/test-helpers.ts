@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { HttpAdapterHost } from '@nestjs/core';
 import { buildMockToken, MOCK_IDENTITIES } from '../src/test-utils/seed-ids';
 import { AppModule } from '../src/app.module';
+import { PrismaExceptionFilter } from '../src/common/filters/prisma-exception.filter';
 import { ZodExceptionFilter } from '../src/common/filters/zod-exception.filter';
 import {
   HR_MASTER_PROVIDER,
@@ -32,7 +33,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<INest
 
   const app = moduleRef.createNestApplication();
   const httpAdapterHost = app.get(HttpAdapterHost);
-  app.useGlobalFilters(new ZodExceptionFilter(httpAdapterHost));
+  app.useGlobalFilters(new PrismaExceptionFilter(), new ZodExceptionFilter(httpAdapterHost));
   await app.init();
   return app;
 }

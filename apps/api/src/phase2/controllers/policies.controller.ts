@@ -1,7 +1,9 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
+import { PolicyBundleQuerySchema, PolicyHistoryQuerySchema } from '@cueq/shared';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { PolicyQueryService } from '../services/policy-query.service';
 
 @ApiTags('policy')
@@ -15,13 +17,19 @@ export class PoliciesController {
 
   @Get()
   @ApiOperation({ summary: 'Resolve active policy bundle for a given date' })
-  bundle(@Query() query: Record<string, string | undefined>) {
+  bundle(
+    @Query(new ZodValidationPipe(PolicyBundleQuerySchema))
+    query: Record<string, string | undefined>,
+  ) {
     return this.policyQueryService.policyBundle(query);
   }
 
   @Get('history')
   @ApiOperation({ summary: 'List policy catalog history entries' })
-  history(@Query() query: Record<string, string | undefined>) {
+  history(
+    @Query(new ZodValidationPipe(PolicyHistoryQuerySchema))
+    query: Record<string, string | undefined>,
+  ) {
     return this.policyQueryService.policyHistory(query);
   }
 }

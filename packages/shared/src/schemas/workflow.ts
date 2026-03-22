@@ -192,6 +192,40 @@ export type UpdateWorkflowDelegationRule = z.infer<typeof UpdateWorkflowDelegati
 export const WorkflowDecisionSchema = WorkflowDecisionCommandSchema;
 export type WorkflowDecision = WorkflowDecisionCommand;
 
+/** Body-only schema for workflow decision (workflowId comes from URL param) */
+export const WorkflowDecisionBodySchema = z
+  .object({
+    action: WorkflowActionSchema.optional(),
+    decision: z.enum(['APPROVED', 'REJECTED']).optional(),
+    reason: z.string().max(1000).optional(),
+    delegateToId: IdSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.action && !value.decision) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'action or decision is required',
+        path: ['action'],
+      });
+    }
+
+    if (value.action === 'DELEGATE' && !value.delegateToId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'delegateToId is required for DELEGATE action',
+        path: ['delegateToId'],
+      });
+    }
+  });
+export type WorkflowDecisionBody = z.infer<typeof WorkflowDecisionBodySchema>;
+
+/** Query parameters for listing workflow delegation rules */
+export const WorkflowDelegationQuerySchema = z.object({
+  delegatorId: IdSchema.optional(),
+  workflowType: WorkflowTypeSchema.optional(),
+});
+export type WorkflowDelegationQuery = z.infer<typeof WorkflowDelegationQuerySchema>;
+
 export const ShiftSwapRequestSchema = z
   .object({
     shiftId: IdSchema,

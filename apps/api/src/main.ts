@@ -3,6 +3,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { ZodExceptionFilter } from './common/filters/zod-exception.filter';
 import { buildCorsOptions } from './common/http/cors-options';
 import { buildOpenApiDocument } from './openapi';
@@ -12,7 +13,7 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors(buildCorsOptions());
   const httpAdapterHost = app.get(HttpAdapterHost);
-  app.useGlobalFilters(new ZodExceptionFilter(httpAdapterHost));
+  app.useGlobalFilters(new PrismaExceptionFilter(), new ZodExceptionFilter(httpAdapterHost));
 
   // ---------------------------------------------------------------------------
   // OpenAPI / Swagger setup

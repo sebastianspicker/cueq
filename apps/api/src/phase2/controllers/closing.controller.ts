@@ -8,11 +8,20 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { Role } from '@cueq/database';
+import {
+  ClosingBookingCorrectionSchema,
+  ClosingExportRequestSchema,
+  ClosingPeriodMonthQuerySchema,
+  PostCloseCorrectionRequestSchema,
+} from '@cueq/shared';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { ClosingDomainService } from '../services/closing-domain.service';
 import type { Response } from 'express';
-import type { ClosingBookingCorrection } from '@cueq/shared';
 import { ClosingExportResponseDto } from '../dto/closing.dto';
 
 @ApiTags('closing')
@@ -24,53 +33,79 @@ export class ClosingController {
   ) {}
 
   @Get()
+  @Roles(Role.TEAM_LEAD, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'List closing periods' })
   @ApiQuery({ name: 'from', required: false, type: String })
   @ApiQuery({ name: 'to', required: false, type: String })
   @ApiQuery({ name: 'organizationUnitId', required: false, type: String })
   list(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('organizationUnitId') organizationUnitId?: string,
+    @Query(new ZodValidationPipe(ClosingPeriodMonthQuerySchema))
+    query: { from?: string; to?: string; organizationUnitId?: string },
   ) {
-    return this.closingService.listClosingPeriods(user, from, to, organizationUnitId);
+    return this.closingService.listClosingPeriods(
+      user,
+      query.from,
+      query.to,
+      query.organizationUnitId,
+    );
   }
 
   @Get(':id')
+  @Roles(Role.TEAM_LEAD, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Get closing period details' })
-  detail(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+  detail(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+  ) {
     return this.closingService.getClosingPeriod(user, closingPeriodId);
   }
 
   @Post(':id/start-review')
+  @Roles(Role.ADMIN)
   @ApiOperation({
     summary:
       'Transition closing period from open to review (manual emergency override, admin-only when enabled)',
   })
-  startReview(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+  startReview(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+  ) {
     return this.closingService.startClosingReview(user, closingPeriodId);
   }
 
   @Post(':id/lead-approve')
+  @Roles(Role.TEAM_LEAD)
   @ApiOperation({ summary: 'Record team-lead sign-off for closing period' })
-  leadApprove(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+  leadApprove(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+  ) {
     return this.closingService.leadApproveClosing(user, closingPeriodId);
   }
 
   @Get(':id/checklist')
+  @Roles(Role.TEAM_LEAD, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Generate checklist for closing period' })
-  checklist(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+  checklist(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+  ) {
     return this.closingService.closingChecklist(user, closingPeriodId);
   }
 
   @Post(':id/approve')
+  @Roles(Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Approve closing period' })
-  approve(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+  approve(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+  ) {
     return this.closingService.approveClosing(user, closingPeriodId);
   }
 
   @Post(':id/export')
+  @Roles(Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Export closing period run with deterministic CSV checksum' })
   @ApiBody({
     schema: {
@@ -83,19 +118,20 @@ export class ClosingController {
   @ApiCreatedResponse({ type: ClosingExportResponseDto })
   exportRun(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Param('id') closingPeriodId: string,
-    @Body() payload?: unknown,
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+    @Body(new ZodValidationPipe(ClosingExportRequestSchema)) payload?: unknown,
   ) {
     return this.closingService.exportClosing(user, closingPeriodId, payload);
   }
 
   @Get(':closingPeriodId/export-runs/:runId/csv')
+  @Roles(Role.HR, Role.ADMIN, Role.PAYROLL)
   @ApiProduces('text/csv')
   @ApiOperation({ summary: 'Download canonical payroll CSV artifact for an export run' })
   async downloadCsv(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Param('closingPeriodId') closingPeriodId: string,
-    @Param('runId') runId: string,
+    @Param('closingPeriodId', ParseCuidPipe) closingPeriodId: string,
+    @Param('runId', ParseCuidPipe) runId: string,
     @Res() response: Response,
   ) {
     const result = await this.closingService.getExportRunCsv(user, closingPeriodId, runId);
@@ -106,11 +142,12 @@ export class ClosingController {
   }
 
   @Get(':closingPeriodId/export-runs/:runId/artifact')
+  @Roles(Role.HR, Role.ADMIN, Role.PAYROLL)
   @ApiOperation({ summary: 'Download canonical payroll export artifact for an export run' })
   async downloadArtifact(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Param('closingPeriodId') closingPeriodId: string,
-    @Param('runId') runId: string,
+    @Param('closingPeriodId', ParseCuidPipe) closingPeriodId: string,
+    @Param('runId', ParseCuidPipe) runId: string,
     @Res() response: Response,
   ) {
     const result = await this.closingService.getExportRunArtifact(user, closingPeriodId, runId);
@@ -121,16 +158,19 @@ export class ClosingController {
   }
 
   @Post(':id/post-close-corrections')
+  @Roles(Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Create post-close correction workflow' })
   postCloseCorrection(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Param('id') closingPeriodId: string,
-    @Body() payload: { reason?: string },
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+    @Body(new ZodValidationPipe(PostCloseCorrectionRequestSchema))
+    payload: { reason?: string },
   ): Promise<unknown> {
     return this.closingService.postCloseCorrection(user, closingPeriodId, payload?.reason);
   }
 
   @Post(':id/corrections/bookings')
+  @Roles(Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Apply approved post-close booking correction (HR/Admin only)' })
   @ApiBody({
     schema: {
@@ -149,15 +189,19 @@ export class ClosingController {
   })
   applyBookingCorrection(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Param('id') closingPeriodId: string,
-    @Body() payload: ClosingBookingCorrection,
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+    @Body(new ZodValidationPipe(ClosingBookingCorrectionSchema)) payload: unknown,
   ) {
     return this.closingService.applyPostCloseBookingCorrection(user, closingPeriodId, payload);
   }
 
   @Post(':id/reopen')
+  @Roles(Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Re-open closing period from review state (HR only)' })
-  reopen(@CurrentUser() user: AuthenticatedIdentity, @Param('id') closingPeriodId: string) {
+  reopen(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+  ) {
     return this.closingService.reopenClosing(user, closingPeriodId);
   }
 }

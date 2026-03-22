@@ -96,8 +96,8 @@ export type LeaveAdjustmentQuery = z.infer<typeof LeaveAdjustmentQuerySchema>;
 
 /** Team calendar query */
 export const TeamCalendarQuerySchema = z.object({
-  start: z.string().optional(),
-  end: z.string().optional(),
+  start: DateSchema.optional(),
+  end: DateSchema.optional(),
 });
 export type TeamCalendarQuery = z.infer<typeof TeamCalendarQuerySchema>;
 

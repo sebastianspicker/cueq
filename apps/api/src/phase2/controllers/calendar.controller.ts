@@ -1,7 +1,9 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { TeamCalendarQuerySchema } from '@cueq/shared';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { AbsenceDomainService } from '../services/absence-domain.service';
 import { TeamCalendarEntryDto } from '../dto/absence.dto';
 
@@ -20,9 +22,9 @@ export class CalendarController {
   @ApiQuery({ name: 'end', required: false, type: String })
   teamCalendar(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Query('start') start?: string,
-    @Query('end') end?: string,
+    @Query(new ZodValidationPipe(TeamCalendarQuerySchema))
+    query: { start?: string; end?: string },
   ) {
-    return this.absenceService.teamCalendar(user, start, end);
+    return this.absenceService.teamCalendar(user, query.start, query.end);
   }
 }

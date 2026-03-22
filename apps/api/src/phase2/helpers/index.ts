@@ -1,5 +1,9 @@
 export { AuditHelper } from './audit.helper';
 export { ClosingLockHelper } from './closing-lock.helper';
+export { ClosingChecklistHelper } from './closing-checklist.helper';
+export { ClosingCorrectionHelper } from './closing-correction.helper';
+export { ClosingExportHelper } from './closing-export.helper';
+export { ClosingLifecycleHelper } from './closing-lifecycle.helper';
 export { EventOutboxHelper } from './event-outbox.helper';
 export { HolidayProvider } from './holiday.provider';
 export { PersonHelper } from './person.helper';

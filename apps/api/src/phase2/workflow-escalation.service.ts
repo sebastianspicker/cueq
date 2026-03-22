@@ -12,9 +12,15 @@ export class WorkflowEscalationService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async runHourlyEscalation() {
-    const result = await this.workflowRuntimeService.escalateOverdueWorkflows(new Date());
-    if (result.escalated > 0) {
-      this.logger.log(`Escalated ${result.escalated} overdue workflow(s).`);
+    try {
+      const result = await this.workflowRuntimeService.escalateOverdueWorkflows(new Date());
+      if (result.escalated > 0) {
+        this.logger.log(`Escalated ${result.escalated} overdue workflow(s).`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Hourly workflow escalation failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
     }
   }
 }

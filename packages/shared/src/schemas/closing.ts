@@ -42,3 +42,9 @@ export const ClosingExportRequestSchema = z.object({
   format: ExportFormatSchema.default('CSV_V1').optional(),
 });
 export type ClosingExportRequest = z.infer<typeof ClosingExportRequestSchema>;
+
+/** Payload for creating a post-close correction workflow */
+export const PostCloseCorrectionRequestSchema = z.object({
+  reason: z.string().max(1000).optional(),
+});
+export type PostCloseCorrectionRequest = z.infer<typeof PostCloseCorrectionRequestSchema>;

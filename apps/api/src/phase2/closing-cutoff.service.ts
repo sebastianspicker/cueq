@@ -12,9 +12,15 @@ export class ClosingCutoffService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async runHourlyCutoff() {
-    const result = await this.closingService.runClosingCutoff(new Date());
-    if (result.transitioned > 0) {
-      this.logger.log(`Transitioned ${result.transitioned} closing period(s) to REVIEW.`);
+    try {
+      const result = await this.closingService.runClosingCutoff(new Date());
+      if (result.transitioned > 0) {
+        this.logger.log(`Transitioned ${result.transitioned} closing period(s) to REVIEW.`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Hourly closing cutoff failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
     }
   }
 }

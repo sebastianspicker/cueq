@@ -8,7 +8,7 @@ import { assertIntegrationToken } from '../common/integrations/integration-token
 import { parseCsvRecords } from '../common/csv/parse-csv';
 import { AuditHelper } from './helpers/audit.helper';
 
-const TerminalSyncBatchSchema = z.object({
+export const TerminalSyncBatchSchema = z.object({
   terminalId: z.string().min(1),
   sourceFile: z.string().optional(),
   records: z.array(
@@ -24,7 +24,7 @@ const TerminalSyncBatchSchema = z.object({
 
 const MAX_TERMINAL_CSV_BYTES = 2_000_000;
 
-const TerminalSyncBatchFileSchema = z.object({
+export const TerminalSyncBatchFileSchema = z.object({
   terminalId: z.string().min(1),
   sourceFile: z.string().optional(),
   protocol: z.enum(['HONEYWELL_CSV_V1']).default('HONEYWELL_CSV_V1'),

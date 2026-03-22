@@ -176,6 +176,20 @@ export const CustomReportPreviewQuerySchema = z.object({
 });
 export type CustomReportPreviewQuery = z.infer<typeof CustomReportPreviewQuerySchema>;
 
+/** Query-param version with string-to-array coercion for GET requests */
+export const CustomReportPreviewQueryParamsSchema = z.object({
+  reportType: CustomReportTypeSchema,
+  groupBy: CustomReportGroupBySchema,
+  metrics: z.preprocess(
+    (val) => (typeof val === 'string' ? [val] : val),
+    z.array(CustomReportMetricSchema).min(1).max(4),
+  ),
+  from: DateSchema,
+  to: DateSchema,
+  organizationUnitId: IdSchema.optional(),
+});
+export type CustomReportPreviewQueryParams = z.infer<typeof CustomReportPreviewQueryParamsSchema>;
+
 export const CustomReportPreviewRowSchema = z.object({
   group: z.string(),
   metrics: z.record(z.number()),

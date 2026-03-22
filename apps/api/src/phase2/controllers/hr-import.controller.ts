@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Inject, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
 import { HrImportService } from '../hr-import.service';
 
 @ApiTags('hr-import')
@@ -23,7 +24,7 @@ export class HrImportController {
   @ApiOperation({ summary: 'Get HR import run by id (integration token required)' })
   getImportRun(
     @Headers('x-integration-token') integrationToken: string | string[] | undefined,
-    @Param('id') runId: string,
+    @Param('id', ParseCuidPipe) runId: string,
   ): Promise<unknown> {
     return this.hrImportService.getRun(integrationToken, runId);
   }

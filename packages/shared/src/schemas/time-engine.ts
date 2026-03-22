@@ -49,6 +49,26 @@ export const SurchargeMinutesLineSchema = z.object({
 });
 export type SurchargeMinutesLine = z.infer<typeof SurchargeMinutesLineSchema>;
 
+export const ProratedTargetSegmentSchema = z
+  .object({
+    from: DateSchema,
+    to: DateSchema,
+    weeklyHours: z.number().nonnegative(),
+  })
+  .refine((value) => value.from <= value.to, {
+    message: 'from must be on or before to',
+    path: ['to'],
+  });
+export type ProratedTargetSegment = z.infer<typeof ProratedTargetSegmentSchema>;
+
+export const ProratedTargetRequestSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'Must be YYYY-MM format'),
+  actualHours: z.number(),
+  transitionAdjustmentHours: z.number().optional(),
+  segments: z.array(ProratedTargetSegmentSchema).min(1),
+});
+export type ProratedTargetRequest = z.infer<typeof ProratedTargetRequestSchema>;
+
 export const TimeRuleEvaluationResponseSchema = z.object({
   actualHours: z.number(),
   deltaHours: z.number(),

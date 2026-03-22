@@ -110,3 +110,10 @@ export const OnCallComplianceCheckSchema = z.object({
   violation: z.string().nullable(),
 });
 export type OnCallComplianceCheck = z.infer<typeof OnCallComplianceCheckSchema>;
+
+/** Query parameters for on-call rest compliance check */
+export const OnCallComplianceQuerySchema = z.object({
+  personId: IdSchema.optional(),
+  nextShiftStart: DateTimeSchema.optional(),
+});
+export type OnCallComplianceQuery = z.infer<typeof OnCallComplianceQuerySchema>;
