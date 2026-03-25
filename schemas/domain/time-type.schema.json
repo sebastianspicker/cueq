@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/time-type.schema.json",
+  "title": "TimeType",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "code", "name", "category", "isActive"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "code": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "nameEn": {
+      "type": ["string", "null"]
+    },
+    "category": {
+      "enum": [
+        "WORK",
+        "PAUSE",
+        "ON_CALL",
+        "DEPLOYMENT",
+        "ERRAND",
+        "HOME_OFFICE",
+        "TRAINING",
+        "TRAVEL"
+      ]
+    },
+    "isActive": {
+      "type": "boolean"
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

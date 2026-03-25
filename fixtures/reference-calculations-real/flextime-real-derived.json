@@ -1,0 +1,23 @@
+{
+  "id": "real-derived-flextime-spring-week",
+  "scenario": "Anonymized flextime week derived from production-like history",
+  "description": "PII-free derived calculation vector with normalized identifiers.",
+  "policyVersion": 1,
+  "input": {
+    "personCode": "ANON_EMP_101",
+    "week": "2026-W12",
+    "targetHours": 39.83,
+    "bookings": [
+      { "day": "2026-03-16", "workedHours": 7.9 },
+      { "day": "2026-03-17", "workedHours": 8.1 },
+      { "day": "2026-03-18", "workedHours": 8.4 },
+      { "day": "2026-03-19", "workedHours": 7.8 },
+      { "day": "2026-03-20", "workedHours": 8.0 }
+    ]
+  },
+  "expected": {
+    "actualHours": 40.2,
+    "deltaHours": 0.37,
+    "violations": []
+  }
+}

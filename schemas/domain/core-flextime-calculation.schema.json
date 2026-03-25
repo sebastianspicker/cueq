@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/core-flextime-calculation.schema.json",
+  "title": "CoreFlextimeCalculationContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input", "output"],
+  "properties": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["week", "targetHours", "bookings"],
+      "properties": {
+        "week": { "type": "string" },
+        "targetHours": { "type": "number" },
+        "bookings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["day", "workedHours"],
+            "properties": {
+              "day": { "type": "string", "format": "date" },
+              "workedHours": { "type": "number" },
+              "breakMinutes": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actualHours", "deltaHours", "violations"],
+      "properties": {
+        "actualHours": { "type": "number" },
+        "deltaHours": { "type": "number" },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

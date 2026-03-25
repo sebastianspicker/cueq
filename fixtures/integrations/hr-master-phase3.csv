@@ -1,0 +1,4 @@
+externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours,supervisorExternalId
+employee01,Eva,Muster,employee@cueq.local,EMPLOYEE,Verwaltung,Gleitzeit Vollzeit,39.83,7.97,lead01
+planner01,Rita,Planer,planner@cueq.local,SHIFT_PLANNER,Pforte,Pforte Nacht,39.83,7.97,lead01
+oncall01,Iris,Bereitschaft,oncall@cueq.local,EMPLOYEE,IT Bereitschaft,IT Rufbereitschaft,39.83,7.97,lead01

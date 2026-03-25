@@ -1,0 +1,11 @@
+# Default owner for all files
+* @sebastianspicker
+
+# Security-sensitive paths require explicit review
+.github/ @sebastianspicker
+.env.example @sebastianspicker
+docker-compose.yml @sebastianspicker
+packages/database/prisma/ @sebastianspicker
+apps/api/src/common/auth/ @sebastianspicker
+apps/api/src/common/integrations/ @sebastianspicker
+docs/SECURITY.md @sebastianspicker

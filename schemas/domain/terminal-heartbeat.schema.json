@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/terminal-heartbeat.schema.json",
+  "title": "TerminalHeartbeat",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["terminalId", "observedAt", "bufferedRecords", "errorCount"],
+  "properties": {
+    "terminalId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "bufferedRecords": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "errorCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "details": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    }
+  }
+}

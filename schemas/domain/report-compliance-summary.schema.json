@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/report-compliance-summary.schema.json",
+  "title": "ReportComplianceSummary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["from", "to", "privacy", "closing", "payrollExport", "operations"],
+  "properties": {
+    "from": {
+      "$ref": "./_defs/common.schema.json#/$defs/date"
+    },
+    "to": {
+      "$ref": "./_defs/common.schema.json#/$defs/date"
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minGroupSize", "reportAccesses", "suppressedReportAccesses", "suppressionRate"],
+      "properties": {
+        "minGroupSize": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reportAccesses": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "suppressedReportAccesses": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "suppressionRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "closing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["periods", "exported", "completionRate", "lockBlocks", "postCloseCorrections"],
+      "properties": {
+        "periods": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exported": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completionRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "lockBlocks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "postCloseCorrections": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "payrollExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runs", "uniqueChecksums", "duplicateChecksums", "lastRunAt"],
+      "properties": {
+        "runs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uniqueChecksums": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicateChecksums": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lastRunAt": {
+          "anyOf": [
+            {
+              "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lastBackupRestoreVerifiedAt"],
+      "properties": {
+        "lastBackupRestoreVerifiedAt": {
+          "anyOf": [
+            {
+              "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

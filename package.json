@@ -1,0 +1,61 @@
+{
+  "name": "cueq",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Integrated time-tracking, absence-management, and shift-planning system for a German university (NRW / TV-L)",
+  "license": "MIT",
+  "author": "Sebastian J. Spicker",
+  "scripts": {
+    "prepare": "husky",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:integration": "turbo run test:integration",
+    "test:acceptance": "turbo run test:acceptance",
+    "test:compliance": "turbo run test:compliance",
+    "test:backup-restore": "node ./scripts/backup-restore-verify.mjs",
+    "backfill:leave-adjustments": "node ./scripts/backfill-leave-adjustments.mjs",
+    "backfill:workflow-fields": "node ./scripts/backfill-workflow-fields.mjs",
+    "test:all": "pnpm test:unit && pnpm test:integration && pnpm test:acceptance && pnpm test:compliance && pnpm test:backup-restore",
+    "demo:screenshots": "bash ./scripts/demo-screenshots.sh",
+    "docs:links": "node ./scripts/check-doc-links.mjs",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "schemas": "bash ./scripts/schemas.sh",
+    "generate": "bash ./scripts/generate.sh",
+    "openapi:check": "bash ./scripts/openapi-check.sh",
+    "db:generate": "turbo run db:generate",
+    "db:push": "turbo run db:push",
+    "db:migrate": "turbo run db:migrate",
+    "clean": "turbo run clean && rm -rf node_modules .turbo"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.8.20",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "multer": ">=2.1.1",
+      "file-type": ">=21.3.3",
+      "serialize-javascript": ">=7.0.3",
+      "flatted": ">=3.4.0"
+    }
+  }
+}

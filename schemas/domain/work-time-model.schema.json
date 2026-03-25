@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/work-time-model.schema.json",
+  "title": "WorkTimeModel",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "type", "weeklyHours", "effectiveFrom"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "enum": ["FLEXTIME", "FIXED", "SHIFT"]
+    },
+    "weeklyHours": {
+      "type": "number"
+    },
+    "dailyTargetHours": {
+      "type": ["number", "null"]
+    },
+    "coreTimeStart": {
+      "type": ["string", "null"]
+    },
+    "coreTimeEnd": {
+      "type": ["string", "null"]
+    },
+    "effectiveFrom": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "effectiveTo": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@cueq/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared Zod schemas, types, and utilities for cueq",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run src/__tests__/shared.integration.test.ts",
+    "test:acceptance": "vitest run src/__tests__/shared.acceptance.test.ts",
+    "test:compliance": "vitest run src/__tests__/shared.compliance.test.ts",
+    "clean": "rm -rf dist node_modules/.cache"
+  },
+  "dependencies": {
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

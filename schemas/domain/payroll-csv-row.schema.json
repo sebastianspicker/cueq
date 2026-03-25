@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/payroll-csv-row.schema.json",
+  "title": "PayrollCsvRow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["personId", "targetHours", "actualHours", "balance"],
+  "properties": {
+    "personId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "targetHours": {
+      "type": "number"
+    },
+    "actualHours": {
+      "type": "number"
+    },
+    "balance": {
+      "type": "number"
+    }
+  }
+}

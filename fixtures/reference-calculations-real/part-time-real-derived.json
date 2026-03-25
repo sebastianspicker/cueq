@@ -1,0 +1,21 @@
+{
+  "id": "real-derived-part-time-transition",
+  "scenario": "Anonymized mid-period work model transition",
+  "description": "Derived from historic contract-change profile with synthetic numbers.",
+  "policyVersion": 1,
+  "input": {
+    "personCode": "ANON_EMP_332",
+    "month": "2026-05",
+    "segments": [
+      { "from": "2026-05-01", "to": "2026-05-15", "weeklyHours": 35.0 },
+      { "from": "2026-05-16", "to": "2026-05-31", "weeklyHours": 25.0 }
+    ],
+    "actualHours": 128.0,
+    "transitionAdjustmentHours": -0.25
+  },
+  "expected": {
+    "proratedTargetHours": 130.75,
+    "deltaHours": -2.75,
+    "violations": []
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/shift.schema.json",
+  "title": "Shift",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "rosterId", "startTime", "endTime", "shiftType", "minStaffing"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "rosterId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "personId": {
+      "type": ["string", "null"]
+    },
+    "startTime": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "endTime": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "shiftType": {
+      "type": "string"
+    },
+    "minStaffing": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

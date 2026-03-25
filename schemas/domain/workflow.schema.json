@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/workflow.schema.json",
+  "title": "WorkflowInstance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "status",
+    "requesterId",
+    "entityType",
+    "entityId",
+    "escalationLevel",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "type": {
+      "enum": [
+        "LEAVE_REQUEST",
+        "BOOKING_CORRECTION",
+        "SHIFT_SWAP",
+        "OVERTIME_APPROVAL",
+        "POST_CLOSE_CORRECTION"
+      ]
+    },
+    "status": {
+      "enum": ["DRAFT", "SUBMITTED", "PENDING", "ESCALATED", "APPROVED", "REJECTED", "CANCELLED"]
+    },
+    "requesterId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "approverId": {
+      "type": ["string", "null"]
+    },
+    "entityType": {
+      "type": "string"
+    },
+    "entityId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "reason": {
+      "type": ["string", "null"]
+    },
+    "decisionReason": {
+      "type": ["string", "null"]
+    },
+    "decidedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "submittedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "dueAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "escalatedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "escalationLevel": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "requestPayload": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    },
+    "delegationTrail": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      }
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}
