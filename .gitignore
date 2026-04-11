@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+out/
+contracts/openapi/openapi.generated.json
+contracts/openapi/openapi.json
+
+# Turbo
+.turbo/
+
+# Prisma
+packages/database/generated/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+.nyc_output/
+apps/web/test-results/
+apps/web/playwright-report/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Secrets & credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+credentials.json
+service-account*.json
+.env.production
+
+# Claude / AI dev artifacts
+.claude/
+progress.md
+AUDIT.md
+
+# Misc
+*.tsbuildinfo
