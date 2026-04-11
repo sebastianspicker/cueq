@@ -1,0 +1,31 @@
+{
+  "name": "@cueq/policy",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Policy-as-Code: versioned, testable, reviewable rules for time models, leave, compliance, and closing",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run src/__tests__/policy.integration.test.ts",
+    "test:golden": "vitest run --config vitest.golden.config.ts",
+    "test:acceptance": "vitest run src/__tests__/policy.acceptance.test.ts",
+    "test:compliance": "vitest run src/__tests__/policy.compliance.test.ts",
+    "clean": "rm -rf dist node_modules/.cache"
+  },
+  "dependencies": {
+    "@cueq/shared": "workspace:*",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
