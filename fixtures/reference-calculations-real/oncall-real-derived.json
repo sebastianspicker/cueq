@@ -1,0 +1,24 @@
+{
+  "id": "real-derived-oncall-rest-window",
+  "scenario": "Anonymized on-call deployment compliance",
+  "description": "Derived from incident-response profile with redacted references.",
+  "policyVersion": 1,
+  "input": {
+    "personCode": "ANON_EMP_440",
+    "rotationStart": "2026-03-20T16:00:00Z",
+    "rotationEnd": "2026-03-27T08:00:00Z",
+    "deployments": [
+      {
+        "start": "2026-03-22T00:40:00Z",
+        "end": "2026-03-22T01:35:00Z"
+      }
+    ],
+    "nextShiftStart": "2026-03-22T13:30:00Z"
+  },
+  "expected": {
+    "restHoursAfterDeployment": 11.92,
+    "minimumRestHours": 11,
+    "compliant": true,
+    "violations": []
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/absence.schema.json",
+  "title": "Absence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "personId", "type", "startDate", "endDate", "days", "status"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "personId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "type": {
+      "enum": [
+        "ANNUAL_LEAVE",
+        "SICK",
+        "SPECIAL_LEAVE",
+        "TRAINING",
+        "TRAVEL",
+        "COMP_TIME",
+        "FLEX_DAY",
+        "UNPAID",
+        "PARENTAL"
+      ]
+    },
+    "startDate": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "endDate": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "days": {
+      "$ref": "./_defs/common.schema.json#/$defs/nonNegativeNumber"
+    },
+    "status": {
+      "enum": ["REQUESTED", "APPROVED", "REJECTED", "CANCELLED"]
+    },
+    "note": {
+      "type": ["string", "null"]
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

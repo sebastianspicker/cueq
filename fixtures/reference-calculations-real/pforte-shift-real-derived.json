@@ -1,0 +1,20 @@
+{
+  "id": "real-derived-pforte-night-shift",
+  "scenario": "Anonymized security night shift compliance case",
+  "description": "Derived from operational profile with synthetic identities.",
+  "policyVersion": 1,
+  "input": {
+    "personCode": "ANON_EMP_205",
+    "shift": {
+      "type": "NIGHT",
+      "start": "2026-03-18T22:00:00Z",
+      "end": "2026-03-19T06:00:00Z"
+    },
+    "recordedBreakMinutes": 45
+  },
+  "expected": {
+    "workedHours": 7.25,
+    "requiredBreakMinutes": 45,
+    "violations": []
+  }
+}

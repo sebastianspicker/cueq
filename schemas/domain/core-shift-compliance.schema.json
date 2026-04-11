@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/core-shift-compliance.schema.json",
+  "title": "CoreShiftComplianceContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input", "output"],
+  "properties": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shift", "recordedBreakMinutes"],
+      "properties": {
+        "shift": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "start", "end"],
+          "properties": {
+            "type": { "type": "string" },
+            "start": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" },
+            "end": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" }
+          }
+        },
+        "recordedBreakMinutes": { "type": "number" },
+        "previousShiftEnd": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workedHours", "requiredBreakMinutes", "violations"],
+      "properties": {
+        "workedHours": { "type": "number" },
+        "requiredBreakMinutes": { "type": "number" },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}

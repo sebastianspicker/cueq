@@ -1,0 +1,21 @@
+{
+  "id": "part-time-model-change",
+  "scenario": "Mid-month part-time model change",
+  "description": "Synthetic case for prorated target hours after a contract change.",
+  "policyVersion": 1,
+  "input": {
+    "personCode": "EMP_SYN_022",
+    "month": "2026-04",
+    "segments": [
+      { "from": "2026-04-01", "to": "2026-04-14", "weeklyHours": 39.83 },
+      { "from": "2026-04-15", "to": "2026-04-30", "weeklyHours": 30.0 }
+    ],
+    "actualHours": 149.0,
+    "transitionAdjustmentHours": -0.33
+  },
+  "expected": {
+    "proratedTargetHours": 151.33,
+    "deltaHours": -2.33,
+    "violations": []
+  }
+}

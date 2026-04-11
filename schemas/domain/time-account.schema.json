@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/time-account.schema.json",
+  "title": "TimeAccount",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "personId",
+    "periodStart",
+    "periodEnd",
+    "targetHours",
+    "actualHours",
+    "balance"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "personId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "periodStart": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "periodEnd": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "targetHours": {
+      "type": "number"
+    },
+    "actualHours": {
+      "type": "number"
+    },
+    "balance": {
+      "type": "number"
+    },
+    "overtimeHours": {
+      "$ref": "./_defs/common.schema.json#/$defs/nonNegativeNumber"
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

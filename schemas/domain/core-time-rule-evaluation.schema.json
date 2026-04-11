@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/core-time-rule-evaluation.schema.json",
+  "title": "CoreTimeRuleEvaluationContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input", "output"],
+  "properties": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["week", "targetHours", "intervals"],
+      "properties": {
+        "week": { "type": "string" },
+        "targetHours": { "type": "number" },
+        "timezone": { "type": "string" },
+        "holidayDates": {
+          "type": "array",
+          "items": { "$ref": "./_defs/common.schema.json#/$defs/date" }
+        },
+        "intervals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["start", "end", "type"],
+            "properties": {
+              "start": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" },
+              "end": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" },
+              "type": {
+                "type": "string",
+                "enum": ["WORK", "PAUSE", "DEPLOYMENT"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actualHours", "deltaHours", "violations", "warnings", "surchargeMinutes"],
+      "properties": {
+        "actualHours": { "type": "number" },
+        "deltaHours": { "type": "number" },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "surchargeMinutes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["category", "ratePercent", "minutes"],
+            "properties": {
+              "category": {
+                "type": "string",
+                "enum": ["NIGHT", "WEEKEND", "HOLIDAY"]
+              },
+              "ratePercent": { "type": "number", "minimum": 0 },
+              "minutes": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/fixtures/reference-calculation.schema.json",
+  "title": "ReferenceCalculationFixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "scenario", "policyVersion", "input", "expected"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 3
+    },
+    "scenario": {
+      "type": "string",
+      "minLength": 3
+    },
+    "description": {
+      "type": "string"
+    },
+    "policyVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

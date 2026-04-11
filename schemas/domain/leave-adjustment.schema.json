@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/leave-adjustment.schema.json",
+  "title": "LeaveAdjustment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "personId", "year", "deltaDays", "reason", "createdBy", "createdAt"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "personId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "year": {
+      "type": "integer"
+    },
+    "deltaDays": {
+      "type": "number"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "createdBy": {
+      "type": "string"
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/report-audit-summary.schema.json",
+  "title": "ReportAuditSummary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["from", "to", "totals", "byAction", "byEntityType"],
+  "properties": {
+    "from": {
+      "$ref": "./_defs/common.schema.json#/$defs/date"
+    },
+    "to": {
+      "$ref": "./_defs/common.schema.json#/$defs/date"
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entries", "uniqueActors", "reportAccesses", "exportsTriggered", "lockBlocks"],
+      "properties": {
+        "entries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uniqueActors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reportAccesses": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exportsTriggered": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lockBlocks": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "byAction": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "count"],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "byEntityType": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entityType", "count"],
+        "properties": {
+          "entityType": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

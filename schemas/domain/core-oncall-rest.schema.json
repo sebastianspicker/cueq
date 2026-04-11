@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/core-oncall-rest.schema.json",
+  "title": "CoreOnCallRestContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input", "output"],
+  "properties": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rotationStart", "rotationEnd", "deployments", "nextShiftStart"],
+      "properties": {
+        "rotationStart": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" },
+        "rotationEnd": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" },
+        "deployments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["start", "end"],
+            "properties": {
+              "start": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" },
+              "end": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" }
+            }
+          }
+        },
+        "nextShiftStart": { "$ref": "./_defs/common.schema.json#/$defs/dateTime" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["restHoursAfterDeployment", "minimumRestHours", "compliant", "violations"],
+      "properties": {
+        "restHoursAfterDeployment": { "type": "number" },
+        "minimumRestHours": { "type": "number" },
+        "compliant": { "type": "boolean" },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  }
+}
