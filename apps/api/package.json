@@ -44,6 +44,6 @@
     "@types/supertest": "^6.0.3",
     "supertest": "^7.1.1",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.4"
   }
 }
