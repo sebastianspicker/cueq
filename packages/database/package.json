@@ -28,7 +28,7 @@
     "clean": "rm -rf dist node_modules/.cache"
   },
   "dependencies": {
-    "@prisma/client": "^6.4.0"
+    "@prisma/client": "^7.7.0"
   },
   "devDependencies": {
     "prisma": "^6.4.0",
