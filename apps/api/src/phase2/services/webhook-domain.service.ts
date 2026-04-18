@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { OutboxStatus } from '@cueq/database';
 import { CreateWebhookEndpointSchema, OutboxQuerySchema, DeliveryQuerySchema } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service';
@@ -67,7 +62,7 @@ export class WebhookDomainService {
         name: parsed.name,
         url: validatedUrl,
         subscribedEvents: parsed.subscribedEvents,
-        secretRef: parsed.secretRef,
+        secretRef: null,
         createdById: actor.id,
         isActive: true,
       },
@@ -85,7 +80,16 @@ export class WebhookDomainService {
       },
     });
 
-    return endpoint;
+    return {
+      id: endpoint.id,
+      name: endpoint.name,
+      url: endpoint.url,
+      subscribedEvents: endpoint.subscribedEvents,
+      isActive: endpoint.isActive,
+      createdById: endpoint.createdById,
+      createdAt: endpoint.createdAt,
+      updatedAt: endpoint.updatedAt,
+    };
   }
 
   async listWebhookEndpoints(user: AuthenticatedIdentity) {
@@ -95,6 +99,16 @@ export class WebhookDomainService {
 
     return this.prisma.webhookEndpoint.findMany({
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        url: true,
+        subscribedEvents: true,
+        isActive: true,
+        createdById: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   }
 
@@ -231,12 +245,13 @@ export class WebhookDomainService {
           targetUrl = (await assertWebhookDispatchTargetUrl(endpoint.url)).toString();
         } catch (validationError) {
           status = 'FAILED';
-          error =
-            validationError instanceof BadRequestException
-              ? String(validationError.message)
-              : validationError instanceof Error
-                ? validationError.message
-                : 'Invalid webhook endpoint url';
+          if (validationError instanceof BadRequestException) {
+            error = String(validationError.message);
+          } else if (validationError instanceof Error) {
+            error = validationError.message;
+          } else {
+            error = 'Invalid webhook endpoint url';
+          }
           error = truncateForStorage(error, WEBHOOK_ERROR_MAX_CHARS);
           eventFailed = true;
           lastError = error;

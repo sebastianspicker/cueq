@@ -38,12 +38,34 @@ describe('Edge-case integration tests (P6.2)', () => {
       // Seeded roster may not be PUBLISHED — expect 404 when none active
       expect([200, 404]).toContain(response.status);
       if (response.status === 404) {
-        expect(response.body.message).toContain('not found');
+        expect(response.body.message).toContain('No current roster found');
       }
     });
 
     it('returns the current published roster when one exists', async () => {
-      // The seed data includes a PUBLISHED roster for ouSecurity covering March 2026
+      const prisma = app.get(PrismaService);
+      const now = new Date();
+      const periodStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const periodEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      await prisma.roster.upsert({
+        where: { id: SEED_IDS.rosterCurrent },
+        create: {
+          id: SEED_IDS.rosterCurrent,
+          organizationUnitId: SEED_IDS.ouSecurity,
+          periodStart,
+          periodEnd,
+          status: 'PUBLISHED',
+          publishedAt: now,
+        },
+        update: {
+          periodStart,
+          periodEnd,
+          status: 'PUBLISHED',
+          publishedAt: now,
+        },
+      });
+
       const response = await request(app.getHttpServer())
         .get('/v1/rosters/current')
         .set('Authorization', `Bearer ${TOKENS.planner}`);

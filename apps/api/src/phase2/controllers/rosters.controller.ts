@@ -21,7 +21,7 @@ export class RostersController {
   constructor(@Inject(RosterDomainService) private readonly rosterService: RosterDomainService) {}
 
   @Post()
-  @Roles(Role.SHIFT_PLANNER)
+  @Roles(Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Create draft roster' })
   createRoster(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -43,7 +43,7 @@ export class RostersController {
   }
 
   @Post(':id/shifts')
-  @Roles(Role.SHIFT_PLANNER)
+  @Roles(Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Create shift in draft roster' })
   createShift(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -54,7 +54,7 @@ export class RostersController {
   }
 
   @Patch(':id/shifts/:shiftId')
-  @Roles(Role.SHIFT_PLANNER)
+  @Roles(Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Update shift in draft roster' })
   updateShift(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -66,7 +66,7 @@ export class RostersController {
   }
 
   @Delete(':id/shifts/:shiftId')
-  @Roles(Role.SHIFT_PLANNER)
+  @Roles(Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Delete shift from draft roster' })
   deleteShift(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -77,7 +77,7 @@ export class RostersController {
   }
 
   @Post(':id/shifts/:shiftId/assignments')
-  @Roles(Role.SHIFT_PLANNER)
+  @Roles(Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Assign person to shift in draft roster' })
   assignShift(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -89,7 +89,7 @@ export class RostersController {
   }
 
   @Delete(':id/shifts/:shiftId/assignments/:assignmentId')
-  @Roles(Role.SHIFT_PLANNER)
+  @Roles(Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Remove person assignment from shift in draft roster' })
   unassignShift(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -101,7 +101,7 @@ export class RostersController {
   }
 
   @Post(':id/publish')
-  @Roles(Role.SHIFT_PLANNER)
+  @Roles(Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Publish draft roster after min-staffing checks' })
   publish(
     @CurrentUser() user: AuthenticatedIdentity,

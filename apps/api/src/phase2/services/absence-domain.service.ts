@@ -5,7 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AbsenceStatus, type AbsenceType, Role, WorkflowStatus, WorkflowType } from '@cueq/database';
+import {
+  AbsenceStatus,
+  type AbsenceType,
+  Role,
+  WorkflowStatus,
+  WorkflowType,
+} from '@cueq/database';
 import { calculateAbsenceWorkingDays } from '@cueq/core';
 import {
   CreateAbsenceSchema,

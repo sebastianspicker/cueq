@@ -172,13 +172,15 @@ export class ReportingAnalyticsHelper {
     const parsed = ClosingCompletionQuerySchema.parse(query ?? {});
     const from = new Date(`${parsed.from}T00:00:00.000Z`);
     const to = new Date(`${parsed.to}T23:59:59.000Z`);
+    const organizationUnitId = user.role === Role.TEAM_LEAD ? actor.organizationUnitId : null;
 
     const periods = await this.prisma.closingPeriod.findMany({
       where: {
+        organizationUnitId: organizationUnitId ?? undefined,
         periodStart: { lte: to },
         periodEnd: { gte: from },
       },
-      select: { status: true },
+      select: { status: true, organizationUnitId: true },
     });
 
     const totals = {
@@ -202,9 +204,9 @@ export class ReportingAnalyticsHelper {
       action: 'REPORT_ACCESSED',
       entityType: 'Report',
       entityId: `closing-completion:${parsed.from}:${parsed.to}`,
-      after: { report: 'closing-completion' },
+      after: { report: 'closing-completion', organizationUnitId },
     });
 
-    return { from: parsed.from, to: parsed.to, totals };
+    return { from: parsed.from, to: parsed.to, organizationUnitId, totals };
   }
 }
