@@ -45,10 +45,11 @@ export type OeOvertimeReport = z.infer<typeof OeOvertimeReportSchema>;
 export const ClosingCompletionReportSchema = z.object({
   from: DateSchema,
   to: DateSchema,
+  organizationUnitId: IdSchema.nullable().optional(),
   totals: z.object({
     periods: z.number().int().nonnegative(),
     exported: z.number().int().nonnegative(),
-    approved: z.number().int().nonnegative(),
+    closed: z.number().int().nonnegative(),
     review: z.number().int().nonnegative(),
     open: z.number().int().nonnegative(),
     completionRate: z.number().min(0).max(1),
@@ -56,24 +57,39 @@ export const ClosingCompletionReportSchema = z.object({
 });
 export type ClosingCompletionReport = z.infer<typeof ClosingCompletionReportSchema>;
 
-export const TeamAbsenceQuerySchema = z.object({
-  organizationUnitId: IdSchema.optional(),
-  from: DateSchema,
-  to: DateSchema,
-});
+export const TeamAbsenceQuerySchema = z
+  .object({
+    organizationUnitId: IdSchema.optional(),
+    from: DateSchema,
+    to: DateSchema,
+  })
+  .refine((input) => input.to >= input.from, {
+    message: 'to must be on or after from',
+    path: ['to'],
+  });
 export type TeamAbsenceQuery = z.infer<typeof TeamAbsenceQuerySchema>;
 
-export const OeOvertimeQuerySchema = z.object({
-  organizationUnitId: IdSchema.optional(),
-  from: DateSchema,
-  to: DateSchema,
-});
+export const OeOvertimeQuerySchema = z
+  .object({
+    organizationUnitId: IdSchema.optional(),
+    from: DateSchema,
+    to: DateSchema,
+  })
+  .refine((input) => input.to >= input.from, {
+    message: 'to must be on or after from',
+    path: ['to'],
+  });
 export type OeOvertimeQuery = z.infer<typeof OeOvertimeQuerySchema>;
 
-export const ClosingCompletionQuerySchema = z.object({
-  from: DateSchema,
-  to: DateSchema,
-});
+export const ClosingCompletionQuerySchema = z
+  .object({
+    from: DateSchema,
+    to: DateSchema,
+  })
+  .refine((input) => input.to >= input.from, {
+    message: 'to must be on or after from',
+    path: ['to'],
+  });
 export type ClosingCompletionQuery = z.infer<typeof ClosingCompletionQuerySchema>;
 
 export const ReportActionCountSchema = z.object({
@@ -131,16 +147,26 @@ export const ComplianceSummaryReportSchema = z.object({
 });
 export type ComplianceSummaryReport = z.infer<typeof ComplianceSummaryReportSchema>;
 
-export const AuditSummaryQuerySchema = z.object({
-  from: DateSchema,
-  to: DateSchema,
-});
+export const AuditSummaryQuerySchema = z
+  .object({
+    from: DateSchema,
+    to: DateSchema,
+  })
+  .refine((input) => input.to >= input.from, {
+    message: 'to must be on or after from',
+    path: ['to'],
+  });
 export type AuditSummaryQuery = z.infer<typeof AuditSummaryQuerySchema>;
 
-export const ComplianceSummaryQuerySchema = z.object({
-  from: DateSchema,
-  to: DateSchema,
-});
+export const ComplianceSummaryQuerySchema = z
+  .object({
+    from: DateSchema,
+    to: DateSchema,
+  })
+  .refine((input) => input.to >= input.from, {
+    message: 'to must be on or after from',
+    path: ['to'],
+  });
 export type ComplianceSummaryQuery = z.infer<typeof ComplianceSummaryQuerySchema>;
 
 export const CustomReportTypeSchema = z.enum(['TEAM_ABSENCE', 'OE_OVERTIME', 'CLOSING_COMPLETION']);
@@ -166,28 +192,38 @@ export const CustomReportOptionsSchema = z.object({
 });
 export type CustomReportOptions = z.infer<typeof CustomReportOptionsSchema>;
 
-export const CustomReportPreviewQuerySchema = z.object({
-  reportType: CustomReportTypeSchema,
-  groupBy: CustomReportGroupBySchema,
-  metrics: z.array(CustomReportMetricSchema).min(1).max(4),
-  from: DateSchema,
-  to: DateSchema,
-  organizationUnitId: IdSchema.optional(),
-});
+export const CustomReportPreviewQuerySchema = z
+  .object({
+    reportType: CustomReportTypeSchema,
+    groupBy: CustomReportGroupBySchema,
+    metrics: z.array(CustomReportMetricSchema).min(1).max(4),
+    from: DateSchema,
+    to: DateSchema,
+    organizationUnitId: IdSchema.optional(),
+  })
+  .refine((input) => input.to >= input.from, {
+    message: 'to must be on or after from',
+    path: ['to'],
+  });
 export type CustomReportPreviewQuery = z.infer<typeof CustomReportPreviewQuerySchema>;
 
 /** Query-param version with string-to-array coercion for GET requests */
-export const CustomReportPreviewQueryParamsSchema = z.object({
-  reportType: CustomReportTypeSchema,
-  groupBy: CustomReportGroupBySchema,
-  metrics: z.preprocess(
-    (val) => (typeof val === 'string' ? [val] : val),
-    z.array(CustomReportMetricSchema).min(1).max(4),
-  ),
-  from: DateSchema,
-  to: DateSchema,
-  organizationUnitId: IdSchema.optional(),
-});
+export const CustomReportPreviewQueryParamsSchema = z
+  .object({
+    reportType: CustomReportTypeSchema,
+    groupBy: CustomReportGroupBySchema,
+    metrics: z.preprocess(
+      (val) => (typeof val === 'string' ? [val] : val),
+      z.array(CustomReportMetricSchema).min(1).max(4),
+    ),
+    from: DateSchema,
+    to: DateSchema,
+    organizationUnitId: IdSchema.optional(),
+  })
+  .refine((input) => input.to >= input.from, {
+    message: 'to must be on or after from',
+    path: ['to'],
+  });
 export type CustomReportPreviewQueryParams = z.infer<typeof CustomReportPreviewQueryParamsSchema>;
 
 export const CustomReportPreviewRowSchema = z.object({

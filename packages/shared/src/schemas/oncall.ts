@@ -52,20 +52,40 @@ export const UpdateOnCallRotationSchema = z
   });
 export type UpdateOnCallRotation = z.infer<typeof UpdateOnCallRotationSchema>;
 
-export const ListOnCallRotationsQuerySchema = z.object({
-  personId: IdSchema.optional(),
-  organizationUnitId: IdSchema.optional(),
-  from: DateTimeSchema.optional(),
-  to: DateTimeSchema.optional(),
-});
+export const ListOnCallRotationsQuerySchema = z
+  .object({
+    personId: IdSchema.optional(),
+    organizationUnitId: IdSchema.optional(),
+    from: DateTimeSchema.optional(),
+    to: DateTimeSchema.optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (input.from && input.to && input.to < input.from) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'from must be on or before to',
+        path: ['to'],
+      });
+    }
+  });
 export type ListOnCallRotationsQuery = z.infer<typeof ListOnCallRotationsQuerySchema>;
 
-export const ListOnCallDeploymentsQuerySchema = z.object({
-  personId: IdSchema.optional(),
-  organizationUnitId: IdSchema.optional(),
-  from: DateTimeSchema.optional(),
-  to: DateTimeSchema.optional(),
-});
+export const ListOnCallDeploymentsQuerySchema = z
+  .object({
+    personId: IdSchema.optional(),
+    organizationUnitId: IdSchema.optional(),
+    from: DateTimeSchema.optional(),
+    to: DateTimeSchema.optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (input.from && input.to && input.to < input.from) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'from must be on or before to',
+        path: ['to'],
+      });
+    }
+  });
 export type ListOnCallDeploymentsQuery = z.infer<typeof ListOnCallDeploymentsQuerySchema>;
 
 /** An individual deployment/callout during on-call */

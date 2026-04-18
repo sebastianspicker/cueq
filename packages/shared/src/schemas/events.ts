@@ -39,19 +39,19 @@ export const OutboxEventSchema = z.object({
 });
 export type OutboxEvent = z.infer<typeof OutboxEventSchema>;
 
-export const CreateWebhookEndpointSchema = z.object({
-  name: z.string().min(1).max(200),
-  url: z.string().url(),
-  subscribedEvents: z.array(DomainEventTypeSchema).min(1),
-  secretRef: z.string().max(200).optional(),
-});
+export const CreateWebhookEndpointSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+    url: z.string().url(),
+    subscribedEvents: z.array(DomainEventTypeSchema).min(1),
+  })
+  .strict();
 export type CreateWebhookEndpoint = z.infer<typeof CreateWebhookEndpointSchema>;
 
 export const WebhookEndpointSchema = z.object({
   id: IdSchema,
   name: z.string(),
   url: z.string().url(),
-  secretRef: z.string().nullable(),
   subscribedEvents: z.array(DomainEventTypeSchema),
   isActive: z.boolean(),
   createdById: IdSchema,
