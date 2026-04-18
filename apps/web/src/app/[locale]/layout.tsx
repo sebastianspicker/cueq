@@ -1,7 +1,9 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
+import { AppClientEffects } from '../../components/AppClientEffects';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { LocaleSwitchLink } from '../../components/LocaleSwitchLink';
 import { ApiProvider } from '../../lib/api-context';
 
 const locales = ['de', 'en'] as const;
@@ -30,6 +32,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <ApiProvider>
+        <AppClientEffects locale={locale} />
         <a className="cq-skip-link" href="#main-content">
           {messages.app.skipLink}
         </a>
@@ -99,9 +102,11 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
             <div className="cq-locale-panel">
               <span>{messages.app.localeSwitch}</span>
-              <Link className="cq-locale-switch" href={`/${altLocale}/dashboard`}>
-                {altLocale.toUpperCase()}
-              </Link>
+              <LocaleSwitchLink
+                locale={locale}
+                targetLocale={altLocale}
+                label={altLocale.toUpperCase()}
+              />
             </div>
           </aside>
 
