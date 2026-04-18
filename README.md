@@ -356,14 +356,14 @@ Run `make help` for a full list. Key commands:
 
 All screenshots are generated from mock university seed data (German locale) via `make demo-screenshots`.
 
-| Screen | Preview |
-| ------ | ------- |
-| **Dashboard** -- Target/actual hours, balance, quick actions | ![Dashboard](docs/assets/demo-screenshots/01-dashboard.png) |
-| **Leave** -- Absence requests, quota tracking, carry-over | ![Leave](docs/assets/demo-screenshots/02-leave.png) |
-| **Roster** -- Shift planning, min-staffing, plan-vs-actual | ![Roster](docs/assets/demo-screenshots/03-roster.png) |
-| **Approvals** -- Workflow inbox with delegation and escalation | ![Approvals](docs/assets/demo-screenshots/04-approvals.png) |
-| **Closing** -- Monthly closing checklist, export runs, corrections | ![Closing](docs/assets/demo-screenshots/05-closing.png) |
-| **Reports** -- Aggregated analytics with privacy guardrails | ![Reports](docs/assets/demo-screenshots/06-reports.png) |
+| Screen                                                             | Preview                                                     |
+| ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| **Dashboard** -- Target/actual hours, balance, quick actions       | ![Dashboard](docs/assets/demo-screenshots/01-dashboard.png) |
+| **Leave** -- Absence requests, quota tracking, carry-over          | ![Leave](docs/assets/demo-screenshots/02-leave.png)         |
+| **Roster** -- Shift planning, min-staffing, plan-vs-actual         | ![Roster](docs/assets/demo-screenshots/03-roster.png)       |
+| **Approvals** -- Workflow inbox with delegation and escalation     | ![Approvals](docs/assets/demo-screenshots/04-approvals.png) |
+| **Closing** -- Monthly closing checklist, export runs, corrections | ![Closing](docs/assets/demo-screenshots/05-closing.png)     |
+| **Reports** -- Aggregated analytics with privacy guardrails        | ![Reports](docs/assets/demo-screenshots/06-reports.png)     |
 
 ---
 
