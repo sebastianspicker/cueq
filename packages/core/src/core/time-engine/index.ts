@@ -9,7 +9,7 @@ import { toHolidaySet } from '@cueq/shared';
 import type { CoreTimeRuleEvaluationContract } from '@cueq/shared';
 import { requiredBreakMinutes } from '../break-utils';
 import type { DomainWarning, RuleViolation } from '../types';
-import { diffHours, roundToTwo, toViolation } from '../utils';
+import { diffHours, overlapExists, roundToTwo, toViolation } from '../utils';
 import {
   isWithinWindow,
   isWorkIntervalType,
@@ -28,6 +28,33 @@ export type { OnCallDeployment, OnCallRestInput, OnCallRestResult } from './onca
 export { evaluateOnCallRestCompliance } from './oncall-rest';
 
 const MINUTE_MS = 60_000;
+
+function mergeWorkIntervals(intervals: TimeRuleInterval[]): TimeRuleInterval[] {
+  if (intervals.length <= 1) {
+    return intervals;
+  }
+
+  const merged: TimeRuleInterval[] = [];
+
+  for (const interval of intervals) {
+    const previous = merged[merged.length - 1];
+    if (!previous) {
+      merged.push(interval);
+      continue;
+    }
+
+    if (previous.end <= interval.start) {
+      merged.push(interval);
+      continue;
+    }
+
+    if (interval.end > previous.end) {
+      previous.end = interval.end;
+    }
+  }
+
+  return merged;
+}
 
 export type TimeRuleInterval = CoreTimeRuleEvaluationContract['input']['intervals'][number];
 
@@ -72,7 +99,8 @@ export function evaluateTimeRules(
   const sortedIntervals = [...input.intervals].sort((left, right) =>
     left.start.localeCompare(right.start),
   );
-  const workIntervalsForRest: TimeRuleInterval[] = [];
+  const workIntervals: TimeRuleInterval[] = [];
+  const pauseIntervals: TimeRuleInterval[] = [];
 
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
@@ -108,41 +136,73 @@ export function evaluateTimeRules(
     }
 
     if (isWorkIntervalType(interval.type)) {
-      workIntervalsForRest.push(interval);
+      workIntervals.push(interval);
+    } else if (interval.type === 'PAUSE') {
+      pauseIntervals.push(interval);
     }
+  }
+
+  const overlapIssues = overlapExists(workIntervals.map(({ start, end }) => ({ start, end })));
+  for (const issue of overlapIssues) {
+    violations.push(
+      toViolation({
+        code: 'OVERLAP',
+        message: issue.message,
+        context: issue.context,
+      }),
+    );
+  }
+
+  const normalizedWorkIntervals = mergeWorkIntervals(
+    [...workIntervals]
+      .map((interval) => ({ ...interval }))
+      .sort((left, right) => left.start.localeCompare(right.start)),
+  );
+
+  for (const interval of normalizedWorkIntervals) {
+    const startMs = new Date(interval.start).getTime();
+    const endMs = new Date(interval.end).getTime();
 
     for (let cursor = startMs; cursor < endMs; cursor += MINUTE_MS) {
       const localMinute = localMinuteInfo(cursor, formatter);
       const day = daily.get(localMinute.isoDate) ?? { workMinutes: 0, pauseMinutes: 0 };
 
-      if (isWorkIntervalType(interval.type)) {
-        day.workMinutes += 1;
-        totalWorkMinutes += 1;
+      day.workMinutes += 1;
+      totalWorkMinutes += 1;
 
-        const matchedCategories: SurchargeCategory[] = [];
-        if (holidayDates.has(localMinute.isoDate)) {
-          matchedCategories.push('HOLIDAY');
-        }
-        if (localMinute.weekday === 0 || localMinute.weekday === 6) {
-          matchedCategories.push('WEEKEND');
-        }
-        if (isWithinWindow(localMinute.localMinuteOfDay, nightStart, nightEnd)) {
-          matchedCategories.push('NIGHT');
-        }
+      const matchedCategories: SurchargeCategory[] = [];
+      if (holidayDates.has(localMinute.isoDate)) {
+        matchedCategories.push('HOLIDAY');
+      }
+      if (localMinute.weekday === 0 || localMinute.weekday === 6) {
+        matchedCategories.push('WEEKEND');
+      }
+      if (isWithinWindow(localMinute.localMinuteOfDay, nightStart, nightEnd)) {
+        matchedCategories.push('NIGHT');
+      }
 
-        const selected = selectSurchargeCategory(matchedCategories, categoryConfigByCategory);
-        if (selected) {
-          surchargeBuckets.set(selected, (surchargeBuckets.get(selected) ?? 0) + 1);
-        }
-      } else if (interval.type === 'PAUSE') {
-        day.pauseMinutes += 1;
+      const selected = selectSurchargeCategory(matchedCategories, categoryConfigByCategory);
+      if (selected) {
+        surchargeBuckets.set(selected, (surchargeBuckets.get(selected) ?? 0) + 1);
       }
 
       daily.set(localMinute.isoDate, day);
     }
   }
 
-  const sortedRestIntervals = [...workIntervalsForRest].sort((left, right) =>
+  for (const interval of pauseIntervals) {
+    const startMs = new Date(interval.start).getTime();
+    const endMs = new Date(interval.end).getTime();
+
+    for (let cursor = startMs; cursor < endMs; cursor += MINUTE_MS) {
+      const localMinute = localMinuteInfo(cursor, formatter);
+      const day = daily.get(localMinute.isoDate) ?? { workMinutes: 0, pauseMinutes: 0 };
+      day.pauseMinutes += 1;
+      daily.set(localMinute.isoDate, day);
+    }
+  }
+
+  const sortedRestIntervals = [...normalizedWorkIntervals].sort((left, right) =>
     left.start.localeCompare(right.start),
   );
   for (let index = 0; index < sortedRestIntervals.length - 1; index += 1) {
