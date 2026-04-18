@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
 import { PageShell } from '../../../components/PageShell';
@@ -48,10 +48,11 @@ interface OeOvertimeReport {
 interface ClosingCompletionReport {
   from: string;
   to: string;
+  organizationUnitId?: string | null;
   totals: {
     periods: number;
     exported: number;
-    approved: number;
+    closed: number;
     review: number;
     open: number;
     completionRate: number;
@@ -138,6 +139,22 @@ export default function ReportsPage() {
   const [customGroupBy, setCustomGroupBy] = useState('ORGANIZATION_UNIT');
   const [customMetrics, setCustomMetrics] = useState('requests,days');
 
+  function resetReportState() {
+    setLoaded(false);
+    setTeamAbsence(null);
+    setOeOvertime(null);
+    setClosingCompletion(null);
+    setAuditSummary(null);
+    setComplianceSummary(null);
+  }
+
+  useEffect(() => {
+    resetReportState();
+    setCustomOptions(null);
+    setCustomPreview(null);
+    setError(null);
+  }, [apiBaseUrl, token]);
+
   function buildQuery(includeOrganizationUnit: boolean): string {
     const params = new URLSearchParams();
     params.set('from', from);
@@ -151,6 +168,7 @@ export default function ReportsPage() {
   async function loadReports() {
     setLoading(true);
     setError(null);
+    resetReportState();
     try {
       const [team, overtime, closing, audit, compliance] = await Promise.all([
         apiRequest<TeamAbsenceReport>(`/v1/reports/team-absence?${buildQuery(true)}`),
@@ -167,6 +185,7 @@ export default function ReportsPage() {
       setComplianceSummary(compliance);
       setLoaded(true);
     } catch (cause) {
+      resetReportState();
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
       setLoading(false);
@@ -176,6 +195,7 @@ export default function ReportsPage() {
   async function loadCustomOptions() {
     setLoading(true);
     setError(null);
+    setCustomOptions(null);
     try {
       const options = await apiRequest<CustomReportOptions>('/v1/reports/custom/options');
       setCustomOptions(options);
@@ -186,6 +206,7 @@ export default function ReportsPage() {
         setCustomGroupBy(options.groupBy[0]);
       }
     } catch (cause) {
+      setCustomOptions(null);
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
       setLoading(false);
@@ -195,6 +216,7 @@ export default function ReportsPage() {
   async function loadCustomPreview() {
     setLoading(true);
     setError(null);
+    setCustomPreview(null);
     try {
       const metrics = customMetrics
         .split(',')
@@ -215,6 +237,7 @@ export default function ReportsPage() {
       const preview = await apiRequest<CustomReportPreview>(`/v1/reports/custom/preview?${params}`);
       setCustomPreview(preview);
     } catch (cause) {
+      setCustomPreview(null);
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
       setLoading(false);
@@ -253,11 +276,7 @@ export default function ReportsPage() {
           </label>
         </div>
         <div className="cq-space-top-sm">
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => void loadReports()}
-          >
+          <button type="button" disabled={loading} onClick={() => void loadReports()}>
             {loading ? t('loading') : t('loadReports')}
           </button>
         </div>

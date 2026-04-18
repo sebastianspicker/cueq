@@ -95,7 +95,11 @@ export default function BookingsPage() {
   }
 
   return (
-    <PageShell title={t('title')} description={t('description')} breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}>
+    <PageShell
+      title={t('title')}
+      description={t('description')}
+      breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}
+    >
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}
@@ -174,7 +178,13 @@ export default function BookingsPage() {
               {bookings.map((booking) => (
                 <tr key={booking.id}>
                   <td className="cq-mono">{booking.id}</td>
-                  <td><StatusBadge status={booking.timeTypeCode} variant="info" label={booking.timeTypeCode} /></td>
+                  <td>
+                    <StatusBadge
+                      status={booking.timeTypeCode}
+                      variant="info"
+                      label={booking.timeTypeCode}
+                    />
+                  </td>
                   <td>{booking.startTime}</td>
                   <td>{booking.endTime ?? '—'}</td>
                 </tr>

@@ -1,70 +1,62 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
-import { SearchInput } from '../../../components/SearchInput';
-import { Pagination } from '../../../components/Pagination';
 import { useApiContext } from '../../../lib/api-context';
+import { getStoredPreference, PAGE_SIZE_STORAGE_KEY } from '../../../lib/preferences';
 
-interface AuditEntry {
-  id: string;
-  timestamp: string;
-  actorId: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  reason?: string | null;
+interface AuditSummaryReport {
+  from: string;
+  to: string;
+  totals: {
+    entries: number;
+    uniqueActors: number;
+    reportAccesses: number;
+    exportsTriggered: number;
+    lockBlocks: number;
+  };
+  byAction: Array<{ action: string; count: number }>;
+  byEntityType: Array<{ entityType: string; count: number }>;
 }
-
-const PAGE_SIZE = 20;
 
 export default function AuditPage() {
   const t = useTranslations('pages.audit');
   const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [from, setFrom] = useState('2026-03-01');
+  const [to, setTo] = useState('2026-03-31');
+  const [pageSize, setPageSize] = useState(20);
+  const [summary, setSummary] = useState<AuditSummaryReport | null>(null);
 
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [entityType, setEntityType] = useState('');
-  const [entries, setEntries] = useState<AuditEntry[]>([]);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPageSize(Number(getStoredPreference(PAGE_SIZE_STORAGE_KEY, '20')) || 20);
+  }, []);
 
-  const filtered = entries.filter((entry) => {
-    if (!search) return true;
-    const term = search.toLowerCase();
-    return (
-      entry.action.toLowerCase().includes(term) ||
-      entry.entityType.toLowerCase().includes(term) ||
-      entry.entityId.toLowerCase().includes(term) ||
-      entry.actorId.toLowerCase().includes(term) ||
-      (entry.reason ?? '').toLowerCase().includes(term)
-    );
-  });
+  useEffect(() => {
+    setSummary(null);
+    setError(null);
+  }, [apiBaseUrl, token]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageEntries = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  async function loadEntries() {
+  async function loadSummary() {
     setLoading(true);
     setError(null);
-    setMessage(null);
+    setSummary(null);
     try {
       const params = new URLSearchParams();
-      if (from) params.set('from', from);
-      if (to) params.set('to', to);
-      if (entityType) params.set('entityType', entityType);
-      const result = await apiRequest<{ entries: AuditEntry[] }>(`/audit?${params.toString()}`);
-      setEntries(result?.entries ?? []);
-      setPage(1);
+      params.set('from', from);
+      params.set('to', to);
+      const result = await apiRequest<AuditSummaryReport>(
+        `/v1/reports/audit-summary?${params.toString()}`,
+      );
+      setSummary(result);
     } catch (cause) {
+      setSummary(null);
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
       setLoading(false);
@@ -82,10 +74,10 @@ export default function AuditPage() {
         setToken={setToken}
       />
 
-      <StatusBanner message={message} error={error} />
+      <StatusBanner error={error} />
 
       <SectionCard>
-        <div className="cq-grid-3">
+        <div className="cq-grid-2">
           <label className="cq-form-field">
             <span className="cq-form-label">{t('fromLabel')}</span>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -94,74 +86,61 @@ export default function AuditPage() {
             <span className="cq-form-label">{t('toLabel')}</span>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
-          <label className="cq-form-field">
-            <span className="cq-form-label">{t('entityTypeLabel')}</span>
-            <input value={entityType} onChange={(e) => setEntityType(e.target.value)} />
-          </label>
         </div>
 
-        <button type="button" disabled={loading} onClick={() => void loadEntries()}>
-          {loading ? t('loading') : t('loadEntries')}
+        <button type="button" disabled={loading} onClick={() => void loadSummary()}>
+          {loading ? t('loading') : t('loadSummary')}
         </button>
       </SectionCard>
 
-      {entries.length > 0 ? (
-        <SectionCard>
-          <div className="cq-toolbar">
-            <SearchInput
-              value={search}
-              onChange={(v) => {
-                setSearch(v);
-                setPage(1);
-              }}
-              placeholder={t('searchPlaceholder')}
-            />
-            <span className="cq-toolbar-spacer" />
-            <span className="cq-badge cq-badge-muted">
-              {t('entriesCount', { count: filtered.length })}
-            </span>
-          </div>
+      {summary ? (
+        <>
+          <SectionCard>
+            <h2>{t('summaryTitle')}</h2>
+            <p>
+              {t('entriesLabel')}: {summary.totals.entries}
+            </p>
+            <p>
+              {t('uniqueActorsLabel')}: {summary.totals.uniqueActors}
+            </p>
+            <p>
+              {t('reportAccessesLabel')}: {summary.totals.reportAccesses}
+            </p>
+            <p>
+              {t('exportsTriggeredLabel')}: {summary.totals.exportsTriggered}
+            </p>
+            <p>
+              {t('lockBlocksLabel')}: {summary.totals.lockBlocks}
+            </p>
+          </SectionCard>
 
-          <table className="cq-data-table">
-            <caption className="cq-sr-only">{t('tableCaption')}</caption>
-            <thead>
-              <tr>
-                <th>{t('timestampLabel')}</th>
-                <th>{t('actorLabel')}</th>
-                <th>{t('actionLabel')}</th>
-                <th>{t('entityLabel')}</th>
-                <th>{t('entityIdLabel')}</th>
-                <th>{t('reasonLabel')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageEntries.map((entry) => (
-                <tr key={entry.id}>
-                  <td>{new Date(entry.timestamp).toLocaleString()}</td>
-                  <td>{entry.actorId}</td>
-                  <td>
-                    <span className="cq-badge cq-badge-muted">{entry.action}</span>
-                  </td>
-                  <td>{entry.entityType}</td>
-                  <td className="cq-mono">{entry.entityId}</td>
-                  <td>{entry.reason ?? '—'}</td>
-                </tr>
+          <SectionCard>
+            <h2>{t('byActionLabel')}</h2>
+            <ul className="cq-list-stack">
+              {summary.byAction.slice(0, pageSize).map((entry) => (
+                <li key={entry.action} className="cq-list-item">
+                  <strong>{entry.action}</strong>
+                  <span>{entry.count}</span>
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </SectionCard>
 
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            ariaLabel={t('paginationLabel')}
-            previousLabel={t('previousPage')}
-            nextLabel={t('nextPage')}
-          />
-        </SectionCard>
-      ) : entries.length === 0 && !loading ? (
+          <SectionCard>
+            <h2>{t('byEntityTypeLabel')}</h2>
+            <ul className="cq-list-stack">
+              {summary.byEntityType.slice(0, pageSize).map((entry) => (
+                <li key={entry.entityType} className="cq-list-item">
+                  <strong>{entry.entityType}</strong>
+                  <span>{entry.count}</span>
+                </li>
+              ))}
+            </ul>
+          </SectionCard>
+        </>
+      ) : !loading ? (
         <SectionCard>
-          <p>{t('noEntries')}</p>
+          <p>{t('noSummary')}</p>
         </SectionCard>
       ) : null}
     </PageShell>

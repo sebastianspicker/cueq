@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
 import { PageShell } from '../../../components/PageShell';
@@ -45,10 +45,18 @@ export default function PolicyAdminPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setBundle(null);
+    setHistory(null);
+    setMessage(null);
+    setError(null);
+  }, [apiBaseUrl, token]);
+
   async function loadBundle() {
     setLoading(true);
     setError(null);
     setMessage(null);
+    setBundle(null);
     try {
       const query = new URLSearchParams();
       if (asOf) {
@@ -58,6 +66,7 @@ export default function PolicyAdminPage() {
       setBundle(data);
       setMessage(t('bundleLoaded'));
     } catch (cause) {
+      setBundle(null);
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
       setLoading(false);
@@ -68,6 +77,7 @@ export default function PolicyAdminPage() {
     setLoading(true);
     setError(null);
     setMessage(null);
+    setHistory(null);
     try {
       const query = new URLSearchParams();
       if (historyType) {
@@ -80,6 +90,7 @@ export default function PolicyAdminPage() {
       setHistory(data);
       setMessage(t('historyLoaded'));
     } catch (cause) {
+      setHistory(null);
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
       setLoading(false);
@@ -125,9 +136,13 @@ export default function PolicyAdminPage() {
                   </div>
                 </div>
                 <div className="cq-list-item-meta">
-                  <span>{t('effectiveFrom')}: {entry.effectiveFrom}</span>
+                  <span>
+                    {t('effectiveFrom')}: {entry.effectiveFrom}
+                  </span>
                   <span>&middot;</span>
-                  <span>{t('effectiveTo')}: {entry.effectiveTo ?? '—'}</span>
+                  <span>
+                    {t('effectiveTo')}: {entry.effectiveTo ?? '—'}
+                  </span>
                 </div>
               </li>
             ))}
@@ -163,7 +178,9 @@ export default function PolicyAdminPage() {
                   </div>
                 </div>
                 <div className="cq-list-item-meta">
-                  <span>{t('effectiveFrom')}: {entry.effectiveFrom}</span>
+                  <span>
+                    {t('effectiveFrom')}: {entry.effectiveFrom}
+                  </span>
                 </div>
               </li>
             ))}
