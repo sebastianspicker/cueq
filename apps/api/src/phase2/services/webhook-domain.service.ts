@@ -1,3 +1,4 @@
+import { createHmac, randomBytes } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { OutboxStatus } from '@cueq/database';
 import { CreateWebhookEndpointSchema, OutboxQuerySchema, DeliveryQuerySchema } from '@cueq/shared';
@@ -57,12 +58,13 @@ export class WebhookDomainService {
     const actor = await this.personHelper.personForUser(user);
     const parsed = CreateWebhookEndpointSchema.parse(payload);
     const validatedUrl = assertWebhookTargetUrl(parsed.url).toString();
+    const secret = randomBytes(32).toString('hex');
     const endpoint = await this.prisma.webhookEndpoint.create({
       data: {
         name: parsed.name,
         url: validatedUrl,
         subscribedEvents: parsed.subscribedEvents,
-        secretRef: null,
+        secretRef: secret,
         createdById: actor.id,
         isActive: true,
       },
@@ -89,6 +91,8 @@ export class WebhookDomainService {
       createdById: endpoint.createdById,
       createdAt: endpoint.createdAt,
       updatedAt: endpoint.updatedAt,
+      // Returned once on creation only — receivers must store this secret.
+      signingSecret: secret,
     };
   }
 
@@ -271,6 +275,13 @@ export class WebhookDomainService {
           continue;
         }
 
+        const body = JSON.stringify(envelope);
+        const signatureHeader: Record<string, string> = {};
+        if (endpoint.secretRef) {
+          const sig = createHmac('sha256', endpoint.secretRef).update(body).digest('hex');
+          signatureHeader['X-Cueq-Signature'] = `sha256=${sig}`;
+        }
+
         try {
           const response = await fetch(targetUrl, {
             method: 'POST',
@@ -278,8 +289,9 @@ export class WebhookDomainService {
             headers: {
               'Content-Type': 'application/json',
               'X-Cueq-Event-Type': event.eventType,
+              ...signatureHeader,
             },
-            body: JSON.stringify(envelope),
+            body,
             signal: AbortSignal.timeout(timeoutMs),
           });
 
