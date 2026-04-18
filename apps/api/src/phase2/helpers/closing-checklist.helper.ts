@@ -195,7 +195,8 @@ export class ClosingChecklistHelper {
           if (gapMinutes > gapThresholdMinutes) {
             bookingGaps += 1;
           }
-          const toLocalDate = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+          const toLocalDate = (d: Date) =>
+            d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
           const previousDay = toLocalDate(previous.endTime);
           const currentDay = toLocalDate(current.startTime);
           if (previousDay !== currentDay && gapMinutes > 0 && gapMinutes < 11 * 60) {

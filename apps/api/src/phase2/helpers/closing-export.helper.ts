@@ -92,10 +92,7 @@ export class ClosingExportHelper {
       orderBy: { exportedAt: 'desc' },
     });
 
-    if (
-      existingRun?.artifact &&
-      period.status === ClosingStatus.EXPORTED
-    ) {
+    if (existingRun?.artifact && period.status === ClosingStatus.EXPORTED) {
       return {
         exportRun: existingRun,
         checksum: existingRun.checksum,

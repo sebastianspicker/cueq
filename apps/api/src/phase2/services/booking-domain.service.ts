@@ -14,6 +14,7 @@ import { AuditHelper } from '../helpers/audit.helper';
 import { ClosingLockHelper } from '../helpers/closing-lock.helper';
 import { EventOutboxHelper } from '../helpers/event-outbox.helper';
 import { assertCanActForPerson } from '../helpers/role-constants';
+import { bookingOverlapWhere } from '../helpers/booking-overlap.helper';
 
 @Injectable()
 export class BookingDomainService {
@@ -63,9 +64,9 @@ export class BookingDomainService {
     }
 
     const startTime = new Date(parsed.startTime);
-    const endTime = parsed.endTime ? new Date(parsed.endTime) : startTime;
-    const from = startTime <= endTime ? startTime : endTime;
-    const to = startTime <= endTime ? endTime : startTime;
+    const endTime = parsed.endTime ? new Date(parsed.endTime) : null;
+    const from = endTime && startTime > endTime ? endTime : startTime;
+    const to = endTime && startTime > endTime ? startTime : (endTime ?? startTime);
 
     await this.closingLockHelper.assertClosingPeriodUnlockedForRange({
       actorId: actor.id,
@@ -79,11 +80,11 @@ export class BookingDomainService {
 
     const booking = await this.prisma.$transaction(async (tx) => {
       const overlap = await tx.booking.findFirst({
-        where: {
+        where: bookingOverlapWhere({
           personId: parsed.personId,
-          startTime: { lt: to },
-          endTime: { gt: from },
-        },
+          startTime: from,
+          endTime,
+        }),
       });
       if (overlap) {
         throw new ConflictException('Booking overlaps with existing booking.');
@@ -94,7 +95,7 @@ export class BookingDomainService {
           personId: parsed.personId,
           timeTypeId: parsed.timeTypeId,
           startTime,
-          endTime: parsed.endTime ? endTime : null,
+          endTime,
           source: parsed.source as BookingSource,
           note: parsed.note,
           shiftId: parsed.shiftId,

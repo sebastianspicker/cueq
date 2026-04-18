@@ -23,6 +23,7 @@ import { PersonHelper } from './person.helper';
 import { HR_LIKE_ROLES } from './role-constants';
 import { toClosingActorRole, toPersistenceClosingStatus } from './closing-utils';
 import { WorkflowRuntimeService } from '../workflow-runtime.service';
+import { bookingOverlapWhere } from './booking-overlap.helper';
 
 @Injectable()
 export class ClosingCorrectionHelper {
@@ -190,6 +191,18 @@ export class ClosingCorrectionHelper {
       throw new BadRequestException(
         'Correction booking interval must be inside the closing period time range.',
       );
+    }
+
+    const overlap = await this.prisma.booking.findFirst({
+      where: bookingOverlapWhere({
+        personId: parsed.personId,
+        startTime,
+        endTime,
+      }),
+      select: { id: true },
+    });
+    if (overlap) {
+      throw new BadRequestException('Correction booking overlaps with an existing booking.');
     }
 
     const booking = await this.prisma.booking.create({
