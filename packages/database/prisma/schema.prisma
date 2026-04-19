@@ -611,6 +611,23 @@ model HrImportRun {
 // Audit Trail (append-only)
 // ---------------------------------------------------------------------------
 
+/// Labour-law working-time thresholds (ArbZG §3/§5 defaults).
+/// activeTo IS NULL means currently active; keep history by closing before inserting new.
+model TimeThresholdPolicy {
+  id               String    @id @default(cuid())
+  /// Maximum permitted shift duration in minutes (ArbZG §3 default: 600 = 10 h)
+  dailyMaxMinutes  Int       @default(600)
+  /// Minimum rest period between shifts in minutes (ArbZG §5 default: 660 = 11 h)
+  minRestMinutes   Int       @default(660)
+  activeFrom       DateTime  @default(now())
+  activeTo         DateTime? /// null = currently active version
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([activeTo])
+  @@map("time_threshold_policies")
+}
+
 model AuditEntry {
   id          String   @id @default(cuid())
   timestamp   DateTime @default(now())

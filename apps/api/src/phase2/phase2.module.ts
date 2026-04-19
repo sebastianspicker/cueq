@@ -47,6 +47,7 @@ import { ReportingComplianceHelper } from './helpers/reporting-compliance.helper
 import { RosterAssignmentHelper } from './helpers/roster-assignment.helper';
 import { RosterQueryHelper } from './helpers/roster-query.helper';
 import { RosterShiftHelper } from './helpers/roster-shift.helper';
+import { TimeThresholdPolicyHelper } from './helpers/time-threshold-policy.helper';
 import { PolicyQueryService } from './services/policy-query.service';
 import { TimeEngineDomainService } from './services/time-engine-domain.service';
 import { ReportingService } from './services/reporting.service';
@@ -73,6 +74,7 @@ import { BookingDomainService } from './services/booking-domain.service';
     RosterAssignmentHelper,
     RosterQueryHelper,
     RosterShiftHelper,
+    TimeThresholdPolicyHelper,
     Phase2Service,
     PolicyQueryService,
     TimeEngineDomainService,
