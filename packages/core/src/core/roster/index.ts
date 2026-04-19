@@ -157,11 +157,15 @@ export interface PlanVsActualCoverageSlotResult {
   actualHeadcount: number;
   delta: number;
   compliant: boolean;
+  plannedDurationMinutes: number;
+  actualCoveredMinutes: number;
+  durationCoverageRatio: number;
 }
 
 export interface PlanVsActualCoverageResult extends PlanVsActualResult {
   understaffedSlots: number;
   coverageRate: number;
+  durationCoverageRate: number;
   slots: PlanVsActualCoverageSlotResult[];
 }
 
@@ -221,7 +225,10 @@ function mergeMinuteRanges(ranges: Array<{ start: number; end: number }>): numbe
 export function evaluatePlanVsActualCoverage(
   slots: PlanVsActualCoverageSlot[],
   bookings: PlanVsActualBooking[],
+  options: { coverageThreshold?: number } = {},
 ): PlanVsActualCoverageResult {
+  const coverageThreshold = options.coverageThreshold ?? 0.5;
+
   if (slots.length === 0) {
     return {
       totalSlots: 0,
@@ -229,6 +236,7 @@ export function evaluatePlanVsActualCoverage(
       complianceRate: 1,
       understaffedSlots: 0,
       coverageRate: 1,
+      durationCoverageRate: 1,
       slots: [],
     };
   }
@@ -240,7 +248,7 @@ export function evaluatePlanVsActualCoverage(
     const plannedHeadcount = Math.max(slot.minStaffing, assignedHeadcount);
     const slotDurationMinutes =
       (new Date(slot.endTime).getTime() - new Date(slot.startTime).getTime()) / 60_000;
-    const minimumCoverageMinutes = slotDurationMinutes / 2;
+    const minimumCoverageMinutes = slotDurationMinutes * coverageThreshold;
 
     const bookingRangesByPerson = new Map<string, Array<{ start: number; end: number }>>();
 
@@ -269,13 +277,20 @@ export function evaluatePlanVsActualCoverage(
     }
 
     const actualPersons = new Set<string>();
+    let totalCoveredMinutes = 0;
     for (const [personId, ranges] of bookingRangesByPerson.entries()) {
-      if (mergeMinuteRanges(ranges) >= minimumCoverageMinutes) {
+      const personCoveredMinutes = mergeMinuteRanges(ranges);
+      if (personCoveredMinutes >= minimumCoverageMinutes) {
         actualPersons.add(personId);
+        totalCoveredMinutes += personCoveredMinutes;
       }
     }
 
     const actualHeadcount = actualPersons.size;
+    const durationCoverageRatio =
+      slotDurationMinutes > 0 && actualHeadcount > 0
+        ? roundToTwo(totalCoveredMinutes / (slotDurationMinutes * plannedHeadcount))
+        : 0;
 
     return {
       shiftId: slot.shiftId,
@@ -288,6 +303,9 @@ export function evaluatePlanVsActualCoverage(
       actualHeadcount,
       delta: actualHeadcount - plannedHeadcount,
       compliant: actualHeadcount >= plannedHeadcount,
+      plannedDurationMinutes: slotDurationMinutes,
+      actualCoveredMinutes: roundToTwo(totalCoveredMinutes),
+      durationCoverageRatio,
     };
   });
 
@@ -303,10 +321,16 @@ export function evaluatePlanVsActualCoverage(
     (slot) => slot.actualHeadcount < slot.minStaffing,
   ).length;
 
+  const totalPlannedMinutes = slotResults.reduce((sum, s) => sum + s.plannedDurationMinutes * s.plannedHeadcount, 0);
+  const totalActualMinutes = slotResults.reduce((sum, s) => sum + s.actualCoveredMinutes, 0);
+
   return {
     ...summary,
     understaffedSlots,
     coverageRate: roundToTwo((slotResults.length - understaffedSlots) / slotResults.length),
+    durationCoverageRate: totalPlannedMinutes > 0
+      ? roundToTwo(totalActualMinutes / totalPlannedMinutes)
+      : 1,
     slots: slotResults,
   };
 }
