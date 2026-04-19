@@ -1,0 +1,73 @@
+# cueq — Prometheus alerting rules
+# SLOs defined in RELIABILITY.md §4.
+# Alerts flow to Alertmanager → e-mail/Slack receivers in alertmanager.yml.
+
+groups:
+  - name: cueq.api
+    rules:
+      # ── Availability ──────────────────────────────────────────────────────
+      - alert: ApiHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="cueq_api",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="cueq_api"}[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "cueq API error rate > 1 %"
+          description: "HTTP 5xx rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      # ── Latency ───────────────────────────────────────────────────────────
+      - alert: ApiHighP99Latency
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (le) (rate(http_request_duration_seconds_bucket{job="cueq_api"}[5m]))
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cueq API p99 latency > 2 s"
+          description: "p99 response time is {{ $value | humanizeDuration }}."
+
+      # ── Health endpoint ───────────────────────────────────────────────────
+      - alert: ApiHealthEndpointDown
+        expr: up{job="cueq_api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "cueq API health endpoint unreachable"
+          description: "Prometheus cannot scrape {{ $labels.instance }}. Check the API process."
+
+  - name: cueq.audit
+    rules:
+      # ── Audit trail continuity ─────────────────────────────────────────────
+      # Fires if no audit entries have been written for 30 minutes during business hours.
+      # Requires a custom metric cueq_audit_entries_total exposed by the API.
+      - alert: AuditTrailStalled
+        expr: |
+          increase(cueq_audit_entries_total[30m]) == 0
+          and on() hour() >= 7 and on() hour() < 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No audit entries written in 30 min"
+          description: "The audit trail has not received any new entries for 30 minutes during business hours. Investigate potential data-loss or service downtime."
+
+  - name: cueq.terminal
+    rules:
+      - alert: TerminalHeartbeatMissed
+        expr: |
+          (time() - cueq_terminal_last_heartbeat_seconds) > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Terminal {{ $labels.terminal_id }} missed heartbeat"
+          description: "No heartbeat from terminal {{ $labels.terminal_id }} for > 5 minutes."
