@@ -84,6 +84,16 @@ export class WorkflowsController {
     return this.workflowsDomainService.listWorkflowPolicies(user);
   }
 
+  @Get('policies/:type')
+  @Roles(Role.HR, Role.ADMIN)
+  @ApiOperation({ summary: 'Get active policy for a workflow type (HR/Admin)' })
+  policy(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('type', new ZodValidationPipe(WorkflowTypeSchema)) type: string,
+  ): Promise<unknown> {
+    return this.workflowsDomainService.getWorkflowPolicy(user, type);
+  }
+
   @Get('policies/:type/history')
   @Roles(Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'List policy version history for a workflow type (HR/Admin)' })

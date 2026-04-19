@@ -261,6 +261,13 @@ export class WorkflowAssignmentHelper {
 
   /* ── Policy CRUD ─────────────────────────────────────────── */
 
+  async getPolicy(type: WorkflowType) {
+    return this.prisma.workflowPolicy.findFirst({
+      where: { type, activeTo: null },
+      orderBy: { activeFrom: 'desc' },
+    });
+  }
+
   async listPolicies() {
     return this.prisma.workflowPolicy.findMany({
       where: { activeTo: null },

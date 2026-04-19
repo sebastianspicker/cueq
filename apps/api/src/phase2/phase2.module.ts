@@ -23,6 +23,7 @@ import { PoliciesController } from './controllers/policies.controller';
 import { IntegrationsController } from './controllers/integrations.controller';
 import { ReportsController } from './controllers/reports.controller';
 import { TimeEngineController } from './controllers/time-engine.controller';
+import { TimeThresholdsController } from './controllers/time-thresholds.controller';
 import { WorkflowAssignmentHelper } from './helpers/workflow-assignment.helper';
 import { WorkflowCreationHelper } from './helpers/workflow-creation.helper';
 import { WorkflowDelegationCrudHelper } from './helpers/workflow-delegation-crud.helper';
@@ -128,6 +129,7 @@ import { BookingDomainService } from './services/booking-domain.service';
     IntegrationsController,
     ReportsController,
     TimeEngineController,
+    TimeThresholdsController,
   ],
   exports: [
     AuditHelper,

@@ -311,6 +311,10 @@ export class WorkflowRuntimeService {
     return this.assignmentHelper.listPolicies();
   }
 
+  async getPolicy(type: WorkflowType): Promise<WorkflowPolicy | null> {
+    return this.assignmentHelper.getPolicy(type);
+  }
+
   async listPolicyHistory(type: WorkflowType): Promise<WorkflowPolicy[]> {
     return this.assignmentHelper.listPolicyHistory(type);
   }
