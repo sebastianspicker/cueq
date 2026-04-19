@@ -5,7 +5,7 @@
 This page keeps the current design guidance concise after earlier rough notes.
 
 ## Usage
-- Rewrote the audit explanation around the maintained behavior.
+- Merged scattered audit guidance into the docs.
 
 - Earlier scratch notes were compressed into the current guidance.
 
