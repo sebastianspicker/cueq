@@ -23,17 +23,21 @@ export class WorkflowAssignmentHelper {
   ) {}
 
   async ensurePolicy(type: WorkflowType): Promise<WorkflowPolicy> {
+    const existing = await this.prisma.workflowPolicy.findFirst({
+      where: { type, activeTo: null },
+    });
+    if (existing) {
+      return existing;
+    }
     const defaultPolicy = DEFAULT_POLICIES[type];
-    return this.prisma.workflowPolicy.upsert({
-      where: { type },
-      create: {
+    return this.prisma.workflowPolicy.create({
+      data: {
         type,
         escalationDeadlineHours: defaultPolicy.escalationDeadlineHours,
         escalationRoles: defaultPolicy.escalationRoles,
         maxDelegationDepth: defaultPolicy.maxDelegationDepth,
         activeFrom: new Date(),
       },
-      update: {},
     });
   }
 
@@ -259,7 +263,15 @@ export class WorkflowAssignmentHelper {
 
   async listPolicies() {
     return this.prisma.workflowPolicy.findMany({
+      where: { activeTo: null },
       orderBy: { type: 'asc' },
+    });
+  }
+
+  async listPolicyHistory(type: WorkflowType) {
+    return this.prisma.workflowPolicy.findMany({
+      where: { type },
+      orderBy: { activeFrom: 'desc' },
     });
   }
 
@@ -271,20 +283,23 @@ export class WorkflowAssignmentHelper {
       );
     }
 
-    return this.prisma.workflowPolicy.upsert({
-      where: { type },
-      create: {
+    const activeFrom = payload.activeFrom ? new Date(payload.activeFrom) : new Date();
+    const now = new Date();
+
+    // Close the current active policy version
+    await this.prisma.workflowPolicy.updateMany({
+      where: { type, activeTo: null },
+      data: { activeTo: now },
+    });
+
+    // Create the new version
+    return this.prisma.workflowPolicy.create({
+      data: {
         type,
         escalationDeadlineHours: payload.escalationDeadlineHours,
         escalationRoles: payload.escalationRoles,
         maxDelegationDepth: payload.maxDelegationDepth,
-        activeFrom: payload.activeFrom ? new Date(payload.activeFrom) : new Date(),
-      },
-      update: {
-        escalationDeadlineHours: payload.escalationDeadlineHours,
-        escalationRoles: payload.escalationRoles,
-        maxDelegationDepth: payload.maxDelegationDepth,
-        activeFrom: payload.activeFrom ? new Date(payload.activeFrom) : undefined,
+        activeFrom,
       },
     });
   }

@@ -258,6 +258,7 @@ model Absence {
   updatedAt     DateTime      @updatedAt
 
   @@index([personId, startDate])
+  @@index([personId, status])
   @@map("absences")
 }
 
@@ -366,6 +367,8 @@ model WorkflowInstance {
 
   @@index([status, dueAt])
   @@index([type, status])
+  @@index([approverId, status])
+  @@index([requesterId, status])
   @@map("workflow_instances")
 }
 
@@ -389,14 +392,17 @@ enum WorkflowStatus {
 
 model WorkflowPolicy {
   id                      String       @id @default(cuid())
-  type                    WorkflowType @unique
+  type                    WorkflowType
   escalationDeadlineHours Int
   escalationRoles         Json         /// ordered role chain, e.g. ["HR","ADMIN"]
   maxDelegationDepth      Int          @default(5)
   activeFrom              DateTime     @default(now())
+  activeTo                DateTime?    /// null means this is the currently active policy version
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 
+  @@unique([type, activeFrom])
+  @@index([type, activeTo])
   @@map("workflow_policies")
 }
 
