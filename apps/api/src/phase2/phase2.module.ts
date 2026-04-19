@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { Phase2Service } from './phase2.service';
+import { AuditController } from './controllers/audit.controller';
 import { MeController } from './controllers/me.controller';
 import { DashboardController } from './controllers/dashboard.controller';
 import { BookingsController } from './controllers/bookings.controller';
@@ -108,6 +109,7 @@ import { BookingDomainService } from './services/booking-domain.service';
     BookingDomainService,
   ],
   controllers: [
+    AuditController,
     MeController,
     DashboardController,
     BookingsController,

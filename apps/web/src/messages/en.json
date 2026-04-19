@@ -408,7 +408,22 @@
       "exportsTriggeredLabel": "Exports triggered",
       "lockBlocksLabel": "Lock blocks",
       "byActionLabel": "Top actions",
-      "byEntityTypeLabel": "Top entity types"
+      "byEntityTypeLabel": "Top entity types",
+      "browseEntriesTitle": "Browse Audit Entries",
+      "actionFilterLabel": "Action (e.g. BOOKING_CREATED)",
+      "entityTypeFilterLabel": "Entity type (e.g. Booking)",
+      "actorIdFilterLabel": "Actor ID",
+      "entityIdFilterLabel": "Entity ID",
+      "loadEntries": "Load entries",
+      "loadMoreEntries": "Load more",
+      "noEntries": "No audit entries match the selected filters.",
+      "entryTimestamp": "Timestamp",
+      "entryAction": "Action",
+      "entryEntityType": "Entity type",
+      "entryEntityId": "Entity ID",
+      "entryActorId": "Actor",
+      "entryReason": "Reason",
+      "totalEntries": "Total: {count} entries"
     },
     "settings": {
       "title": "Settings",

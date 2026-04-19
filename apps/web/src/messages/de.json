@@ -408,7 +408,22 @@
       "exportsTriggeredLabel": "Ausgelöste Exporte",
       "lockBlocksLabel": "Sperrblöcke",
       "byActionLabel": "Häufigste Aktionen",
-      "byEntityTypeLabel": "Häufigste Entitätstypen"
+      "byEntityTypeLabel": "Häufigste Entitätstypen",
+      "browseEntriesTitle": "Audit-Einträge durchsuchen",
+      "actionFilterLabel": "Aktion (z. B. BOOKING_CREATED)",
+      "entityTypeFilterLabel": "Entitätstyp (z. B. Booking)",
+      "actorIdFilterLabel": "Akteur-ID",
+      "entityIdFilterLabel": "Entitäts-ID",
+      "loadEntries": "Einträge laden",
+      "loadMoreEntries": "Weitere laden",
+      "noEntries": "Keine Audit-Einträge für die gewählten Filter.",
+      "entryTimestamp": "Zeitstempel",
+      "entryAction": "Aktion",
+      "entryEntityType": "Entitätstyp",
+      "entryEntityId": "Entitäts-ID",
+      "entryActorId": "Akteur",
+      "entryReason": "Begründung",
+      "totalEntries": "Gesamt: {count} Einträge"
     },
     "settings": {
       "title": "Einstellungen",
