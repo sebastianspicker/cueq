@@ -6,3 +6,5 @@ export function createClosingSummary() {
 export function closingTask() {
   return { scope: "closing", status: "ready" };
 }
+
+// forced-closing-2
