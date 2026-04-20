@@ -2,7 +2,7 @@
 
 > Time-tracking, absence management, and shift planning for a German university (NRW / TV-L).
 
-[![CI](https://github.com/your-org/cueq/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/cueq/actions/workflows/ci.yml)
+[![CI](https://github.com/sebastianspicker/cueq/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianspicker/cueq/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Target Audience:** German university HR departments, team leads (Teamleitungen), and shift planners (Dienstplaner) managing workforce time-tracking, absence quotas, and roster compliance under TV-L / NRW regulations.
@@ -67,6 +67,7 @@ graph TB
         API[NestJS API<br/>REST + OpenAPI]
         WEB[Next.js Frontend<br/>Self-service UI]
         DB[(PostgreSQL<br/>+ Audit Trail)]
+        MON[📊 Monitoring<br/>Prometheus + Grafana<br/>optional profile]
     end
 
     HW -->|bookings| GW
@@ -76,6 +77,7 @@ graph TB
     HR -->|sync| API
     API -->|export| PAY
     API <-->|read/write| DB
+    API -->|metrics| MON
 ```
 
 ### Core Domain Services
@@ -155,6 +157,8 @@ graph TD
             PS[product-specs/]
             GEN[generated/]
         end
+
+        MON["monitoring/<br/>Prometheus + Grafana<br/>config (optional profile)"]
     end
 
     API --> DB
@@ -308,7 +312,7 @@ See [ADR-001: Tech Stack](docs/design-decisions/001-tech-stack.md) for the full 
 
 ```bash
 # 1. Clone and configure
-git clone https://github.com/your-org/cueq.git
+git clone https://github.com/sebastianspicker/cueq.git
 cd cueq
 cp .env.example .env          # adjust DATABASE_URL if needed
 
@@ -369,7 +373,8 @@ All screenshots are generated from mock university seed data (German locale) via
 
 ## Domain Model
 
-The database schema models the core domain entities from the [PRD](docs/product-specs/index.md):
+The database schema models the core domain entities from the [PRD](docs/product-specs/index.md).
+Core entities shown below; Phase 2/3 integration models (OnCall, Webhooks, Terminals, HrImport, WorkflowPolicy, TimeThresholdPolicy) are omitted for clarity — see [`docs/generated/db-schema.md`](docs/generated/db-schema.md) for the full schema.
 
 ```mermaid
 erDiagram
