@@ -7,6 +7,7 @@ export default defineConfig({
     fileParallelism: false,
     hookTimeout: 30_000,
     testTimeout: 60_000,
+    setupFiles: ['test/setup/integration-db.setup.ts'],
     include: ['test/integration/**/*.test.ts'],
     exclude: ['**/dist/**', '**/.next/**', '**/node_modules/**'],
   },

@@ -596,7 +596,7 @@ describe('evaluateTimeRules – edge cases', () => {
   });
 
   describe('overlapping WORK intervals', () => {
-    it('counts each minute per interval (overlap is double-counted)', () => {
+    it('normalizes work overlaps so minutes are not double-counted', () => {
       const result = evaluateTimeRules({
         ...BASE_INPUT,
         targetHours: 0,
@@ -605,8 +605,29 @@ describe('evaluateTimeRules – edge cases', () => {
           { start: '2026-03-03T10:00:00.000Z', end: '2026-03-03T14:00:00.000Z', type: 'WORK' },
         ],
       });
-      // 4h + 4h = 8h total; the 10:00-12:00 overlap is counted by both intervals
-      expect(result.actualHours).toBe(8);
+
+      expect(result.actualHours).toBe(6);
+      expect(result.violations.some((v) => v.code === 'OVERLAP')).toBe(true);
+    });
+
+    it('does not double-count surcharge minutes across overlapping work intervals', () => {
+      const result = evaluateTimeRules({
+        ...BASE_INPUT,
+        targetHours: 0,
+        intervals: [
+          { start: '2026-03-08T00:00:00.000Z', end: '2026-03-08T02:00:00.000Z', type: 'WORK' },
+          {
+            start: '2026-03-08T01:00:00.000Z',
+            end: '2026-03-08T03:00:00.000Z',
+            type: 'DEPLOYMENT',
+          },
+        ],
+      });
+
+      expect(result.actualHours).toBe(3);
+      expect(result.surchargeMinutes).toEqual([
+        { category: 'WEEKEND', ratePercent: 50, minutes: 180 },
+      ]);
     });
   });
 

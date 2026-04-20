@@ -80,6 +80,21 @@ export class WorkflowsDomainService {
     return this.workflowRuntimeService.listPolicies();
   }
 
+  async getWorkflowPolicy(user: AuthenticatedIdentity, type: string): Promise<unknown> {
+    assertHrLikeRole(user);
+    const parsedType = WorkflowTypeSchema.parse(type) as WorkflowType;
+    return this.workflowRuntimeService.getPolicy(parsedType);
+  }
+
+  async listWorkflowPolicyHistory(
+    user: AuthenticatedIdentity,
+    type: string,
+  ): Promise<unknown> {
+    assertHrLikeRole(user);
+    const parsedType = WorkflowTypeSchema.parse(type) as WorkflowType;
+    return this.workflowRuntimeService.listPolicyHistory(parsedType);
+  }
+
   async upsertWorkflowPolicy(
     user: AuthenticatedIdentity,
     type: string,

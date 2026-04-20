@@ -132,7 +132,11 @@ export default function LeavePage() {
   }
 
   return (
-    <PageShell title={t('title')} description={t('description')} breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}>
+    <PageShell
+      title={t('title')}
+      description={t('description')}
+      breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}
+    >
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}
@@ -215,7 +219,9 @@ export default function LeavePage() {
         </div>
       </SectionCard>
 
-      {loading && !balance && absences.length === 0 ? <LoadingSpinner label={t('loading')} /> : null}
+      {loading && !balance && absences.length === 0 ? (
+        <LoadingSpinner label={t('loading')} />
+      ) : null}
 
       <StatusBanner message={message} error={error} />
 
@@ -262,7 +268,9 @@ export default function LeavePage() {
                 <div className="cq-list-item-header">
                   <div className="cq-list-item-meta">
                     <StatusBadge status={absence.type} variant="info" label={absence.type} />
-                    <span>{absence.startDate.slice(0, 10)} &ndash; {absence.endDate.slice(0, 10)}</span>
+                    <span>
+                      {absence.startDate.slice(0, 10)} &ndash; {absence.endDate.slice(0, 10)}
+                    </span>
                     <span>({absence.days}d)</span>
                   </div>
                   <StatusBadge status={absence.status} />

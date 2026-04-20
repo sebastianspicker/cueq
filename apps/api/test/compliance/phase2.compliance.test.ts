@@ -132,7 +132,7 @@ describe('Phase 2 compliance', () => {
     expect(leadDecision.status).toBe(403);
   });
 
-  it('denies non-planner roster write access', async () => {
+  it('denies unauthorized roster write access while allowing HR override', async () => {
     const payload = {
       organizationUnitId: SEED_IDS.ouSecurity,
       periodStart: '2026-04-01T00:00:00.000Z',
@@ -155,7 +155,7 @@ describe('Phase 2 compliance', () => {
       .post('/v1/rosters')
       .set('Authorization', `Bearer ${TOKENS.hr}`)
       .send(payload);
-    expect(hr.status).toBe(403);
+    expect(hr.status).toBe(201);
   });
 
   it('denies planner roster writes outside own organization unit', async () => {
@@ -359,8 +359,8 @@ describe('Phase 2 compliance', () => {
       .set('Authorization', `Bearer ${TOKENS.planner}`)
       .send({
         organizationUnitId: SEED_IDS.ouSecurity,
-        periodStart: '2026-04-01T00:00:00.000Z',
-        periodEnd: '2026-04-30T23:59:59.000Z',
+        periodStart: '2026-06-01T00:00:00.000Z',
+        periodEnd: '2026-06-30T23:59:59.000Z',
       });
 
     expect(created.status).toBe(201);

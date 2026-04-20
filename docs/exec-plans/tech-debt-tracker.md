@@ -15,9 +15,22 @@
 
 ## Active Items
 
-| #      | Item                        | Impact | Effort | Owner | Target Date | Status | Notes |
-| ------ | --------------------------- | ------ | ------ | ----- | ----------- | ------ | ----- |
-| _none_ | _No active tech debt items_ |        |        |       |             |        |       |
+| #      | Item                                                              | Impact    | Effort    | Owner         | Target Date | Status     | Notes                |
+| ------ | ----------------------------------------------------------------- | --------- | --------- | ------------- | ----------- | ---------- | -------------------- |
+| TD-009 | `pnpm typecheck` fails — roster-shift.helper.ts L26/L29           | 🔴 High   | 🟢 Low    | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 PR-A   |
+| TD-010 | `pnpm test:unit` red — flextime/closing/surcharge semantics       | 🔴 High   | 🟡 Medium | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 PR-B/C |
+| TD-011 | Migration chain cannot bootstrap clean database                   | 🔴 High   | 🔴 High   | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 Iter 5 |
+| TD-012 | Cross-OU data leak in closing-completion report (TEAM_LEAD)       | 🔴 High   | 🟡 Medium | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 PR-G/H |
+| TD-013 | Post-close corrections bypass overlap protection                  | 🔴 High   | 🟡 Medium | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 PR-H   |
+| TD-014 | Auth relies on token claims; DB person state not reconciled       | 🔴 High   | 🔴 High   | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 PR-G   |
+| TD-015 | Frontend restricted data not cleared on 403/auth change           | 🔴 High   | 🟡 Medium | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 PR-J   |
+| TD-016 | Settings persistence is a no-op (prefs never read back)           | 🟡 Medium | 🟡 Medium | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 PR-K   |
+| TD-017 | Locale: html lang always "de"; switch jumps to /de/dashboard      | 🟡 Medium | 🟡 Medium | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 PR-K   |
+| TD-018 | Backup/restore is logical replay, not real pg_dump/pg_restore     | 🟡 Medium | 🔴 High   | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 Iter 6 |
+| TD-019 | HR import non-atomic; silently coerces unknown roles              | 🟡 Medium | 🟡 Medium | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 Iter 5 |
+| TD-020 | Absence date schema drifts: JSON Schema datetime vs Zod date-only | 🟡 Medium | 🟡 Medium | Platform Team | 2026-05-01  | ⏳ Pending | exec-plan 009 Iter 4 |
+
+> All items above tracked under **[exec-plans/active/009-audit-remediation-program.md](active/009-audit-remediation-program.md)**.
 
 ### Status Legend
 

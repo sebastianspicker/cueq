@@ -515,8 +515,8 @@ describe('FR-500 integration', () => {
       .send({
         personId: SEED_IDS.personEmployee,
         type: 'ANNUAL_LEAVE',
-        startDate: '2026-04-10',
-        endDate: '2026-04-11',
+        startDate: '2026-04-24',
+        endDate: '2026-04-25',
         note: 'Stale delegation role test',
       });
     expect(absence.status).toBe(201);

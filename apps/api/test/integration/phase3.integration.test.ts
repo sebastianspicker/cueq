@@ -78,9 +78,9 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
   it('imports Honeywell CSV file batches with malformed-row accounting', async () => {
     const csv = [
       'personId,timeTypeCode,startTime,endTime,note',
-      `${SEED_IDS.personPlanner},WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,"first, comma"`,
-      'invalid-person,WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,bad',
-      `${SEED_IDS.personPlanner},WORK,2026-03-11T08:00:00.000Z,2026-03-11T16:00:00.000Z,"dup, comma"`,
+      `${SEED_IDS.personPlanner},WORK,2026-03-15T08:00:00.000Z,2026-03-15T16:00:00.000Z,"first, comma"`,
+      'invalid-person,WORK,2026-03-15T08:00:00.000Z,2026-03-15T16:00:00.000Z,bad',
+      `${SEED_IDS.personPlanner},WORK,2026-03-15T08:00:00.000Z,2026-03-15T16:00:00.000Z,"dup, comma"`,
     ].join('\n');
 
     const response = await request(app.getHttpServer())

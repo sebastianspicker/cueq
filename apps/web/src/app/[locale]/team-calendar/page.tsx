@@ -86,17 +86,19 @@ export default function TeamCalendarPage() {
                   <strong>{entry.personName}</strong>
                   <div className="cq-list-item-meta">
                     <StatusBadge status={entry.status} />
-                    {entry.type ? <StatusBadge status={entry.type} variant="info" label={entry.type} /> : null}
+                    {entry.type ? (
+                      <StatusBadge status={entry.type} variant="info" label={entry.type} />
+                    ) : null}
                   </div>
                 </div>
                 <div className="cq-list-item-meta">
-                  <span>{entry.startDate} &ndash; {entry.endDate}</span>
+                  <span>
+                    {entry.startDate} &ndash; {entry.endDate}
+                  </span>
                   <span>&middot;</span>
                   <span>{entry.visibilityStatus}</span>
                 </div>
-                {entry.note ? (
-                  <p>{entry.note}</p>
-                ) : null}
+                {entry.note ? <p>{entry.note}</p> : null}
               </li>
             ))}
           </ul>

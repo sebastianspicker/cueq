@@ -275,7 +275,11 @@ export default function ClosingPage() {
   const period = selectedPeriod();
 
   return (
-    <PageShell title={t('title')} description={t('description')} breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}>
+    <PageShell
+      title={t('title')}
+      description={t('description')}
+      breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}
+    >
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
         tokenLabel={t('tokenLabel')}
@@ -332,9 +336,16 @@ export default function ClosingPage() {
                 <div className="cq-list-item-header">
                   <div className="cq-list-item-meta">
                     <StatusBadge status={row.status} />
-                    <span>{row.periodStart.slice(0, 10)} &ndash; {row.periodEnd.slice(0, 10)}</span>
+                    <span>
+                      {row.periodStart.slice(0, 10)} &ndash; {row.periodEnd.slice(0, 10)}
+                    </span>
                   </div>
-                  <button type="button" className="cq-btn-secondary cq-btn-sm" disabled={loading} onClick={() => void selectPeriod(row.id)}>
+                  <button
+                    type="button"
+                    className="cq-btn-secondary cq-btn-sm"
+                    disabled={loading}
+                    onClick={() => void selectPeriod(row.id)}
+                  >
                     {t('details')}
                   </button>
                 </div>
@@ -349,13 +360,17 @@ export default function ClosingPage() {
           <h2>{t('stateLabel')}</h2>
           <dl className="cq-kv-grid">
             <dt>{t('stateLabel')}</dt>
-            <dd><StatusBadge status={period.status} /></dd>
+            <dd>
+              <StatusBadge status={period.status} />
+            </dd>
             <dt>{t('leadApprovalLabel')}</dt>
             <dd>{period.leadApprovedAt ?? '—'}</dd>
             <dt>{t('hrApprovalLabel')}</dt>
             <dd>{period.hrApprovedAt ?? '—'}</dd>
             <dt>{t('lockLabel')}</dt>
-            <dd>{period.lockedAt ?? '—'} ({period.lockSource ?? '—'})</dd>
+            <dd>
+              {period.lockedAt ?? '—'} ({period.lockSource ?? '—'})
+            </dd>
           </dl>
         </SectionCard>
       ) : null}
@@ -432,9 +447,11 @@ export default function ClosingPage() {
           <ul className="cq-list-stack">
             {checklist.items.map((item) => {
               const severityClass =
-                item.severity === 'ERROR' ? 'cq-severity-error' :
-                item.severity === 'WARNING' ? 'cq-severity-warning' :
-                'cq-severity-info';
+                item.severity === 'ERROR'
+                  ? 'cq-severity-error'
+                  : item.severity === 'WARNING'
+                    ? 'cq-severity-warning'
+                    : 'cq-severity-info';
               return (
                 <li key={item.code} className={severityClass}>
                   <div className="cq-list-item-header">

@@ -8,7 +8,6 @@ import {
   PolicyViolationSchema,
   PolicyEvalResultSchema,
   type PolicyViolation,
-  type PolicyEvalResult,
 } from '../types';
 import { getActivePolicyBundle, POLICY_HISTORY } from '../catalog';
 

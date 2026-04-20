@@ -1,5 +1,10 @@
 # PILOT_READINESS_CHECKLIST.md — Phase 3
 
+> **Last verified:** 2026-04-20 | **Status:** 🔴 NOT READY — quality gates failing (see below)
+>
+> Items reflecting aspirational state that has not been verified against current branch are unchecked.
+> Track remediation progress in [exec-plans/active/009-audit-remediation-program.md](exec-plans/active/009-audit-remediation-program.md).
+
 ---
 
 ## Pilot Scope
@@ -36,7 +41,18 @@
 
 ## Go/No-Go
 
-- [x] `make check`
-- [x] `make test-all`
-- [x] `make test-acceptance`
+- [ ] `make check` — ❌ **FAILING**: `pnpm typecheck` fails (roster-shift.helper.ts L26/L29); see exec-plan 009 PR-A
+- [ ] `make test-all` — ❌ **FAILING**: unit tests red (flextime, fixture-parity, closing, surcharge); see exec-plan 009 PR-B/C
+- [ ] `make test-acceptance`
 - [x] `make openapi-check`
+
+## Known Open Issues Before Pilot
+
+| #    | Issue                                                       | Severity    | Exec-Plan Ref |
+| ---- | ----------------------------------------------------------- | ----------- | ------------- |
+| I-01 | `pnpm typecheck` fails — roster-shift.helper.ts             | 🔴 Critical | 009 PR-A      |
+| I-02 | `pnpm test:unit` fails — 5 test files                       | 🔴 Critical | 009 PR-B/C    |
+| I-03 | Migration chain cannot bootstrap clean DB                   | 🔴 Critical | 009 Iter 5    |
+| I-04 | Cross-OU data leak in closing-completion report (TEAM_LEAD) | 🔴 High     | 009 PR-G/H    |
+| I-05 | Post-close corrections bypass overlap protection            | 🔴 High     | 009 PR-H      |
+| I-06 | Frontend restricted data not cleared on auth/role change    | 🔴 High     | 009 PR-J      |

@@ -168,10 +168,7 @@ export default function DashboardPage() {
     <PageShell
       title={t('title')}
       description={t('description')}
-      breadcrumbs={[
-        { label: 'cueq', href: `/${locale}` },
-        { label: t('title') },
-      ]}
+      breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}
     >
       <ConnectionPanel
         apiBaseLabel={t('apiBaseLabel')}
@@ -195,7 +192,9 @@ export default function DashboardPage() {
       {summary ? (
         <SectionCard>
           <h2>{t('summaryTitle')}</h2>
-          <p>{t('modelName')}: {summary.modelName}</p>
+          <p>
+            {t('modelName')}: {summary.modelName}
+          </p>
           <div className="cq-stat-row">
             <div className="cq-stat-card">
               <span className="cq-stat-label">{t('todayTargetHours')}</span>
@@ -254,7 +253,9 @@ export default function DashboardPage() {
             <input
               type="datetime-local"
               value={overtimePeriodStart.slice(0, 16)}
-              onChange={(event) => setOvertimePeriodStart(new Date(event.target.value).toISOString())}
+              onChange={(event) =>
+                setOvertimePeriodStart(new Date(event.target.value).toISOString())
+              }
               required
             />
           </FormField>

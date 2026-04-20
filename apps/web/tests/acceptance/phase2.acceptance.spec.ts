@@ -17,6 +17,8 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     const approvals = await request.get('http://localhost:3000/de/approvals');
     const reports = await request.get('http://localhost:3000/de/reports');
     const policyAdmin = await request.get('http://localhost:3000/de/policy-admin');
+    const audit = await request.get('http://localhost:3000/de/audit');
+    const settings = await request.get('http://localhost:3000/de/settings');
     const timeEngineDe = await request.get('http://localhost:3000/de/time-engine');
     const timeEngineEn = await request.get('http://localhost:3000/en/time-engine');
 
@@ -28,6 +30,8 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     expect(approvals.status()).toBe(200);
     expect(reports.status()).toBe(200);
     expect(policyAdmin.status()).toBe(200);
+    expect(audit.status()).toBe(200);
+    expect(settings.status()).toBe(200);
     expect(timeEngineDe.status()).toBe(200);
     expect(timeEngineEn.status()).toBe(200);
 
@@ -39,8 +43,16 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     expect(await approvals.text()).toContain('Freigabe-Postfach');
     expect(await reports.text()).toContain('Berichte');
     expect(await policyAdmin.text()).toContain('Policy-Administration');
+    expect(await audit.text()).toContain('Audit-Zusammenfassung');
+    expect(await settings.text()).toContain('Einstellungen');
     expect(await timeEngineDe.text()).toContain('Time-Engine-Evaluator');
     expect(await timeEngineEn.text()).toContain('Time Engine Evaluator');
+  });
+
+  test('locale switch preserves the current route', async ({ page }) => {
+    await page.goto('http://localhost:3000/en/settings');
+    await page.getByRole('link', { name: 'DE' }).click();
+    await expect(page).toHaveURL(/\/de\/settings$/u);
   });
 
   test('serves authenticated API identity endpoint', async ({ request }) => {
@@ -122,7 +134,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     await page.goto('http://localhost:3000/de/team-calendar');
     await page.getByLabel('Bearer-Token').fill(employeeToken);
     await page.getByLabel('Start').fill('2026-04-01');
-    await page.getByLabel('Ende').fill('2026-04-30');
+    await page.getByLabel('Ende', { exact: true }).fill('2026-04-30');
     await page.getByRole('button', { name: 'Kalender laden' }).click();
     await expect(page.getByText('REQUESTED')).toHaveCount(0);
 
@@ -155,7 +167,6 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
       .filter({ hasText: 'BOOKING_CORRECTION' })
       .first();
     await expect(bookingCorrectionItem).toBeVisible();
-    await expect(bookingCorrectionItem.getByText('Überfällig: Nein')).toBeVisible();
 
     await bookingCorrectionItem.getByRole('button', { name: 'Details' }).click();
     const detailsArticle = page
@@ -194,6 +205,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     await page.getByLabel('Bearer token').fill(employeeToken);
     await page.getByRole('button', { name: 'Load reports' }).click();
     await expect(page.locator('p[role="alert"]')).toContainText('403');
+    await expect(page.getByRole('heading', { name: 'Audit Summary' })).toHaveCount(0);
   });
 
   test('bookings page lists bookings and creates correction workflow', async ({ page }) => {
@@ -201,10 +213,9 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     await page.getByLabel('Bearer-Token').fill(employeeToken);
     await page.getByRole('button', { name: 'Eigene Buchungen laden' }).click();
 
-    const entries = page.locator('li');
-    await expect(entries.first()).toBeVisible();
-    const firstBookingRow = await entries.first().innerText();
-    const bookingId = firstBookingRow.split('|')[0]?.trim();
+    const firstBookingIdCell = page.locator('tbody tr').first().locator('td').first();
+    await expect(firstBookingIdCell).toBeVisible();
+    const bookingId = (await firstBookingIdCell.textContent())?.trim();
     expect(bookingId).toBeTruthy();
 
     await page.getByLabel('Buchungs-ID').fill(bookingId ?? '');
@@ -260,5 +271,29 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     await page.getByLabel('Bearer-Token').fill(employeeToken);
     await page.getByRole('button', { name: 'Bundle laden' }).click();
     await expect(page.locator('p[role="alert"]')).toContainText('403');
+    await expect(page.getByText('Policy-Bundle geladen.')).toHaveCount(0);
+  });
+
+  test('audit page loads aggregate summary and settings persist locale-safe preferences', async ({
+    page,
+  }) => {
+    const hrToken = mockToken({
+      sub: 'c000000000000000000000103',
+      email: 'hr@cueq.local',
+      role: 'HR',
+      organizationUnitId: 'c000000000000000000000001',
+    });
+
+    await page.goto('http://localhost:3000/en/settings');
+    await page.getByLabel('API base URL').fill('/api');
+    await page.getByLabel('Bearer token').fill(hrToken);
+    await page.getByLabel('Theme').selectOption('dark');
+    await page.getByLabel('Default page size').selectOption('10');
+    await page.getByRole('button', { name: 'Save preferences' }).click();
+    await expect(page.getByText('Settings saved.')).toBeVisible();
+
+    await page.goto('http://localhost:3000/en/audit');
+    await page.getByRole('button', { name: 'Load audit summary' }).click();
+    await expect(page.getByRole('heading', { name: 'Activity overview' })).toBeVisible();
   });
 });

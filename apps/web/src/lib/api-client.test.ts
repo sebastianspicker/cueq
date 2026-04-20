@@ -44,4 +44,18 @@ describe('createApiRequest', () => {
     const headers = new Headers(options.headers ?? {});
     expect(headers.has('Content-Type')).toBe(false);
   });
+
+  it('supports relative api base urls by default', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('{}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const apiRequest = createApiRequest('/api', 'mock-token', 'Request failed.');
+    await apiRequest('/v1/dashboard/me');
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/v1/dashboard/me', expect.any(Object));
+  });
 });
