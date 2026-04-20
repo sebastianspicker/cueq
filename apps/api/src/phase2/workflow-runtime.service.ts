@@ -315,7 +315,9 @@ export class WorkflowRuntimeService {
     return this.assignmentHelper.getPolicy(type);
   }
 
-  async listPolicyHistory(type: WorkflowType): Promise<WorkflowPolicy[]> {
+  async listPolicyHistory(
+    type: WorkflowType,
+  ): Promise<{ entries: WorkflowPolicy[]; total: number }> {
     return this.assignmentHelper.listPolicyHistory(type);
   }
 

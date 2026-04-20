@@ -320,9 +320,6 @@
       "timeThresholdsLoaded": "Time thresholds loaded.",
       "loadTimeThresholds": "Load current",
       "policyHistoryTitle": "Workflow policy version history",
-      "noWorkflowPolicyHistory": "No history loaded yet.",
-      "loadPolicyHistory": "Load history",
-      "historyLoaded2": "Policy history loaded.",
       "activeFrom": "Active from",
       "activeTo": "Active to"
     },

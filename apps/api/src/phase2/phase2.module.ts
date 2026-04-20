@@ -5,6 +5,7 @@ import { MeController } from './controllers/me.controller';
 import { DashboardController } from './controllers/dashboard.controller';
 import { BookingsController } from './controllers/bookings.controller';
 import { AbsencesController } from './controllers/absences.controller';
+import { PersonsController } from './controllers/persons.controller';
 import { LeaveBalanceController } from './controllers/leave-balance.controller';
 import { LeaveAdjustmentsController } from './controllers/leave-adjustments.controller';
 import { CalendarController } from './controllers/calendar.controller';
@@ -115,6 +116,7 @@ import { BookingDomainService } from './services/booking-domain.service';
     DashboardController,
     BookingsController,
     AbsencesController,
+    PersonsController,
     LeaveBalanceController,
     LeaveAdjustmentsController,
     CalendarController,

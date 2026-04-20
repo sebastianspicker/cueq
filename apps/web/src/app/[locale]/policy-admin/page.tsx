@@ -130,7 +130,10 @@ export default function PolicyAdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           escalationDeadlineHours: wfEscDeadline,
-          escalationRoles: wfEscRoles.split(',').map((s) => s.trim()).filter(Boolean),
+          escalationRoles: wfEscRoles
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
           maxDelegationDepth: wfMaxDepth,
         }),
       });
@@ -146,7 +149,7 @@ export default function PolicyAdminPage() {
         `/v1/workflows/policies/${wfType}/history`,
       );
       setWfHistory(data);
-      setMessage(t('historyLoaded2'));
+      setMessage(t('historyLoaded'));
     }).catch((cause: unknown) => {
       setWfHistory(null);
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
@@ -198,7 +201,9 @@ export default function PolicyAdminPage() {
             <span>{t('workflowTypeLabel')}</span>
             <select value={wfType} onChange={(e) => setWfType(e.target.value)}>
               {WORKFLOW_TYPES.map((type) => (
-                <option key={type} value={type}>{type}</option>
+                <option key={type} value={type}>
+                  {type}
+                </option>
               ))}
             </select>
           </label>
@@ -220,10 +225,7 @@ export default function PolicyAdminPage() {
           </label>
           <label className="cq-form-field">
             <span>{t('escalationRolesLabel')}</span>
-            <input
-              value={wfEscRoles}
-              onChange={(e) => setWfEscRoles(e.target.value)}
-            />
+            <input value={wfEscRoles} onChange={(e) => setWfEscRoles(e.target.value)} />
           </label>
           <label className="cq-form-field">
             <span>{t('maxDelegationDepthLabel')}</span>
@@ -248,7 +250,7 @@ export default function PolicyAdminPage() {
         <h2>{t('policyHistoryTitle')}</h2>
         <div className="cq-flex-end">
           <button type="button" disabled={loading} onClick={() => void loadPolicyHistory()}>
-            {loading ? t('loading') : t('loadPolicyHistory')}
+            {loading ? t('loading') : t('loadHistory')}
           </button>
         </div>
         {wfHistory ? (
@@ -264,11 +266,15 @@ export default function PolicyAdminPage() {
                   </div>
                 </div>
                 <div className="cq-list-item-meta">
-                  <span>{t('activeFrom')}: {entry.activeFrom}</span>
+                  <span>
+                    {t('activeFrom')}: {entry.activeFrom}
+                  </span>
                   {entry.activeTo && (
                     <>
                       <span>&middot;</span>
-                      <span>{t('activeTo')}: {entry.activeTo}</span>
+                      <span>
+                        {t('activeTo')}: {entry.activeTo}
+                      </span>
                     </>
                   )}
                   <span>&middot;</span>
@@ -280,7 +286,7 @@ export default function PolicyAdminPage() {
             ))}
           </ul>
         ) : (
-          <p className="cq-space-top-sm">{t('noWorkflowPolicyHistory')}</p>
+          <p className="cq-space-top-sm">{t('noHistory')}</p>
         )}
       </SectionCard>
 
@@ -364,4 +370,3 @@ export default function PolicyAdminPage() {
     </PageShell>
   );
 }
-

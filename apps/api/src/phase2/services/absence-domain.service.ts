@@ -193,6 +193,14 @@ export class AbsenceDomainService {
     });
   }
 
+  async getAbsenceById(user: AuthenticatedIdentity, absenceId: string): Promise<unknown> {
+    const actor = await this.personHelper.personForUser(user);
+    const absence = await this.prisma.absence.findUnique({ where: { id: absenceId } });
+    if (!absence) throw new NotFoundException('Absence not found.');
+    assertCanActForPerson(user, actor.id, absence.personId);
+    return absence;
+  }
+
   async cancelAbsence(user: AuthenticatedIdentity, absenceId: string): Promise<unknown> {
     const actor = await this.personHelper.personForUser(user);
     const absence = await this.prisma.absence.findUnique({

@@ -320,9 +320,6 @@
       "timeThresholdsLoaded": "Arbeitszeitgrenzen geladen.",
       "loadTimeThresholds": "Aktuell laden",
       "policyHistoryTitle": "Workflow-Richtlinienverlauf",
-      "noWorkflowPolicyHistory": "Noch kein Verlauf geladen.",
-      "loadPolicyHistory": "Verlauf laden",
-      "historyLoaded2": "Verlauf geladen.",
       "activeFrom": "Aktiv ab",
       "activeTo": "Aktiv bis"
     },

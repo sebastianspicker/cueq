@@ -38,6 +38,17 @@ export class BookingDomainService {
     return bookings.map((booking) => this.toBookingDto(booking));
   }
 
+  async getBookingById(user: AuthenticatedIdentity, id: string): Promise<unknown> {
+    const actor = await this.personHelper.personForUser(user);
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: { timeType: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    assertCanActForPerson(user, actor.id, booking.personId);
+    return this.toBookingDto(booking);
+  }
+
   async createBooking(user: AuthenticatedIdentity, payload: unknown): Promise<unknown> {
     const actor = await this.personHelper.personForUser(user);
     const parsed = CreateBookingSchema.parse(payload);

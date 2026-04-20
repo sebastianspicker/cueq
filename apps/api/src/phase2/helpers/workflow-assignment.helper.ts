@@ -276,10 +276,11 @@ export class WorkflowAssignmentHelper {
   }
 
   async listPolicyHistory(type: WorkflowType) {
-    return this.prisma.workflowPolicy.findMany({
+    const entries = await this.prisma.workflowPolicy.findMany({
       where: { type },
       orderBy: { activeFrom: 'desc' },
     });
+    return { entries, total: entries.length };
   }
 
   async upsertPolicy(type: WorkflowType, payload: WorkflowPolicyUpsert) {
