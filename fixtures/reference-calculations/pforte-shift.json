@@ -1,0 +1,20 @@
+{
+  "id": "pforte-shift-night",
+  "scenario": "Security desk night shift with mandatory break",
+  "description": "Synthetic shift reference for break and rest checks.",
+  "policyVersion": 1,
+  "input": {
+    "personCode": "EMP_SYN_010",
+    "shift": {
+      "type": "NIGHT",
+      "start": "2026-03-08T22:00:00Z",
+      "end": "2026-03-09T06:00:00Z"
+    },
+    "recordedBreakMinutes": 45
+  },
+  "expected": {
+    "workedHours": 7.25,
+    "requiredBreakMinutes": 45,
+    "violations": []
+  }
+}

@@ -1,15 +1,41 @@
-version: 1
-docker: bootstrap
-github-actions: core-build-out
-separate-dev-and-release: expansion
-audit: expansion
-audit: publication
-github-actions: publication
-vitest: publication
-# forced-audit-8:publication
-closing: publication
-# forced-audit-10:publication
-docker: maintenance
-# forced-docker-12:maintenance
-audit: maintenance
-github-actions: maintenance
+name: Bug Report
+description: Report a reproducible defect in cueq
+labels: ['type:bug']
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is broken and why it matters?
+      placeholder: A short description of the defect.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction Steps
+      description: Provide deterministic steps from a clean state.
+      placeholder: |
+        1. Run ...
+        2. Open ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs Actual
+      description: Describe expected behavior and what happened instead.
+    validations:
+      required: true
+  - type: checkboxes
+    id: compliance
+    attributes:
+      label: Compliance and Privacy Checks
+      options:
+        - label: No secrets or credentials are included.
+          required: true
+        - label: No PII is included (or all data is synthetic/redacted).
+          required: true
+        - label: Security/privacy impact has been assessed.
+          required: true

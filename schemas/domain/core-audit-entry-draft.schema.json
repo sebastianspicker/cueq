@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/core-audit-entry-draft.schema.json",
+  "title": "CoreAuditEntryDraftContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input", "output"],
+  "properties": {
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actorId", "action", "entityType", "entityId"],
+      "properties": {
+        "actorId": { "$ref": "./_defs/common.schema.json#/$defs/id" },
+        "action": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityId": { "$ref": "./_defs/common.schema.json#/$defs/id" },
+        "before": { "type": ["object", "array", "string", "number", "boolean", "null"] },
+        "after": { "type": ["object", "array", "string", "number", "boolean", "null"] },
+        "reason": { "type": ["string", "null"] }
+      }
+    },
+    "output": {
+      "$ref": "./audit-entry.schema.json"
+    }
+  }
+}

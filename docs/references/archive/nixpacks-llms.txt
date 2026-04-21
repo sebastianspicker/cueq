@@ -1,0 +1,15 @@
+# Nixpacks Reference for LLM Agents
+# ====================================
+#
+# Nixpacks is an option for building reproducible deployment artifacts.
+# This file will contain Nixpacks-specific context if it is selected
+# as part of the deployment strategy.
+#
+# Expected content:
+# - Nixpacks configuration patterns for Node.js/TypeScript
+# - Docker build optimization techniques
+# - Environment variable handling (no secrets in build)
+# - Multi-stage build patterns
+#
+# TODO: Populate if Nixpacks is chosen for deployment (see ADR-002: deployment strategy).
+# See: docs/RELIABILITY.md for deployment architecture.

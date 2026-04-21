@@ -1,7 +1,5 @@
-export function WebView(): JSX.Element {
-  return <div>web</div>;
-}
+import { redirect } from 'next/navigation';
 
-export function WebPanel(): JSX.Element {
-  return <section>web</section>;
+export default function Home() {
+  redirect('/de/dashboard');
 }

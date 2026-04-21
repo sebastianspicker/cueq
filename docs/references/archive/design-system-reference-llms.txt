@@ -1,0 +1,16 @@
+# Design System Reference for LLM Agents
+# ========================================
+#
+# This file provides context for AI coding agents about the design system
+# used in cueq's frontend. It will be populated once the tech stack is
+# finalized (see ADR-001).
+#
+# Expected content:
+# - Component library API reference
+# - Design tokens (colors, spacing, typography)
+# - Accessibility (WCAG) guidelines for the chosen framework
+# - Form patterns for time-entry and approval workflows
+# - i18n patterns (DE/EN)
+#
+# TODO: Populate after ADR-001 (tech stack decision) is merged.
+# See: docs/design-decisions/001-tech-stack.md

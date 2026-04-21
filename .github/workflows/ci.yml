@@ -1,27 +1,147 @@
-name: Main verification
+# cueq — Continuous Integration
+# ================================
+# Runs on every pull request and push to main.
+# Validates: lint, typecheck, tests, Prisma schema.
+
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  SKIP_DOCKER: 1
+  HUSKY: 0
+  DATABASE_URL: postgresql://cueq:cueq_ci_password@localhost:5432/cueq?schema=public
+
 jobs:
-  check_1_harness_validation:
-    name: "Harness Validation"
+  validate:
+    name: Harness Validation
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cueq
+          POSTGRES_USER: cueq
+          POSTGRES_PASSWORD: cueq_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cueq"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Verify checkout
-        run: git status --short
-  check_2_fresh_clone_smoke:
-    name: "Fresh Clone Smoke"
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Cache turbo
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: pnpm audit --prod --audit-level=high
+        continue-on-error: true
+
+      - name: Setup
+        run: make setup
+
+      - name: Check
+        run: make check
+
+      - name: Acceptance
+        run: make test-acceptance
+
+      - name: Accessibility Gate (critical/serious)
+        run: pnpm --filter @cueq/web test:acceptance --grep "a11y acceptance"
+
+      - name: Build
+        run: make build
+
+  dependency-review:
+    name: Dependency Review
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
-      - name: Verify checkout
-        run: git status --short
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: high
+
+  fresh-clone-smoke:
+    name: Fresh Clone Smoke
+    runs-on: ubuntu-latest
+    needs: validate
+    env:
+      NODE_ENV: test
+      SKIP_DOCKER: 1
+      HUSKY: 0
+      DATABASE_URL: postgresql://cueq:cueq_ci_password@localhost:5432/cueq?schema=public
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cueq
+          POSTGRES_USER: cueq
+          POSTGRES_PASSWORD: cueq_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cueq"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Fresh clone setup and check
+        run: |
+          make setup
+          make check

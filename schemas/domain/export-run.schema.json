@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/export-run.schema.json",
+  "title": "ExportRun",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "closingPeriodId",
+    "format",
+    "recordCount",
+    "checksum",
+    "exportedAt",
+    "exportedById"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "closingPeriodId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "format": {
+      "type": "string"
+    },
+    "recordCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "checksum": {
+      "type": "string"
+    },
+    "exportedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "exportedById": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cueq.dev/schemas/domain/roster.schema.json",
+  "title": "Roster",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "organizationUnitId", "periodStart", "periodEnd", "status"],
+  "properties": {
+    "id": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "organizationUnitId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
+    },
+    "periodStart": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "periodEnd": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "status": {
+      "enum": ["DRAFT", "PUBLISHED", "CLOSED"]
+    },
+    "publishedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "createdAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "updatedAt": {
+      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    }
+  }
+}
