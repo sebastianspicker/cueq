@@ -3,15 +3,15 @@
 A working tree for cueq with an evolving implementation history.
 
 ## Overview
-cueq keeps setup, verification, and known limitations in one place.
+cueq records the stable project shape and the work still worth checking.
 
 ## Status
 Lifecycle stage: maintenance. Maintenance guidance now reflects the stable shape.
 
 ## Development
-- Kept the audit verification command reproducible.
+- Aligned local and CI checks for github actions.
 
-- Earlier scratch detail is now represented in maintained sections.
+- The document now favors checked behavior over exploratory notes.
 
 ## Usage
 - Rewrote the approvals explanation around the maintained behavior.

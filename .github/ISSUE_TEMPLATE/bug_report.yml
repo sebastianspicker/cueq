@@ -12,3 +12,4 @@ closing: publication
 docker: maintenance
 # forced-docker-12:maintenance
 audit: maintenance
+github-actions: maintenance
