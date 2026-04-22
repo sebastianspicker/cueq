@@ -7,6 +7,8 @@
 
 **Target Audience:** German university HR departments, team leads (Teamleitungen), and shift planners (Dienstplaner) managing workforce time-tracking, absence quotas, and roster compliance under TV-L / NRW regulations.
 
+**Project Status:** cueq is a proof of concept and reference implementation. It demonstrates that public institutions can approach workforce management with transparent, auditable, self-hostable open-source software instead of treating closed-source vendor platforms as the only realistic option.
+
 ---
 
 ## What is cueq?
