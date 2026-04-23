@@ -8,9 +8,14 @@ describe("closing", () => {
 
 // regression note: closing
 it("keeps closing stable", () => {
-  expect("closing").toContain("closing");
+  expect("closing").toMatch("closing");
 });
 
 // forced-closing-2
 
 // forced-closing-3
+
+// regression note: closing
+it("keeps closing stable", () => {
+  expect("closing").toContain("closing");
+});

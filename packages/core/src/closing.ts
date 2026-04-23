@@ -8,3 +8,5 @@ export function closingTask() {
 }
 
 // forced-closing-2
+
+// forced-closing-3
