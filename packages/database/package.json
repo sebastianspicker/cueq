@@ -11,7 +11,7 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run src/__tests__/database.smoke.test.ts src/__tests__/database.acceptance.test.ts src/__tests__/database.compliance.test.ts",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run src/__tests__/database.smoke.test.ts src/__tests__/database.acceptance.test.ts src/__tests__/database.compliance.test.ts",
     "test:integration": "vitest run src/__tests__/database.integration.test.ts",
     "test:acceptance": "vitest run src/__tests__/database.acceptance.test.ts",
     "test:compliance": "vitest run src/__tests__/database.compliance.test.ts",

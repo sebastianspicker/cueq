@@ -1,6 +1,6 @@
 import { DEFAULT_LEAVE_RULE } from '@cueq/policy';
 import type { LeaveRule } from '@cueq/policy';
-import { parseDateOnly, parseDateOrDateTime } from '@cueq/shared';
+import { parseDateOrDateTime } from '@cueq/shared';
 import { roundToTwo } from '../utils';
 
 export interface LeaveQuotaInput {
@@ -49,9 +49,6 @@ export interface LeaveLedgerResult extends LeaveQuotaResult {
   currentYearUsedDays: number;
 }
 
-function monthOf(dateIso: string): number {
-  return parseDateOnly(dateIso).getUTCMonth() + 1;
-}
 
 function proRataFactor(year: number, entryDate?: string, exitDate?: string): number {
   return coveredMonthFactor(year, entryDate, exitDate);

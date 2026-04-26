@@ -13,6 +13,9 @@ import { PersonHelper } from './person.helper';
 import { AuditHelper } from './audit.helper';
 import { ClosingLockHelper } from './closing-lock.helper';
 
+const ROSTER_WRITE_ROLES: ReadonlySet<Role> = new Set([Role.SHIFT_PLANNER, Role.HR, Role.ADMIN]);
+const ROSTER_CROSS_OU_ROLES: ReadonlySet<Role> = new Set([Role.HR, Role.ADMIN]);
+
 @Injectable()
 export class RosterShiftHelper {
   constructor(
@@ -23,10 +26,10 @@ export class RosterShiftHelper {
   ) {}
 
   assertCanWriteRoster(user: AuthenticatedIdentity, actorOuId: string, rosterOuId: string) {
-    if (![Role.SHIFT_PLANNER, Role.HR, Role.ADMIN].includes(user.role)) {
+    if (!ROSTER_WRITE_ROLES.has(user.role)) {
       throw new ForbiddenException('Only shift planners, HR, or admins can modify rosters.');
     }
-    if (![Role.HR, Role.ADMIN].includes(user.role) && actorOuId !== rosterOuId) {
+    if (!ROSTER_CROSS_OU_ROLES.has(user.role) && actorOuId !== rosterOuId) {
       throw new ForbiddenException('Shift planners can only modify rosters in their own unit.');
     }
   }

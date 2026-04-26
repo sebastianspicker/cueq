@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BREAK_RULE, type BreakRule } from '../rules/break-rules';
 import { DEFAULT_LEAVE_RULE, LeaveRuleSchema, type LeaveRule } from '../rules/leave-rules';
-import { DEFAULT_REST_RULE } from '../rules/rest-rules';
-import { DEFAULT_MAX_HOURS_RULE } from '../rules/max-hours-rules';
 import { DEFAULT_SURCHARGE_RULE } from '../rules/surcharge-rules';
 import { getActivePolicyBundle, getPolicyHistory, type PolicyCatalogRule } from '../catalog';
 
