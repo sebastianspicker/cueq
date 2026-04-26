@@ -6,6 +6,7 @@ import {
   WorkflowStatus,
   WorkflowType,
 } from '@cueq/database';
+import { DEFAULT_MAX_HOURS_RULE, DEFAULT_REST_RULE } from '@cueq/policy';
 import { evaluatePlanVsActualCoverage, generateClosingChecklist } from '@cueq/core';
 import { PrismaService } from '../../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
@@ -15,6 +16,9 @@ import { PersonHelper } from './person.helper';
 import { CLOSING_READ_ROLES } from './role-constants';
 import { assignedPersonIdsForShift } from './roster-utils';
 import { closingBalanceAnomalyHours, closingBookingGapMinutes } from './closing-utils';
+
+const DEFAULT_MAX_DAILY_MINUTES = DEFAULT_MAX_HOURS_RULE.maxDailyHoursExtended * 60;
+const DEFAULT_MIN_REST_MINUTES = DEFAULT_REST_RULE.minRestHours * 60;
 
 @Injectable()
 export class ClosingChecklistHelper {
@@ -182,10 +186,7 @@ export class ClosingChecklistHelper {
         }
 
         const durationMinutes = (current.endTime.getTime() - current.startTime.getTime()) / 60000;
-        // TODO: The 10h daily max and 11h minimum rest thresholds are hardcoded
-        // per ArbZG defaults. These should be sourced from the policy system in
-        // a future iteration to support organisation-specific configurations.
-        if (durationMinutes > 10 * 60) {
+        if (durationMinutes > DEFAULT_MAX_DAILY_MINUTES) {
           ruleViolations += 1;
         }
 
@@ -198,7 +199,7 @@ export class ClosingChecklistHelper {
           const toLocalDate = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
           const previousDay = toLocalDate(previous.endTime);
           const currentDay = toLocalDate(current.startTime);
-          if (previousDay !== currentDay && gapMinutes > 0 && gapMinutes < 11 * 60) {
+          if (previousDay !== currentDay && gapMinutes > 0 && gapMinutes < DEFAULT_MIN_REST_MINUTES) {
             ruleViolations += 1;
           }
         }

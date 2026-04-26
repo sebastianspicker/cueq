@@ -276,14 +276,15 @@ describe('applyCutoffLock', () => {
     });
     expect(skipApproval.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
 
-    // APPROVED → OPEN (reopen from wrong state)
+    // APPROVED → OPEN (reopen is allowed for HR/Admin)
     const reopenFromApproved = applyCutoffLock({
       currentStatus: 'APPROVED',
       action: 'REOPEN',
       actorRole: 'HR',
       checklistHasErrors: false,
     });
-    expect(reopenFromApproved.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+    expect(reopenFromApproved.nextStatus).toBe('OPEN');
+    expect(reopenFromApproved.violations).toEqual([]);
   });
 
   it('blocks closing with pending workflow approvals via checklist integration', () => {

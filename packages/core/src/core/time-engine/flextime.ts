@@ -57,11 +57,11 @@ export function calculateFlextimeWeek(
     }
 
     const expectedBreak = requiredBreakMinutes(booking.workedHours, breakRule);
-    if ((booking.breakMinutes ?? 0) < expectedBreak) {
+    if (booking.breakMinutes !== undefined && booking.breakMinutes < expectedBreak) {
       violations.push(
         toViolation({
           code: 'BREAK_DEFICIT',
-          message: `Required break is ${expectedBreak} minutes, but only ${booking.breakMinutes ?? 0} minutes were recorded.`,
+          message: `Required break is ${expectedBreak} minutes, but only ${booking.breakMinutes} minutes were recorded.`,
           ruleId: breakRule.id,
           ruleName: breakRule.name,
           context: { day: booking.day, requiredBreakMinutes: expectedBreak },

@@ -4,6 +4,8 @@ This directory contains repository analysis snapshots and reconciliation artifac
 
 ## Archive
 
+- [Deep Audit Iteration Log (2026-04-26)](deep-audit-2026-04-26-iterations.md)
+- [Repository Audit (2026-04-26)](repo-audit-2026-04-26.md)
 - [2026-03 RC Snapshot](archive/2026-03-rc/)
 - [Repo Cleanup Closeout](repo-cleanup-closeout.md)
 
