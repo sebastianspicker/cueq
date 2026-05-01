@@ -293,6 +293,8 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     await expect(page.getByText('Settings saved.')).toBeVisible();
 
     await page.goto('http://localhost:3000/en/audit');
+    await expect(page.getByLabel('API base URL')).toHaveValue('/api');
+    await page.getByLabel('Bearer token').fill(hrToken);
     await page.getByRole('button', { name: 'Load audit summary' }).click();
     await expect(page.getByRole('heading', { name: 'Activity overview' })).toBeVisible();
   });
