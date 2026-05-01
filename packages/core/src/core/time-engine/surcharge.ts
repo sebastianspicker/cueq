@@ -68,14 +68,10 @@ export function localMinuteInfo(timestamp: number, formatter: Intl.DateTimeForma
   let hour = Number(byType.get('hour') ?? '0');
   const minute = Number(byType.get('minute') ?? '0');
 
-  // Intl.DateTimeFormat with hour12:false can return hour 24 for midnight.
-  // Normalize to hour 0 of the next day.
+  // Intl.DateTimeFormat can return hour 24 while already reporting the local date.
+  // Normalize only the hour; advancing the date would double-count the day rollover.
   if (hour === 24) {
     hour = 0;
-    const nextDay = new Date(Date.UTC(year, month - 1, day + 1));
-    year = nextDay.getUTCFullYear();
-    month = nextDay.getUTCMonth() + 1;
-    day = nextDay.getUTCDate();
   }
 
   const weekday = WEEKDAY_TO_INDEX[weekdayName];
