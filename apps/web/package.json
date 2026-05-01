@@ -22,9 +22,9 @@
   "dependencies": {
     "@cueq/shared": "workspace:*",
     "next": "^15.5.13",
-    "next-intl": "^4.4.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "next-intl": "^4.11.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "zod": "^3.24.0"
   },
   "devDependencies": {
