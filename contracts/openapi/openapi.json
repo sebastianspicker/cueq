@@ -1,0 +1,3304 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy"
+          }
+        },
+        "summary": "Health check",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "HealthController_readiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Authenticated readiness details"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Authenticated readiness and operations status",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/v1/audit-entries": {
+      "get": {
+        "description": "Returns a paginated, filterable list of audit entries. Access is restricted to HR, ADMIN, and DATA_PROTECTION roles.",
+        "operationId": "AuditController_listAuditEntries",
+        "parameters": [
+          {
+            "name": "take",
+            "required": false,
+            "in": "query",
+            "description": "Page size 1–200 (default: 50)",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "skip",
+            "required": false,
+            "in": "query",
+            "description": "Pagination offset (default: 0)",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": false,
+            "in": "query",
+            "description": "Entity ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "required": false,
+            "in": "query",
+            "description": "Actor person ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "description": "Entity type, e.g. Booking",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Exact action string, e.g. BOOKING_CREATED",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ISO 8601 end timestamp",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ISO 8601 start timestamp",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated audit entries matching the given filters"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Browse audit entries with optional filters",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "operationId": "MeController_getMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get current authenticated user profile",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/dashboard/me": {
+      "get": {
+        "operationId": "DashboardController_getDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get dashboard summary for the authenticated employee",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/v1/bookings/me": {
+      "get": {
+        "operationId": "BookingsController_listMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List bookings for the authenticated user",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/v1/bookings/{id}": {
+      "get": {
+        "operationId": "BookingsController_getById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a booking by ID",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/v1/bookings": {
+      "post": {
+        "operationId": "BookingsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create booking",
+        "tags": [
+          "bookings"
+        ]
+      }
+    },
+    "/v1/absences": {
+      "post": {
+        "operationId": "AbsencesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAbsenceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbsenceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create absence request",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/absences/prorated-target": {
+      "post": {
+        "operationId": "AbsencesController_proratedTarget",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Calculate prorated monthly target for part-time transitions",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/absences/me": {
+      "get": {
+        "operationId": "AbsencesController_listMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AbsenceDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List authenticated user absences",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/absences/{id}": {
+      "get": {
+        "operationId": "AbsencesController_getById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbsenceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get an absence by ID",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/absences/{id}/cancel": {
+      "post": {
+        "operationId": "AbsencesController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbsenceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel an existing absence request",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/persons/{id}": {
+      "get": {
+        "operationId": "PersonsController_getById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a person by ID (HR/Admin/managers only)",
+        "tags": [
+          "persons"
+        ]
+      }
+    },
+    "/v1/leave-balance/me": {
+      "get": {
+        "operationId": "LeaveBalanceController_getMe",
+        "parameters": [
+          {
+            "name": "year",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "asOfDate",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaveBalanceDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get leave balance for the authenticated user",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/leave-adjustments": {
+      "post": {
+        "operationId": "LeaveAdjustmentsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeaveAdjustmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaveAdjustmentDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create HR leave adjustment",
+        "tags": [
+          "absences"
+        ]
+      },
+      "get": {
+        "operationId": "LeaveAdjustmentsController_list",
+        "parameters": [
+          {
+            "name": "year",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "personId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LeaveAdjustmentDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List leave adjustments",
+        "tags": [
+          "absences"
+        ]
+      }
+    },
+    "/v1/calendar/team": {
+      "get": {
+        "operationId": "CalendarController_teamCalendar",
+        "parameters": [
+          {
+            "name": "end",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TeamCalendarEntryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get team absence calendar with role-based redaction",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/v1/workflows/booking-corrections": {
+      "post": {
+        "operationId": "WorkflowsController_createCorrection",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create booking correction workflow request",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/shift-swaps": {
+      "post": {
+        "operationId": "WorkflowsController_createShiftSwap",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create shift swap workflow request",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/overtime-approvals": {
+      "post": {
+        "operationId": "WorkflowsController_createOvertimeApproval",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create overtime approval workflow request",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/inbox": {
+      "get": {
+        "operationId": "WorkflowsController_inbox",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List workflow inbox for authenticated approver/requester",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/policies": {
+      "get": {
+        "operationId": "WorkflowsController_policies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List active workflow policies (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/policies/{type}": {
+      "get": {
+        "operationId": "WorkflowsController_policy",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get active policy for a workflow type (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      },
+      "put": {
+        "operationId": "WorkflowsController_upsertPolicy",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create new policy version for a workflow type (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/policies/{type}/history": {
+      "get": {
+        "operationId": "WorkflowsController_policyHistory",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List policy version history for a workflow type (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/delegations": {
+      "get": {
+        "operationId": "WorkflowsController_delegations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List workflow delegation rules (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      },
+      "post": {
+        "operationId": "WorkflowsController_createDelegation",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create workflow delegation rule (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/delegations/{id}": {
+      "patch": {
+        "operationId": "WorkflowsController_updateDelegation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update workflow delegation rule (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      },
+      "delete": {
+        "operationId": "WorkflowsController_deleteDelegation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete workflow delegation rule (HR/Admin)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/{id}": {
+      "get": {
+        "operationId": "WorkflowsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get workflow detail",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/workflows/{id}/decision": {
+      "post": {
+        "operationId": "WorkflowsController_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Apply workflow action (approve/reject/delegate/cancel)",
+        "tags": [
+          "workflows"
+        ]
+      }
+    },
+    "/v1/rosters": {
+      "post": {
+        "operationId": "RostersController_createRoster",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/current": {
+      "get": {
+        "operationId": "RostersController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get currently active roster for authenticated user organization unit",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}": {
+      "get": {
+        "operationId": "RostersController_byId",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get roster detail with shifts and assignments",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts": {
+      "post": {
+        "operationId": "RostersController_createShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts/{shiftId}": {
+      "patch": {
+        "operationId": "RostersController_updateShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      },
+      "delete": {
+        "operationId": "RostersController_deleteShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete shift from draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts/{shiftId}/assignments": {
+      "post": {
+        "operationId": "RostersController_assignShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign person to shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts/{shiftId}/assignments/{assignmentId}": {
+      "delete": {
+        "operationId": "RostersController_unassignShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assignmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove person assignment from shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/publish": {
+      "post": {
+        "operationId": "RostersController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Publish draft roster after min-staffing checks",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/plan-vs-actual": {
+      "get": {
+        "operationId": "RostersController_planVsActual",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Compute plan-vs-actual compliance for roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/oncall/rotations": {
+      "post": {
+        "operationId": "OncallController_createRotation",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create on-call rotation entry",
+        "tags": [
+          "oncall"
+        ]
+      },
+      "get": {
+        "operationId": "OncallController_listRotations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List on-call rotations",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/oncall/rotations/{id}": {
+      "patch": {
+        "operationId": "OncallController_updateRotation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update on-call rotation entry",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/oncall/deployments": {
+      "post": {
+        "operationId": "OncallController_createDeployment",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create on-call deployment entry",
+        "tags": [
+          "oncall"
+        ]
+      },
+      "get": {
+        "operationId": "OncallController_listDeployments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List on-call deployments",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/oncall/compliance": {
+      "get": {
+        "operationId": "OncallController_compliance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Evaluate on-call rest compliance",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/closing-periods": {
+      "get": {
+        "operationId": "ClosingController_list",
+        "parameters": [
+          {
+            "name": "organizationUnitId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List closing periods",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}": {
+      "get": {
+        "operationId": "ClosingController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get closing period details",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/start-review": {
+      "post": {
+        "operationId": "ClosingController_startReview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Transition closing period from open to review (manual emergency override, admin-only when enabled)",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/lead-approve": {
+      "post": {
+        "operationId": "ClosingController_leadApprove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Record team-lead sign-off for closing period",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/checklist": {
+      "get": {
+        "operationId": "ClosingController_checklist",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate checklist for closing period",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/approve": {
+      "post": {
+        "operationId": "ClosingController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Approve closing period",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/export": {
+      "post": {
+        "operationId": "ClosingController_exportRun",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "CSV_V1",
+                      "XML_V1"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClosingExportResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export closing period run with deterministic CSV checksum",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{closingPeriodId}/export-runs/{runId}/csv": {
+      "get": {
+        "operationId": "ClosingController_downloadCsv",
+        "parameters": [
+          {
+            "name": "closingPeriodId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Download canonical payroll CSV artifact for an export run",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{closingPeriodId}/export-runs/{runId}/artifact": {
+      "get": {
+        "operationId": "ClosingController_downloadArtifact",
+        "parameters": [
+          {
+            "name": "closingPeriodId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Download canonical payroll export artifact for an export run",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/post-close-corrections": {
+      "post": {
+        "operationId": "ClosingController_postCloseCorrection",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create post-close correction workflow",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/corrections/bookings": {
+      "post": {
+        "operationId": "ClosingController_applyBookingCorrection",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workflowId",
+                  "personId",
+                  "timeTypeId",
+                  "startTime",
+                  "endTime",
+                  "reason"
+                ],
+                "properties": {
+                  "workflowId": {
+                    "type": "string"
+                  },
+                  "personId": {
+                    "type": "string"
+                  },
+                  "timeTypeId": {
+                    "type": "string"
+                  },
+                  "startTime": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endTime": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Apply approved post-close booking correction (HR/Admin only)",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/closing-periods/{id}/reopen": {
+      "post": {
+        "operationId": "ClosingController_reopen",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Re-open closing period from review state (HR only)",
+        "tags": [
+          "closing"
+        ]
+      }
+    },
+    "/v1/terminal/sync/batches": {
+      "post": {
+        "operationId": "TerminalSyncController_importBatch",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import terminal offline-sync batch (CSV adapter v0)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/sync/batches/file": {
+      "post": {
+        "operationId": "TerminalSyncController_importBatchFile",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import terminal offline-sync file batch (HONEYWELL_CSV_V1)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/sync/batches/{id}": {
+      "get": {
+        "operationId": "TerminalSyncController_getBatch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get imported terminal batch by id",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/heartbeats": {
+      "post": {
+        "operationId": "TerminalIntegrationController_recordHeartbeat",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Record terminal heartbeat (integration token required)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/health": {
+      "get": {
+        "operationId": "TerminalIntegrationController_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read terminal health snapshot (integration token required)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/hr/import-runs": {
+      "post": {
+        "operationId": "HrImportController_runImport",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Run HR master data import (file/API, integration token required)",
+        "tags": [
+          "hr-import"
+        ]
+      }
+    },
+    "/v1/hr/import-runs/{id}": {
+      "get": {
+        "operationId": "HrImportController_getImportRun",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get HR import run by id (integration token required)",
+        "tags": [
+          "hr-import"
+        ]
+      }
+    },
+    "/v1/policies": {
+      "get": {
+        "operationId": "PoliciesController_bundle",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Resolve active policy bundle for a given date",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/v1/policies/history": {
+      "get": {
+        "operationId": "PoliciesController_history",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List policy catalog history entries",
+        "tags": [
+          "policy"
+        ]
+      }
+    },
+    "/v1/integrations/webhooks/endpoints": {
+      "post": {
+        "operationId": "IntegrationsController_createEndpoint",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Register a webhook endpoint",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "get": {
+        "operationId": "IntegrationsController_listEndpoints",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List webhook endpoints",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/events/outbox": {
+      "get": {
+        "operationId": "IntegrationsController_outbox",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List outbox domain events",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/webhooks/dispatch": {
+      "post": {
+        "operationId": "IntegrationsController_dispatch",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Dispatch pending outbox events to subscribed endpoints",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/webhooks/deliveries": {
+      "get": {
+        "operationId": "IntegrationsController_deliveries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List webhook delivery attempts",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/reports/team-absence": {
+      "get": {
+        "operationId": "ReportsController_teamAbsence",
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationUnitId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamAbsenceReportDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Team absence report with privacy suppression guardrails",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/oe-overtime": {
+      "get": {
+        "operationId": "ReportsController_oeOvertime",
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationUnitId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OeOvertimeReportDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Organization-unit overtime report with privacy suppression guardrails",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/closing-completion": {
+      "get": {
+        "operationId": "ReportsController_closingCompletion",
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClosingCompletionReportDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Closing completion report by status",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/audit-summary": {
+      "get": {
+        "operationId": "ReportsController_auditSummary",
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditSummaryReportDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Aggregate audit activity summary for reporting period",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/compliance-summary": {
+      "get": {
+        "operationId": "ReportsController_complianceSummary",
+        "parameters": [
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceSummaryReportDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Aggregate compliance and privacy summary for reporting period",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/custom/options": {
+      "get": {
+        "operationId": "ReportsController_customOptions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List whitelisted custom report builder options",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/custom/preview": {
+      "get": {
+        "operationId": "ReportsController_customPreview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Preview custom report builder output (aggregate only)",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/time-engine/evaluate": {
+      "post": {
+        "operationId": "TimeEngineController_evaluate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Evaluate time rules (break, rest, max-hours, surcharges)",
+        "tags": [
+          "time-engine"
+        ]
+      }
+    },
+    "/v1/time-thresholds": {
+      "get": {
+        "operationId": "TimeThresholdsController_getThresholds",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get active ArbZG time thresholds (HR/Admin)",
+        "tags": [
+          "time-thresholds"
+        ]
+      },
+      "put": {
+        "operationId": "TimeThresholdsController_upsertThresholds",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upsert ArbZG time thresholds — creates a new policy version (HR/Admin)",
+        "tags": [
+          "time-thresholds"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "cueq API",
+    "description": "Integrated time-tracking, absence-management, and shift-planning API for a German university (NRW / TV-L)",
+    "version": "0.0.1",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Health check endpoints"
+    },
+    {
+      "name": "auth",
+      "description": "Authentication and identity endpoints"
+    },
+    {
+      "name": "dashboard",
+      "description": "Employee dashboard endpoints"
+    },
+    {
+      "name": "bookings",
+      "description": "Time booking endpoints"
+    },
+    {
+      "name": "absences",
+      "description": "Absence and leave endpoints"
+    },
+    {
+      "name": "calendar",
+      "description": "Team calendar endpoints"
+    },
+    {
+      "name": "roster",
+      "description": "Shift planning endpoints"
+    },
+    {
+      "name": "workflows",
+      "description": "Approval workflow endpoints"
+    },
+    {
+      "name": "oncall",
+      "description": "On-call deployments and compliance endpoints"
+    },
+    {
+      "name": "closing",
+      "description": "Monthly closing endpoints"
+    },
+    {
+      "name": "terminal-sync",
+      "description": "Terminal offline sync endpoints"
+    },
+    {
+      "name": "hr-import",
+      "description": "HR master data import endpoints"
+    },
+    {
+      "name": "policy",
+      "description": "Policy catalog and introspection endpoints"
+    },
+    {
+      "name": "time-engine",
+      "description": "Rule evaluation endpoints for breaks, rest, max-hours, and surcharges"
+    },
+    {
+      "name": "integrations",
+      "description": "Event outbox and webhook delivery endpoints"
+    },
+    {
+      "name": "reports",
+      "description": "Privacy-preserving aggregated reporting endpoints"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "CreateAbsenceDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ANNUAL_LEAVE",
+              "SICK",
+              "SPECIAL_LEAVE",
+              "TRAINING",
+              "TRAVEL",
+              "COMP_TIME",
+              "FLEX_DAY",
+              "UNPAID",
+              "PARENTAL"
+            ]
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "personId",
+          "type",
+          "startDate",
+          "endDate"
+        ]
+      },
+      "AbsenceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ANNUAL_LEAVE",
+              "SICK",
+              "SPECIAL_LEAVE",
+              "TRAINING",
+              "TRAVEL",
+              "COMP_TIME",
+              "FLEX_DAY",
+              "UNPAID",
+              "PARENTAL"
+            ]
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "days": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "APPROVED",
+              "REJECTED",
+              "CANCELLED"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "type",
+          "startDate",
+          "endDate",
+          "days",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "LeaveBalanceDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "asOfDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "entitlement": {
+            "type": "number"
+          },
+          "used": {
+            "type": "number"
+          },
+          "remaining": {
+            "type": "number"
+          },
+          "carriedOver": {
+            "type": "number"
+          },
+          "carriedOverUsed": {
+            "type": "number"
+          },
+          "forfeited": {
+            "type": "number"
+          },
+          "adjustments": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "personId",
+          "year",
+          "asOfDate",
+          "entitlement",
+          "used",
+          "remaining",
+          "carriedOver",
+          "carriedOverUsed",
+          "forfeited",
+          "adjustments"
+        ]
+      },
+      "CreateLeaveAdjustmentDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "deltaDays": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "personId",
+          "year",
+          "deltaDays",
+          "reason"
+        ]
+      },
+      "LeaveAdjustmentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "deltaDays": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "year",
+          "deltaDays",
+          "reason",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "TeamCalendarEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "APPROVED",
+              "REJECTED",
+              "CANCELLED"
+            ]
+          },
+          "visibilityStatus": {
+            "type": "string",
+            "enum": [
+              "ABSENT"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ANNUAL_LEAVE",
+              "SICK",
+              "SPECIAL_LEAVE",
+              "TRAINING",
+              "TRAVEL",
+              "COMP_TIME",
+              "FLEX_DAY",
+              "UNPAID",
+              "PARENTAL"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "personName",
+          "startDate",
+          "endDate",
+          "status",
+          "visibilityStatus"
+        ]
+      },
+      "ExportRunDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "closingPeriodId": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "recordCount": {
+            "type": "number"
+          },
+          "checksum": {
+            "type": "string"
+          },
+          "artifact": {
+            "type": "string",
+            "nullable": true
+          },
+          "contentType": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "exportedById": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "closingPeriodId",
+          "format",
+          "recordCount",
+          "checksum",
+          "exportedAt",
+          "exportedById"
+        ]
+      },
+      "PayrollCsvRowDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "targetHours": {
+            "type": "number"
+          },
+          "actualHours": {
+            "type": "number"
+          },
+          "balance": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "personId",
+          "targetHours",
+          "actualHours",
+          "balance"
+        ]
+      },
+      "ClosingExportResponseDto": {
+        "type": "object",
+        "properties": {
+          "exportRun": {
+            "$ref": "#/components/schemas/ExportRunDto"
+          },
+          "checksum": {
+            "type": "string"
+          },
+          "csv": {
+            "type": "string",
+            "nullable": true
+          },
+          "artifact": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollCsvRowDto"
+            }
+          }
+        },
+        "required": [
+          "exportRun",
+          "checksum",
+          "artifact",
+          "contentType",
+          "rows"
+        ]
+      },
+      "ReportSuppressionDto": {
+        "type": "object",
+        "properties": {
+          "suppressed": {
+            "type": "boolean"
+          },
+          "minGroupSize": {
+            "type": "number"
+          },
+          "population": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "suppressed",
+          "minGroupSize",
+          "population"
+        ]
+      },
+      "TeamAbsenceTotalsDto": {
+        "type": "object",
+        "properties": {
+          "requests": {
+            "type": "number"
+          },
+          "days": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "requests",
+          "days"
+        ]
+      },
+      "TeamAbsenceBucketDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "days": {
+            "type": "number"
+          },
+          "requests": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "type",
+          "days",
+          "requests"
+        ]
+      },
+      "TeamAbsenceReportDto": {
+        "type": "object",
+        "properties": {
+          "organizationUnitId": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "suppression": {
+            "$ref": "#/components/schemas/ReportSuppressionDto"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TeamAbsenceTotalsDto"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamAbsenceBucketDto"
+            }
+          }
+        },
+        "required": [
+          "organizationUnitId",
+          "from",
+          "to",
+          "suppression",
+          "totals",
+          "buckets"
+        ]
+      },
+      "OeOvertimeTotalsDto": {
+        "type": "object",
+        "properties": {
+          "people": {
+            "type": "number"
+          },
+          "totalBalanceHours": {
+            "type": "number"
+          },
+          "totalOvertimeHours": {
+            "type": "number"
+          },
+          "avgBalanceHours": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "people",
+          "totalBalanceHours",
+          "totalOvertimeHours",
+          "avgBalanceHours"
+        ]
+      },
+      "OeOvertimeReportDto": {
+        "type": "object",
+        "properties": {
+          "organizationUnitId": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "suppression": {
+            "$ref": "#/components/schemas/ReportSuppressionDto"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/OeOvertimeTotalsDto"
+          }
+        },
+        "required": [
+          "organizationUnitId",
+          "from",
+          "to",
+          "suppression",
+          "totals"
+        ]
+      },
+      "ClosingCompletionTotalsDto": {
+        "type": "object",
+        "properties": {
+          "periods": {
+            "type": "number"
+          },
+          "exported": {
+            "type": "number"
+          },
+          "closed": {
+            "type": "number"
+          },
+          "review": {
+            "type": "number"
+          },
+          "open": {
+            "type": "number"
+          },
+          "completionRate": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "periods",
+          "exported",
+          "closed",
+          "review",
+          "open",
+          "completionRate"
+        ]
+      },
+      "ClosingCompletionReportDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "organizationUnitId": {
+            "type": "string",
+            "nullable": true
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ClosingCompletionTotalsDto"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "totals"
+        ]
+      },
+      "AuditSummaryTotalsDto": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "number"
+          },
+          "uniqueActors": {
+            "type": "number"
+          },
+          "reportAccesses": {
+            "type": "number"
+          },
+          "exportsTriggered": {
+            "type": "number"
+          },
+          "lockBlocks": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "entries",
+          "uniqueActors",
+          "reportAccesses",
+          "exportsTriggered",
+          "lockBlocks"
+        ]
+      },
+      "ReportActionCountDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "action",
+          "count"
+        ]
+      },
+      "ReportEntityTypeCountDto": {
+        "type": "object",
+        "properties": {
+          "entityType": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "entityType",
+          "count"
+        ]
+      },
+      "AuditSummaryReportDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/AuditSummaryTotalsDto"
+          },
+          "byAction": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportActionCountDto"
+            }
+          },
+          "byEntityType": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportEntityTypeCountDto"
+            }
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "totals",
+          "byAction",
+          "byEntityType"
+        ]
+      },
+      "CompliancePrivacySummaryDto": {
+        "type": "object",
+        "properties": {
+          "minGroupSize": {
+            "type": "number"
+          },
+          "reportAccesses": {
+            "type": "number"
+          },
+          "suppressedReportAccesses": {
+            "type": "number"
+          },
+          "suppressionRate": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "minGroupSize",
+          "reportAccesses",
+          "suppressedReportAccesses",
+          "suppressionRate"
+        ]
+      },
+      "ComplianceClosingSummaryDto": {
+        "type": "object",
+        "properties": {
+          "periods": {
+            "type": "number"
+          },
+          "exported": {
+            "type": "number"
+          },
+          "completionRate": {
+            "type": "number"
+          },
+          "lockBlocks": {
+            "type": "number"
+          },
+          "postCloseCorrections": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "periods",
+          "exported",
+          "completionRate",
+          "lockBlocks",
+          "postCloseCorrections"
+        ]
+      },
+      "CompliancePayrollExportSummaryDto": {
+        "type": "object",
+        "properties": {
+          "runs": {
+            "type": "number"
+          },
+          "uniqueChecksums": {
+            "type": "number"
+          },
+          "duplicateChecksums": {
+            "type": "number"
+          },
+          "lastRunAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "runs",
+          "uniqueChecksums",
+          "duplicateChecksums"
+        ]
+      },
+      "ComplianceOperationsSummaryDto": {
+        "type": "object",
+        "properties": {
+          "lastBackupRestoreVerifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "ComplianceSummaryReportDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "privacy": {
+            "$ref": "#/components/schemas/CompliancePrivacySummaryDto"
+          },
+          "closing": {
+            "$ref": "#/components/schemas/ComplianceClosingSummaryDto"
+          },
+          "payrollExport": {
+            "$ref": "#/components/schemas/CompliancePayrollExportSummaryDto"
+          },
+          "operations": {
+            "$ref": "#/components/schemas/ComplianceOperationsSummaryDto"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "privacy",
+          "closing",
+          "payrollExport",
+          "operations"
+        ]
+      }
+    }
+  }
+}
