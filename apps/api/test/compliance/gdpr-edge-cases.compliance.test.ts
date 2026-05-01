@@ -217,8 +217,8 @@ describe('GDPR compliance edge cases (P6.2)', () => {
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
       // Employee has the right to see their own absence type
-      const myAbsence = res.body.find(
-        (a: { startDate: string }) => a.startDate.startsWith('2026-07-14'),
+      const myAbsence = res.body.find((a: { startDate: string }) =>
+        a.startDate.startsWith('2026-07-14'),
       );
       if (myAbsence) {
         expect(myAbsence.type).toBe('ANNUAL_LEAVE');

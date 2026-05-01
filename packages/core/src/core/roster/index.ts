@@ -321,16 +321,18 @@ export function evaluatePlanVsActualCoverage(
     (slot) => slot.actualHeadcount < slot.minStaffing,
   ).length;
 
-  const totalPlannedMinutes = slotResults.reduce((sum, s) => sum + s.plannedDurationMinutes * s.plannedHeadcount, 0);
+  const totalPlannedMinutes = slotResults.reduce(
+    (sum, s) => sum + s.plannedDurationMinutes * s.plannedHeadcount,
+    0,
+  );
   const totalActualMinutes = slotResults.reduce((sum, s) => sum + s.actualCoveredMinutes, 0);
 
   return {
     ...summary,
     understaffedSlots,
     coverageRate: roundToTwo((slotResults.length - understaffedSlots) / slotResults.length),
-    durationCoverageRate: totalPlannedMinutes > 0
-      ? roundToTwo(totalActualMinutes / totalPlannedMinutes)
-      : 1,
+    durationCoverageRate:
+      totalPlannedMinutes > 0 ? roundToTwo(totalActualMinutes / totalPlannedMinutes) : 1,
     slots: slotResults,
   };
 }

@@ -16,17 +16,24 @@ import {
 describe('toClosingActorRole', () => {
   it('maps HR → HR', () => expect(toClosingActorRole(Role.HR)).toBe('HR'));
   it('maps ADMIN → ADMIN', () => expect(toClosingActorRole(Role.ADMIN)).toBe('ADMIN'));
-  it('maps TEAM_LEAD → TEAM_LEAD', () => expect(toClosingActorRole(Role.TEAM_LEAD)).toBe('TEAM_LEAD'));
-  it('maps EMPLOYEE → EMPLOYEE (fallback)', () => expect(toClosingActorRole(Role.EMPLOYEE)).toBe('EMPLOYEE'));
-  it('maps SHIFT_PLANNER → EMPLOYEE (safe default)', () => expect(toClosingActorRole(Role.SHIFT_PLANNER)).toBe('EMPLOYEE'));
-  it('maps PAYROLL → EMPLOYEE (safe default)', () => expect(toClosingActorRole(Role.PAYROLL)).toBe('EMPLOYEE'));
+  it('maps TEAM_LEAD → TEAM_LEAD', () =>
+    expect(toClosingActorRole(Role.TEAM_LEAD)).toBe('TEAM_LEAD'));
+  it('maps EMPLOYEE → EMPLOYEE (fallback)', () =>
+    expect(toClosingActorRole(Role.EMPLOYEE)).toBe('EMPLOYEE'));
+  it('maps SHIFT_PLANNER → EMPLOYEE (safe default)', () =>
+    expect(toClosingActorRole(Role.SHIFT_PLANNER)).toBe('EMPLOYEE'));
+  it('maps PAYROLL → EMPLOYEE (safe default)', () =>
+    expect(toClosingActorRole(Role.PAYROLL)).toBe('EMPLOYEE'));
 });
 
 describe('toPersistenceClosingStatus', () => {
-  it('maps APPROVED → CLOSED', () => expect(toPersistenceClosingStatus('APPROVED')).toBe(ClosingStatus.CLOSED));
+  it('maps APPROVED → CLOSED', () =>
+    expect(toPersistenceClosingStatus('APPROVED')).toBe(ClosingStatus.CLOSED));
   it('maps OPEN → OPEN', () => expect(toPersistenceClosingStatus('OPEN')).toBe(ClosingStatus.OPEN));
-  it('maps REVIEW → REVIEW', () => expect(toPersistenceClosingStatus('REVIEW')).toBe(ClosingStatus.REVIEW));
-  it('maps EXPORTED → EXPORTED', () => expect(toPersistenceClosingStatus('EXPORTED')).toBe(ClosingStatus.EXPORTED));
+  it('maps REVIEW → REVIEW', () =>
+    expect(toPersistenceClosingStatus('REVIEW')).toBe(ClosingStatus.REVIEW));
+  it('maps EXPORTED → EXPORTED', () =>
+    expect(toPersistenceClosingStatus('EXPORTED')).toBe(ClosingStatus.EXPORTED));
 });
 
 describe('escapeXml', () => {

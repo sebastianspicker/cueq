@@ -92,9 +92,7 @@ export default function AuditPage() {
       params.set('skip', String(skip));
       params.set('take', String(pageSize));
 
-      const result = await apiRequest<AuditEntriesResult>(
-        `/v1/audit-entries?${params.toString()}`,
-      );
+      const result = await apiRequest<AuditEntriesResult>(`/v1/audit-entries?${params.toString()}`);
       setEntries(skip === 0 ? result.items : (prev) => [...prev, ...result.items]);
       setEntriesTotal(result.total);
       setEntriesSkip(skip + result.items.length);
@@ -241,20 +239,24 @@ export default function AuditPage() {
           {entriesLoading ? t('loading') : t('loadEntries')}
         </button>
 
-        {entriesTotal !== null && (
-          <p>{t('totalEntries', { count: entriesTotal })}</p>
-        )}
+        {entriesTotal !== null && <p>{t('totalEntries', { count: entriesTotal })}</p>}
 
         {entries.length > 0 ? (
           <>
             <ul className="cq-list-stack">
               {entries.map((entry) => (
-                <li key={entry.id} className="cq-list-item" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                <li
+                  key={entry.id}
+                  className="cq-list-item"
+                  style={{ flexDirection: 'column', alignItems: 'flex-start' }}
+                >
                   <span>
-                    <strong>{entry.action}</strong> — {entry.entityType} <code>{entry.entityId.slice(0, 8)}…</code>
+                    <strong>{entry.action}</strong> — {entry.entityType}{' '}
+                    <code>{entry.entityId.slice(0, 8)}…</code>
                   </span>
                   <span style={{ fontSize: '0.85em', color: 'var(--cq-text-muted, #666)' }}>
-                    {t('entryTimestamp')}: {new Date(entry.timestamp).toLocaleString()} &nbsp;|&nbsp;
+                    {t('entryTimestamp')}: {new Date(entry.timestamp).toLocaleString()}{' '}
+                    &nbsp;|&nbsp;
                     {t('entryActorId')}: <code>{entry.actorId.slice(0, 8)}…</code>
                     {entry.reason ? ` | ${t('entryReason')}: ${entry.reason}` : ''}
                   </span>

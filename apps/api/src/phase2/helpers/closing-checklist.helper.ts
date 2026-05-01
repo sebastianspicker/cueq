@@ -200,7 +200,11 @@ export class ClosingChecklistHelper {
             d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
           const previousDay = toLocalDate(previous.endTime);
           const currentDay = toLocalDate(current.startTime);
-          if (previousDay !== currentDay && gapMinutes > 0 && gapMinutes < timeThresholds.minRestMinutes) {
+          if (
+            previousDay !== currentDay &&
+            gapMinutes > 0 &&
+            gapMinutes < timeThresholds.minRestMinutes
+          ) {
             ruleViolations += 1;
           }
         }

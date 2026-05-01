@@ -25,7 +25,9 @@ export class TimeThresholdsController {
   }
 
   @Put()
-  @ApiOperation({ summary: 'Upsert ArbZG time thresholds — creates a new policy version (HR/Admin)' })
+  @ApiOperation({
+    summary: 'Upsert ArbZG time thresholds — creates a new policy version (HR/Admin)',
+  })
   upsertThresholds(
     @CurrentUser() _user: AuthenticatedIdentity,
     @Body(new ZodValidationPipe(TimeThresholdsUpsertSchema)) payload: unknown,

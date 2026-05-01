@@ -134,7 +134,11 @@ describe('Button', () => {
 
   it('does not fire onClick when disabled', async () => {
     const handler = vi.fn();
-    render(<Button disabled onClick={handler}>Nope</Button>);
+    render(
+      <Button disabled onClick={handler}>
+        Nope
+      </Button>,
+    );
     await userEvent.click(screen.getByRole('button'));
     expect(handler).not.toHaveBeenCalled();
   });
@@ -187,9 +191,7 @@ describe('EmptyState', () => {
 // ---------------------------------------------------------------------------
 describe('Pagination', () => {
   it('renders nothing when totalPages <= 1', () => {
-    const { container } = render(
-      <Pagination page={1} totalPages={1} onPageChange={vi.fn()} />,
-    );
+    const { container } = render(<Pagination page={1} totalPages={1} onPageChange={vi.fn()} />);
     expect(container.firstChild).toBeNull();
   });
 

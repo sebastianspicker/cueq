@@ -43,32 +43,26 @@ describe('assertHrLikeRole', () => {
 
 describe('assertCanActForPerson', () => {
   it('allows any role when actor and target are the same person', () => {
-    expect(() =>
-      assertCanActForPerson(makeUser(Role.EMPLOYEE, 'p1'), 'p1', 'p1'),
-    ).not.toThrow();
+    expect(() => assertCanActForPerson(makeUser(Role.EMPLOYEE, 'p1'), 'p1', 'p1')).not.toThrow();
   });
 
   it('allows HR to act cross-person', () => {
-    expect(() =>
-      assertCanActForPerson(makeUser(Role.HR, 'p1'), 'p1', 'p2'),
-    ).not.toThrow();
+    expect(() => assertCanActForPerson(makeUser(Role.HR, 'p1'), 'p1', 'p2')).not.toThrow();
   });
 
   it('allows ADMIN to act cross-person', () => {
-    expect(() =>
-      assertCanActForPerson(makeUser(Role.ADMIN, 'p1'), 'p1', 'p2'),
-    ).not.toThrow();
+    expect(() => assertCanActForPerson(makeUser(Role.ADMIN, 'p1'), 'p1', 'p2')).not.toThrow();
   });
 
   it('throws ForbiddenException when EMPLOYEE tries to act for another person', () => {
-    expect(() =>
-      assertCanActForPerson(makeUser(Role.EMPLOYEE, 'p1'), 'p1', 'p2'),
-    ).toThrow(ForbiddenException);
+    expect(() => assertCanActForPerson(makeUser(Role.EMPLOYEE, 'p1'), 'p1', 'p2')).toThrow(
+      ForbiddenException,
+    );
   });
 
   it('throws ForbiddenException when TEAM_LEAD tries to act for another person', () => {
-    expect(() =>
-      assertCanActForPerson(makeUser(Role.TEAM_LEAD, 'p1'), 'p1', 'p2'),
-    ).toThrow(ForbiddenException);
+    expect(() => assertCanActForPerson(makeUser(Role.TEAM_LEAD, 'p1'), 'p1', 'p2')).toThrow(
+      ForbiddenException,
+    );
   });
 });

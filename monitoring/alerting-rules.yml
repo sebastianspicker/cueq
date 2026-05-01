@@ -17,8 +17,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "cueq API error rate > 1 %"
-          description: "HTTP 5xx rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+          summary: 'cueq API error rate > 1 %'
+          description: 'HTTP 5xx rate is {{ $value | humanizePercentage }} over the last 5 minutes.'
 
       # ── Latency ───────────────────────────────────────────────────────────
       - alert: ApiHighP99Latency
@@ -31,8 +31,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "cueq API p99 latency > 2 s"
-          description: "p99 response time is {{ $value | humanizeDuration }}."
+          summary: 'cueq API p99 latency > 2 s'
+          description: 'p99 response time is {{ $value | humanizeDuration }}.'
 
       # ── Health endpoint ───────────────────────────────────────────────────
       - alert: ApiHealthEndpointDown
@@ -41,8 +41,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "cueq API health endpoint unreachable"
-          description: "Prometheus cannot scrape {{ $labels.instance }}. Check the API process."
+          summary: 'cueq API health endpoint unreachable'
+          description: 'Prometheus cannot scrape {{ $labels.instance }}. Check the API process.'
 
   - name: cueq.audit
     rules:
@@ -57,8 +57,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "No audit entries written in 30 min"
-          description: "The audit trail has not received any new entries for 30 minutes during business hours. Investigate potential data-loss or service downtime."
+          summary: 'No audit entries written in 30 min'
+          description: 'The audit trail has not received any new entries for 30 minutes during business hours. Investigate potential data-loss or service downtime.'
 
   - name: cueq.terminal
     rules:
@@ -69,5 +69,5 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Terminal {{ $labels.terminal_id }} missed heartbeat"
-          description: "No heartbeat from terminal {{ $labels.terminal_id }} for > 5 minutes."
+          summary: 'Terminal {{ $labels.terminal_id }} missed heartbeat'
+          description: 'No heartbeat from terminal {{ $labels.terminal_id }} for > 5 minutes.'
