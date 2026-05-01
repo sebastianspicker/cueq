@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: cueq
+    orgId: 1
+    folder: cueq
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

@@ -41,10 +41,10 @@ export class AbsenceDto {
   @ApiProperty({ type: String, enum: ABSENCE_TYPES })
   type!: (typeof ABSENCE_TYPES)[number];
 
-  @ApiProperty({ type: String, format: 'date-time' })
+  @ApiProperty({ type: String, format: 'date' })
   startDate!: string;
 
-  @ApiProperty({ type: String, format: 'date-time' })
+  @ApiProperty({ type: String, format: 'date' })
   endDate!: string;
 
   @ApiProperty({ type: Number })

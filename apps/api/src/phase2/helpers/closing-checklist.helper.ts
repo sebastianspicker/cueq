@@ -15,6 +15,7 @@ import { PersonHelper } from './person.helper';
 import { CLOSING_READ_ROLES } from './role-constants';
 import { assignedPersonIdsForShift } from './roster-utils';
 import { closingBalanceAnomalyHours, closingBookingGapMinutes } from './closing-utils';
+import { TimeThresholdPolicyHelper } from './time-threshold-policy.helper';
 
 @Injectable()
 export class ClosingChecklistHelper {
@@ -22,6 +23,8 @@ export class ClosingChecklistHelper {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
     @Inject(EventOutboxHelper) private readonly eventOutboxHelper: EventOutboxHelper,
+    @Inject(TimeThresholdPolicyHelper)
+    private readonly timeThresholdPolicyHelper: TimeThresholdPolicyHelper,
   ) {}
 
   async buildPlanVsActualForRoster(roster: {
@@ -125,6 +128,7 @@ export class ClosingChecklistHelper {
     const personIds = personScope.map((person) => person.id);
     const gapThresholdMinutes = closingBookingGapMinutes();
     const balanceThresholdHours = closingBalanceAnomalyHours();
+    const timeThresholds = await this.timeThresholdPolicyHelper.getActiveThresholds();
 
     const [bookings, approvedAbsences] = await Promise.all([
       personIds.length === 0
@@ -182,10 +186,7 @@ export class ClosingChecklistHelper {
         }
 
         const durationMinutes = (current.endTime.getTime() - current.startTime.getTime()) / 60000;
-        // TODO: The 10h daily max and 11h minimum rest thresholds are hardcoded
-        // per ArbZG defaults. These should be sourced from the policy system in
-        // a future iteration to support organisation-specific configurations.
-        if (durationMinutes > 10 * 60) {
+        if (durationMinutes > timeThresholds.dailyMaxMinutes) {
           ruleViolations += 1;
         }
 
@@ -195,10 +196,15 @@ export class ClosingChecklistHelper {
           if (gapMinutes > gapThresholdMinutes) {
             bookingGaps += 1;
           }
-          const toLocalDate = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+          const toLocalDate = (d: Date) =>
+            d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
           const previousDay = toLocalDate(previous.endTime);
           const currentDay = toLocalDate(current.startTime);
-          if (previousDay !== currentDay && gapMinutes > 0 && gapMinutes < 11 * 60) {
+          if (
+            previousDay !== currentDay &&
+            gapMinutes > 0 &&
+            gapMinutes < timeThresholds.minRestMinutes
+          ) {
             ruleViolations += 1;
           }
         }

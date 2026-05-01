@@ -84,6 +84,48 @@ The automated backup/restore test verifies:
 - Log shipping: university-provided centralized log platform
 - Trace collection: optional, disabled by default in pilot
 
+#### Starting the monitoring stack
+
+The monitoring stack runs as an optional Docker Compose profile and does **not** start by default:
+
+```bash
+# Start monitoring alongside core services
+docker-compose --profile monitoring up -d
+
+# Stop monitoring only
+docker-compose --profile monitoring down
+```
+
+| Service      | Local URL               | Credentials   |
+| ------------ | ----------------------- | ------------- |
+| Grafana      | <http://localhost:3001> | admin / admin |
+| Prometheus   | <http://localhost:9090> | —             |
+| Alertmanager | <http://localhost:9093> | —             |
+
+#### Configuration files
+
+| File                                                                | Purpose                                                                                 |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `monitoring/prometheus.yml`                                         | Scrape targets (API `/metrics`, self)                                                   |
+| `monitoring/alerting-rules.yml`                                     | SLO alert rules (error rate, p99, audit-trail stall, terminal heartbeat)                |
+| `monitoring/alertmanager.yml`                                       | Alert routing and receiver templates                                                    |
+| `monitoring/grafana/provisioning/datasources/prometheus.yml`        | Auto-provision Prometheus as default datasource                                         |
+| `monitoring/grafana/provisioning/dashboards/cueq-api-overview.json` | Pre-built dashboard: request rate, error rate, latency percentiles, audit entry counter |
+
+#### Wiring the API metrics endpoint
+
+Install `prom-client` + `@willsoto/nestjs-prometheus` in `apps/api` and register
+the `PrometheusModule` in `AppModule`. Expose `/metrics` (internal only — **not** publicly routable).
+Add custom counters/gauges:
+
+```typescript
+// Increment in AuditHelper.appendAudit()
+cueqAuditEntriesTotal.inc();
+
+// Update in terminal heartbeat handler
+cueqTerminalLastHeartbeatSeconds.set({ terminal_id }, Date.now() / 1000);
+```
+
 Health payload now includes operational snapshots for:
 
 - terminal last-seen/stale counts

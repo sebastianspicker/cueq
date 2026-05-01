@@ -9,10 +9,52 @@ const fixturesDir = resolve(root, 'fixtures/reference-calculations');
 const realDerivedFixturesDir = resolve(root, 'fixtures/reference-calculations-real');
 const holidaySchemaPath = resolve(root, 'schemas/fixtures/nrw-holidays.schema.json');
 const holidayFixturePath = resolve(root, 'fixtures/calendars/nrw-holidays-2026.json');
+const integrationFixturesDir = resolve(root, 'fixtures', 'integrations');
+
+const csvExpectations = {
+  'hr-master-phase3.csv': [
+    'externalId',
+    'firstName',
+    'lastName',
+    'email',
+    'role',
+    'organizationUnit',
+    'workTimeModel',
+    'weeklyHours',
+    'dailyTargetHours',
+    'supervisorExternalId',
+  ],
+  'terminal-sync-batch-phase3.csv': ['personId', 'timeTypeCode', 'startTime', 'endTime', 'note'],
+};
 
 async function readJson(filePath) {
   const content = await readFile(filePath, 'utf8');
   return JSON.parse(content);
+}
+
+async function validateCsvFixture(fileName) {
+  const filePath = resolve(integrationFixturesDir, fileName);
+  const content = await readFile(filePath, 'utf8');
+  const lines = content
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) {
+    throw new Error('CSV fixture must contain a header row and at least one data row.');
+  }
+
+  const headers = lines[0]?.split(',').map((value) => value.trim()) ?? [];
+  const expectedHeaders = csvExpectations[fileName];
+  if (!expectedHeaders) {
+    throw new Error(`No CSV fixture validation rule defined for ${fileName}.`);
+  }
+
+  for (const header of expectedHeaders) {
+    if (!headers.includes(header)) {
+      throw new Error(`Missing required CSV header: ${header}`);
+    }
+  }
 }
 
 async function main() {
@@ -68,6 +110,17 @@ async function main() {
     console.error(ajv.errorsText(validateHoliday.errors, { separator: '\n' }));
   } else {
     console.log('✓ Valid holiday fixture: fixtures/calendars/nrw-holidays-2026.json');
+  }
+
+  for (const file of Object.keys(csvExpectations).sort()) {
+    try {
+      await validateCsvFixture(file);
+      console.log(`✓ Valid CSV fixture: fixtures/integrations/${file}`);
+    } catch (error) {
+      failed = true;
+      console.error(`Invalid CSV fixture: fixtures/integrations/${file}`);
+      console.error(error instanceof Error ? error.message : 'Unknown CSV validation error');
+    }
   }
 
   if (failed) {

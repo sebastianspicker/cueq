@@ -371,8 +371,14 @@ export default function OnCallPage() {
               <li key={rotation.id} className="cq-list-item">
                 <div className="cq-list-item-header">
                   <div className="cq-list-item-meta">
-                    <StatusBadge status={rotation.rotationType} variant="info" label={rotation.rotationType} />
-                    <span>{rotation.startTime} &ndash; {rotation.endTime}</span>
+                    <StatusBadge
+                      status={rotation.rotationType}
+                      variant="info"
+                      label={rotation.rotationType}
+                    />
+                    <span>
+                      {rotation.startTime} &ndash; {rotation.endTime}
+                    </span>
                   </div>
                 </div>
                 <p className="cq-mono">{rotation.id}</p>
@@ -392,8 +398,13 @@ export default function OnCallPage() {
               <li key={deployment.id} className="cq-list-item">
                 <div className="cq-list-item-header">
                   <div className="cq-list-item-meta">
-                    <StatusBadge status={deployment.remote ? 'Remote' : 'On-site'} variant={deployment.remote ? 'info' : 'muted'} />
-                    <span>{deployment.startTime} &ndash; {deployment.endTime ?? '—'}</span>
+                    <StatusBadge
+                      status={deployment.remote ? 'Remote' : 'On-site'}
+                      variant={deployment.remote ? 'info' : 'muted'}
+                    />
+                    <span>
+                      {deployment.startTime} &ndash; {deployment.endTime ?? '—'}
+                    </span>
                   </div>
                 </div>
                 {deployment.description ? <p>{deployment.description}</p> : null}
@@ -411,7 +422,12 @@ export default function OnCallPage() {
             <dt>{t('personIdLabel')}</dt>
             <dd>{compliance.personId}</dd>
             <dt>{t('compliantLabel')}</dt>
-            <dd><StatusBadge status={compliance.compliant ? 'COMPLIANT' : 'FAIL'} label={compliance.compliant ? t('compliantYes') : t('compliantNo')} /></dd>
+            <dd>
+              <StatusBadge
+                status={compliance.compliant ? 'COMPLIANT' : 'FAIL'}
+                label={compliance.compliant ? t('compliantYes') : t('compliantNo')}
+              />
+            </dd>
             <dt>{t('requiredRestLabel')}</dt>
             <dd>{compliance.requiredRestHours}h</dd>
             <dt>{t('actualRestLabel')}</dt>

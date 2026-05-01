@@ -54,6 +54,29 @@ describe('calculateProratedMonthlyTarget', () => {
       }),
     ).toThrow('Invalid date');
   });
+
+  it('clips segments to the requested month boundaries', () => {
+    const result = calculateProratedMonthlyTarget({
+      month: '2026-04',
+      segments: [{ from: '2026-03-20', to: '2026-05-10', weeklyHours: 39.83 }],
+      actualHours: 0,
+    });
+
+    expect(result.proratedTargetHours).toBe(175.25);
+  });
+
+  it('does not double-count overlapping segments inside the same month', () => {
+    const result = calculateProratedMonthlyTarget({
+      month: '2026-04',
+      segments: [
+        { from: '2026-04-01', to: '2026-04-15', weeklyHours: 39.83 },
+        { from: '2026-04-10', to: '2026-04-30', weeklyHours: 20 },
+      ],
+      actualHours: 0,
+    });
+
+    expect(result.proratedTargetHours).toBe(131.63);
+  });
 });
 
 describe('calculateLeaveQuota', () => {

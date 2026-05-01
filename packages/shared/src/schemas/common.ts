@@ -14,7 +14,7 @@ export const DateTimeSchema = z.string().datetime();
 export const DateSchema = z.string().date();
 
 /** Time string (HH:MM) */
-export const TimeSchema = z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM format');
+export const TimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:MM format');
 
 /** Positive decimal (for hours, days) */
 export const PositiveDecimalSchema = z.number().nonnegative();

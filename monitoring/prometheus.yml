@@ -1,0 +1,37 @@
+# cueq — Prometheus configuration
+# Scrape targets for API, health endpoint, and node exporters.
+# Adjust job targets to match your deployment addresses.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+rule_files:
+  - alerting-rules.yml
+
+scrape_configs:
+  # NestJS API — exposes /metrics via @willsoto/nestjs-prometheus (prom-client)
+  - job_name: cueq_api
+    static_configs:
+      - targets:
+          - host.docker.internal:3000
+    metrics_path: /metrics
+
+  # PostgreSQL Exporter (optional — add to docker-compose when needed)
+  # - job_name: postgres
+  #   static_configs:
+  #     - targets:
+  #         - postgres-exporter:9187
+
+  # Self-scrape for Prometheus meta-metrics
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090

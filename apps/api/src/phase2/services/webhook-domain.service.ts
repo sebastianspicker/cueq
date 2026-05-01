@@ -1,9 +1,5 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { createHmac, randomBytes } from 'node:crypto';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { OutboxStatus } from '@cueq/database';
 import { CreateWebhookEndpointSchema, OutboxQuerySchema, DeliveryQuerySchema } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service';
@@ -62,12 +58,13 @@ export class WebhookDomainService {
     const actor = await this.personHelper.personForUser(user);
     const parsed = CreateWebhookEndpointSchema.parse(payload);
     const validatedUrl = assertWebhookTargetUrl(parsed.url).toString();
+    const secret = randomBytes(32).toString('hex');
     const endpoint = await this.prisma.webhookEndpoint.create({
       data: {
         name: parsed.name,
         url: validatedUrl,
         subscribedEvents: parsed.subscribedEvents,
-        secretRef: parsed.secretRef,
+        secretRef: secret,
         createdById: actor.id,
         isActive: true,
       },
@@ -85,7 +82,18 @@ export class WebhookDomainService {
       },
     });
 
-    return endpoint;
+    return {
+      id: endpoint.id,
+      name: endpoint.name,
+      url: endpoint.url,
+      subscribedEvents: endpoint.subscribedEvents,
+      isActive: endpoint.isActive,
+      createdById: endpoint.createdById,
+      createdAt: endpoint.createdAt,
+      updatedAt: endpoint.updatedAt,
+      // Returned once on creation only — receivers must store this secret.
+      signingSecret: secret,
+    };
   }
 
   async listWebhookEndpoints(user: AuthenticatedIdentity) {
@@ -95,6 +103,16 @@ export class WebhookDomainService {
 
     return this.prisma.webhookEndpoint.findMany({
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        url: true,
+        subscribedEvents: true,
+        isActive: true,
+        createdById: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   }
 
@@ -231,12 +249,13 @@ export class WebhookDomainService {
           targetUrl = (await assertWebhookDispatchTargetUrl(endpoint.url)).toString();
         } catch (validationError) {
           status = 'FAILED';
-          error =
-            validationError instanceof BadRequestException
-              ? String(validationError.message)
-              : validationError instanceof Error
-                ? validationError.message
-                : 'Invalid webhook endpoint url';
+          if (validationError instanceof BadRequestException) {
+            error = String(validationError.message);
+          } else if (validationError instanceof Error) {
+            error = validationError.message;
+          } else {
+            error = 'Invalid webhook endpoint url';
+          }
           error = truncateForStorage(error, WEBHOOK_ERROR_MAX_CHARS);
           eventFailed = true;
           lastError = error;
@@ -256,6 +275,13 @@ export class WebhookDomainService {
           continue;
         }
 
+        const body = JSON.stringify(envelope);
+        const signatureHeader: Record<string, string> = {};
+        if (endpoint.secretRef) {
+          const sig = createHmac('sha256', endpoint.secretRef).update(body).digest('hex');
+          signatureHeader['X-Cueq-Signature'] = `sha256=${sig}`;
+        }
+
         try {
           const response = await fetch(targetUrl, {
             method: 'POST',
@@ -263,8 +289,9 @@ export class WebhookDomainService {
             headers: {
               'Content-Type': 'application/json',
               'X-Cueq-Event-Type': event.eventType,
+              ...signatureHeader,
             },
-            body: JSON.stringify(envelope),
+            body,
             signal: AbortSignal.timeout(timeoutMs),
           });
 
