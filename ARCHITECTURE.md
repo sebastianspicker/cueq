@@ -69,6 +69,12 @@ cueq is an integrated time-tracking, absence-management, and shift-planning syst
 | Closing Engine   | Month-end checklist generation, cut-off lock transitions, export run lifecycle                          | `packages/core/src/core/closing/`     |
 | Audit Service    | Append-only audit entry builder; enforces immutability at the type level                                | `packages/core/src/core/audit/`       |
 
+### Note on `apps/api/src/phase2/`
+
+The `phase2/` directory inside the API app is named after the delivery phase in which it was built (Phase 2 — Approval & Roster Workflows). It contains the approval inbox, workflow runtime, shift planning endpoints, closing workflows, and policy management — the bulk of the operational surface area.
+
+The name is intentionally kept until a domain-scoped rename is agreed (see [ADR-004](docs/design-decisions/004-phase2-naming.md)). New features in this area should be placed under `phase2/` until the ADR decision is enacted. Do not create new top-level feature directories without an ADR.
+
 ---
 
 ## 5. Data Architecture (Conceptual)

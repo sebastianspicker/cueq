@@ -5,8 +5,11 @@ import { OidcIdentityProviderAdapter } from './oidc-identity-provider.adapter';
 import { SamlIdentityProviderAdapter } from './saml-identity-provider.adapter';
 import { AuthGuard } from '../guards/auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
+import { PrismaModule } from '../../persistence/prisma.module';
+import { PrismaService } from '../../persistence/prisma.service';
 
 @Module({
+  imports: [PrismaModule],
   providers: [
     Reflector,
     AuthService,
@@ -14,9 +17,9 @@ import { RolesGuard } from '../guards/roles.guard';
     SamlIdentityProviderAdapter,
     {
       provide: APP_GUARD,
-      inject: [Reflector, AuthService],
-      useFactory: (reflector: Reflector, authService: AuthService) =>
-        new AuthGuard(reflector, authService),
+      inject: [Reflector, AuthService, PrismaService],
+      useFactory: (reflector: Reflector, authService: AuthService, prisma: PrismaService) =>
+        new AuthGuard(reflector, authService, prisma),
     },
     {
       provide: APP_GUARD,

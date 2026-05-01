@@ -5,6 +5,7 @@
 | [ADR-001](001-tech-stack.md)          | Technology Stack Selection    | Accepted | 2026-02-28 |
 | [ADR-002](002-deployment-strategy.md) | Deployment Strategy           | Accepted | 2026-03-01 |
 | [ADR-003](003-monitoring-stack.md)    | Monitoring and Alerting Stack | Accepted | 2026-03-01 |
+| [ADR-004](004-phase2-naming.md)       | `phase2/` Directory Naming    | Proposed | 2026-04-19 |
 
 ## Template
 

@@ -132,7 +132,7 @@ describe('Phase 2 compliance', () => {
     expect(leadDecision.status).toBe(403);
   });
 
-  it('denies non-planner roster write access', async () => {
+  it('denies unauthorized roster write access while allowing HR override', async () => {
     const payload = {
       organizationUnitId: SEED_IDS.ouSecurity,
       periodStart: '2026-04-01T00:00:00.000Z',
@@ -155,7 +155,7 @@ describe('Phase 2 compliance', () => {
       .post('/v1/rosters')
       .set('Authorization', `Bearer ${TOKENS.hr}`)
       .send(payload);
-    expect(hr.status).toBe(403);
+    expect(hr.status).toBe(201);
   });
 
   it('denies planner roster writes outside own organization unit', async () => {
@@ -194,6 +194,65 @@ describe('Phase 2 compliance', () => {
     expect(response.body.every((entry: { status: string }) => entry.status === 'APPROVED')).toBe(
       true,
     );
+  });
+
+  it('denies non-operational roles access to individual team-calendar rows', async () => {
+    const roleTokens = [TOKENS.payroll, TOKENS.dataProtection, TOKENS.worksCouncil];
+
+    for (const token of roleTokens) {
+      const response = await request(app.getHttpServer())
+        .get('/v1/calendar/team')
+        .query({ start: '2026-04-01', end: '2026-04-30' })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(403);
+    }
+  });
+
+  it('returns a minimized same-organization person record for team leads', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/v1/persons/${SEED_IDS.personEmployee}`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: SEED_IDS.personEmployee,
+      firstName: 'Eva',
+      lastName: 'Muster',
+      role: 'EMPLOYEE',
+      organizationUnitId: SEED_IDS.ouAdmin,
+    });
+    expect(response.body).not.toHaveProperty('email');
+    expect(response.body).not.toHaveProperty('externalId');
+  });
+
+  it('denies team lead person reads across organization units', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/v1/persons/${SEED_IDS.personPlanner}`)
+      .set('Authorization', `Bearer ${TOKENS.lead}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it('denies shift planner person reads across organization units', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/v1/persons/${SEED_IDS.personEmployee}`)
+      .set('Authorization', `Bearer ${TOKENS.planner}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it('preserves full privileged person access for HR', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/v1/persons/${SEED_IDS.personEmployee}`)
+      .set('Authorization', `Bearer ${TOKENS.hr}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: SEED_IDS.personEmployee,
+      externalId: 'employee01',
+      email: 'employee@cueq.local',
+    });
   });
 
   it('denies employee access to aggregated reports', async () => {
@@ -359,8 +418,8 @@ describe('Phase 2 compliance', () => {
       .set('Authorization', `Bearer ${TOKENS.planner}`)
       .send({
         organizationUnitId: SEED_IDS.ouSecurity,
-        periodStart: '2026-04-01T00:00:00.000Z',
-        periodEnd: '2026-04-30T23:59:59.000Z',
+        periodStart: '2026-06-01T00:00:00.000Z',
+        periodEnd: '2026-06-30T23:59:59.000Z',
       });
 
     expect(created.status).toBe(201);

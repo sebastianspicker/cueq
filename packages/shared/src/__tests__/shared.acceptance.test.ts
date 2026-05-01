@@ -10,4 +10,14 @@ describe('@cueq/shared acceptance', () => {
 
     expect(WorkflowDecisionSchema.parse(payload).decision).toBe('APPROVED');
   });
+
+  it('rejects contradictory workflow action and decision payloads', () => {
+    expect(() =>
+      WorkflowDecisionSchema.parse({
+        workflowId: 'c00000000000000000000001',
+        action: 'APPROVE',
+        decision: 'APPROVED',
+      }),
+    ).toThrow('action and decision cannot be provided together');
+  });
 });

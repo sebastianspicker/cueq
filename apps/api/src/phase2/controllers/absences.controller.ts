@@ -55,6 +55,17 @@ export class AbsencesController {
     return this.absenceService.listMyAbsences(user);
   }
 
+  @Get(':id')
+  @Roles(Role.EMPLOYEE, Role.TEAM_LEAD, Role.HR, Role.ADMIN)
+  @ApiOperation({ summary: 'Get an absence by ID' })
+  @ApiOkResponse({ type: AbsenceDto })
+  getById(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id', ParseCuidPipe) absenceId: string,
+  ): Promise<unknown> {
+    return this.absenceService.getAbsenceById(user, absenceId);
+  }
+
   @Post(':id/cancel')
   @ApiOperation({ summary: 'Cancel an existing absence request' })
   @ApiCreatedResponse({ type: AbsenceDto })

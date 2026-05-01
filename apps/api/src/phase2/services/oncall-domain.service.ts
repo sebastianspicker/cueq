@@ -20,6 +20,7 @@ import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { PersonHelper } from '../helpers/person.helper';
 import { AuditHelper } from '../helpers/audit.helper';
 import { APPROVAL_ROLES, assertCanActForPerson } from '../helpers/role-constants';
+import { bookingOverlapWhere } from '../helpers/booking-overlap.helper';
 
 @Injectable()
 export class OncallDomainService {
@@ -298,11 +299,11 @@ export class OncallDomainService {
 
       if (deploymentTimeType) {
         const bookingOverlap = await tx.booking.findFirst({
-          where: {
+          where: bookingOverlapWhere({
             personId: parsed.personId,
-            startTime: { lt: endTime },
-            endTime: { gt: deploymentStart },
-          },
+            startTime: deploymentStart,
+            endTime,
+          }),
         });
         if (bookingOverlap) {
           throw new ConflictException('Deployment booking overlaps with an existing booking.');

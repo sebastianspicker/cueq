@@ -79,14 +79,34 @@ export class WorkflowsController {
 
   @Get('policies')
   @Roles(Role.HR, Role.ADMIN)
-  @ApiOperation({ summary: 'List workflow policies (HR/Admin)' })
+  @ApiOperation({ summary: 'List active workflow policies (HR/Admin)' })
   policies(@CurrentUser() user: AuthenticatedIdentity): Promise<unknown> {
     return this.workflowsDomainService.listWorkflowPolicies(user);
   }
 
+  @Get('policies/:type')
+  @Roles(Role.HR, Role.ADMIN)
+  @ApiOperation({ summary: 'Get active policy for a workflow type (HR/Admin)' })
+  policy(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('type', new ZodValidationPipe(WorkflowTypeSchema)) type: string,
+  ): Promise<unknown> {
+    return this.workflowsDomainService.getWorkflowPolicy(user, type);
+  }
+
+  @Get('policies/:type/history')
+  @Roles(Role.HR, Role.ADMIN)
+  @ApiOperation({ summary: 'List policy version history for a workflow type (HR/Admin)' })
+  policyHistory(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('type', new ZodValidationPipe(WorkflowTypeSchema)) type: string,
+  ): Promise<unknown> {
+    return this.workflowsDomainService.listWorkflowPolicyHistory(user, type);
+  }
+
   @Put('policies/:type')
   @Roles(Role.HR, Role.ADMIN)
-  @ApiOperation({ summary: 'Create or update workflow policy (HR/Admin)' })
+  @ApiOperation({ summary: 'Create new policy version for a workflow type (HR/Admin)' })
   upsertPolicy(
     @CurrentUser() user: AuthenticatedIdentity,
     @Param('type', new ZodValidationPipe(WorkflowTypeSchema)) type: string,

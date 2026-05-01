@@ -11,28 +11,43 @@ export const ClosingLockSourceSchema = z.enum([
 ]);
 export type ClosingLockSource = z.infer<typeof ClosingLockSourceSchema>;
 
-export const ClosingPeriodMonthQuerySchema = z.object({
-  from: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/)
-    .optional(),
-  to: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/)
-    .optional(),
-  organizationUnitId: IdSchema.optional(),
-});
+export const ClosingPeriodMonthQuerySchema = z
+  .object({
+    from: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/)
+      .optional(),
+    to: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/)
+      .optional(),
+    organizationUnitId: IdSchema.optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (input.from && input.to && input.from > input.to) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'to must be on or after from',
+        path: ['to'],
+      });
+    }
+  });
 export type ClosingPeriodMonthQuery = z.infer<typeof ClosingPeriodMonthQuerySchema>;
 
-export const ClosingBookingCorrectionSchema = z.object({
-  workflowId: IdSchema,
-  personId: IdSchema,
-  timeTypeId: IdSchema,
-  startTime: DateTimeSchema,
-  endTime: DateTimeSchema,
-  reason: z.string().min(10).max(1000),
-  note: z.string().max(1000).optional(),
-});
+export const ClosingBookingCorrectionSchema = z
+  .object({
+    workflowId: IdSchema,
+    personId: IdSchema,
+    timeTypeId: IdSchema,
+    startTime: DateTimeSchema,
+    endTime: DateTimeSchema,
+    reason: z.string().min(10).max(1000),
+    note: z.string().max(1000).optional(),
+  })
+  .refine((input) => input.endTime > input.startTime, {
+    message: 'endTime must be after startTime',
+    path: ['endTime'],
+  });
 export type ClosingBookingCorrection = z.infer<typeof ClosingBookingCorrectionSchema>;
 
 export const ExportFormatSchema = z.enum(['CSV_V1', 'XML_V1']);

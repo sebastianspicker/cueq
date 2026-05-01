@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_BREAK_RULE, type BreakRule } from '../rules/break-rules';
+import { BreakRuleSchema, DEFAULT_BREAK_RULE, type BreakRule } from '../rules/break-rules';
 import { DEFAULT_LEAVE_RULE, LeaveRuleSchema, type LeaveRule } from '../rules/leave-rules';
-import { DEFAULT_REST_RULE } from '../rules/rest-rules';
-import { DEFAULT_MAX_HOURS_RULE } from '../rules/max-hours-rules';
 import { DEFAULT_SURCHARGE_RULE } from '../rules/surcharge-rules';
 import { getActivePolicyBundle, getPolicyHistory, type PolicyCatalogRule } from '../catalog';
 
@@ -10,6 +8,10 @@ describe('@cueq/policy integration', () => {
   it('keeps break-rule thresholds ordered by worked-hours minimum', () => {
     const thresholds = DEFAULT_BREAK_RULE.thresholds;
     expect(thresholds[0]?.workedHoursMin).toBeLessThan(thresholds[1]?.workedHoursMin ?? 0);
+  });
+
+  it('rejects break rules with empty threshold bundles', () => {
+    expect(() => BreakRuleSchema.parse({ ...DEFAULT_BREAK_RULE, thresholds: [] })).toThrow();
   });
 
   it('resolves active policy bundle by as-of date', () => {

@@ -158,7 +158,11 @@ export class WorkflowRuntimeService {
     const now = new Date();
     const where: Prisma.WorkflowInstanceWhereInput = HR_LIKE_ROLES.has(actor.role)
       ? { status: query.status, type: query.type }
-      : { status: query.status, type: query.type, OR: [{ requesterId: actor.id }, { approverId: actor.id }] };
+      : {
+          status: query.status,
+          type: query.type,
+          OR: [{ requesterId: actor.id }, { approverId: actor.id }],
+        };
     const workflows = await this.prisma.workflowInstance.findMany({
       where,
       orderBy: { createdAt: 'asc' },
@@ -305,6 +309,16 @@ export class WorkflowRuntimeService {
 
   async listPolicies(): Promise<WorkflowPolicy[]> {
     return this.assignmentHelper.listPolicies();
+  }
+
+  async getPolicy(type: WorkflowType): Promise<WorkflowPolicy | null> {
+    return this.assignmentHelper.getPolicy(type);
+  }
+
+  async listPolicyHistory(
+    type: WorkflowType,
+  ): Promise<{ entries: WorkflowPolicy[]; total: number }> {
+    return this.assignmentHelper.listPolicyHistory(type);
   }
 
   async upsertPolicy(type: WorkflowType, payload: WorkflowPolicyUpsert): Promise<WorkflowPolicy> {

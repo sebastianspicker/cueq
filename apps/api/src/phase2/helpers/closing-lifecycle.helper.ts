@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { ClosingPeriod, Prisma } from '@cueq/database';
 import { ClosingLockSource, ClosingStatus, Role } from '@cueq/database';
 import { applyCutoffLock } from '@cueq/core';
 import { PrismaService } from '../../persistence/prisma.service';
@@ -31,6 +32,56 @@ export class ClosingLifecycleHelper {
     @Inject(ClosingChecklistHelper) private readonly checklistHelper: ClosingChecklistHelper,
   ) {}
 
+  /**
+   * Applies a closing-period state transition, persists the update, and writes
+   * an audit entry. Throws BadRequestException if the transition is invalid.
+   */
+  private async applyTransitionWithAudit(opts: {
+    period: ClosingPeriod;
+    action: 'ADVANCE_TO_REVIEW' | 'APPROVE' | 'EXPORT' | 'REOPEN' | 'POST_CLOSE_CORRECTION';
+    actorId: string;
+    actorRole: ReturnType<typeof toClosingActorRole>;
+    checklistHasErrors: boolean;
+    dbData: Prisma.ClosingPeriodUpdateInput;
+    auditAction: string;
+    auditAfter: Prisma.JsonObject;
+  }): Promise<ClosingPeriod> {
+    const transition = applyCutoffLock({
+      currentStatus: toCoreClosingStatus(opts.period.status),
+      action: opts.action,
+      actorRole: opts.actorRole,
+      checklistHasErrors: opts.checklistHasErrors,
+    });
+
+    if (transition.violations.length > 0) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: transition.violations.join('; '),
+        details: transition.violations,
+      });
+    }
+
+    const updated = await this.prisma.closingPeriod.update({
+      where: { id: opts.period.id },
+      data: {
+        status: toPersistenceClosingStatus(transition.nextStatus),
+        ...opts.dbData,
+      },
+    });
+
+    await this.auditHelper.appendAudit({
+      actorId: opts.actorId,
+      action: opts.auditAction,
+      entityType: 'ClosingPeriod',
+      entityId: updated.id,
+      before: { status: opts.period.status },
+      after: opts.auditAfter,
+    });
+
+    return updated;
+  }
+
   async startClosingReview(user: AuthenticatedIdentity, closingPeriodId: string) {
     const actor = await this.personHelper.personForUser(user);
     if (!allowManualReviewStart()) {
@@ -48,48 +99,22 @@ export class ClosingLifecycleHelper {
       throw new NotFoundException('Closing period not found.');
     }
 
-    const transition = applyCutoffLock({
-      currentStatus: toCoreClosingStatus(period.status),
+    const updated = await this.applyTransitionWithAudit({
+      period,
       action: 'ADVANCE_TO_REVIEW',
+      actorId: actor.id,
       actorRole: toClosingActorRole(actor.role),
       checklistHasErrors: false,
-    });
-
-    if (transition.violations.length > 0) {
-      throw new BadRequestException({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: transition.violations.join('; '),
-        details: transition.violations,
-      });
-    }
-
-    const updated = await this.prisma.closingPeriod.update({
-      where: { id: period.id },
-      data: {
-        status: toPersistenceClosingStatus(transition.nextStatus),
-        lockedAt: new Date(),
+      dbData: { lockedAt: new Date(), lockSource: ClosingLockSource.MANUAL_REVIEW_START },
+      auditAction: 'CLOSING_REVIEW_STARTED',
+      auditAfter: {
+        status: toPersistenceClosingStatus('REVIEW'),
         lockSource: ClosingLockSource.MANUAL_REVIEW_START,
+        lockedAt: new Date().toISOString(),
       },
     });
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'CLOSING_REVIEW_STARTED',
-      entityType: 'ClosingPeriod',
-      entityId: updated.id,
-      before: { status: period.status },
-      after: {
-        status: updated.status,
-        lockSource: updated.lockSource,
-        lockedAt: updated.lockedAt?.toISOString() ?? null,
-      },
-    });
-
-    return {
-      ...updated,
-      status: toCoreClosingStatus(updated.status),
-    };
+    return { ...updated, status: toCoreClosingStatus(updated.status) };
   }
 
   async leadApproveClosing(user: AuthenticatedIdentity, closingPeriodId: string) {
@@ -162,26 +187,13 @@ export class ClosingLifecycleHelper {
       throw new NotFoundException('Closing period not found.');
     }
 
-    const transition = applyCutoffLock({
-      currentStatus: toCoreClosingStatus(period.status),
+    const updated = await this.applyTransitionWithAudit({
+      period,
       action: 'REOPEN',
+      actorId: actor.id,
       actorRole: toClosingActorRole(actor.role),
       checklistHasErrors: false,
-    });
-
-    if (transition.violations.length > 0) {
-      throw new BadRequestException({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: transition.violations.join('; '),
-        details: transition.violations,
-      });
-    }
-
-    const updated = await this.prisma.closingPeriod.update({
-      where: { id: period.id },
-      data: {
-        status: toPersistenceClosingStatus(transition.nextStatus),
+      dbData: {
         leadApprovedAt: null,
         leadApprovedById: null,
         hrApprovedAt: null,
@@ -189,27 +201,11 @@ export class ClosingLifecycleHelper {
         lockedAt: null,
         lockSource: null,
       },
+      auditAction: 'CLOSING_REOPENED',
+      auditAfter: { leadApprovedAt: null, hrApprovedAt: null, lockedAt: null, lockSource: null },
     });
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'CLOSING_REOPENED',
-      entityType: 'ClosingPeriod',
-      entityId: updated.id,
-      before: { status: period.status },
-      after: {
-        status: updated.status,
-        leadApprovedAt: null,
-        hrApprovedAt: null,
-        lockedAt: null,
-        lockSource: null,
-      },
-    });
-
-    return {
-      ...updated,
-      status: toCoreClosingStatus(updated.status),
-    };
+    return { ...updated, status: toCoreClosingStatus(updated.status) };
   }
 
   async approveClosing(user: AuthenticatedIdentity, closingPeriodId: string) {
@@ -230,45 +226,26 @@ export class ClosingLifecycleHelper {
     }
 
     const checklist = await this.checklistHelper.closingChecklist(user, closingPeriodId);
-    const transition = applyCutoffLock({
-      currentStatus: toCoreClosingStatus(period.status),
+    const now = new Date();
+
+    const updated = await this.applyTransitionWithAudit({
+      period,
       action: 'APPROVE',
+      actorId: actor.id,
       actorRole: toClosingActorRole(actor.role),
       checklistHasErrors: checklist.hasErrors,
-    });
-
-    if (transition.violations.length > 0) {
-      throw new BadRequestException({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: transition.violations.join('; '),
-        details: transition.violations,
-      });
-    }
-
-    const updated = await this.prisma.closingPeriod.update({
-      where: { id: period.id },
-      data: {
-        status: toPersistenceClosingStatus(transition.nextStatus),
-        hrApprovedAt: new Date(),
+      dbData: {
+        hrApprovedAt: now,
         hrApprovedById: actor.id,
-        closedAt: new Date(),
+        closedAt: now,
         closedById: actor.id,
-        lockedAt: period.lockedAt ?? new Date(),
+        lockedAt: period.lockedAt ?? now,
         lockSource: period.lockSource ?? ClosingLockSource.MANUAL_REVIEW_START,
       },
-    });
-
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'CLOSING_APPROVED',
-      entityType: 'ClosingPeriod',
-      entityId: updated.id,
-      before: { status: period.status },
-      after: {
-        status: updated.status,
-        hrApprovedAt: updated.hrApprovedAt?.toISOString() ?? null,
-        hrApprovedById: updated.hrApprovedById,
+      auditAction: 'CLOSING_APPROVED',
+      auditAfter: {
+        hrApprovedAt: now.toISOString(),
+        hrApprovedById: actor.id,
       },
     });
 
@@ -282,9 +259,6 @@ export class ClosingLifecycleHelper {
       },
     });
 
-    return {
-      ...updated,
-      status: toCoreClosingStatus(updated.status),
-    };
+    return { ...updated, status: toCoreClosingStatus(updated.status) };
   }
 }

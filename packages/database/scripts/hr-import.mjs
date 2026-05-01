@@ -125,7 +125,56 @@ function toRole(input) {
     return Role[normalized];
   }
 
-  return Role.EMPLOYEE;
+  throw new Error(`Unsupported HR role: ${input}`);
+}
+
+function validateRows(rows) {
+  const errors = [];
+  const seenExternalIds = new Set();
+  const seenEmails = new Set();
+
+  const validatedRows = rows.flatMap((row) => {
+    if (!row.externalId || !row.email || !row.firstName || !row.lastName) {
+      errors.push(`Missing required fields for externalId="${row.externalId}".`);
+      return [];
+    }
+
+    if (seenExternalIds.has(row.externalId)) {
+      errors.push(`Duplicate externalId in batch: "${row.externalId}".`);
+      return [];
+    }
+    if (seenEmails.has(row.email.toLowerCase())) {
+      errors.push(`Duplicate email in batch: "${row.email}".`);
+      return [];
+    }
+
+    seenExternalIds.add(row.externalId);
+    seenEmails.add(row.email.toLowerCase());
+
+    const weeklyHours = Number(row.weeklyHours || '39.83');
+    const dailyTargetHours = Number(row.dailyTargetHours || '7.97');
+    if (!Number.isFinite(weeklyHours) || weeklyHours < 0) {
+      errors.push(`Invalid weeklyHours for externalId="${row.externalId}".`);
+      return [];
+    }
+    if (!Number.isFinite(dailyTargetHours) || dailyTargetHours < 0) {
+      errors.push(`Invalid dailyTargetHours for externalId="${row.externalId}".`);
+      return [];
+    }
+
+    return [
+      {
+        ...row,
+        parsedRole: toRole(row.role),
+        parsedWeeklyHours: weeklyHours,
+        parsedDailyTargetHours: dailyTargetHours,
+        organizationUnitId: slug('ou', row.organizationUnit),
+        workTimeModelId: slug('wtm', row.workTimeModel),
+      },
+    ];
+  });
+
+  return { validatedRows, errors };
 }
 
 async function main() {
@@ -139,6 +188,10 @@ async function main() {
   const filePath = resolve(process.cwd(), file);
   const csv = await readFile(filePath, 'utf8');
   const rows = parseCsv(csv);
+  const { validatedRows, errors: validationErrors } = validateRows(rows);
+  if (validationErrors.length > 0) {
+    throw new Error(validationErrors.join('\n'));
+  }
 
   const prisma = new PrismaClient();
 
@@ -157,11 +210,19 @@ async function main() {
         continue;
       }
 
-      try {
-        const organizationUnit = await prisma.organizationUnit.upsert({
-          where: { id: slug('ou', row.organizationUnit) },
+      // No-op: batch is handled atomically below.
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const importedPeople = new Map();
+      let created = 0;
+      let updated = 0;
+
+      for (const row of validatedRows) {
+        await tx.organizationUnit.upsert({
+          where: { id: row.organizationUnitId },
           create: {
-            id: slug('ou', row.organizationUnit),
+            id: row.organizationUnitId,
             name: row.organizationUnit,
           },
           update: {
@@ -169,95 +230,96 @@ async function main() {
           },
         });
 
-        const modelId = slug('wtm', row.workTimeModel);
-        const weeklyHours = Number(row.weeklyHours || '39.83');
-        const dailyTargetHours = Number(row.dailyTargetHours || '7.97');
-
-        await prisma.workTimeModel.upsert({
-          where: { id: modelId },
+        await tx.workTimeModel.upsert({
+          where: { id: row.workTimeModelId },
           create: {
-            id: modelId,
+            id: row.workTimeModelId,
             name: row.workTimeModel,
             type: WorkTimeModelType.FLEXTIME,
-            weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : 39.83,
-            dailyTargetHours: Number.isFinite(dailyTargetHours) ? dailyTargetHours : 7.97,
+            weeklyHours: row.parsedWeeklyHours,
+            dailyTargetHours: row.parsedDailyTargetHours,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
           },
           update: {
             name: row.workTimeModel,
-            weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : 39.83,
-            dailyTargetHours: Number.isFinite(dailyTargetHours) ? dailyTargetHours : 7.97,
+            weeklyHours: row.parsedWeeklyHours,
+            dailyTargetHours: row.parsedDailyTargetHours,
           },
         });
 
-        const existing = await prisma.person.findFirst({
+        const existing = await tx.person.findFirst({
           where: {
             OR: [{ externalId: row.externalId }, { email: row.email }],
           },
         });
 
         const person = existing
-          ? await prisma.person.update({
+          ? await tx.person.update({
               where: { id: existing.id },
               data: {
                 externalId: row.externalId,
                 firstName: row.firstName,
                 lastName: row.lastName,
                 email: row.email,
-                role: toRole(row.role),
-                organizationUnitId: organizationUnit.id,
-                workTimeModelId: modelId,
+                role: row.parsedRole,
+                organizationUnitId: row.organizationUnitId,
+                workTimeModelId: row.workTimeModelId,
               },
             })
-          : await prisma.person.create({
+          : await tx.person.create({
               data: {
                 externalId: row.externalId,
                 firstName: row.firstName,
                 lastName: row.lastName,
                 email: row.email,
-                role: toRole(row.role),
-                organizationUnitId: organizationUnit.id,
-                workTimeModelId: modelId,
+                role: row.parsedRole,
+                organizationUnitId: row.organizationUnitId,
+                workTimeModelId: row.workTimeModelId,
               },
             });
 
-        people.push({
-          personId: person.id,
-          externalId: row.externalId,
-          supervisorExternalId: row.supervisorExternalId,
-        });
+        importedPeople.set(row.externalId, person.id);
 
         if (existing) {
-          updatedRows += 1;
+          updated += 1;
         } else {
-          createdRows += 1;
+          created += 1;
         }
-      } catch (error) {
-        errorCount += 1;
-        errors.push(
-          `Failed row externalId="${row.externalId}": ${error instanceof Error ? error.message : 'Unknown error'}`,
-        );
-      }
-    }
-
-    for (const relation of people) {
-      if (!relation.supervisorExternalId) {
-        continue;
       }
 
-      const supervisor = people.find(
-        (candidate) => candidate.externalId === relation.supervisorExternalId,
-      );
+      for (const row of validatedRows) {
+        if (!row.supervisorExternalId) {
+          continue;
+        }
 
-      if (!supervisor) {
-        continue;
+        const supervisorId =
+          importedPeople.get(row.supervisorExternalId) ??
+          (
+            await tx.person.findFirst({
+              where: { externalId: row.supervisorExternalId },
+              select: { id: true },
+            })
+          )?.id;
+        if (!supervisorId) {
+          throw new Error(`Supervisor externalId not found in batch: ${row.supervisorExternalId}`);
+        }
+
+        const personId = importedPeople.get(row.externalId);
+        if (!personId) {
+          throw new Error(`Imported person missing for externalId: ${row.externalId}`);
+        }
+
+        await tx.person.update({
+          where: { id: personId },
+          data: { supervisorId },
+        });
       }
 
-      await prisma.person.update({
-        where: { id: relation.personId },
-        data: { supervisorId: supervisor.personId },
-      });
-    }
+      return { created, updated };
+    });
+
+    createdRows = result.created;
+    updatedRows = result.updated;
 
     const summary = {
       source: 'FILE',

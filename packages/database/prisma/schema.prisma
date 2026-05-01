@@ -258,6 +258,7 @@ model Absence {
   updatedAt     DateTime      @updatedAt
 
   @@index([personId, startDate])
+  @@index([personId, status])
   @@map("absences")
 }
 
@@ -366,6 +367,8 @@ model WorkflowInstance {
 
   @@index([status, dueAt])
   @@index([type, status])
+  @@index([approverId, status])
+  @@index([requesterId, status])
   @@map("workflow_instances")
 }
 
@@ -389,14 +392,17 @@ enum WorkflowStatus {
 
 model WorkflowPolicy {
   id                      String       @id @default(cuid())
-  type                    WorkflowType @unique
+  type                    WorkflowType
   escalationDeadlineHours Int
   escalationRoles         Json         /// ordered role chain, e.g. ["HR","ADMIN"]
   maxDelegationDepth      Int          @default(5)
   activeFrom              DateTime     @default(now())
+  activeTo                DateTime?    /// null means this is the currently active policy version
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 
+  @@unique([type, activeFrom])
+  @@index([type, activeTo])
   @@map("workflow_policies")
 }
 
@@ -604,6 +610,23 @@ model HrImportRun {
 // ---------------------------------------------------------------------------
 // Audit Trail (append-only)
 // ---------------------------------------------------------------------------
+
+/// Labour-law working-time thresholds (ArbZG §3/§5 defaults).
+/// activeTo IS NULL means currently active; keep history by closing before inserting new.
+model TimeThresholdPolicy {
+  id               String    @id @default(cuid())
+  /// Maximum permitted shift duration in minutes (ArbZG §3 default: 600 = 10 h)
+  dailyMaxMinutes  Int       @default(600)
+  /// Minimum rest period between shifts in minutes (ArbZG §5 default: 660 = 11 h)
+  minRestMinutes   Int       @default(660)
+  activeFrom       DateTime  @default(now())
+  activeTo         DateTime? /// null = currently active version
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([activeTo])
+  @@map("time_threshold_policies")
+}
 
 model AuditEntry {
   id          String   @id @default(cuid())

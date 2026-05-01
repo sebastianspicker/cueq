@@ -1,7 +1,11 @@
+import { Suspense } from 'react';
 import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
+import { connection } from 'next/server';
+import { AppClientEffects } from '../../components/AppClientEffects';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { LocaleSwitchLink } from '../../components/LocaleSwitchLink';
 import { ApiProvider } from '../../lib/api-context';
 
 const locales = ['de', 'en'] as const;
@@ -21,6 +25,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   const { locale: rawLocale } = await params;
   const locale = locales.includes(rawLocale as Locale) ? (rawLocale as Locale) : 'de';
   setRequestLocale(locale);
+  await connection();
 
   const messages = (await import(`../../messages/${locale}.json`)).default;
   const altLocale = locale === 'de' ? 'en' : 'de';
@@ -30,6 +35,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <ApiProvider>
+        <AppClientEffects locale={locale} />
         <a className="cq-skip-link" href="#main-content">
           {messages.app.skipLink}
         </a>
@@ -99,9 +105,15 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
             <div className="cq-locale-panel">
               <span>{messages.app.localeSwitch}</span>
-              <Link className="cq-locale-switch" href={`/${altLocale}/dashboard`}>
-                {altLocale.toUpperCase()}
-              </Link>
+              <Suspense
+                fallback={<span className="cq-locale-switch">{altLocale.toUpperCase()}</span>}
+              >
+                <LocaleSwitchLink
+                  locale={locale}
+                  targetLocale={altLocale}
+                  label={altLocale.toUpperCase()}
+                />
+              </Suspense>
             </div>
           </aside>
 

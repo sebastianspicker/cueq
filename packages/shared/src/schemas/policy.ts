@@ -44,3 +44,15 @@ export const PolicyHistorySchema = z.object({
   entries: z.array(PolicyCatalogEntrySchema),
 });
 export type PolicyHistory = z.infer<typeof PolicyHistorySchema>;
+
+export const TimeThresholdsUpsertSchema = z.object({
+  dailyMaxMinutes: z.number().int().positive().max(720),
+  minRestMinutes: z.number().int().positive().max(1440),
+});
+export type TimeThresholdsUpsert = z.infer<typeof TimeThresholdsUpsertSchema>;
+
+export const TimeThresholdsResultSchema = z.object({
+  dailyMaxMinutes: z.number().int(),
+  minRestMinutes: z.number().int(),
+});
+export type TimeThresholdsResult = z.infer<typeof TimeThresholdsResultSchema>;

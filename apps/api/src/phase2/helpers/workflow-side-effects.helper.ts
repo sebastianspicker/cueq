@@ -18,7 +18,10 @@ export class WorkflowSideEffectsHelper {
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
   ) {}
 
-  async validatePreApproval(workflowId: string, tx?: Pick<PrismaService, 'workflowInstance' | 'shift' | 'person' | 'timeAccount'>) {
+  async validatePreApproval(
+    workflowId: string,
+    tx?: Pick<PrismaService, 'workflowInstance' | 'shift' | 'person' | 'timeAccount'>,
+  ) {
     const db = tx ?? this.prisma;
     const workflow = await db.workflowInstance.findUnique({
       where: { id: workflowId },

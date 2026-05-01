@@ -34,14 +34,20 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
           {
             personId: SEED_IDS.personPlanner,
             timeTypeCode: 'WORK',
-            startTime: '2026-03-11T08:00:00.000Z',
-            endTime: '2026-03-11T16:00:00.000Z',
+            startTime: '2026-03-15T08:00:00.000Z',
+            endTime: '2026-03-15T16:00:00.000Z',
           },
           {
             personId: SEED_IDS.personPlanner,
             timeTypeCode: 'WORK',
-            startTime: '2026-03-11T08:00:00.000Z',
-            endTime: '2026-03-11T16:00:00.000Z',
+            startTime: '2026-03-15T08:00:00.000Z',
+            endTime: '2026-03-15T16:00:00.000Z',
+          },
+          {
+            personId: SEED_IDS.personEmployee,
+            timeTypeCode: 'WORK',
+            startTime: '2026-04-10T08:00:00.000Z',
+            endTime: '2026-04-10T16:00:00.000Z',
           },
         ],
       });
