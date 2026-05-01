@@ -1,15 +1,15 @@
 # cueq — Continuous Integration
 # ================================
-# Runs on every pull request and push to dev.
+# Runs on every pull request and push to main/dev.
 # Validates: lint, typecheck, tests, Prisma schema.
 
 name: CI
 
 on:
   push:
-    branches: [dev]
+    branches: [main, dev]
   pull_request:
-    branches: [dev]
+    branches: [main, dev]
 
 permissions:
   contents: read
