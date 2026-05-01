@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { createApiRequest, type ApiRequest } from './api-client';
 
 const API_BASE_STORAGE_KEY = 'cq-api-base-url';
@@ -35,6 +35,18 @@ function writeSessionValue(key: string, value: string) {
   }
 }
 
+function removeSessionValue(key: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // sessionStorage unavailable
+  }
+}
+
 function normalizeApiBaseUrl(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -63,7 +75,11 @@ export function ApiProvider({ children }: ApiProviderProps) {
   const [apiBaseUrl, setApiBaseUrlState] = useState(() =>
     normalizeApiBaseUrl(readSessionValue(API_BASE_STORAGE_KEY, DEFAULT_API_BASE_URL)),
   );
-  const [token, setTokenState] = useState(() => readSessionValue(TOKEN_STORAGE_KEY, ''));
+  const [token, setTokenState] = useState('');
+
+  useEffect(() => {
+    removeSessionValue(TOKEN_STORAGE_KEY);
+  }, []);
 
   const value = useMemo<ApiContextValue>(() => {
     const setApiBaseUrl = (nextValue: string) => {
@@ -73,13 +89,13 @@ export function ApiProvider({ children }: ApiProviderProps) {
 
       if (normalized !== apiBaseUrl) {
         setTokenState('');
-        writeSessionValue(TOKEN_STORAGE_KEY, '');
+        removeSessionValue(TOKEN_STORAGE_KEY);
       }
     };
 
     const setToken = (nextValue: string) => {
       setTokenState(nextValue);
-      writeSessionValue(TOKEN_STORAGE_KEY, nextValue);
+      removeSessionValue(TOKEN_STORAGE_KEY);
     };
 
     return {
