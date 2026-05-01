@@ -28,6 +28,14 @@ type ParsedRow = HrMasterRecord & {
   supervisorExternalId?: string;
 };
 
+type ValidatedRow = ParsedRow & {
+  parsedRole: Role;
+  parsedWeeklyHours: number;
+  parsedDailyTargetHours: number;
+  organizationUnitId: string;
+  workTimeModelId: string;
+};
+
 @Injectable()
 export class HrImportService {
   constructor(
@@ -60,7 +68,113 @@ export class HrImportService {
       return Role[normalized as keyof typeof Role];
     }
 
-    return Role.EMPLOYEE;
+    throw new BadRequestException(`Unsupported HR role: ${input}`);
+  }
+
+  private validateRows(rows: ParsedRow[]): { rows: ValidatedRow[]; errors: string[] } {
+    const errors: string[] = [];
+    const seenExternalIds = new Set<string>();
+    const seenEmails = new Set<string>();
+
+    const validatedRows = rows.flatMap((row) => {
+      if (!row.externalId || !row.email || !row.firstName || !row.lastName) {
+        errors.push(`Missing required fields for externalId="${row.externalId}".`);
+        return [];
+      }
+
+      if (seenExternalIds.has(row.externalId)) {
+        errors.push(`Duplicate externalId in batch: "${row.externalId}".`);
+        return [];
+      }
+      if (seenEmails.has(row.email.toLowerCase())) {
+        errors.push(`Duplicate email in batch: "${row.email}".`);
+        return [];
+      }
+
+      seenExternalIds.add(row.externalId);
+      seenEmails.add(row.email.toLowerCase());
+
+      const parsedWeeklyHours = Number(row.weeklyHours || DEFAULT_WEEKLY_HOURS);
+      const parsedDailyTargetHours = Number(row.dailyTargetHours || DEFAULT_DAILY_TARGET_HOURS);
+      if (!Number.isFinite(parsedWeeklyHours) || parsedWeeklyHours < 0) {
+        errors.push(`Invalid weeklyHours for externalId="${row.externalId}".`);
+        return [];
+      }
+      if (!Number.isFinite(parsedDailyTargetHours) || parsedDailyTargetHours < 0) {
+        errors.push(`Invalid dailyTargetHours for externalId="${row.externalId}".`);
+        return [];
+      }
+
+      let parsedRole: Role;
+      try {
+        parsedRole = this.toRole(row.role);
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : `Unsupported HR role: ${row.role}`);
+        return [];
+      }
+
+      return [
+        {
+          ...row,
+          parsedRole,
+          parsedWeeklyHours,
+          parsedDailyTargetHours,
+          organizationUnitId: `ou_${row.organizationUnit.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
+          workTimeModelId: `wtm_${row.workTimeModel.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
+        },
+      ];
+    });
+
+    return { rows: validatedRows, errors };
+  }
+
+  private async finalizeRun(summary: {
+    source: 'FILE' | 'API';
+    sourceFile: string | null;
+    totalRows: number;
+    createdRows: number;
+    updatedRows: number;
+    skippedRows: number;
+    errorCount: number;
+    errors: string[];
+  }) {
+    const run = await this.prisma.hrImportRun.create({
+      data: {
+        source: summary.source,
+        sourceFile: summary.sourceFile ?? undefined,
+        status: summary.errorCount > 0 ? 'FAILED' : 'SUCCEEDED',
+        totalRows: summary.totalRows,
+        createdRows: summary.createdRows,
+        updatedRows: summary.updatedRows,
+        skippedRows: summary.skippedRows,
+        errorCount: summary.errorCount,
+        summary: summary as Prisma.InputJsonValue,
+        importedById: 'system:hr-import',
+      },
+    });
+
+    await this.auditHelper.appendAudit({
+      actorId: 'system:hr-import',
+      action: 'HR_MASTER_IMPORT_COMPLETED',
+      entityType: 'HrImportRun',
+      entityId: run.id,
+      after: summary,
+      reason: summary.source,
+    });
+
+    return {
+      id: run.id,
+      source: run.source,
+      sourceFile: run.sourceFile,
+      status: run.status,
+      totalRows: run.totalRows,
+      createdRows: run.createdRows,
+      updatedRows: run.updatedRows,
+      skippedRows: run.skippedRows,
+      errorCount: run.errorCount,
+      summary: run.summary,
+      importedAt: run.importedAt.toISOString(),
+    };
   }
 
   async runImport(token: string | string[] | undefined, payload: unknown) {
@@ -80,61 +194,52 @@ export class HrImportService {
       }
     }
 
-    let createdRows = 0;
-    let updatedRows = 0;
-    let skippedRows = 0;
-    let errorCount = 0;
-    const errors: string[] = [];
+    const { rows: validatedRows, errors } = this.validateRows(rows);
+    const baseSummary = {
+      source: parsedPayload.source,
+      sourceFile: parsedPayload.sourceFile ?? null,
+      totalRows: rows.length,
+      createdRows: 0,
+      updatedRows: 0,
+      skippedRows: rows.length - validatedRows.length,
+      errorCount: errors.length,
+      errors,
+    };
 
-    const upsertedPeople: Array<{
-      externalId: string;
-      personId: string;
-      supervisorExternalId?: string;
-    }> = [];
+    if (errors.length > 0) {
+      return this.finalizeRun(baseSummary);
+    }
 
-    for (const row of rows) {
-      if (!row.externalId || !row.email || !row.firstName || !row.lastName) {
-        skippedRows += 1;
-        errors.push(`Skipped row with missing required fields for externalId="${row.externalId}".`);
-        continue;
-      }
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const importedPeople = new Map<string, string>();
+        let createdRows = 0;
+        let updatedRows = 0;
 
-      try {
-        const result = await this.prisma.$transaction(async (tx) => {
-          const organizationUnit = await tx.organizationUnit.upsert({
-            where: {
-              id: `ou_${row.organizationUnit.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
-            },
+        for (const row of validatedRows) {
+          await tx.organizationUnit.upsert({
+            where: { id: row.organizationUnitId },
             create: {
-              id: `ou_${row.organizationUnit.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
+              id: row.organizationUnitId,
               name: row.organizationUnit,
             },
-            update: {
-              name: row.organizationUnit,
-            },
+            update: { name: row.organizationUnit },
           });
 
-          const modelId = `wtm_${row.workTimeModel.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`;
-          const weeklyHours = Number(row.weeklyHours || DEFAULT_WEEKLY_HOURS);
-          const dailyTargetHours = Number(row.dailyTargetHours || DEFAULT_DAILY_TARGET_HOURS);
           await tx.workTimeModel.upsert({
-            where: { id: modelId },
+            where: { id: row.workTimeModelId },
             create: {
-              id: modelId,
+              id: row.workTimeModelId,
               name: row.workTimeModel,
               type: WorkTimeModelType.FLEXTIME,
-              weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : DEFAULT_WEEKLY_HOURS,
-              dailyTargetHours: Number.isFinite(dailyTargetHours)
-                ? dailyTargetHours
-                : DEFAULT_DAILY_TARGET_HOURS,
+              weeklyHours: row.parsedWeeklyHours,
+              dailyTargetHours: row.parsedDailyTargetHours,
               effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             },
             update: {
               name: row.workTimeModel,
-              weeklyHours: Number.isFinite(weeklyHours) ? weeklyHours : DEFAULT_WEEKLY_HOURS,
-              dailyTargetHours: Number.isFinite(dailyTargetHours)
-                ? dailyTargetHours
-                : DEFAULT_DAILY_TARGET_HOURS,
+              weeklyHours: row.parsedWeeklyHours,
+              dailyTargetHours: row.parsedDailyTargetHours,
             },
           });
 
@@ -152,9 +257,9 @@ export class HrImportService {
                   firstName: row.firstName,
                   lastName: row.lastName,
                   email: row.email,
-                  role: this.toRole(row.role),
-                  organizationUnitId: organizationUnit.id,
-                  workTimeModelId: modelId,
+                  role: row.parsedRole,
+                  organizationUnitId: row.organizationUnitId,
+                  workTimeModelId: row.workTimeModelId,
                 },
               })
             : await tx.person.create({
@@ -163,107 +268,69 @@ export class HrImportService {
                   firstName: row.firstName,
                   lastName: row.lastName,
                   email: row.email,
-                  role: this.toRole(row.role),
-                  organizationUnitId: organizationUnit.id,
-                  workTimeModelId: modelId,
+                  role: row.parsedRole,
+                  organizationUnitId: row.organizationUnitId,
+                  workTimeModelId: row.workTimeModelId,
                 },
               });
 
-          return { person, isUpdate: !!existing };
-        });
-
-        if (result.isUpdate) {
-          updatedRows += 1;
-        } else {
-          createdRows += 1;
+          importedPeople.set(row.externalId, person.id);
+          if (existing) {
+            updatedRows += 1;
+          } else {
+            createdRows += 1;
+          }
         }
 
-        upsertedPeople.push({
-          externalId: row.externalId,
-          personId: result.person.id,
-          supervisorExternalId: row.supervisorExternalId,
-        });
-      } catch (error) {
-        errorCount += 1;
-        errors.push(
-          `Failed row externalId="${row.externalId}": ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`,
-        );
-      }
+        for (const row of validatedRows) {
+          if (!row.supervisorExternalId) {
+            continue;
+          }
+
+          const supervisorId =
+            importedPeople.get(row.supervisorExternalId) ??
+            (
+              await tx.person.findFirst({
+                where: { externalId: row.supervisorExternalId },
+                select: { id: true },
+              })
+            )?.id;
+          if (!supervisorId) {
+            throw new BadRequestException(
+              `Supervisor externalId not found in batch: ${row.supervisorExternalId}`,
+            );
+          }
+
+          const personId = importedPeople.get(row.externalId);
+          if (!personId) {
+            throw new BadRequestException(
+              `Imported person missing for externalId: ${row.externalId}`,
+            );
+          }
+
+          await tx.person.update({
+            where: { id: personId },
+            data: { supervisorId },
+          });
+        }
+
+        return { createdRows, updatedRows };
+      });
+
+      return this.finalizeRun({
+        ...baseSummary,
+        createdRows: result.createdRows,
+        updatedRows: result.updatedRows,
+        skippedRows: 0,
+        errorCount: 0,
+      });
+    } catch (error) {
+      return this.finalizeRun({
+        ...baseSummary,
+        errorCount: 1,
+        errors: [error instanceof Error ? error.message : 'Unknown HR import error'],
+      });
     }
-
-    await this.prisma.$transaction(async (tx) => {
-      for (const relation of upsertedPeople) {
-        if (!relation.supervisorExternalId) {
-          continue;
-        }
-
-        const supervisor = upsertedPeople.find(
-          (candidate) => candidate.externalId === relation.supervisorExternalId,
-        );
-        if (!supervisor) {
-          errors.push(
-            `Supervisor linkage skipped for externalId="${relation.externalId}": supervisor externalId="${relation.supervisorExternalId}" not found in batch.`,
-          );
-          continue;
-        }
-
-        await tx.person.update({
-          where: { id: relation.personId },
-          data: { supervisorId: supervisor.personId },
-        });
-      }
-    });
-
-    const summary = {
-      source: parsedPayload.source,
-      sourceFile: parsedPayload.sourceFile ?? null,
-      totalRows: rows.length,
-      createdRows,
-      updatedRows,
-      skippedRows,
-      errorCount,
-      errors,
-    };
-
-    const run = await this.prisma.hrImportRun.create({
-      data: {
-        source: parsedPayload.source,
-        sourceFile: parsedPayload.sourceFile,
-        status: errorCount > 0 ? 'FAILED' : 'SUCCEEDED',
-        totalRows: rows.length,
-        createdRows,
-        updatedRows,
-        skippedRows,
-        errorCount,
-        summary: summary as Prisma.InputJsonValue,
-        importedById: 'system:hr-import',
-      },
-    });
-
-    await this.auditHelper.appendAudit({
-      actorId: 'system:hr-import',
-      action: 'HR_MASTER_IMPORT_COMPLETED',
-      entityType: 'HrImportRun',
-      entityId: run.id,
-      after: summary,
-      reason: parsedPayload.source,
-    });
-
-    return {
-      id: run.id,
-      source: run.source,
-      sourceFile: run.sourceFile,
-      status: run.status,
-      totalRows: run.totalRows,
-      createdRows: run.createdRows,
-      updatedRows: run.updatedRows,
-      skippedRows: run.skippedRows,
-      errorCount: run.errorCount,
-      summary: run.summary,
-      importedAt: run.importedAt.toISOString(),
-    };
   }
 
   async getRun(token: string | string[] | undefined, runId: string): Promise<unknown> {

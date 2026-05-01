@@ -261,6 +261,64 @@ describe('evaluatePlanVsActualCoverage', () => {
     expect(result.mismatchedSlots).toBe(0);
   });
 
+  it('requires meaningful coverage rather than any tiny overlap', () => {
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'shift-short-overlap',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T16:00:00.000Z',
+          shiftType: 'EARLY',
+          minStaffing: 1,
+          assignedPersonIds: ['p1'],
+        },
+      ],
+      [
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T15:45:00.000Z',
+          endTime: '2026-03-10T16:00:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+      ],
+    );
+
+    expect(result.slots[0]?.actualHeadcount).toBe(0);
+    expect(result.understaffedSlots).toBe(1);
+  });
+
+  it('counts split bookings when their combined coverage is meaningful', () => {
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'shift-split-coverage',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T16:00:00.000Z',
+          shiftType: 'EARLY',
+          minStaffing: 1,
+          assignedPersonIds: ['p1'],
+        },
+      ],
+      [
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T10:00:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T11:00:00.000Z',
+          endTime: '2026-03-10T13:30:00.000Z',
+          timeTypeCategory: 'DEPLOYMENT',
+        },
+      ],
+    );
+
+    expect(result.slots[0]?.actualHeadcount).toBe(1);
+    expect(result.mismatchedSlots).toBe(0);
+  });
+
   it('treats boundary-touching intervals as non-overlapping', () => {
     const result = evaluatePlanVsActualCoverage(
       [
@@ -321,9 +379,9 @@ describe('evaluatePlanVsActualCoverage', () => {
       ],
     );
 
-    expect(result.slots[0]?.actualHeadcount).toBe(1);
-    expect(result.mismatchedSlots).toBe(0);
-    expect(result.coverageRate).toBe(1);
+    expect(result.slots[0]?.actualHeadcount).toBe(0);
+    expect(result.mismatchedSlots).toBe(1);
+    expect(result.coverageRate).toBe(0);
   });
 
   it('reports zero actual headcount when no bookings exist for a shift', () => {
@@ -349,6 +407,100 @@ describe('evaluatePlanVsActualCoverage', () => {
     expect(result.understaffedSlots).toBe(1);
     expect(result.complianceRate).toBe(0);
     expect(result.coverageRate).toBe(0);
+  });
+
+  it('exposes plannedDurationMinutes and actualCoveredMinutes per slot', () => {
+    // 8h shift; p1 covers 4h → exactly 50% (meets default 0.5 threshold)
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'shift-duration',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T16:00:00.000Z',
+          shiftType: 'EARLY',
+          minStaffing: 1,
+          assignedPersonIds: ['p1'],
+        },
+      ],
+      [
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T12:00:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+      ],
+    );
+
+    expect(result.slots[0]?.plannedDurationMinutes).toBe(480);
+    expect(result.slots[0]?.actualCoveredMinutes).toBe(240);
+    expect(result.slots[0]?.actualHeadcount).toBe(1);
+    expect(result.slots[0]?.durationCoverageRatio).toBeGreaterThan(0);
+  });
+
+  it('configurable coverageThreshold: 75% threshold rejects person with only 60% coverage', () => {
+    // 8h shift; p1 covers 4.5h (56.25%) → above default 50% but below 75%
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'shift-threshold',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T16:00:00.000Z',
+          shiftType: 'EARLY',
+          minStaffing: 1,
+          assignedPersonIds: ['p1'],
+        },
+      ],
+      [
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T12:30:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+      ],
+      { coverageThreshold: 0.75 },
+    );
+
+    // With 75% threshold (360 min required), 270 min covered is insufficient
+    expect(result.slots[0]?.actualHeadcount).toBe(0);
+    expect(result.understaffedSlots).toBe(1);
+  });
+
+  it('durationCoverageRate aggregates actual vs planned minutes across all slots', () => {
+    // Two 4h shifts; p1 fully covers slot-1, nobody covers slot-2
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'slot-a',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T12:00:00.000Z',
+          shiftType: 'EARLY',
+          minStaffing: 1,
+          assignedPersonIds: ['p1'],
+        },
+        {
+          shiftId: 'slot-b',
+          startTime: '2026-03-10T12:00:00.000Z',
+          endTime: '2026-03-10T16:00:00.000Z',
+          shiftType: 'EARLY',
+          minStaffing: 1,
+          assignedPersonIds: ['p2'],
+        },
+      ],
+      [
+        {
+          personId: 'p1',
+          startTime: '2026-03-10T08:00:00.000Z',
+          endTime: '2026-03-10T12:00:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+      ],
+    );
+
+    // slot-a: 240 planned, 240 actual; slot-b: 240 planned, 0 actual → 50%
+    expect(result.durationCoverageRate).toBe(0.5);
+    expect(result.coverageRate).toBe(0.5);
   });
 });
 

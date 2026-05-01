@@ -17,10 +17,11 @@ export function buildAuditEntry(input: BuildAuditEntryInput): DeepReadonly<Audit
     action: input.action,
     entityType: input.entityType,
     entityId: input.entityId,
-    before: input.before,
-    after: input.after,
+    // Shallow-clone payloads so deepFreeze does not mutate the caller's objects.
+    before: input.before ? { ...(input.before as Record<string, unknown>) } : undefined,
+    after: input.after ? { ...(input.after as Record<string, unknown>) } : undefined,
     reason: input.reason ?? null,
-    metadata: input.metadata,
+    metadata: input.metadata ? { ...input.metadata } : undefined,
   };
 
   return deepFreeze(entry) as DeepReadonly<AuditEntryDraft>;

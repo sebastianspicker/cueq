@@ -7,23 +7,27 @@ import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
+import {
+  applyThemePreference,
+  getStoredPreference,
+  PAGE_SIZE_STORAGE_KEY,
+  setStoredPreference,
+  THEME_STORAGE_KEY,
+} from '../../../lib/preferences';
 
 export default function SettingsPage() {
   const t = useTranslations('pages.settings');
   const { apiBaseUrl, setApiBaseUrl, token, setToken } = useApiContext();
 
-  const [theme, setTheme] = useState('system');
-  const [pageSize, setPageSize] = useState('20');
+  const [theme, setTheme] = useState(() => getStoredPreference(THEME_STORAGE_KEY, 'system'));
+  const [pageSize, setPageSize] = useState(() => getStoredPreference(PAGE_SIZE_STORAGE_KEY, '20'));
   const [message, setMessage] = useState<string | null>(null);
 
   function handleSave() {
-    try {
-      localStorage.setItem('cq-theme', theme);
-      localStorage.setItem('cq-page-size', pageSize);
-      setMessage(t('saved'));
-    } catch {
-      // localStorage unavailable
-    }
+    setStoredPreference(THEME_STORAGE_KEY, theme);
+    setStoredPreference(PAGE_SIZE_STORAGE_KEY, pageSize);
+    applyThemePreference(theme);
+    setMessage(t('saved'));
   }
 
   return (

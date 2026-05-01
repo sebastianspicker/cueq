@@ -1,15 +1,15 @@
 # cueq — Continuous Integration
 # ================================
-# Runs on every pull request and push to main.
+# Runs on every pull request and push to main/dev.
 # Validates: lint, typecheck, tests, Prisma schema.
 
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 permissions:
   contents: read
@@ -70,6 +70,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @cueq/web exec playwright install --with-deps chromium
 
       - name: Audit dependencies
         run: pnpm audit --prod --audit-level=high
@@ -144,4 +147,5 @@ jobs:
       - name: Fresh clone setup and check
         run: |
           make setup
+          pnpm --filter @cueq/web exec playwright install --with-deps chromium
           make check

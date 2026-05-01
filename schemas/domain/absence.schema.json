@@ -26,10 +26,10 @@
       ]
     },
     "startDate": {
-      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+      "$ref": "./_defs/common.schema.json#/$defs/date"
     },
     "endDate": {
-      "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+      "$ref": "./_defs/common.schema.json#/$defs/date"
     },
     "days": {
       "$ref": "./_defs/common.schema.json#/$defs/nonNegativeNumber"

@@ -127,11 +127,23 @@ export default function TimeEnginePage() {
               </div>
               <div className="cq-stat-card">
                 <span className="cq-stat-label">{t('violations')}</span>
-                <span className="cq-stat-value" style={{ color: result.violations.length > 0 ? 'var(--cq-error)' : 'var(--cq-ok)' }}>{result.violations.length}</span>
+                <span
+                  className="cq-stat-value"
+                  style={{
+                    color: result.violations.length > 0 ? 'var(--cq-error)' : 'var(--cq-ok)',
+                  }}
+                >
+                  {result.violations.length}
+                </span>
               </div>
               <div className="cq-stat-card">
                 <span className="cq-stat-label">{t('warnings')}</span>
-                <span className="cq-stat-value" style={{ color: result.warnings.length > 0 ? 'var(--cq-warn)' : 'var(--cq-ok)' }}>{result.warnings.length}</span>
+                <span
+                  className="cq-stat-value"
+                  style={{ color: result.warnings.length > 0 ? 'var(--cq-warn)' : 'var(--cq-ok)' }}
+                >
+                  {result.warnings.length}
+                </span>
               </div>
             </div>
 

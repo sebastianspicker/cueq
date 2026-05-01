@@ -31,11 +31,17 @@ describe('calculateFlextimeWeek – edge cases', () => {
 
   describe('break thresholds', () => {
     it('no break deficit when workedHours exactly 6 and breakMinutes omitted', () => {
-      // When breakMinutes is omitted, the fallback `breakMinutes ?? expectedBreak` means
-      // it defaults to expectedBreak, so no violation.
       const result = calculateFlextimeWeek({
         ...BASE_INPUT,
         bookings: [{ day: '2026-03-02', workedHours: 6 }],
+      });
+      expect(result.violations.some((v) => v.code === 'BREAK_DEFICIT')).toBe(false);
+    });
+
+    it('no break deficit when workedHours exactly 9 and breakMinutes omitted', () => {
+      const result = calculateFlextimeWeek({
+        ...BASE_INPUT,
+        bookings: [{ day: '2026-03-02', workedHours: 9 }],
       });
       expect(result.violations.some((v) => v.code === 'BREAK_DEFICIT')).toBe(false);
     });
@@ -332,9 +338,7 @@ describe('calculateFlextimeWeek – edge cases', () => {
       expect(result.actualHours).toBe(8);
     });
 
-    it('checks max daily hours per booking, not per day aggregate', () => {
-      // Each booking is 6h (under daily max of 8h), but total is 12h
-      // The function checks per-booking, so no daily max violation per booking
+    it('checks max daily hours by day aggregate across multiple bookings', () => {
       const result = calculateFlextimeWeek({
         ...BASE_INPUT,
         targetHours: 0,
@@ -343,8 +347,20 @@ describe('calculateFlextimeWeek – edge cases', () => {
           { day: '2026-03-02', workedHours: 6 },
         ],
       });
-      // Each 6h booking is under 8h → no warning per booking
-      expect(result.violations.some((v) => v.code === 'MAX_DAILY_HOURS_EXCEEDED')).toBe(false);
+      expect(result.violations.some((v) => v.code === 'MAX_DAILY_HOURS_EXCEEDED')).toBe(true);
+    });
+
+    it('aggregates explicit break minutes across same-day bookings', () => {
+      const result = calculateFlextimeWeek({
+        ...BASE_INPUT,
+        targetHours: 0,
+        bookings: [
+          { day: '2026-03-02', workedHours: 4, breakMinutes: 0 },
+          { day: '2026-03-02', workedHours: 5, breakMinutes: 45 },
+        ],
+      });
+
+      expect(result.violations.some((v) => v.code === 'BREAK_DEFICIT')).toBe(false);
     });
   });
 

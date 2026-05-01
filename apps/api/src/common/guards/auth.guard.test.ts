@@ -32,6 +32,17 @@ describe('AuthGuard', () => {
       role: 'EMPLOYEE',
       claims: {},
     });
+    const prisma = {
+      person: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'person-1',
+          email: 'employee@cueq.local',
+          role: 'EMPLOYEE',
+          organizationUnitId: 'ou-1',
+        }),
+      },
+    };
     const guard = new AuthGuard(
       {
         getAllAndOverride: vi.fn().mockReturnValue(false),
@@ -39,6 +50,7 @@ describe('AuthGuard', () => {
       {
         verifyToken,
       } as never,
+      prisma as never,
     );
 
     await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
@@ -46,7 +58,9 @@ describe('AuthGuard', () => {
     expect(request.user).toEqual({
       subject: 'subject-1',
       email: 'employee@cueq.local',
+      personId: 'person-1',
       role: 'EMPLOYEE',
+      organizationUnitId: 'ou-1',
       claims: {},
     });
   });
@@ -60,6 +74,7 @@ describe('AuthGuard', () => {
       {
         verifyToken,
       } as never,
+      {} as never,
     );
 
     await expect(
@@ -83,6 +98,7 @@ describe('AuthGuard', () => {
       {
         verifyToken,
       } as never,
+      {} as never,
     );
 
     await expect(
@@ -104,6 +120,7 @@ describe('AuthGuard', () => {
       {
         verifyToken,
       } as never,
+      {} as never,
     );
 
     const oversized = `Bearer ${'a'.repeat(4097)}`;
@@ -128,6 +145,7 @@ describe('AuthGuard', () => {
       {
         verifyToken,
       } as never,
+      {} as never,
     );
 
     await expect(
@@ -140,5 +158,48 @@ describe('AuthGuard', () => {
       ),
     ).rejects.toThrowError(UnauthorizedException);
     expect(verifyToken).not.toHaveBeenCalled();
+  });
+
+  it('uses persisted role and organization unit as the request auth context', async () => {
+    const request: {
+      headers: Record<string, string | string[] | undefined>;
+      user?: unknown;
+    } = {
+      headers: {
+        authorization: 'Bearer valid-token',
+      },
+    };
+    const verifyToken = vi.fn().mockResolvedValue({
+      subject: 'subject-1',
+      email: 'employee@cueq.local',
+      role: 'HR',
+      organizationUnitId: 'ou-token',
+      claims: {},
+    });
+    const guard = new AuthGuard(
+      {
+        getAllAndOverride: vi.fn().mockReturnValue(false),
+      } as never,
+      {
+        verifyToken,
+      } as never,
+      {
+        person: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: 'person-1',
+            email: 'employee@cueq.local',
+            role: 'EMPLOYEE',
+            organizationUnitId: 'ou-db',
+          }),
+        },
+      } as never,
+    );
+
+    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
+    expect(request.user).toMatchObject({
+      personId: 'person-1',
+      role: 'EMPLOYEE',
+      organizationUnitId: 'ou-db',
+    });
   });
 });

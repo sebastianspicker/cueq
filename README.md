@@ -2,12 +2,10 @@
 
 > Time-tracking, absence management, and shift planning for a German university (NRW / TV-L).
 
-[![CI](https://github.com/your-org/cueq/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/cueq/actions/workflows/ci.yml)
+[![CI](https://github.com/sebastianspicker/cueq/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianspicker/cueq/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Target Audience:** German university HR departments, team leads (Teamleitungen), and shift planners (Dienstplaner) managing workforce time-tracking, absence quotas, and roster compliance under TV-L / NRW regulations.
-
-**Project Status:** cueq is a proof of concept and reference implementation. It demonstrates that public institutions can approach workforce management with transparent, auditable, self-hostable open-source software instead of treating closed-source vendor platforms as the only realistic option.
 
 ---
 
@@ -69,6 +67,7 @@ graph TB
         API[NestJS API<br/>REST + OpenAPI]
         WEB[Next.js Frontend<br/>Self-service UI]
         DB[(PostgreSQL<br/>+ Audit Trail)]
+        MON[📊 Monitoring<br/>Prometheus + Grafana<br/>optional profile]
     end
 
     HW -->|bookings| GW
@@ -78,6 +77,7 @@ graph TB
     HR -->|sync| API
     API -->|export| PAY
     API <-->|read/write| DB
+    API -->|metrics| MON
 ```
 
 ### Core Domain Services
@@ -157,6 +157,8 @@ graph TD
             PS[product-specs/]
             GEN[generated/]
         end
+
+        MON["monitoring/<br/>Prometheus + Grafana<br/>config (optional profile)"]
     end
 
     API --> DB
@@ -310,7 +312,7 @@ See [ADR-001: Tech Stack](docs/design-decisions/001-tech-stack.md) for the full 
 
 ```bash
 # 1. Clone and configure
-git clone https://github.com/your-org/cueq.git
+git clone https://github.com/sebastianspicker/cueq.git
 cd cueq
 cp .env.example .env          # adjust DATABASE_URL if needed
 
@@ -358,20 +360,21 @@ Run `make help` for a full list. Key commands:
 
 All screenshots are generated from mock university seed data (German locale) via `make demo-screenshots`.
 
-| Screen | Preview |
-| ------ | ------- |
-| **Dashboard** -- Target/actual hours, balance, quick actions | ![Dashboard](docs/assets/demo-screenshots/01-dashboard.png) |
-| **Leave** -- Absence requests, quota tracking, carry-over | ![Leave](docs/assets/demo-screenshots/02-leave.png) |
-| **Roster** -- Shift planning, min-staffing, plan-vs-actual | ![Roster](docs/assets/demo-screenshots/03-roster.png) |
-| **Approvals** -- Workflow inbox with delegation and escalation | ![Approvals](docs/assets/demo-screenshots/04-approvals.png) |
-| **Closing** -- Monthly closing checklist, export runs, corrections | ![Closing](docs/assets/demo-screenshots/05-closing.png) |
-| **Reports** -- Aggregated analytics with privacy guardrails | ![Reports](docs/assets/demo-screenshots/06-reports.png) |
+| Screen                                                             | Preview                                                     |
+| ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| **Dashboard** -- Target/actual hours, balance, quick actions       | ![Dashboard](docs/assets/demo-screenshots/01-dashboard.png) |
+| **Leave** -- Absence requests, quota tracking, carry-over          | ![Leave](docs/assets/demo-screenshots/02-leave.png)         |
+| **Roster** -- Shift planning, min-staffing, plan-vs-actual         | ![Roster](docs/assets/demo-screenshots/03-roster.png)       |
+| **Approvals** -- Workflow inbox with delegation and escalation     | ![Approvals](docs/assets/demo-screenshots/04-approvals.png) |
+| **Closing** -- Monthly closing checklist, export runs, corrections | ![Closing](docs/assets/demo-screenshots/05-closing.png)     |
+| **Reports** -- Aggregated analytics with privacy guardrails        | ![Reports](docs/assets/demo-screenshots/06-reports.png)     |
 
 ---
 
 ## Domain Model
 
-The database schema models the core domain entities from the [PRD](docs/product-specs/index.md):
+The database schema models the core domain entities from the [PRD](docs/product-specs/index.md).
+Core entities shown below; Phase 2/3 integration models (OnCall, Webhooks, Terminals, HrImport, WorkflowPolicy, TimeThresholdPolicy) are omitted for clarity — see [`docs/generated/db-schema.md`](docs/generated/db-schema.md) for the full schema.
 
 ```mermaid
 erDiagram

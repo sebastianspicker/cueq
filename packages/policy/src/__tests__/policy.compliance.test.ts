@@ -4,12 +4,7 @@ import { DEFAULT_BREAK_RULE } from '../rules/break-rules';
 import { DEFAULT_SURCHARGE_RULE } from '../rules/surcharge-rules';
 import { DEFAULT_REST_RULE } from '../rules/rest-rules';
 import { DEFAULT_MAX_HOURS_RULE } from '../rules/max-hours-rules';
-import {
-  PolicyViolationSchema,
-  PolicyEvalResultSchema,
-  type PolicyViolation,
-  type PolicyEvalResult,
-} from '../types';
+import { PolicyViolationSchema, PolicyEvalResultSchema, type PolicyViolation } from '../types';
 import { getActivePolicyBundle, POLICY_HISTORY } from '../catalog';
 
 describe('@cueq/policy compliance', () => {

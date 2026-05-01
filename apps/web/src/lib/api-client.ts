@@ -52,11 +52,7 @@ function isStructuredError(value: unknown): value is StructuredError {
  * Prefers the structured `message` field from the NestJS error envelope,
  * falling back to raw text or the default message.
  */
-function extractErrorMessage(
-  payload: unknown,
-  rawText: string,
-  defaultMessage: string,
-): string {
+function extractErrorMessage(payload: unknown, rawText: string, defaultMessage: string): string {
   if (isStructuredError(payload) && typeof payload.message === 'string') {
     return payload.message;
   }
@@ -68,7 +64,7 @@ export function createApiRequest(
   token: string,
   defaultMessage: string,
 ): ApiRequest {
-  const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+  const normalizedBaseUrl = (baseUrl.trim() || '/api').replace(/\/$/, '');
 
   return async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${normalizedBaseUrl}${path}`, {
@@ -81,11 +77,7 @@ export function createApiRequest(
 
     if (!response.ok) {
       const userMessage = extractErrorMessage(payload, text, defaultMessage);
-      throw new ApiRequestError(
-        response.status,
-        `${response.status}: ${userMessage}`,
-        payload,
-      );
+      throw new ApiRequestError(response.status, `${response.status}: ${userMessage}`, payload);
     }
 
     if (!text) {

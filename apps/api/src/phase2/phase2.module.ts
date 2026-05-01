@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { Phase2Service } from './phase2.service';
+import { AuditController } from './controllers/audit.controller';
 import { MeController } from './controllers/me.controller';
 import { DashboardController } from './controllers/dashboard.controller';
 import { BookingsController } from './controllers/bookings.controller';
 import { AbsencesController } from './controllers/absences.controller';
+import { PersonsController } from './controllers/persons.controller';
 import { LeaveBalanceController } from './controllers/leave-balance.controller';
 import { LeaveAdjustmentsController } from './controllers/leave-adjustments.controller';
 import { CalendarController } from './controllers/calendar.controller';
@@ -22,6 +24,7 @@ import { PoliciesController } from './controllers/policies.controller';
 import { IntegrationsController } from './controllers/integrations.controller';
 import { ReportsController } from './controllers/reports.controller';
 import { TimeEngineController } from './controllers/time-engine.controller';
+import { TimeThresholdsController } from './controllers/time-thresholds.controller';
 import { WorkflowAssignmentHelper } from './helpers/workflow-assignment.helper';
 import { WorkflowCreationHelper } from './helpers/workflow-creation.helper';
 import { WorkflowDelegationCrudHelper } from './helpers/workflow-delegation-crud.helper';
@@ -47,6 +50,7 @@ import { ReportingComplianceHelper } from './helpers/reporting-compliance.helper
 import { RosterAssignmentHelper } from './helpers/roster-assignment.helper';
 import { RosterQueryHelper } from './helpers/roster-query.helper';
 import { RosterShiftHelper } from './helpers/roster-shift.helper';
+import { TimeThresholdPolicyHelper } from './helpers/time-threshold-policy.helper';
 import { PolicyQueryService } from './services/policy-query.service';
 import { TimeEngineDomainService } from './services/time-engine-domain.service';
 import { ReportingService } from './services/reporting.service';
@@ -73,6 +77,7 @@ import { BookingDomainService } from './services/booking-domain.service';
     RosterAssignmentHelper,
     RosterQueryHelper,
     RosterShiftHelper,
+    TimeThresholdPolicyHelper,
     Phase2Service,
     PolicyQueryService,
     TimeEngineDomainService,
@@ -106,10 +111,12 @@ import { BookingDomainService } from './services/booking-domain.service';
     BookingDomainService,
   ],
   controllers: [
+    AuditController,
     MeController,
     DashboardController,
     BookingsController,
     AbsencesController,
+    PersonsController,
     LeaveBalanceController,
     LeaveAdjustmentsController,
     CalendarController,
@@ -124,6 +131,7 @@ import { BookingDomainService } from './services/booking-domain.service';
     IntegrationsController,
     ReportsController,
     TimeEngineController,
+    TimeThresholdsController,
   ],
   exports: [
     AuditHelper,

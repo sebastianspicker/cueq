@@ -24,13 +24,23 @@ export const CreateBookingSchema = z
 export type CreateBooking = z.infer<typeof CreateBookingSchema>;
 
 /** Schema for a booking correction request (requires justification) */
-export const BookingCorrectionSchema = z.object({
-  bookingId: IdSchema,
-  startTime: DateTimeSchema.optional(),
-  endTime: DateTimeSchema.optional(),
-  timeTypeId: IdSchema.optional(),
-  reason: z.string().min(10, 'Correction reason must be at least 10 characters'),
-});
+export const BookingCorrectionSchema = z
+  .object({
+    bookingId: IdSchema,
+    startTime: DateTimeSchema.optional(),
+    endTime: DateTimeSchema.optional(),
+    timeTypeId: IdSchema.optional(),
+    reason: z.string().min(10, 'Correction reason must be at least 10 characters'),
+  })
+  .superRefine((input, ctx) => {
+    if (input.startTime && input.endTime && input.endTime <= input.startTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'endTime must be after startTime',
+        path: ['endTime'],
+      });
+    }
+  });
 export type BookingCorrection = z.infer<typeof BookingCorrectionSchema>;
 
 /** Schema for a booking response (read) */
