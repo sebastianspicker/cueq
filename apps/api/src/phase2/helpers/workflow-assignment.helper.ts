@@ -283,7 +283,7 @@ export class WorkflowAssignmentHelper {
     return { entries, total: entries.length };
   }
 
-  async upsertPolicy(type: WorkflowType, payload: WorkflowPolicyUpsert) {
+  async upsertPolicy(type: WorkflowType, payload: WorkflowPolicyUpsert, actorId?: string) {
     const invalidRole = payload.escalationRoles.find((role) => !isRoleAllowedForType(role, type));
     if (invalidRole) {
       throw new BadRequestException(
@@ -294,21 +294,55 @@ export class WorkflowAssignmentHelper {
     const activeFrom = payload.activeFrom ? new Date(payload.activeFrom) : new Date();
     const now = new Date();
 
-    // Close the current active policy version
-    await this.prisma.workflowPolicy.updateMany({
-      where: { type, activeTo: null },
-      data: { activeTo: now },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const previous = await tx.workflowPolicy.findMany({
+        where: { type, activeTo: null },
+        orderBy: { activeFrom: 'desc' },
+      });
 
-    // Create the new version
-    return this.prisma.workflowPolicy.create({
-      data: {
-        type,
-        escalationDeadlineHours: payload.escalationDeadlineHours,
-        escalationRoles: payload.escalationRoles,
-        maxDelegationDepth: payload.maxDelegationDepth,
-        activeFrom,
-      },
+      await tx.workflowPolicy.updateMany({
+        where: { type, activeTo: null },
+        data: { activeTo: now },
+      });
+
+      const created = await tx.workflowPolicy.create({
+        data: {
+          type,
+          escalationDeadlineHours: payload.escalationDeadlineHours,
+          escalationRoles: payload.escalationRoles,
+          maxDelegationDepth: payload.maxDelegationDepth,
+          activeFrom,
+        },
+      });
+
+      if (actorId) {
+        await this.auditHelper.appendAudit(
+          {
+            actorId,
+            action: 'WORKFLOW_POLICY_UPDATED',
+            entityType: 'WorkflowPolicy',
+            entityId: created.id,
+            before: previous.map((entry) => ({
+              id: entry.id,
+              escalationDeadlineHours: entry.escalationDeadlineHours,
+              escalationRoles: entry.escalationRoles,
+              maxDelegationDepth: entry.maxDelegationDepth,
+              activeFrom: entry.activeFrom.toISOString(),
+            })),
+            after: {
+              id: created.id,
+              type: created.type,
+              escalationDeadlineHours: created.escalationDeadlineHours,
+              escalationRoles: created.escalationRoles,
+              maxDelegationDepth: created.maxDelegationDepth,
+              activeFrom: created.activeFrom.toISOString(),
+            },
+          },
+          tx,
+        );
+      }
+
+      return created;
     });
   }
 

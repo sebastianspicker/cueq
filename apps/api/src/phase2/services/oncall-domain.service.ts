@@ -22,6 +22,17 @@ import { AuditHelper } from '../helpers/audit.helper';
 import { APPROVAL_ROLES, assertCanActForPerson } from '../helpers/role-constants';
 import { bookingOverlapWhere } from '../helpers/booking-overlap.helper';
 
+type OnCallDateWindowQuery = {
+  from?: string;
+  to?: string;
+};
+
+type OnCallDateWindowWhere = {
+  AND?: Array<{ startTime?: { lte: Date }; endTime?: { gte: Date } }>;
+  startTime?: { lte: Date };
+  endTime?: { gte: Date };
+};
+
 @Injectable()
 export class OncallDomainService {
   constructor(
@@ -29,6 +40,24 @@ export class OncallDomainService {
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
   ) {}
+
+  private onCallDateWindowWhere(query: OnCallDateWindowQuery): OnCallDateWindowWhere {
+    const fromDate = query.from ? new Date(query.from) : null;
+    const toDate = query.to ? new Date(query.to) : null;
+    if (fromDate && toDate && fromDate > toDate) {
+      throw new BadRequestException('from must be on or before to.');
+    }
+    if (fromDate && toDate) {
+      return { AND: [{ startTime: { lte: toDate } }, { endTime: { gte: fromDate } }] };
+    }
+    if (fromDate) {
+      return { endTime: { gte: fromDate } };
+    }
+    if (toDate) {
+      return { startTime: { lte: toDate } };
+    }
+    return {};
+  }
 
   async createOnCallRotation(user: AuthenticatedIdentity, payload: unknown): Promise<unknown> {
     const actor = await this.personHelper.personForUser(user);
@@ -100,22 +129,11 @@ export class OncallDomainService {
     }
 
     const parsed = ListOnCallRotationsQuerySchema.parse(query ?? {});
-    const fromDate = parsed.from ? new Date(parsed.from) : null;
-    const toDate = parsed.to ? new Date(parsed.to) : null;
-    if (fromDate && toDate && fromDate > toDate) {
-      throw new BadRequestException('from must be on or before to.');
-    }
     const where: Prisma.OnCallRotationWhereInput = {
       personId: parsed.personId,
       organizationUnitId: parsed.organizationUnitId,
+      ...this.onCallDateWindowWhere(parsed),
     };
-    if (fromDate && toDate) {
-      where.AND = [{ startTime: { lte: toDate } }, { endTime: { gte: fromDate } }];
-    } else if (fromDate) {
-      where.endTime = { gte: fromDate };
-    } else if (toDate) {
-      where.startTime = { lte: toDate };
-    }
 
     if (user.role === Role.EMPLOYEE) {
       where.personId = actor.id;
@@ -136,24 +154,13 @@ export class OncallDomainService {
     }
 
     const parsed = ListOnCallDeploymentsQuerySchema.parse(query ?? {});
-    const fromDate = parsed.from ? new Date(parsed.from) : null;
-    const toDate = parsed.to ? new Date(parsed.to) : null;
-    if (fromDate && toDate && fromDate > toDate) {
-      throw new BadRequestException('from must be on or before to.');
-    }
     const where: Prisma.OnCallDeploymentWhereInput = {
       personId: parsed.personId,
       rotation: parsed.organizationUnitId
         ? { organizationUnitId: parsed.organizationUnitId }
         : undefined,
+      ...this.onCallDateWindowWhere(parsed),
     };
-    if (fromDate && toDate) {
-      where.AND = [{ startTime: { lte: toDate } }, { endTime: { gte: fromDate } }];
-    } else if (fromDate) {
-      where.endTime = { gte: fromDate };
-    } else if (toDate) {
-      where.startTime = { lte: toDate };
-    }
 
     if (user.role === Role.EMPLOYEE) {
       where.personId = actor.id;

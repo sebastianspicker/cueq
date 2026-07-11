@@ -4,26 +4,11 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
-import { FormField } from '../../../components/FormField';
 import { LoadingSpinner } from '../../../components/LoadingSpinner';
 import { PageShell } from '../../../components/PageShell';
-import { SectionCard } from '../../../components/SectionCard';
-import { StatusBadge } from '../../../components/StatusBadge';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
-
-interface Booking {
-  id: string;
-  personId: string;
-  timeTypeId: string;
-  timeTypeCode: string;
-  timeTypeCategory: string;
-  startTime: string;
-  endTime: string | null;
-  source: string;
-  note?: string | null;
-  shiftId?: string | null;
-}
+import { BookingCorrectionSection, BookingsTableSection, type Booking } from './bookings-sections';
 
 export default function BookingsPage() {
   const t = useTranslations('pages.bookings');
@@ -119,80 +104,30 @@ export default function BookingsPage() {
 
       <StatusBanner message={message} error={error} />
 
-      <SectionCard>
-        <h2>{t('correctionTitle')}</h2>
-        <div className="cq-grid-2">
-          <FormField label={t('bookingIdLabel')} required error={fieldErrors.bookingId}>
-            <input
-              value={bookingId}
-              onChange={(event) => {
-                setBookingId(event.target.value);
-                setFieldErrors((current) => ({ ...current, bookingId: '' }));
-              }}
-              required
-            />
-          </FormField>
-          <FormField label={t('timeTypeIdLabel')}>
-            <input value={timeTypeId} onChange={(event) => setTimeTypeId(event.target.value)} />
-          </FormField>
-          <FormField label={t('startTimeLabel')}>
-            <input value={startTime} onChange={(event) => setStartTime(event.target.value)} />
-          </FormField>
-          <FormField label={t('endTimeLabel')}>
-            <input value={endTime} onChange={(event) => setEndTime(event.target.value)} />
-          </FormField>
-          <FormField label={t('reasonLabel')} required error={fieldErrors.reason}>
-            <input
-              value={reason}
-              onChange={(event) => {
-                setReason(event.target.value);
-                setFieldErrors((current) => ({ ...current, reason: '' }));
-              }}
-              required
-            />
-          </FormField>
-        </div>
-        <div className="cq-space-top-sm">
-          <button type="button" disabled={loading} onClick={() => void requestCorrection()}>
-            {loading ? t('loading') : t('submitCorrection')}
-          </button>
-        </div>
-      </SectionCard>
+      <BookingCorrectionSection
+        t={t}
+        loading={loading}
+        bookingId={bookingId}
+        timeTypeId={timeTypeId}
+        startTime={startTime}
+        endTime={endTime}
+        reason={reason}
+        fieldErrors={fieldErrors}
+        onBookingIdChange={(value) => {
+          setBookingId(value);
+          setFieldErrors((current) => ({ ...current, bookingId: '' }));
+        }}
+        onTimeTypeIdChange={setTimeTypeId}
+        onStartTimeChange={setStartTime}
+        onEndTimeChange={setEndTime}
+        onReasonChange={(value) => {
+          setReason(value);
+          setFieldErrors((current) => ({ ...current, reason: '' }));
+        }}
+        onRequestCorrection={() => void requestCorrection()}
+      />
 
-      <SectionCard>
-        <h2>{t('title')}</h2>
-        {bookings.length === 0 ? (
-          <p>{t('noBookings')}</p>
-        ) : (
-          <table className="cq-data-table">
-            <caption className="cq-sr-only">{t('title')}</caption>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>{t('timeTypeIdLabel')}</th>
-                <th>{t('startTimeLabel')}</th>
-                <th>{t('endTimeLabel')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map((booking) => (
-                <tr key={booking.id}>
-                  <td className="cq-mono">{booking.id}</td>
-                  <td>
-                    <StatusBadge
-                      status={booking.timeTypeCode}
-                      variant="info"
-                      label={booking.timeTypeCode}
-                    />
-                  </td>
-                  <td>{booking.startTime}</td>
-                  <td>{booking.endTime ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </SectionCard>
+      <BookingsTableSection t={t} bookings={bookings} />
     </PageShell>
   );
 }

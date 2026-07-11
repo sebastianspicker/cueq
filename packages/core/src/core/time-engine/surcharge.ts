@@ -23,7 +23,53 @@ export interface ZonedMinute {
   localMinuteOfDay: number;
 }
 
-export function parseLocalTimeToMinute(localTime: string): number {
+interface LocalDateParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  weekdayName: string;
+}
+
+function formatterPart(parts: ReadonlyMap<string, string>, name: string, fallback: string): string {
+  return parts.get(name) ?? fallback;
+}
+
+function readLocalDateParts(timestamp: number, formatter: Intl.DateTimeFormat): LocalDateParts {
+  const parts = new Map(
+    formatter.formatToParts(new Date(timestamp)).map((part) => [part.type, part.value]),
+  );
+  return {
+    year: Number(formatterPart(parts, 'year', '1970')),
+    month: Number(formatterPart(parts, 'month', '01')),
+    day: Number(formatterPart(parts, 'day', '01')),
+    hour: Number(formatterPart(parts, 'hour', '0')),
+    minute: Number(formatterPart(parts, 'minute', '0')),
+    weekdayName: formatterPart(parts, 'weekday', 'Mon'),
+  };
+}
+
+function normalizeMidnight(parts: LocalDateParts): LocalDateParts {
+  if (parts.hour !== 24) return parts;
+  const nextDay = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + 1));
+  return {
+    ...parts,
+    year: nextDay.getUTCFullYear(),
+    month: nextDay.getUTCMonth() + 1,
+    day: nextDay.getUTCDate(),
+    hour: 0,
+  };
+}
+
+function weekdayIndex(name: string): number {
+  const weekday = WEEKDAY_TO_INDEX[name];
+  if (weekday !== undefined) return weekday;
+  console.warn(`[cueq] Unknown weekday name "${name}", defaulting to Monday (1)`);
+  return 1;
+}
+
+export function parseLocalTimeToMinute(localTime: string): number | null {
   const [hourRaw, minuteRaw] = localTime.split(':');
   const hour = Number(hourRaw);
   const minute = Number(minuteRaw);
@@ -36,7 +82,7 @@ export function parseLocalTimeToMinute(localTime: string): number {
     minute < 0 ||
     minute > 59
   ) {
-    return 0;
+    return null;
   }
 
   return hour * 60 + minute;
@@ -59,32 +105,13 @@ export function isWithinWindow(
 }
 
 export function localMinuteInfo(timestamp: number, formatter: Intl.DateTimeFormat): ZonedMinute {
-  const parts = formatter.formatToParts(new Date(timestamp));
-  const byType = new Map(parts.map((part) => [part.type, part.value]));
-  let year = Number(byType.get('year') ?? '1970');
-  let month = Number(byType.get('month') ?? '01');
-  let day = Number(byType.get('day') ?? '01');
-  const weekdayName = byType.get('weekday') ?? 'Mon';
-  let hour = Number(byType.get('hour') ?? '0');
-  const minute = Number(byType.get('minute') ?? '0');
-
-  // Intl.DateTimeFormat can return hour 24 while already reporting the local date.
-  // Normalize only the hour; advancing the date would double-count the day rollover.
-  if (hour === 24) {
-    hour = 0;
-  }
-
-  const weekday = WEEKDAY_TO_INDEX[weekdayName];
-  if (weekday === undefined) {
-    console.warn(`[cueq] Unknown weekday name "${weekdayName}", defaulting to Monday (1)`);
-  }
-
-  const isoDate = `${String(year)}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const parts = normalizeMidnight(readLocalDateParts(timestamp, formatter));
+  const isoDate = `${String(parts.year)}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
 
   return {
     isoDate,
-    weekday: weekday ?? 1,
-    localMinuteOfDay: hour * 60 + minute,
+    weekday: weekdayIndex(parts.weekdayName),
+    localMinuteOfDay: parts.hour * 60 + parts.minute,
   };
 }
 

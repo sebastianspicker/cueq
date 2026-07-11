@@ -4,7 +4,16 @@ import type { AuthenticatedIdentity } from './auth.types';
 import { MOCK_IDENTITIES } from '../../test-utils/seed-ids';
 import { parseRoleClaim } from './role-mapping';
 
-function toIdentity(claims: Record<string, unknown>): AuthenticatedIdentity {
+function requiredClaim(claims: Record<string, unknown>, name: 'sub' | 'email'): string {
+  const value = String(claims[name] ?? '');
+  if (!value) {
+    throw new UnauthorizedException('Mock token must include sub and email claims.');
+  }
+
+  return value;
+}
+
+function mockRole(claims: Record<string, unknown>) {
   const rawRole = String(claims.role ?? 'EMPLOYEE');
   const role = parseRoleClaim(rawRole);
 
@@ -12,17 +21,14 @@ function toIdentity(claims: Record<string, unknown>): AuthenticatedIdentity {
     throw new UnauthorizedException(`Unsupported mock role: ${rawRole.toUpperCase()}`);
   }
 
-  const subject = String(claims.sub ?? '');
-  const email = String(claims.email ?? '');
+  return role;
+}
 
-  if (!subject || !email) {
-    throw new UnauthorizedException('Mock token must include sub and email claims.');
-  }
-
+function toIdentity(claims: Record<string, unknown>): AuthenticatedIdentity {
   return {
-    subject,
-    email,
-    role,
+    subject: requiredClaim(claims, 'sub'),
+    email: requiredClaim(claims, 'email'),
+    role: mockRole(claims),
     organizationUnitId: claims.organizationUnitId ? String(claims.organizationUnitId) : undefined,
     claims,
   };

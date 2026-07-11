@@ -1,20 +1,62 @@
 import { BadRequestException } from '@nestjs/common';
 import { lookup } from 'node:dns/promises';
-import { isIP } from 'node:net';
+import { BlockList, isIP } from 'node:net';
 
 const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
 const DISABLED_VALUES = new Set(['0', 'false', 'no', 'off']);
+const NON_PUBLIC_ADDRESSES = new BlockList();
+
+for (const [address, prefix] of [
+  ['0.0.0.0', 8],
+  ['10.0.0.0', 8],
+  ['100.64.0.0', 10],
+  ['127.0.0.0', 8],
+  ['169.254.0.0', 16],
+  ['172.16.0.0', 12],
+  ['192.0.0.0', 24],
+  ['192.0.2.0', 24],
+  ['192.88.99.0', 24],
+  ['192.168.0.0', 16],
+  ['198.18.0.0', 15],
+  ['198.51.100.0', 24],
+  ['203.0.113.0', 24],
+  ['224.0.0.0', 4],
+  ['240.0.0.0', 4],
+] as const) {
+  NON_PUBLIC_ADDRESSES.addSubnet(address, prefix, 'ipv4');
+}
+
+for (const [address, prefix] of [
+  ['::', 96],
+  ['::1', 128],
+  ['100::', 64],
+  ['2001:2::', 48],
+  ['2001:10::', 28],
+  ['2001:db8::', 32],
+  ['fc00::', 7],
+  ['fe80::', 10],
+  ['fec0::', 10],
+  ['ff00::', 8],
+] as const) {
+  NON_PUBLIC_ADDRESSES.addSubnet(address, prefix, 'ipv6');
+}
+
+export interface ResolvedWebhookTarget {
+  url: URL;
+  address: string;
+  family: 4 | 6;
+}
 
 function isProductionRuntime(env: NodeJS.ProcessEnv): boolean {
   return (env.NODE_ENV ?? '').trim().toLowerCase() === 'production';
 }
 
-function allowPrivateTargets(env: NodeJS.ProcessEnv): boolean {
-  const raw = (env.WEBHOOK_ALLOW_PRIVATE_TARGETS ?? '').trim().toLowerCase();
-  if (ENABLED_VALUES.has(raw)) {
+function allowPrivateRegistrationTargets(env: NodeJS.ProcessEnv): boolean {
+  const configured = (env.WEBHOOK_ALLOW_PRIVATE_TARGETS ?? '').trim().toLowerCase();
+  if (ENABLED_VALUES.has(configured)) {
     return true;
   }
-  if (DISABLED_VALUES.has(raw)) {
+  if (DISABLED_VALUES.has(configured)) {
     return false;
   }
 
@@ -22,7 +64,11 @@ function allowPrivateTargets(env: NodeJS.ProcessEnv): boolean {
 }
 
 function normalizeHostname(hostname: string): string {
-  return hostname.trim().toLowerCase().replace(/\.+$/u, '');
+  return hostname
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/gu, '')
+    .replace(/\.+$/u, '');
 }
 
 function isLocalHostname(hostname: string): boolean {
@@ -34,84 +80,27 @@ function isLocalHostname(hostname: string): boolean {
   );
 }
 
-function isPrivateIpv4(hostname: string): boolean {
-  const octets = hostname.split('.').map((part) => Number(part));
-  if (octets.length !== 4 || octets.some((value) => !Number.isInteger(value))) {
+function mappedIpv4(address: string): string | null {
+  return /^::ffff:(\d+\.\d+\.\d+\.\d+)$/iu.exec(address)?.[1] ?? null;
+}
+
+export function isPublicWebhookAddress(address: string): boolean {
+  const normalized = normalizeHostname(address);
+  const family = isIP(normalized);
+  if (family === 4) {
+    return !NON_PUBLIC_ADDRESSES.check(normalized, 'ipv4');
+  }
+  if (family !== 6) {
     return false;
   }
 
-  const a = octets[0];
-  const b = octets[1];
-  if (a === undefined || b === undefined) {
-    return false;
-  }
-
-  return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168)
-  );
+  const mapped = mappedIpv4(normalized);
+  return mapped
+    ? !NON_PUBLIC_ADDRESSES.check(mapped, 'ipv4')
+    : !NON_PUBLIC_ADDRESSES.check(normalized, 'ipv6');
 }
 
-function isPrivateIpv6(hostname: string): boolean {
-  const normalized = normalizeHostname(hostname);
-  if (normalized === '::' || normalized === '::1') {
-    return true;
-  }
-  if (normalized.startsWith('fc') || normalized.startsWith('fd')) {
-    return true;
-  }
-  if (/^fe[89ab]/u.test(normalized)) {
-    return true;
-  }
-
-  const mappedIpv4 = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/u.exec(normalized)?.[1];
-  if (mappedIpv4 && isPrivateIpv4(mappedIpv4)) {
-    return true;
-  }
-
-  return false;
-}
-
-function targetsPrivateAddress(hostname: string): boolean {
-  const normalized = normalizeHostname(hostname);
-  if (isLocalHostname(normalized)) {
-    return true;
-  }
-
-  const ipVersion = isIP(normalized);
-  if (ipVersion === 4) {
-    return isPrivateIpv4(normalized);
-  }
-  if (ipVersion === 6) {
-    return isPrivateIpv6(normalized);
-  }
-
-  return false;
-}
-
-async function resolvesToPrivateAddress(hostname: string): Promise<boolean> {
-  const normalized = normalizeHostname(hostname);
-  if (targetsPrivateAddress(normalized)) {
-    return true;
-  }
-
-  if (isIP(normalized)) {
-    return false;
-  }
-
-  try {
-    const addresses = await lookup(normalized, { all: true, verbatim: true });
-    return addresses.some((record) => targetsPrivateAddress(record.address));
-  } catch {
-    return false;
-  }
-}
-
-export function assertWebhookTargetUrl(url: string, env: NodeJS.ProcessEnv = process.env): URL {
+function assertUrlShape(url: string): URL {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -122,18 +111,30 @@ export function assertWebhookTargetUrl(url: string, env: NodeJS.ProcessEnv = pro
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new BadRequestException('Webhook url protocol must be http or https.');
   }
-
   if (parsed.username || parsed.password) {
     throw new BadRequestException('Webhook url must not include user credentials.');
   }
 
-  if (!allowPrivateTargets(env) && targetsPrivateAddress(parsed.hostname)) {
+  return parsed;
+}
+
+export function assertWebhookTargetUrl(url: string, env: NodeJS.ProcessEnv = process.env): URL {
+  const parsed = assertUrlShape(url);
+  const privateTarget =
+    isLocalHostname(parsed.hostname) ||
+    (isIP(normalizeHostname(parsed.hostname)) > 0 &&
+      !isPublicWebhookAddress(normalizeHostname(parsed.hostname)));
+
+  if (!allowPrivateRegistrationTargets(env) && privateTarget) {
     throw new BadRequestException(
       'Webhook url must not target localhost or private network addresses.',
     );
   }
-
-  if (parsed.protocol === 'http:' && isProductionRuntime(env) && !allowPrivateTargets(env)) {
+  if (
+    parsed.protocol === 'http:' &&
+    isProductionRuntime(env) &&
+    !allowPrivateRegistrationTargets(env)
+  ) {
     throw new BadRequestException(
       'Webhook url must use https in production unless private targets are explicitly allowed.',
     );
@@ -142,20 +143,44 @@ export function assertWebhookTargetUrl(url: string, env: NodeJS.ProcessEnv = pro
   return parsed;
 }
 
+async function lookupAllAddresses(hostname: string) {
+  const normalized = normalizeHostname(hostname);
+  const family = isIP(normalized);
+  if (family === 4 || family === 6) {
+    return [{ address: normalized, family } as const];
+  }
+
+  try {
+    return await lookup(normalized, { all: true, verbatim: true });
+  } catch {
+    throw new BadRequestException('Webhook target DNS lookup failed.');
+  }
+}
+
+export async function resolveWebhookDispatchTarget(
+  url: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<ResolvedWebhookTarget> {
+  const parsed = assertWebhookTargetUrl(url, env);
+  const addresses = await lookupAllAddresses(parsed.hostname);
+  if (addresses.length === 0) {
+    throw new BadRequestException('Webhook target DNS lookup returned no addresses.');
+  }
+  if (addresses.some((record) => !isPublicWebhookAddress(record.address))) {
+    throw new BadRequestException('Webhook target must resolve only to public network addresses.');
+  }
+
+  const selected = addresses[0];
+  if (!selected || (selected.family !== 4 && selected.family !== 6)) {
+    throw new BadRequestException('Webhook target DNS lookup returned an invalid address.');
+  }
+
+  return { url: parsed, address: selected.address, family: selected.family };
+}
+
 export async function assertWebhookDispatchTargetUrl(
   url: string,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<URL> {
-  const parsed = assertWebhookTargetUrl(url, env);
-  if (allowPrivateTargets(env)) {
-    return parsed;
-  }
-
-  if (await resolvesToPrivateAddress(parsed.hostname)) {
-    throw new BadRequestException(
-      'Webhook url must not target localhost or private network addresses.',
-    );
-  }
-
-  return parsed;
+  return (await resolveWebhookDispatchTarget(url, env)).url;
 }

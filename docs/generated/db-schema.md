@@ -8,7 +8,7 @@
 |---|---|---|
 | `Absence` | `schemas/domain/absence.schema.json` | 10 |
 | `AuditEntry` | `schemas/domain/audit-entry.schema.json` | 10 |
-| `BackupRestoreReport` | `schemas/domain/backup-restore-report.schema.json` | 4 |
+| `BackupRestoreReport` | `schemas/domain/backup-restore-report.schema.json` | 5 |
 | `Booking` | `schemas/domain/booking.schema.json` | 10 |
 | `CoreAuditEntryDraftContract` | `schemas/domain/core-audit-entry-draft.schema.json` | 2 |
 | `CoreClosingContract` | `schemas/domain/core-closing.schema.json` | 3 |

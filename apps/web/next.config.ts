@@ -10,6 +10,8 @@ const securityHeaders = buildSecurityHeaders({
 });
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: new URL('../..', import.meta.url).pathname,
+
   // Enable React strict mode for better development warnings
   reactStrictMode: true,
 

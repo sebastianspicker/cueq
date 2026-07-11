@@ -21,7 +21,7 @@ export const DomainEventEnvelopeSchema = z.object({
 });
 export type DomainEventEnvelope = z.infer<typeof DomainEventEnvelopeSchema>;
 
-export const OutboxStatusSchema = z.enum(['PENDING', 'FAILED', 'DELIVERED']);
+export const OutboxStatusSchema = z.enum(['PENDING', 'FAILED', 'DELIVERED', 'SKIPPED']);
 export type OutboxStatus = z.infer<typeof OutboxStatusSchema>;
 
 export const OutboxEventSchema = z.object({

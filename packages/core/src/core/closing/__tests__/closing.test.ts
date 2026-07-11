@@ -98,6 +98,87 @@ describe('generateClosingChecklist', () => {
 });
 
 describe('applyCutoffLock', () => {
+  it('preserves the exhaustive status/action/role error contract', () => {
+    const statuses = ['OPEN', 'REVIEW', 'APPROVED', 'EXPORTED'] as const;
+    const roles = ['EMPLOYEE', 'TEAM_LEAD', 'HR', 'ADMIN'] as const;
+    const actions = {
+      ADVANCE_TO_REVIEW: {
+        allowed: ['OPEN'],
+        next: 'REVIEW',
+        invalid: 'Can only advance to review from OPEN.',
+      },
+      APPROVE: {
+        allowed: ['REVIEW'],
+        next: 'APPROVED',
+        invalid: 'Can only approve from REVIEW.',
+      },
+      EXPORT: {
+        allowed: ['APPROVED'],
+        next: 'EXPORTED',
+        invalid: 'Can only export from APPROVED.',
+      },
+      REOPEN: {
+        allowed: ['REVIEW', 'APPROVED'],
+        next: 'OPEN',
+        invalid: 'Can only re-open from REVIEW or APPROVED.',
+        forbidden: 'Only HR or Admin can re-open a closing period.',
+      },
+      POST_CLOSE_CORRECTION: {
+        allowed: ['EXPORTED'],
+        next: 'REVIEW',
+        invalid: 'Post-close correction is only valid for EXPORTED periods.',
+        forbidden: 'Only HR or Admin can initiate post-close corrections.',
+      },
+    } as const;
+
+    for (const [action, rule] of Object.entries(actions)) {
+      for (const currentStatus of statuses) {
+        for (const actorRole of roles) {
+          const result = applyCutoffLock({
+            action: action as keyof typeof actions,
+            currentStatus,
+            actorRole,
+            checklistHasErrors: false,
+          });
+          if (!(rule.allowed as readonly string[]).includes(currentStatus)) {
+            expect(result).toMatchObject({
+              nextStatus: currentStatus,
+              violations: [{ code: 'INVALID_CLOSING_TRANSITION', message: rule.invalid }],
+            });
+          } else if ('forbidden' in rule && actorRole !== 'HR' && actorRole !== 'ADMIN') {
+            expect(result).toMatchObject({
+              nextStatus: currentStatus,
+              violations: [{ code: 'ROLE_FORBIDDEN', message: rule.forbidden }],
+            });
+          } else {
+            expect(result).toEqual({ nextStatus: rule.next, violations: [] });
+          }
+        }
+      }
+    }
+  });
+
+  it('preserves the exact checklist error contract for every role', () => {
+    for (const actorRole of ['EMPLOYEE', 'TEAM_LEAD', 'HR', 'ADMIN'] as const) {
+      expect(
+        applyCutoffLock({
+          currentStatus: 'REVIEW',
+          action: 'APPROVE',
+          actorRole,
+          checklistHasErrors: true,
+        }),
+      ).toMatchObject({
+        nextStatus: 'REVIEW',
+        violations: [
+          {
+            code: 'CHECKLIST_NOT_GREEN',
+            message: 'Cannot approve while error checklist items are open.',
+          },
+        ],
+      });
+    }
+  });
+
   it('enforces open -> review -> approved -> exported path', () => {
     const step1 = applyCutoffLock({
       currentStatus: 'OPEN',

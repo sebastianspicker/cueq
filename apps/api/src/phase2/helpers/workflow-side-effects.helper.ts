@@ -116,7 +116,10 @@ export class WorkflowSideEffectsHelper {
     actorId: string,
     decision: WorkflowDecisionResult,
     reason?: string,
-    tx?: Pick<PrismaService, 'absence' | 'shift' | 'shiftAssignment' | 'person' | 'timeAccount'>,
+    tx?: Pick<
+      PrismaService,
+      'absence' | 'shift' | 'shiftAssignment' | 'person' | 'timeAccount' | 'auditEntry'
+    >,
   ) {
     await this.applyLeaveRequestEffect(actorId, decision, reason, tx);
     await this.applyShiftSwapEffect(actorId, decision, reason, tx);
@@ -127,7 +130,7 @@ export class WorkflowSideEffectsHelper {
     actorId: string,
     decision: WorkflowDecisionResult,
     reason?: string,
-    tx?: Pick<PrismaService, 'absence'>,
+    tx?: Pick<PrismaService, 'absence' | 'auditEntry'>,
   ) {
     const db = tx ?? this.prisma;
     if (
@@ -166,20 +169,23 @@ export class WorkflowSideEffectsHelper {
     });
 
     if (result.count > 0) {
-      await this.auditHelper.appendAudit({
-        actorId,
-        action:
-          nextAbsenceStatus === AbsenceStatus.APPROVED
-            ? 'ABSENCE_APPROVED'
-            : nextAbsenceStatus === AbsenceStatus.REJECTED
-              ? 'ABSENCE_REJECTED'
-              : 'ABSENCE_CANCELLED',
-        entityType: 'Absence',
-        entityId: decision.updated.entityId,
-        before: { status: currentAbsence?.status ?? null },
-        after: { status: nextAbsenceStatus },
-        reason,
-      });
+      await this.auditHelper.appendAudit(
+        {
+          actorId,
+          action:
+            nextAbsenceStatus === AbsenceStatus.APPROVED
+              ? 'ABSENCE_APPROVED'
+              : nextAbsenceStatus === AbsenceStatus.REJECTED
+                ? 'ABSENCE_REJECTED'
+                : 'ABSENCE_CANCELLED',
+          entityType: 'Absence',
+          entityId: decision.updated.entityId,
+          before: { status: currentAbsence?.status ?? null },
+          after: { status: nextAbsenceStatus },
+          reason,
+        },
+        db,
+      );
     }
   }
 
@@ -187,7 +193,7 @@ export class WorkflowSideEffectsHelper {
     actorId: string,
     decision: WorkflowDecisionResult,
     reason?: string,
-    tx?: Pick<PrismaService, 'shift' | 'shiftAssignment' | 'person'>,
+    tx?: Pick<PrismaService, 'shift' | 'shiftAssignment' | 'person' | 'auditEntry'>,
   ) {
     if (
       decision.updated.type !== WorkflowType.SHIFT_SWAP ||
@@ -199,7 +205,9 @@ export class WorkflowSideEffectsHelper {
 
     const swapPayload = ShiftSwapRequestSchema.parse(decision.updated.requestPayload ?? {});
     const shiftId = swapPayload.shiftId || decision.updated.entityId;
-    const runSwap = async (db: Pick<PrismaService, 'shift' | 'shiftAssignment' | 'person'>) => {
+    const runSwap = async (
+      db: Pick<PrismaService, 'shift' | 'shiftAssignment' | 'person' | 'auditEntry'>,
+    ) => {
       const shift = await db.shift.findUnique({
         where: { id: shiftId },
         include: {
@@ -235,31 +243,39 @@ export class WorkflowSideEffectsHelper {
       });
     };
 
-    if (tx) {
-      await runSwap(tx);
-    } else {
-      await this.prisma.$transaction(async (innerTx) => runSwap(innerTx));
-    }
+    const applySwapAndAudit = async (
+      db: Pick<PrismaService, 'shift' | 'shiftAssignment' | 'person' | 'auditEntry'>,
+    ) => {
+      await runSwap(db);
+      await this.auditHelper.appendAudit(
+        {
+          actorId,
+          action: 'SHIFT_SWAP_APPLIED',
+          entityType: 'Shift',
+          entityId: decision.updated.entityId,
+          after: {
+            fromPersonId: swapPayload.fromPersonId,
+            toPersonId: swapPayload.toPersonId,
+            workflowId: decision.updated.id,
+          },
+          reason,
+        },
+        db,
+      );
+    };
 
-    await this.auditHelper.appendAudit({
-      actorId,
-      action: 'SHIFT_SWAP_APPLIED',
-      entityType: 'Shift',
-      entityId: decision.updated.entityId,
-      after: {
-        fromPersonId: swapPayload.fromPersonId,
-        toPersonId: swapPayload.toPersonId,
-        workflowId: decision.updated.id,
-      },
-      reason,
-    });
+    if (tx) {
+      await applySwapAndAudit(tx);
+    } else {
+      await this.prisma.$transaction(async (innerTx) => applySwapAndAudit(innerTx));
+    }
   }
 
   private async applyOvertimeEffect(
     actorId: string,
     decision: WorkflowDecisionResult,
     reason?: string,
-    tx?: Pick<PrismaService, 'timeAccount'>,
+    tx?: Pick<PrismaService, 'timeAccount' | 'auditEntry'>,
   ) {
     const db = tx ?? this.prisma;
     if (
@@ -293,17 +309,20 @@ export class WorkflowSideEffectsHelper {
       data: { overtimeHours: Number(nextOvertimeHours.toFixed(2)) },
     });
 
-    await this.auditHelper.appendAudit({
-      actorId,
-      action: 'OVERTIME_APPROVED',
-      entityType: 'TimeAccount',
-      entityId: updated.id,
-      before: { overtimeHours: Number(account.overtimeHours) },
-      after: {
-        overtimeHours: Number(updated.overtimeHours),
-        workflowId: decision.updated.id,
+    await this.auditHelper.appendAudit(
+      {
+        actorId,
+        action: 'OVERTIME_APPROVED',
+        entityType: 'TimeAccount',
+        entityId: updated.id,
+        before: { overtimeHours: Number(account.overtimeHours) },
+        after: {
+          overtimeHours: Number(updated.overtimeHours),
+          workflowId: decision.updated.id,
+        },
+        reason,
       },
-      reason,
-    });
+      db,
+    );
   }
 }

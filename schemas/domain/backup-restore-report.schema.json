@@ -4,16 +4,22 @@
   "title": "BackupRestoreReport",
   "type": "object",
   "additionalProperties": false,
-  "required": ["ok", "source", "restored", "checksums"],
+  "required": ["ok", "method", "source", "restored", "checksums"],
   "properties": {
     "ok": {
       "type": "boolean"
     },
+    "method": {
+      "const": "pg_dump/pg_restore"
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "tables"],
+      "required": ["database", "schema", "tables"],
       "properties": {
+        "database": {
+          "type": "string"
+        },
         "schema": {
           "type": "string"
         },
@@ -29,8 +35,11 @@
     "restored": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema", "tables"],
+      "required": ["database", "schema", "tables"],
       "properties": {
+        "database": {
+          "type": "string"
+        },
         "schema": {
           "type": "string"
         },

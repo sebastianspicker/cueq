@@ -1,7 +1,7 @@
 # Product Spec: Privacy-by-Design Reporting Guardrails
 
 > **CueQ Differentiator E** — Default to aggregation; prevent accidental surveillance.
-> **Status:** ✅ MVP Implemented
+> **Status:** Implemented in the reference scope; deployment review required
 
 ---
 
@@ -26,20 +26,18 @@ Any PR that adds a new report or modifies report visibility must include:
 - [ ] **Role check**: Is the report restricted to appropriate roles?
 - [ ] **Audit logging**: Is access to the report logged?
 - [ ] **Works council review**: Has the report been reviewed against the Dienstvereinbarung?
-- [ ] **Review evidence linked**: Does the PR link a `review_id` entry from the reporting privacy review log?
+- [ ] **Private evidence referenced**: Does the change reference the approved
+      private governance record without copying it into Git?
 
 This checklist should be part of the PR template for any change touching `reporting/` paths.
-Checklist completion is evidenced by a linked review-log entry, not by markdown checkboxes alone.
+Checklist completion is not proof of institutional approval.
 
-### Evidence Artifact
+### Governance Evidence Boundary
 
-Canonical evidence file:
-
-- [`docs/design-docs/reporting-privacy-review-log.md`](../design-docs/reporting-privacy-review-log.md)
-
-Required PR linkage format:
-
-- `docs/design-docs/reporting-privacy-review-log.md#rpr-YYYYMMDD-NN`
+Works-council minutes, reviewer identities, internal tickets, and signed
+decisions must stay in the institution's approved private records system. A PR
+may carry an opaque reference identifier, but must not copy the underlying
+private record into this public repository.
 
 ### Forbidden Patterns
 

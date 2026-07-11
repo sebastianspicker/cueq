@@ -11,6 +11,14 @@ const METRIC_ALLOW_LIST: Record<string, Set<string>> = {
   CLOSING_COMPLETION: new Set(['completionRate', 'exported']),
 };
 
+type CustomPreviewBase = {
+  reportType: string;
+  groupBy: string;
+  from: string;
+  to: string;
+  metrics: string[];
+};
+
 @Injectable()
 export class ReportingService {
   constructor(
@@ -46,6 +54,37 @@ export class ReportingService {
 
   async reportComplianceSummary(user: AuthenticatedIdentity, query: unknown) {
     return this.complianceHelper.reportComplianceSummary(user, query);
+  }
+
+  private selectMetrics(totals: Record<string, number>, metrics: string[]): Record<string, number> {
+    const selected: Record<string, number> = {};
+    for (const metric of metrics) {
+      selected[metric] = totals[metric] as number;
+    }
+    return selected;
+  }
+
+  private buildCustomPreviewResponse(
+    parsed: CustomPreviewBase,
+    report: {
+      organizationUnitId: string | null;
+      totals: Record<string, number>;
+      suppression?: unknown;
+    },
+  ) {
+    return {
+      reportType: parsed.reportType,
+      groupBy: parsed.groupBy,
+      from: parsed.from,
+      to: parsed.to,
+      ...(report.suppression === undefined ? {} : { suppression: report.suppression }),
+      rows: [
+        {
+          group: parsed.groupBy === 'ORGANIZATION_UNIT' ? report.organizationUnitId : 'ALL',
+          metrics: this.selectMetrics(report.totals, parsed.metrics),
+        },
+      ],
+    };
   }
 
   /* ── Custom Report ───────────────────────────────────────────── */
@@ -88,23 +127,7 @@ export class ReportingService {
         from: parsed.from,
         to: parsed.to,
       });
-      const metricValues: Record<string, number> = {};
-      if (parsed.metrics.includes('requests')) metricValues.requests = report.totals.requests;
-      if (parsed.metrics.includes('days')) metricValues.days = report.totals.days;
-
-      return {
-        reportType: parsed.reportType,
-        groupBy: parsed.groupBy,
-        from: parsed.from,
-        to: parsed.to,
-        suppression: report.suppression,
-        rows: [
-          {
-            group: parsed.groupBy === 'ORGANIZATION_UNIT' ? report.organizationUnitId : 'ALL',
-            metrics: metricValues,
-          },
-        ],
-      };
+      return this.buildCustomPreviewResponse(parsed, report);
     }
 
     if (parsed.reportType === 'OE_OVERTIME') {
@@ -113,41 +136,22 @@ export class ReportingService {
         from: parsed.from,
         to: parsed.to,
       });
-      const metricValues: Record<string, number> = {};
-      if (parsed.metrics.includes('people')) metricValues.people = report.totals.people;
-      if (parsed.metrics.includes('totalOvertimeHours'))
-        metricValues.totalOvertimeHours = report.totals.totalOvertimeHours;
+      return this.buildCustomPreviewResponse(parsed, report);
+    }
 
-      return {
-        reportType: parsed.reportType,
-        groupBy: parsed.groupBy,
-        from: parsed.from,
-        to: parsed.to,
-        suppression: report.suppression,
-        rows: [
-          {
-            group: parsed.groupBy === 'ORGANIZATION_UNIT' ? report.organizationUnitId : 'ALL',
-            metrics: metricValues,
-          },
-        ],
-      };
+    if (parsed.reportType === 'CLOSING_COMPLETION' && parsed.groupBy === 'ORGANIZATION_UNIT') {
+      if (!parsed.organizationUnitId) {
+        throw new BadRequestException(
+          'CLOSING_COMPLETION grouped by ORGANIZATION_UNIT requires organizationUnitId.',
+        );
+      }
     }
 
     const report = await this.analyticsHelper.reportClosingCompletion(user, {
+      organizationUnitId: parsed.organizationUnitId,
       from: parsed.from,
       to: parsed.to,
     });
-    const metricValues: Record<string, number> = {};
-    if (parsed.metrics.includes('completionRate'))
-      metricValues.completionRate = report.totals.completionRate;
-    if (parsed.metrics.includes('exported')) metricValues.exported = report.totals.exported;
-
-    return {
-      reportType: parsed.reportType,
-      groupBy: parsed.groupBy,
-      from: parsed.from,
-      to: parsed.to,
-      rows: [{ group: 'ALL', metrics: metricValues }],
-    };
+    return this.buildCustomPreviewResponse(parsed, report);
   }
 }

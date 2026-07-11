@@ -1,13 +1,15 @@
 # Product Spec: Phase 3 Acceptance Scenarios
 
-> **Status:** ✅ Completed
+> **Status:** Implemented scenario contract; current service-backed run partial
 > **Purpose:** Canonical acceptance scenario set for Phase 3 delivery.
 
 ---
 
 ## Summary
 
-Phase 3 is complete when acceptance tests `AT-01..AT-08` pass against deterministic seed data, integration contracts, and operational verification checks.
+The Phase 3 gate is satisfied only when acceptance tests `AT-01..AT-08` pass
+against deterministic seed data, integration contracts, and operational
+verification checks on the candidate commit.
 
 ## Acceptance Matrix
 

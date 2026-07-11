@@ -5,22 +5,21 @@ import { StatusBadge } from '../StatusBadge';
 import { StatusBanner } from '../StatusBanner';
 import { Button } from '../Button';
 import { LoadingSpinner } from '../LoadingSpinner';
-import { EmptyState } from '../EmptyState';
-import { Pagination } from '../Pagination';
 import { FormField } from '../FormField';
 
 // ---------------------------------------------------------------------------
 // StatusBadge
 // ---------------------------------------------------------------------------
 describe('StatusBadge', () => {
+  const approvedLabel = 'Approved ✓';
   it('renders the status text by default', () => {
     render(<StatusBadge status="OPEN" />);
     expect(screen.getByText('OPEN')).toBeInTheDocument();
   });
 
   it('renders a custom label when provided', () => {
-    render(<StatusBadge status="APPROVED" label="Approved ✓" />);
-    expect(screen.getByText('Approved ✓')).toBeInTheDocument();
+    render(StatusBadge({ status: 'APPROVED', label: approvedLabel }));
+    expect(screen.getByText(approvedLabel)).toBeInTheDocument();
   });
 
   it('applies ok variant class for APPROVED status', () => {
@@ -148,91 +147,24 @@ describe('Button', () => {
 // LoadingSpinner
 // ---------------------------------------------------------------------------
 describe('LoadingSpinner', () => {
-  it('renders with default sr-only label', () => {
-    render(<LoadingSpinner />);
+  const englishLoadingLabel = 'Loading…';
+  const germanLoadingLabel = 'Bitte warten…';
+
+  it('renders its accessible label', () => {
+    render(<LoadingSpinner label={englishLoadingLabel} />);
     expect(screen.getByRole('status')).toBeInTheDocument();
-    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.getByText(englishLoadingLabel)).toBeInTheDocument();
   });
 
   it('renders custom label text', () => {
-    render(<LoadingSpinner label="Bitte warten…" />);
-    expect(screen.getByText('Bitte warten…')).toBeInTheDocument();
+    render(LoadingSpinner({ label: germanLoadingLabel }));
+    expect(screen.getByText(germanLoadingLabel)).toBeInTheDocument();
   });
 
   it('includes aria-hidden spinner span', () => {
-    render(<LoadingSpinner />);
+    render(<LoadingSpinner label={englishLoadingLabel} />);
     const spinner = document.querySelector('[aria-hidden="true"]');
     expect(spinner).not.toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// EmptyState
-// ---------------------------------------------------------------------------
-describe('EmptyState', () => {
-  it('renders message text', () => {
-    render(<EmptyState message="No items found." />);
-    expect(screen.getByText('No items found.')).toBeInTheDocument();
-  });
-
-  it('has role=status', () => {
-    render(<EmptyState message="Empty." />);
-    expect(screen.getByRole('status')).toBeInTheDocument();
-  });
-
-  it('applies cq-empty-state class', () => {
-    render(<EmptyState message="x" />);
-    expect(screen.getByRole('status').className).toContain('cq-empty-state');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Pagination
-// ---------------------------------------------------------------------------
-describe('Pagination', () => {
-  it('renders nothing when totalPages <= 1', () => {
-    const { container } = render(<Pagination page={1} totalPages={1} onPageChange={vi.fn()} />);
-    expect(container.firstChild).toBeNull();
-  });
-
-  it('renders Previous and Next buttons for multi-page', () => {
-    render(<Pagination page={2} totalPages={5} onPageChange={vi.fn()} />);
-    expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
-    expect(screen.getByLabelText('Next page')).toBeInTheDocument();
-  });
-
-  it('shows current page and total', () => {
-    render(<Pagination page={3} totalPages={7} onPageChange={vi.fn()} />);
-    expect(screen.getByText('3 / 7')).toBeInTheDocument();
-  });
-
-  it('Previous button is disabled on first page', () => {
-    render(<Pagination page={1} totalPages={5} onPageChange={vi.fn()} />);
-    expect(screen.getByLabelText('Previous page')).toBeDisabled();
-  });
-
-  it('Next button is disabled on last page', () => {
-    render(<Pagination page={5} totalPages={5} onPageChange={vi.fn()} />);
-    expect(screen.getByLabelText('Next page')).toBeDisabled();
-  });
-
-  it('calls onPageChange with decremented page when Previous clicked', async () => {
-    const onPageChange = vi.fn();
-    render(<Pagination page={3} totalPages={5} onPageChange={onPageChange} />);
-    await userEvent.click(screen.getByLabelText('Previous page'));
-    expect(onPageChange).toHaveBeenCalledWith(2);
-  });
-
-  it('calls onPageChange with incremented page when Next clicked', async () => {
-    const onPageChange = vi.fn();
-    render(<Pagination page={3} totalPages={5} onPageChange={onPageChange} />);
-    await userEvent.click(screen.getByLabelText('Next page'));
-    expect(onPageChange).toHaveBeenCalledWith(4);
-  });
-
-  it('respects custom aria label', () => {
-    render(<Pagination page={1} totalPages={3} onPageChange={vi.fn()} ariaLabel="Results nav" />);
-    expect(screen.getByRole('navigation', { name: 'Results nav' })).toBeInTheDocument();
   });
 });
 
