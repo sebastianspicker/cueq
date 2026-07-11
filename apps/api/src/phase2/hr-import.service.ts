@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { type Prisma, Role, WorkTimeModelType } from '@cueq/database';
 import { z } from 'zod';
 import { PrismaService } from '../persistence/prisma.service';
@@ -15,6 +21,7 @@ const MAX_HR_IMPORT_CSV_BYTES = 2_000_000;
 // TV-L full-time: 39 h 50 min/week (39.83 h), 7.97 h/day
 const DEFAULT_WEEKLY_HOURS = 39.83;
 const DEFAULT_DAILY_TARGET_HOURS = 7.97;
+const HR_IMPORT_ADVISORY_LOCK_NAMESPACE = 1_138_425_457;
 
 const HrImportPayloadSchema = z.object({
   source: z.enum(['FILE', 'API']).default('FILE'),
@@ -36,6 +43,37 @@ type ValidatedRow = ParsedRow & {
   workTimeModelId: string;
 };
 
+type HrImportTransaction = Prisma.TransactionClient;
+
+function csvField(row: Record<string, string>, key: string, fallback: string): string {
+  return row[key] ?? fallback;
+}
+
+function parsedRowFromCsv(row: Record<string, string>): ParsedRow {
+  const supervisorExternalId = row['supervisorExternalId'];
+  return {
+    externalId: csvField(row, 'externalId', ''),
+    firstName: csvField(row, 'firstName', ''),
+    lastName: csvField(row, 'lastName', ''),
+    email: csvField(row, 'email', ''),
+    role: csvField(row, 'role', 'EMPLOYEE'),
+    organizationUnit: csvField(row, 'organizationUnit', 'Unassigned'),
+    workTimeModel: csvField(row, 'workTimeModel', 'Default'),
+    weeklyHours: csvField(row, 'weeklyHours', String(DEFAULT_WEEKLY_HOURS)),
+    dailyTargetHours: csvField(row, 'dailyTargetHours', String(DEFAULT_DAILY_TARGET_HOURS)),
+    supervisorExternalId: supervisorExternalId || undefined,
+  };
+}
+
+function hasRequiredIdentity(row: ParsedRow): boolean {
+  return Boolean(row.externalId && row.email && row.firstName && row.lastName);
+}
+
+function parseNonnegativeHours(value: string, fallback: number): number | null {
+  const parsed = Number(value || fallback);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 @Injectable()
 export class HrImportService {
   constructor(
@@ -46,20 +84,7 @@ export class HrImportService {
 
   private parseCsv(csv: string): ParsedRow[] {
     const { rows } = parseCsvRecords(csv);
-    return rows.map((row) => {
-      return {
-        externalId: row.externalId ?? '',
-        firstName: row.firstName ?? '',
-        lastName: row.lastName ?? '',
-        email: row.email ?? '',
-        role: row.role ?? 'EMPLOYEE',
-        organizationUnit: row.organizationUnit ?? 'Unassigned',
-        workTimeModel: row.workTimeModel ?? 'Default',
-        weeklyHours: row.weeklyHours ?? String(DEFAULT_WEEKLY_HOURS),
-        dailyTargetHours: row.dailyTargetHours ?? String(DEFAULT_DAILY_TARGET_HOURS),
-        supervisorExternalId: row.supervisorExternalId || undefined,
-      };
-    });
+    return rows.map(parsedRowFromCsv);
   }
 
   private toRole(input: string): Role {
@@ -76,69 +101,92 @@ export class HrImportService {
     const seenExternalIds = new Set<string>();
     const seenEmails = new Set<string>();
 
-    const validatedRows = rows.flatMap((row) => {
-      if (!row.externalId || !row.email || !row.firstName || !row.lastName) {
-        errors.push(`Missing required fields for externalId="${row.externalId}".`);
-        return [];
-      }
+    const validatedRows: ValidatedRow[] = [];
+    for (const row of rows) {
+      const validated = this.validateRow(row, seenExternalIds, seenEmails);
+      if (typeof validated === 'string') errors.push(validated);
+      else validatedRows.push(validated);
+    }
 
-      if (seenExternalIds.has(row.externalId)) {
-        errors.push(`Duplicate externalId in batch: "${row.externalId}".`);
-        return [];
+    const byExternalId = new Map(validatedRows.map((row) => [row.externalId, row]));
+    for (const row of validatedRows) {
+      if (row.supervisorExternalId === row.externalId) {
+        errors.push(`Supervisor cycle detected for externalId="${row.externalId}".`);
+        continue;
       }
-      if (seenEmails.has(row.email.toLowerCase())) {
-        errors.push(`Duplicate email in batch: "${row.email}".`);
-        return [];
+      const visited = new Set([row.externalId]);
+      let supervisorExternalId = row.supervisorExternalId;
+      while (supervisorExternalId && byExternalId.has(supervisorExternalId)) {
+        if (visited.has(supervisorExternalId)) {
+          errors.push(`Supervisor cycle detected for externalId="${row.externalId}".`);
+          break;
+        }
+        visited.add(supervisorExternalId);
+        supervisorExternalId = byExternalId.get(supervisorExternalId)?.supervisorExternalId;
       }
+    }
 
-      seenExternalIds.add(row.externalId);
-      seenEmails.add(row.email.toLowerCase());
-
-      const parsedWeeklyHours = Number(row.weeklyHours || DEFAULT_WEEKLY_HOURS);
-      const parsedDailyTargetHours = Number(row.dailyTargetHours || DEFAULT_DAILY_TARGET_HOURS);
-      if (!Number.isFinite(parsedWeeklyHours) || parsedWeeklyHours < 0) {
-        errors.push(`Invalid weeklyHours for externalId="${row.externalId}".`);
-        return [];
-      }
-      if (!Number.isFinite(parsedDailyTargetHours) || parsedDailyTargetHours < 0) {
-        errors.push(`Invalid dailyTargetHours for externalId="${row.externalId}".`);
-        return [];
-      }
-
-      let parsedRole: Role;
-      try {
-        parsedRole = this.toRole(row.role);
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : `Unsupported HR role: ${row.role}`);
-        return [];
-      }
-
-      return [
-        {
-          ...row,
-          parsedRole,
-          parsedWeeklyHours,
-          parsedDailyTargetHours,
-          organizationUnitId: `ou_${row.organizationUnit.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
-          workTimeModelId: `wtm_${row.workTimeModel.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
-        },
-      ];
-    });
-
-    return { rows: validatedRows, errors };
+    return { rows: validatedRows, errors: [...new Set(errors)] };
   }
 
-  private async finalizeRun(summary: {
-    source: 'FILE' | 'API';
-    sourceFile: string | null;
-    totalRows: number;
-    createdRows: number;
-    updatedRows: number;
-    skippedRows: number;
-    errorCount: number;
-    errors: string[];
-  }) {
-    const run = await this.prisma.hrImportRun.create({
+  private validateRow(
+    row: ParsedRow,
+    seenExternalIds: Set<string>,
+    seenEmails: Set<string>,
+  ): ValidatedRow | string {
+    if (!hasRequiredIdentity(row)) {
+      return `Missing required fields for externalId="${row.externalId}".`;
+    }
+    const normalizedEmail = row.email.toLowerCase();
+    if (seenExternalIds.has(row.externalId)) {
+      return `Duplicate externalId in batch: "${row.externalId}".`;
+    }
+    if (seenEmails.has(normalizedEmail)) return `Duplicate email in batch: "${row.email}".`;
+
+    const parsedWeeklyHours = parseNonnegativeHours(row.weeklyHours, DEFAULT_WEEKLY_HOURS);
+    const parsedDailyTargetHours = parseNonnegativeHours(
+      row.dailyTargetHours,
+      DEFAULT_DAILY_TARGET_HOURS,
+    );
+    if (parsedWeeklyHours === null) {
+      return `Invalid weeklyHours for externalId="${row.externalId}".`;
+    }
+    if (parsedDailyTargetHours === null) {
+      return `Invalid dailyTargetHours for externalId="${row.externalId}".`;
+    }
+
+    let parsedRole: Role;
+    try {
+      parsedRole = this.toRole(row.role);
+    } catch (error) {
+      return error instanceof Error ? error.message : `Unsupported HR role: ${row.role}`;
+    }
+    seenExternalIds.add(row.externalId);
+    seenEmails.add(normalizedEmail);
+    return {
+      ...row,
+      parsedRole,
+      parsedWeeklyHours,
+      parsedDailyTargetHours,
+      organizationUnitId: `ou_${row.organizationUnit.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
+      workTimeModelId: `wtm_${row.workTimeModel.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
+    };
+  }
+
+  private async finalizeRun(
+    summary: {
+      source: 'FILE' | 'API';
+      sourceFile: string | null;
+      totalRows: number;
+      createdRows: number;
+      updatedRows: number;
+      skippedRows: number;
+      errorCount: number;
+      errors: string[];
+    },
+    db: HrImportTransaction = this.prisma,
+  ) {
+    const run = await db.hrImportRun.create({
       data: {
         source: summary.source,
         sourceFile: summary.sourceFile ?? undefined,
@@ -153,14 +201,17 @@ export class HrImportService {
       },
     });
 
-    await this.auditHelper.appendAudit({
-      actorId: 'system:hr-import',
-      action: 'HR_MASTER_IMPORT_COMPLETED',
-      entityType: 'HrImportRun',
-      entityId: run.id,
-      after: summary,
-      reason: summary.source,
-    });
+    await this.auditHelper.appendAudit(
+      {
+        actorId: 'system:hr-import',
+        action: 'HR_MASTER_IMPORT_COMPLETED',
+        entityType: 'HrImportRun',
+        entityId: run.id,
+        after: summary,
+        reason: summary.source,
+      },
+      db,
+    );
 
     return {
       id: run.id,
@@ -175,6 +226,213 @@ export class HrImportService {
       summary: run.summary,
       importedAt: run.importedAt.toISOString(),
     };
+  }
+
+  private async findExistingPersonForRow(tx: HrImportTransaction, row: ValidatedRow) {
+    const [byExternalId, byEmail] = await Promise.all([
+      tx.person.findUnique({
+        where: { externalId: row.externalId },
+        select: { id: true },
+      }),
+      tx.person.findFirst({
+        where: { email: { equals: row.email, mode: 'insensitive' } },
+        select: { id: true },
+      }),
+    ]);
+
+    if (byExternalId && byEmail && byExternalId.id !== byEmail.id) {
+      throw new BadRequestException(
+        `HR identity conflict for externalId="${row.externalId}" and email="${row.email}".`,
+      );
+    }
+
+    return byExternalId ?? byEmail;
+  }
+
+  private personDataForRow(row: ValidatedRow) {
+    return {
+      externalId: row.externalId,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      email: row.email,
+      role: row.parsedRole,
+      organizationUnitId: row.organizationUnitId,
+      workTimeModelId: row.workTimeModelId,
+    };
+  }
+
+  private async upsertOrganizationUnit(tx: HrImportTransaction, row: ValidatedRow) {
+    await tx.organizationUnit.upsert({
+      where: { id: row.organizationUnitId },
+      create: {
+        id: row.organizationUnitId,
+        name: row.organizationUnit,
+      },
+      update: { name: row.organizationUnit },
+    });
+  }
+
+  private async upsertWorkTimeModel(tx: HrImportTransaction, row: ValidatedRow) {
+    await tx.workTimeModel.upsert({
+      where: { id: row.workTimeModelId },
+      create: {
+        id: row.workTimeModelId,
+        name: row.workTimeModel,
+        type: WorkTimeModelType.FLEXTIME,
+        weeklyHours: row.parsedWeeklyHours,
+        dailyTargetHours: row.parsedDailyTargetHours,
+        effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      update: {
+        name: row.workTimeModel,
+        weeklyHours: row.parsedWeeklyHours,
+        dailyTargetHours: row.parsedDailyTargetHours,
+      },
+    });
+  }
+
+  private async upsertPersonForRow(tx: HrImportTransaction, row: ValidatedRow) {
+    const existing = await this.findExistingPersonForRow(tx, row);
+    const data = this.personDataForRow(row);
+    const person = existing
+      ? await tx.person.update({
+          where: { id: existing.id },
+          data,
+        })
+      : await tx.person.create({ data });
+
+    return { person, existing };
+  }
+
+  private async importValidatedRows(tx: HrImportTransaction, rows: ValidatedRow[]) {
+    const importedPeople = new Map<string, string>();
+    let createdRows = 0;
+    let updatedRows = 0;
+
+    for (const row of rows) {
+      await this.upsertOrganizationUnit(tx, row);
+      await this.upsertWorkTimeModel(tx, row);
+      const { person, existing } = await this.upsertPersonForRow(tx, row);
+
+      importedPeople.set(row.externalId, person.id);
+      if (existing) {
+        updatedRows += 1;
+      } else {
+        createdRows += 1;
+      }
+    }
+
+    return { importedPeople, createdRows, updatedRows };
+  }
+
+  private async preflightRows(tx: HrImportTransaction, rows: ValidatedRow[]): Promise<void> {
+    const batchExternalIds = new Set(rows.map((row) => row.externalId));
+    for (const row of rows) {
+      await this.findExistingPersonForRow(tx, row);
+      if (row.supervisorExternalId && !batchExternalIds.has(row.supervisorExternalId)) {
+        const supervisor = await tx.person.findFirst({
+          where: { externalId: row.supervisorExternalId },
+          select: { id: true },
+        });
+        if (!supervisor) {
+          throw new BadRequestException(
+            `Supervisor externalId not found in batch: ${row.supervisorExternalId}`,
+          );
+        }
+      }
+    }
+  }
+
+  private async resolveSupervisorId(
+    tx: HrImportTransaction,
+    row: ValidatedRow,
+    importedPeople: Map<string, string>,
+  ) {
+    if (!row.supervisorExternalId) {
+      return null;
+    }
+
+    return (
+      importedPeople.get(row.supervisorExternalId) ??
+      (
+        await tx.person.findFirst({
+          where: { externalId: row.supervisorExternalId },
+          select: { id: true },
+        })
+      )?.id ??
+      null
+    );
+  }
+
+  private async linkSupervisors(
+    tx: HrImportTransaction,
+    rows: ValidatedRow[],
+    importedPeople: Map<string, string>,
+  ) {
+    for (const row of rows) {
+      if (!row.supervisorExternalId) {
+        continue;
+      }
+
+      const supervisorId = await this.resolveSupervisorId(tx, row, importedPeople);
+      if (!supervisorId) {
+        throw new BadRequestException(
+          `Supervisor externalId not found in batch: ${row.supervisorExternalId}`,
+        );
+      }
+
+      const personId = importedPeople.get(row.externalId);
+      if (!personId) {
+        throw new BadRequestException(`Imported person missing for externalId: ${row.externalId}`);
+      }
+
+      await tx.person.update({
+        where: { id: personId },
+        data: { supervisorId },
+      });
+    }
+  }
+
+  private async importRowsInTransaction(
+    validatedRows: ValidatedRow[],
+    baseSummary: {
+      source: 'FILE' | 'API';
+      sourceFile: string | null;
+      totalRows: number;
+      createdRows: number;
+      updatedRows: number;
+      skippedRows: number;
+      errorCount: number;
+      errors: string[];
+    },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const [lock] = await tx.$queryRaw<Array<{ acquired: boolean }>>`
+        SELECT pg_try_advisory_xact_lock(${HR_IMPORT_ADVISORY_LOCK_NAMESPACE}) AS acquired
+      `;
+      if (!lock?.acquired) {
+        throw new ConflictException({
+          code: 'HR_IMPORT_IN_PROGRESS',
+          message: 'Another HR import is already in progress.',
+          retryable: true,
+        });
+      }
+      await this.preflightRows(tx, validatedRows);
+      const result = await this.importValidatedRows(tx, validatedRows);
+      await this.linkSupervisors(tx, validatedRows, result.importedPeople);
+
+      return this.finalizeRun(
+        {
+          ...baseSummary,
+          createdRows: result.createdRows,
+          updatedRows: result.updatedRows,
+          skippedRows: 0,
+          errorCount: 0,
+          errors: [],
+        },
+        tx,
+      );
+    });
   }
 
   async runImport(token: string | string[] | undefined, payload: unknown) {
@@ -207,129 +465,27 @@ export class HrImportService {
     };
 
     if (errors.length > 0) {
-      return this.finalizeRun(baseSummary);
+      throw new BadRequestException({
+        code: 'HR_IMPORT_VALIDATION_FAILED',
+        message: 'HR import payload validation failed.',
+        errors,
+      });
     }
 
     try {
-      const result = await this.prisma.$transaction(async (tx) => {
-        const importedPeople = new Map<string, string>();
-        let createdRows = 0;
-        let updatedRows = 0;
-
-        for (const row of validatedRows) {
-          await tx.organizationUnit.upsert({
-            where: { id: row.organizationUnitId },
-            create: {
-              id: row.organizationUnitId,
-              name: row.organizationUnit,
-            },
-            update: { name: row.organizationUnit },
-          });
-
-          await tx.workTimeModel.upsert({
-            where: { id: row.workTimeModelId },
-            create: {
-              id: row.workTimeModelId,
-              name: row.workTimeModel,
-              type: WorkTimeModelType.FLEXTIME,
-              weeklyHours: row.parsedWeeklyHours,
-              dailyTargetHours: row.parsedDailyTargetHours,
-              effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
-            },
-            update: {
-              name: row.workTimeModel,
-              weeklyHours: row.parsedWeeklyHours,
-              dailyTargetHours: row.parsedDailyTargetHours,
-            },
-          });
-
-          const existing = await tx.person.findFirst({
-            where: {
-              OR: [{ externalId: row.externalId }, { email: row.email }],
-            },
-          });
-
-          const person = existing
-            ? await tx.person.update({
-                where: { id: existing.id },
-                data: {
-                  externalId: row.externalId,
-                  firstName: row.firstName,
-                  lastName: row.lastName,
-                  email: row.email,
-                  role: row.parsedRole,
-                  organizationUnitId: row.organizationUnitId,
-                  workTimeModelId: row.workTimeModelId,
-                },
-              })
-            : await tx.person.create({
-                data: {
-                  externalId: row.externalId,
-                  firstName: row.firstName,
-                  lastName: row.lastName,
-                  email: row.email,
-                  role: row.parsedRole,
-                  organizationUnitId: row.organizationUnitId,
-                  workTimeModelId: row.workTimeModelId,
-                },
-              });
-
-          importedPeople.set(row.externalId, person.id);
-          if (existing) {
-            updatedRows += 1;
-          } else {
-            createdRows += 1;
-          }
-        }
-
-        for (const row of validatedRows) {
-          if (!row.supervisorExternalId) {
-            continue;
-          }
-
-          const supervisorId =
-            importedPeople.get(row.supervisorExternalId) ??
-            (
-              await tx.person.findFirst({
-                where: { externalId: row.supervisorExternalId },
-                select: { id: true },
-              })
-            )?.id;
-          if (!supervisorId) {
-            throw new BadRequestException(
-              `Supervisor externalId not found in batch: ${row.supervisorExternalId}`,
-            );
-          }
-
-          const personId = importedPeople.get(row.externalId);
-          if (!personId) {
-            throw new BadRequestException(
-              `Imported person missing for externalId: ${row.externalId}`,
-            );
-          }
-
-          await tx.person.update({
-            where: { id: personId },
-            data: { supervisorId },
-          });
-        }
-
-        return { createdRows, updatedRows };
-      });
-
-      return this.finalizeRun({
-        ...baseSummary,
-        createdRows: result.createdRows,
-        updatedRows: result.updatedRows,
-        skippedRows: 0,
-        errorCount: 0,
-      });
+      return await this.importRowsInTransaction(validatedRows, baseSummary);
     } catch (error) {
-      return this.finalizeRun({
-        ...baseSummary,
-        errorCount: 1,
-        errors: [error instanceof Error ? error.message : 'Unknown HR import error'],
-      });
+      if (error instanceof ConflictException) throw error;
+      return this.prisma.$transaction((tx) =>
+        this.finalizeRun(
+          {
+            ...baseSummary,
+            errorCount: 1,
+            errors: [error instanceof Error ? error.message : 'Unknown HR import error'],
+          },
+          tx,
+        ),
+      );
     }
   }
 

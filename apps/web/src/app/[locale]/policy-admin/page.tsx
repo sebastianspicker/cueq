@@ -271,16 +271,17 @@ export default function PolicyAdminPage() {
                   </span>
                   {entry.activeTo && (
                     <>
-                      <span>&middot;</span>
                       <span>
                         {t('activeTo')}: {entry.activeTo}
                       </span>
                     </>
                   )}
-                  <span>&middot;</span>
-                  <span>escalation: {entry.escalationDeadlineHours}h</span>
-                  <span>&middot;</span>
-                  <span>max depth: {entry.maxDelegationDepth}</span>
+                  <span>
+                    {t('escalationDeadlineHoursLabel')}: {entry.escalationDeadlineHours}h
+                  </span>
+                  <span>
+                    {t('maxDelegationDepthLabel')}: {entry.maxDelegationDepth}
+                  </span>
                 </div>
               </li>
             ))}
@@ -355,7 +356,6 @@ export default function PolicyAdminPage() {
                   <span>
                     {t('effectiveFrom')}: {entry.effectiveFrom}
                   </span>
-                  <span>&middot;</span>
                   <span>
                     {t('effectiveTo')}: {entry.effectiveTo ?? '—'}
                   </span>

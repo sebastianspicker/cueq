@@ -6,69 +6,36 @@ import {
 } from '@cueq/policy';
 import type { SurchargeCategory } from '@cueq/policy';
 import { toHolidaySet } from '@cueq/shared';
-import type { CoreTimeRuleEvaluationContract } from '@cueq/shared';
-import { requiredBreakMinutes } from '../break-utils';
 import type { DomainWarning, RuleViolation } from '../types';
-import { diffHours, overlapExists, roundToTwo, toViolation } from '../utils';
+import { roundToTwo, toViolation } from '../utils';
 import {
-  isWithinWindow,
-  isWorkIntervalType,
-  localMinuteInfo,
-  parseLocalTimeToMinute,
-  selectSurchargeCategory,
-} from './surcharge';
-import type { TimeEnginePolicy } from './types';
+  addOverlapViolations,
+  classifyIntervals,
+  mergeWorkIntervals,
+} from './interval-classification';
+import { recordPauseMinutes, recordWorkMinutes } from './minute-accounting';
+import type { DailyTotals } from './minute-accounting';
+import {
+  addDailyRuleOutcomes,
+  addRestViolations,
+  addWeeklyMaxHoursViolation,
+  buildSurchargeMinutes,
+} from './rule-outcomes';
+import { parseLocalTimeToMinute } from './surcharge';
+import type { TimeEnginePolicy, TimeRuleEvaluationInput, TimeRuleEvaluationResult } from './types';
 
-export type { TimeEnginePolicy } from './types';
+export type {
+  TimeEnginePolicy,
+  TimeRuleEvaluationInput,
+  TimeRuleEvaluationResult,
+  TimeRuleInterval,
+} from './types';
 export type { PlausibilityInterval } from './plausibility';
 export { evaluatePlausibility } from './plausibility';
 export type { FlextimeWeekBooking, FlextimeWeekInput, FlextimeWeekResult } from './flextime';
 export { calculateFlextimeWeek } from './flextime';
 export type { OnCallDeployment, OnCallRestInput, OnCallRestResult } from './oncall-rest';
 export { evaluateOnCallRestCompliance } from './oncall-rest';
-
-const MINUTE_MS = 60_000;
-
-function mergeWorkIntervals(intervals: TimeRuleInterval[]): TimeRuleInterval[] {
-  if (intervals.length <= 1) {
-    return intervals;
-  }
-
-  const merged: TimeRuleInterval[] = [];
-
-  for (const interval of intervals) {
-    const previous = merged[merged.length - 1];
-    if (!previous) {
-      merged.push(interval);
-      continue;
-    }
-
-    if (previous.end <= interval.start) {
-      merged.push(interval);
-      continue;
-    }
-
-    if (interval.end > previous.end) {
-      previous.end = interval.end;
-    }
-  }
-
-  return merged;
-}
-
-export type TimeRuleInterval = CoreTimeRuleEvaluationContract['input']['intervals'][number];
-
-export type TimeRuleEvaluationInput = CoreTimeRuleEvaluationContract['input'] & {
-  personCode?: string;
-};
-
-export type TimeRuleEvaluationResult = Omit<
-  CoreTimeRuleEvaluationContract['output'],
-  'violations' | 'warnings'
-> & {
-  violations: RuleViolation[];
-  warnings: DomainWarning[];
-};
 
 /**
  * Evaluate ArbZG / TV-L time-tracking rules for a set of work intervals.
@@ -92,16 +59,12 @@ export function evaluateTimeRules(
   const warnings: DomainWarning[] = [];
   const violations: RuleViolation[] = [];
   const holidayDates = toHolidaySet(input.holidayDates);
-  const daily = new Map<string, { workMinutes: number; pauseMinutes: number }>();
+  const daily = new Map<string, DailyTotals>();
   const surchargeBuckets = new Map<SurchargeCategory, number>();
-  let totalWorkMinutes = 0;
 
   const sortedIntervals = [...input.intervals].sort((left, right) =>
     left.start.localeCompare(right.start),
   );
-  const workIntervals: TimeRuleInterval[] = [];
-  const pauseIntervals: TimeRuleInterval[] = [];
-
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     weekday: 'short',
@@ -114,182 +77,50 @@ export function evaluateTimeRules(
   });
   const nightStart = parseLocalTimeToMinute(surchargeRule.nightWindow.startLocalTime);
   const nightEnd = parseLocalTimeToMinute(surchargeRule.nightWindow.endLocalTime);
-  const categoryConfigByCategory = new Map(
-    surchargeRule.categories.map((entry) => [entry.category, entry]),
-  );
-
-  for (const interval of sortedIntervals) {
-    const start = new Date(interval.start);
-    const end = new Date(interval.end);
-    const startMs = start.getTime();
-    const endMs = end.getTime();
-
-    if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) {
-      violations.push(
-        toViolation({
-          code: 'INVALID_INTERVAL',
-          message: 'Interval end must be after start and both must be valid ISO datetimes.',
-          context: { start: interval.start, end: interval.end, type: interval.type },
-        }),
-      );
-      continue;
-    }
-
-    if (isWorkIntervalType(interval.type)) {
-      workIntervals.push(interval);
-    } else if (interval.type === 'PAUSE') {
-      pauseIntervals.push(interval);
-    }
-  }
-
-  const overlapIssues = overlapExists(workIntervals.map(({ start, end }) => ({ start, end })));
-  for (const issue of overlapIssues) {
+  const hasValidNightWindow = nightStart !== null && nightEnd !== null;
+  if (!hasValidNightWindow) {
     violations.push(
       toViolation({
-        code: 'OVERLAP',
-        message: issue.message,
-        context: issue.context,
+        code: 'INVALID_SURCHARGE_NIGHT_WINDOW',
+        message: 'Surcharge nightWindow startLocalTime and endLocalTime must be valid HH:MM times.',
+        context: { nightWindow: surchargeRule.nightWindow },
       }),
     );
   }
+  const categoryConfigByCategory = new Map(
+    surchargeRule.categories.map((entry) => [entry.category, entry]),
+  );
+  const { workIntervals, pauseIntervals } = classifyIntervals(sortedIntervals, violations);
 
+  addOverlapViolations(workIntervals, violations);
   const normalizedWorkIntervals = mergeWorkIntervals(
     [...workIntervals]
       .map((interval) => ({ ...interval }))
       .sort((left, right) => left.start.localeCompare(right.start)),
   );
 
-  for (const interval of normalizedWorkIntervals) {
-    const startMs = new Date(interval.start).getTime();
-    const endMs = new Date(interval.end).getTime();
-
-    for (let cursor = startMs; cursor < endMs; cursor += MINUTE_MS) {
-      const localMinute = localMinuteInfo(cursor, formatter);
-      const day = daily.get(localMinute.isoDate) ?? { workMinutes: 0, pauseMinutes: 0 };
-
-      day.workMinutes += 1;
-      totalWorkMinutes += 1;
-
-      const matchedCategories: SurchargeCategory[] = [];
-      if (holidayDates.has(localMinute.isoDate)) {
-        matchedCategories.push('HOLIDAY');
-      }
-      if (localMinute.weekday === 0 || localMinute.weekday === 6) {
-        matchedCategories.push('WEEKEND');
-      }
-      if (isWithinWindow(localMinute.localMinuteOfDay, nightStart, nightEnd)) {
-        matchedCategories.push('NIGHT');
-      }
-
-      const selected = selectSurchargeCategory(matchedCategories, categoryConfigByCategory);
-      if (selected) {
-        surchargeBuckets.set(selected, (surchargeBuckets.get(selected) ?? 0) + 1);
-      }
-
-      daily.set(localMinute.isoDate, day);
-    }
-  }
-
-  for (const interval of pauseIntervals) {
-    const startMs = new Date(interval.start).getTime();
-    const endMs = new Date(interval.end).getTime();
-
-    for (let cursor = startMs; cursor < endMs; cursor += MINUTE_MS) {
-      const localMinute = localMinuteInfo(cursor, formatter);
-      const day = daily.get(localMinute.isoDate) ?? { workMinutes: 0, pauseMinutes: 0 };
-      day.pauseMinutes += 1;
-      daily.set(localMinute.isoDate, day);
-    }
-  }
-
-  const sortedRestIntervals = [...normalizedWorkIntervals].sort((left, right) =>
-    left.start.localeCompare(right.start),
+  const totalWorkMinutes = recordWorkMinutes(
+    normalizedWorkIntervals,
+    formatter,
+    daily,
+    holidayDates,
+    nightStart,
+    nightEnd,
+    categoryConfigByCategory,
+    surchargeBuckets,
   );
-  for (let index = 0; index < sortedRestIntervals.length - 1; index += 1) {
-    const current = sortedRestIntervals[index];
-    const next = sortedRestIntervals[index + 1];
-    if (!current || !next) {
-      continue;
-    }
-
-    const restHours = roundToTwo(diffHours(current.end, next.start));
-    if (restHours < restRule.minRestHours) {
-      violations.push(
-        toViolation({
-          code: 'REST_HOURS_DEFICIT',
-          message: `Rest period ${restHours}h is below required ${restRule.minRestHours}h.`,
-          ruleId: restRule.id,
-          ruleName: restRule.name,
-          context: { previousEnd: current.end, nextStart: next.start, restHours },
-        }),
-      );
-    }
-  }
-
-  for (const [day, totals] of daily.entries()) {
-    const workedHours = roundToTwo(totals.workMinutes / 60);
-    if (workedHours > maxHoursRule.maxDailyHoursExtended) {
-      violations.push(
-        toViolation({
-          code: 'MAX_DAILY_HOURS_EXCEEDED',
-          message: `Worked hours ${workedHours} exceed daily maximum ${maxHoursRule.maxDailyHoursExtended}.`,
-          ruleId: maxHoursRule.id,
-          ruleName: maxHoursRule.name,
-          context: { day, workedHours },
-        }),
-      );
-    } else if (workedHours > maxHoursRule.maxDailyHours) {
-      warnings.push({
-        code: 'MAX_DAILY_HOURS_EXTENDED_RANGE',
-        message:
-          'Daily hours exceed the standard maximum and require compensatory tracking within the reference period.',
-        context: { day, workedHours },
-      });
-    }
-
-    const expectedBreak = requiredBreakMinutes(workedHours, breakRule);
-    if (totals.pauseMinutes < expectedBreak) {
-      violations.push(
-        toViolation({
-          code: 'BREAK_DEFICIT',
-          message: `Required break is ${expectedBreak} minutes, but only ${totals.pauseMinutes} minutes were recorded.`,
-          ruleId: breakRule.id,
-          ruleName: breakRule.name,
-          context: { day, requiredBreakMinutes: expectedBreak, breakMinutes: totals.pauseMinutes },
-        }),
-      );
-    }
-  }
+  recordPauseMinutes(pauseIntervals, formatter, daily);
+  addRestViolations(normalizedWorkIntervals, restRule, violations);
+  addDailyRuleOutcomes(daily, maxHoursRule, breakRule, warnings, violations);
 
   const actualHours = roundToTwo(totalWorkMinutes / 60);
-  if (actualHours > maxHoursRule.maxWeeklyHours) {
-    violations.push(
-      toViolation({
-        code: 'MAX_WEEKLY_HOURS_EXCEEDED',
-        message: `Weekly worked hours ${actualHours} exceed maximum ${maxHoursRule.maxWeeklyHours}.`,
-        ruleId: maxHoursRule.id,
-        ruleName: maxHoursRule.name,
-      }),
-    );
-  }
-
-  const surchargeMinutes = [...surchargeBuckets.entries()]
-    .map(([category, minutes]) => ({
-      category,
-      minutes,
-      ratePercent: categoryConfigByCategory.get(category)?.ratePercent ?? 0,
-    }))
-    .sort((left, right) => {
-      const leftPriority = categoryConfigByCategory.get(left.category)?.priority ?? 0;
-      const rightPriority = categoryConfigByCategory.get(right.category)?.priority ?? 0;
-      return rightPriority - leftPriority;
-    });
+  addWeeklyMaxHoursViolation(actualHours, maxHoursRule, violations);
 
   return {
     actualHours,
     deltaHours: roundToTwo(actualHours - input.targetHours),
     violations,
     warnings,
-    surchargeMinutes,
+    surchargeMinutes: buildSurchargeMinutes(surchargeBuckets, categoryConfigByCategory),
   };
 }

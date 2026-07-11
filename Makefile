@@ -28,7 +28,7 @@ dev: ## Start development servers (API + Web) with hot reload
 # ---------------------------------------------------------------------------
 
 .PHONY: check
-check: ## Full validation: lint + format + typecheck + schemas + tests + openapi-check
+check: ## Full validation: hygiene + lint + format + typecheck + schemas + tests + openapi-check
 	$(SCRIPTS)/check.sh
 
 .PHONY: quick
@@ -40,6 +40,10 @@ quick: ## Fast local validation: lint + typecheck + unit tests
 .PHONY: docs-check
 docs-check: ## Validate internal markdown links
 	$(SCRIPTS)/pnpm.sh docs:links
+
+.PHONY: hygiene-check
+hygiene-check: ## Reject private, local-only, and generated artifacts tracked by Git
+	$(SCRIPTS)/check-repo-hygiene.sh
 
 .PHONY: lint
 lint: ## Run linters in check mode (no auto-fix)
@@ -86,9 +90,17 @@ test: ## Run all tests
 test-unit: ## Run unit tests only (fast, <10s target)
 	$(SCRIPTS)/pnpm.sh test:unit
 
+.PHONY: test-coverage
+test-coverage: ## Run unit tests with coverage reporting and thresholds
+	$(SCRIPTS)/pnpm.sh test:coverage
+
 .PHONY: test-integration
 test-integration: ## Run integration tests (requires Docker)
 	$(SCRIPTS)/pnpm.sh test:integration
+
+.PHONY: test-e2e
+test-e2e: ## Run browser end-to-end tests against the built web app and local API
+	$(SCRIPTS)/pnpm.sh test:e2e
 
 .PHONY: test-acceptance
 test-acceptance: ## Run acceptance tests (full stack)

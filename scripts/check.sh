@@ -5,6 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib.sh
 source "${SCRIPT_DIR}/lib.sh"
 
+"${SCRIPT_DIR}/check-repo-hygiene.sh"
+"${SCRIPT_DIR}/check-repo-hygiene.test.sh"
+
 export DATABASE_URL="${DATABASE_URL:-postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public}"
 
 run_pnpm lint

@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { ClosingStatus, Role } from '@cueq/database';
+import { parseShortOffsetToMinutes } from './closing-timezone';
 
 /* ── Type Aliases ────────────────────────────────────────── */
 
@@ -92,12 +93,29 @@ export function mapClosingPeriodResponse(period: {
 /* ── XML Escaping ───────────────────────────────────────── */
 
 export function escapeXml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;');
+  const escaped: string[] = [];
+  for (const character of value) {
+    switch (character) {
+      case '&':
+        escaped.push('&amp;');
+        break;
+      case '<':
+        escaped.push('&lt;');
+        break;
+      case '>':
+        escaped.push('&gt;');
+        break;
+      case '"':
+        escaped.push('&quot;');
+        break;
+      case "'":
+        escaped.push('&apos;');
+        break;
+      default:
+        escaped.push(character);
+    }
+  }
+  return escaped.join('');
 }
 
 /* ── Month Parsing ──────────────────────────────────────── */
@@ -172,22 +190,6 @@ export function closingBalanceAnomalyHours(): number {
 }
 
 /* ── Date / Timezone Helpers ────────────────────────────── */
-
-function parseShortOffsetToMinutes(offset: string): number {
-  if (offset === 'GMT' || offset === 'UTC') {
-    return 0;
-  }
-
-  const match = /^(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?$/.exec(offset);
-  if (!match) {
-    return 0;
-  }
-
-  const sign = match[1] === '-' ? -1 : 1;
-  const hours = Number(match[2] ?? '0');
-  const minutes = Number(match[3] ?? '0');
-  return sign * (hours * 60 + minutes);
-}
 
 export function resolveTimeZoneOffsetMinutes(at: Date, timeZone: string): number {
   const formatter = new Intl.DateTimeFormat('en-US', {

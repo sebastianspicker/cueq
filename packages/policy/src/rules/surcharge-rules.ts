@@ -4,13 +4,33 @@ import { PolicyRuleMetaSchema } from '../types';
 export const SurchargeCategorySchema = z.enum(['NIGHT', 'WEEKEND', 'HOLIDAY']);
 export type SurchargeCategory = z.infer<typeof SurchargeCategorySchema>;
 
+const LocalTimeSchema = z
+  .string()
+  .regex(/^\d{2}:\d{2}$/)
+  .refine(
+    (value) => {
+      const [hourRaw, minuteRaw] = value.split(':');
+      const hour = Number(hourRaw);
+      const minute = Number(minuteRaw);
+      return (
+        Number.isInteger(hour) &&
+        Number.isInteger(minute) &&
+        hour >= 0 &&
+        hour <= 23 &&
+        minute >= 0 &&
+        minute <= 59
+      );
+    },
+    { message: 'Must be a valid HH:MM local time' },
+  );
+
 export const SurchargeRuleSchema = PolicyRuleMetaSchema.extend({
   type: z.literal('SURCHARGE_RULE'),
   overlapStrategy: z.literal('HIGHEST_ONLY'),
   timezoneDefault: z.string().min(1),
   nightWindow: z.object({
-    startLocalTime: z.string().regex(/^\d{2}:\d{2}$/),
-    endLocalTime: z.string().regex(/^\d{2}:\d{2}$/),
+    startLocalTime: LocalTimeSchema,
+    endLocalTime: LocalTimeSchema,
   }),
   categories: z.array(
     z.object({

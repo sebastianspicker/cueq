@@ -16,6 +16,12 @@ const HR_USER: AuthenticatedIdentity = {
   role: Role.HR,
   claims: {},
 };
+const TEAM_LEAD_USER: AuthenticatedIdentity = {
+  subject: 'u-lead',
+  email: 'lead@example.com',
+  role: Role.TEAM_LEAD,
+  claims: {},
+};
 const EMPLOYEE_USER: AuthenticatedIdentity = {
   subject: 'u-emp',
   email: 'emp@example.com',
@@ -52,11 +58,13 @@ const makeHelper = (overrides: { findUnique?: unknown; checklist?: { hasErrors: 
     },
   };
   const personHelper = {
-    personForUser: vi
-      .fn()
-      .mockImplementation((user: AuthenticatedIdentity) =>
-        Promise.resolve({ id: `person-${user.subject}`, role: user.role }),
-      ),
+    personForUser: vi.fn().mockImplementation((user: AuthenticatedIdentity) =>
+      Promise.resolve({
+        id: `person-${user.subject}`,
+        role: user.role,
+        organizationUnitId: user.role === Role.TEAM_LEAD ? 'ou-1' : null,
+      }),
+    ),
   };
   const auditHelper = { appendAudit: vi.fn().mockResolvedValue(undefined) };
   const eventOutboxHelper = { enqueueDomainEvent: vi.fn().mockResolvedValue(undefined) };
@@ -76,6 +84,67 @@ const makeHelper = (overrides: { findUnique?: unknown; checklist?: { hasErrors: 
 };
 
 describe('ClosingLifecycleHelper', () => {
+  describe('leadApproveClosing', () => {
+    it('rejects every non-team-lead role with the stable message', async () => {
+      for (const user of [ADMIN_USER, HR_USER, EMPLOYEE_USER]) {
+        const { helper } = makeHelper({ findUnique: REVIEW_PERIOD });
+        await expect(helper.leadApproveClosing(user, 'cp-1')).rejects.toThrow(
+          'Only TEAM_LEAD can submit lead approval.',
+        );
+      }
+    });
+
+    it('preserves not-found, global, cross-unit, and wrong-status messages', async () => {
+      const cases = [
+        [null, 'Closing period not found.'],
+        [REVIEW_PERIOD, 'Global closing periods do not require team-lead approval.'],
+        [
+          { ...REVIEW_PERIOD, organizationUnitId: 'ou-2' },
+          'Team leads can only approve closing periods in their own unit.',
+        ],
+        [
+          { ...OPEN_PERIOD, organizationUnitId: 'ou-1' },
+          'Lead approval is only valid while period is in REVIEW.',
+        ],
+      ] as const;
+      for (const [findUnique, message] of cases) {
+        const { helper } = makeHelper({ findUnique });
+        await expect(helper.leadApproveClosing(TEAM_LEAD_USER, 'cp-1')).rejects.toThrow(message);
+      }
+    });
+
+    it('is idempotent for an existing lead approval and does not write again', async () => {
+      const approved = {
+        ...REVIEW_PERIOD,
+        organizationUnitId: 'ou-1',
+        leadApprovedAt: new Date('2026-03-01T00:00:00.000Z'),
+      };
+      const { helper, prisma, auditHelper } = makeHelper({ findUnique: approved });
+      await helper.leadApproveClosing(TEAM_LEAD_USER, 'cp-1');
+      expect(prisma.closingPeriod.update).not.toHaveBeenCalled();
+      expect(auditHelper.appendAudit).not.toHaveBeenCalled();
+    });
+
+    it('writes the lead approval and its before/after audit contract', async () => {
+      const { helper, prisma, auditHelper } = makeHelper({
+        findUnique: { ...REVIEW_PERIOD, organizationUnitId: 'ou-1' },
+      });
+      await helper.leadApproveClosing(TEAM_LEAD_USER, 'cp-1');
+      expect(prisma.closingPeriod.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ leadApprovedById: 'person-u-lead' }),
+        }),
+      );
+      expect(auditHelper.appendAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'CLOSING_LEAD_APPROVED',
+          before: expect.objectContaining({ leadApprovedAt: null }),
+          after: expect.objectContaining({ leadApprovedById: 'person-u-lead' }),
+        }),
+      );
+    });
+  });
+
   describe('startClosingReview', () => {
     beforeEach(() => {
       process.env['CLOSING_ALLOW_MANUAL_REVIEW_START'] = 'true';

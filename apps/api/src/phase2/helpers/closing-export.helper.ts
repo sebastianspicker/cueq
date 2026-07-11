@@ -18,6 +18,35 @@ import { PersonHelper } from './person.helper';
 import { EXPORT_DOWNLOAD_ROLES, HR_LIKE_ROLES } from './role-constants';
 import { escapeXml, toClosingActorRole, toPersistenceClosingStatus } from './closing-utils';
 
+function xmlAttribute(name: string, value: string): string {
+  return [' ', name, '="', escapeXml(value), '"'].join('');
+}
+
+function payrollExportStart(format: string, closingPeriodId: string): string {
+  return [
+    '<payrollExport',
+    xmlAttribute('format', format),
+    xmlAttribute('closingPeriodId', closingPeriodId),
+    '>',
+  ].join('');
+}
+
+function payrollRow(row: {
+  personId: string;
+  targetHours: number;
+  actualHours: number;
+  balance: number;
+}): string {
+  return [
+    '  <row',
+    xmlAttribute('personId', row.personId),
+    xmlAttribute('targetHours', row.targetHours.toFixed(2)),
+    xmlAttribute('actualHours', row.actualHours.toFixed(2)),
+    xmlAttribute('balance', row.balance.toFixed(2)),
+    ' />',
+  ].join('');
+}
+
 @Injectable()
 export class ClosingExportHelper {
   constructor(
@@ -71,11 +100,8 @@ export class ClosingExportHelper {
     const csv = `${header}\n${body}\n`;
     const xml = [
       '<?xml version="1.0" encoding="UTF-8"?>',
-      `<payrollExport format="${format}" closingPeriodId="${escapeXml(closingPeriodId)}">`,
-      ...normalizedRows.map(
-        (row) =>
-          `  <row personId="${escapeXml(row.personId)}" targetHours="${row.targetHours.toFixed(2)}" actualHours="${row.actualHours.toFixed(2)}" balance="${row.balance.toFixed(2)}" />`,
-      ),
+      payrollExportStart(format, closingPeriodId),
+      ...normalizedRows.map(payrollRow),
       '</payrollExport>',
       '',
     ].join('\n');
@@ -178,6 +204,7 @@ export class ClosingExportHelper {
     if (!EXPORT_DOWNLOAD_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin/Payroll can download payroll export CSV.');
     }
+    const actor = await this.personHelper.personForUser(user);
 
     const exportRun = await this.prisma.exportRun.findFirst({
       where: {
@@ -194,6 +221,19 @@ export class ClosingExportHelper {
       throw new BadRequestException('CSV artifact is unavailable for this export run.');
     }
 
+    await this.auditHelper.appendAudit({
+      actorId: actor.id,
+      action: 'PAYROLL_EXPORT_DOWNLOADED',
+      entityType: 'ExportRun',
+      entityId: exportRun.id,
+      after: {
+        closingPeriodId,
+        checksum: exportRun.checksum,
+        format: exportRun.format,
+        endpoint: 'csv',
+      },
+    });
+
     return {
       filename: `payroll-export-${closingPeriodId}-${runId}.csv`,
       csv: exportRun.artifact,
@@ -206,6 +246,7 @@ export class ClosingExportHelper {
     if (!EXPORT_DOWNLOAD_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin/Payroll can download payroll export artifacts.');
     }
+    const actor = await this.personHelper.personForUser(user);
 
     const exportRun = await this.prisma.exportRun.findFirst({
       where: {
@@ -223,6 +264,19 @@ export class ClosingExportHelper {
     const extension = exportRun.format === 'XML_V1' ? 'xml' : 'csv';
     const contentType =
       exportRun.contentType ?? (exportRun.format === 'XML_V1' ? 'application/xml' : 'text/csv');
+
+    await this.auditHelper.appendAudit({
+      actorId: actor.id,
+      action: 'PAYROLL_EXPORT_DOWNLOADED',
+      entityType: 'ExportRun',
+      entityId: exportRun.id,
+      after: {
+        closingPeriodId,
+        checksum: exportRun.checksum,
+        format: exportRun.format,
+        endpoint: 'artifact',
+      },
+    });
 
     return {
       filename: `payroll-export-${closingPeriodId}-${runId}.${extension}`,

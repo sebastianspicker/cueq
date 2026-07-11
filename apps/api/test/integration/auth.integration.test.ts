@@ -4,6 +4,39 @@ import type { INestApplication } from '@nestjs/common';
 import { SignJWT } from 'jose';
 import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
 
+interface SamlTokenInput {
+  sub: string;
+  email: string;
+  role: string;
+  organizationUnitId: string;
+  issuer?: string;
+  audience?: string;
+  secret?: string;
+}
+
+function samlSetting(value: string | undefined, envKey: string, fallback: string): string {
+  return value ?? process.env[envKey] ?? fallback;
+}
+
+async function buildSamlToken(input: SamlTokenInput): Promise<string> {
+  const issuer = samlSetting(input.issuer, 'SAML_ISSUER', 'https://saml-idp.cueq.local');
+  const audience = samlSetting(input.audience, 'SAML_AUDIENCE', 'cueq-api');
+  const secret = samlSetting(input.secret, 'SAML_JWT_SECRET', 'dev-saml-shared-secret');
+
+  return new SignJWT({
+    email: input.email,
+    role: input.role,
+    organizationUnitId: input.organizationUnitId,
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('10m')
+    .setIssuer(issuer)
+    .setAudience(audience)
+    .setSubject(input.sub)
+    .sign(new TextEncoder().encode(secret));
+}
+
 describe('Phase 2 integration: auth and identity', () => {
   let app: INestApplication;
 
@@ -80,33 +113,6 @@ describe('Phase 3 integration: SAML auth provider adapter', () => {
       return;
     }
     process.env[key] = value;
-  }
-
-  async function buildSamlToken(input: {
-    sub: string;
-    email: string;
-    role: string;
-    organizationUnitId: string;
-    issuer?: string;
-    audience?: string;
-    secret?: string;
-  }) {
-    return new SignJWT({
-      email: input.email,
-      role: input.role,
-      organizationUnitId: input.organizationUnitId,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime('10m')
-      .setIssuer(input.issuer ?? process.env.SAML_ISSUER ?? 'https://saml-idp.cueq.local')
-      .setAudience(input.audience ?? process.env.SAML_AUDIENCE ?? 'cueq-api')
-      .setSubject(input.sub)
-      .sign(
-        new TextEncoder().encode(
-          input.secret ?? process.env.SAML_JWT_SECRET ?? 'dev-saml-shared-secret',
-        ),
-      );
   }
 
   beforeAll(async () => {

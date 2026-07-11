@@ -7,11 +7,24 @@
 
 **Target Audience:** German university HR departments, team leads (Teamleitungen), and shift planners (Dienstplaner) managing workforce time-tracking, absence quotas, and roster compliance under TV-L / NRW regulations.
 
+**Project Status:** cueq is a proof of concept and reference implementation, not
+a certified production system or legal opinion. The current source implements
+the major domain, API, web, integration, and operations capability families;
+service-backed release gates still need to pass in an authorized environment.
+See [Current Implementation Status](docs/PLANS.md) and the latest
+[Local Verification Snapshot](docs/verification-baseline.md).
+
 ---
 
 ## What is cueq?
 
-**cueq** (pronounced "cue-Q") is a workforce-management system built for German universities operating under the [TV-L](https://de.wikipedia.org/wiki/Tarifvertrag_f%C3%BCr_den_%C3%B6ffentlichen_Dienst_der_L%C3%A4nder) collective agreement in [Nordrhein-Westfalen (NRW)](https://de.wikipedia.org/wiki/Nordrhein-Westfalen). It replaces fragmented tools (paper, Excel, disconnected terminal systems) with a single, legally compliant, auditable, and user-friendly system.
+**cueq** (pronounced "cue-Q") is a workforce-management reference system for
+German universities operating under the
+[TV-L](https://de.wikipedia.org/wiki/Tarifvertrag_f%C3%BCr_den_%C3%B6ffentlichen_Dienst_der_L%C3%A4nder)
+collective agreement in
+[Nordrhein-Westfalen (NRW)](https://de.wikipedia.org/wiki/Nordrhein-Westfalen).
+It explores how fragmented time, leave, roster, approval, and closing workflows
+can be brought into one auditable, permission-aware, self-hostable application.
 
 ### The Problem
 
@@ -38,7 +51,7 @@ cueq provides:
 | **Approval Workflows** | Configurable approval chains with delegation, escalation, and automatic deputy routing                                           |
 | **Monthly Closing**    | Structured end-of-month process: checklists, locking, HR corrections, and payroll export                                         |
 | **Audit Trail**        | Immutable, append-only log of every change, decision, and export — required for legal compliance                                 |
-| **GDPR Compliance**    | Role-based data access, configurable retention/deletion, no individual performance monitoring                                    |
+| **Privacy Guardrails** | Role-based data access, configurable retention/deletion, no individual performance monitoring                                    |
 
 ### Key Constraints
 
@@ -153,7 +166,6 @@ graph TD
         subgraph Docs ["docs/"]
             DD[design-docs/]
             ADR[design-decisions/]
-            EP[exec-plans/]
             PS[product-specs/]
             GEN[generated/]
         end
@@ -206,8 +218,8 @@ cueq/
 │   │   └── package.json
 │   └── web/                    # Next.js frontend
 │       ├── src/app/
-│       │   ├── layout.tsx      # Root layout (lang=de)
-│       │   └── page.tsx        # Landing page
+│       │   ├── layout.tsx      # Root layout
+│       │   └── [locale]/       # DE/EN role-aware application routes
 │       ├── next.config.ts
 │       ├── tsconfig.json
 │       └── package.json
@@ -219,7 +231,7 @@ cueq/
 │   │   └── package.json
 │   ├── database/               # Prisma schema + generated client
 │   │   ├── prisma/
-│   │   │   └── schema.prisma   # 14 models, 10 enums
+│   │   │   └── schema.prisma   # Current storage contract
 │   │   ├── src/index.ts        # Re-exports PrismaClient
 │   │   └── package.json
 │   ├── policy/                 # Policy-as-code definitions + golden tests
@@ -240,13 +252,12 @@ cueq/
 ├── docs/                       # Full documentation suite
 │   ├── design-docs/            # Core beliefs, glossary
 │   ├── design-decisions/       # ADRs (template + 001-tech-stack)
-│   ├── exec-plans/             # Active plans, completed, tech debt
 │   ├── generated/              # Auto-generated (db-schema.md)
 │   ├── product-specs/          # Product specifications
-│   ├── references/             # Agent context files
-│   ├── DESIGN.md               # Design patterns & conventions
+│   ├── README.md               # Public documentation index and boundary
+│   ├── DESIGN.md               # Domain/application design patterns
 │   ├── FRONTEND.md             # Frontend architecture
-│   ├── PLANS.md                # Phase 0–3 execution plan
+│   ├── PLANS.md                # Current implementation and release status
 │   ├── PRODUCT_SENSE.md        # Product thinking & personas
 │   ├── QUALITY_SCORE.md        # Quality metrics & targets
 │   ├── RELIABILITY.md          # Ops, failover, backup
@@ -280,11 +291,45 @@ cueq/
 ├── .prettierrc                 # Code formatting
 ├── .editorconfig               # Editor consistency
 ├── .env.example                # Environment template
-├── AGENTS.md                   # AI/contributor guide
+├── AGENTS.md                   # Contributor guide
 ├── ARCHITECTURE.md             # System architecture
+├── PRODUCT.md                  # Product purpose, users, and principles
+├── DESIGN.md                   # Trusted Operations Desk visual system
 ├── README.md                   # ← You are here
 └── LICENSE                     # MIT
 ```
+
+---
+
+## Maintainer Orientation
+
+If you are a competent programmer or IT operator coming to cueq cold, read the
+repository in this order:
+
+1. `README.md` for product scope, setup, commands, and the directory map.
+2. `ARCHITECTURE.md` for the domain boundaries and the API request path.
+3. `docs/product-specs/index.md` for the implemented feature contracts.
+4. `docs/FRONTEND.md` for the Next.js route surface and API client pattern.
+5. `docs/OPERATIONS_RUNBOOK.md` for terminal, HR import, export, backup, and
+   incident procedures.
+
+The main runtime path is:
+
+| Concern                 | Start here                               | Follow-up files                                                     |
+| ----------------------- | ---------------------------------------- | ------------------------------------------------------------------- |
+| Web UI                  | `apps/web/src/app/[locale]/*/page.tsx`   | `apps/web/src/lib/api-client.ts`, `apps/web/src/messages/*.json`    |
+| API bootstrap           | `apps/api/src/main.ts`                   | `apps/api/src/app.module.ts`, `apps/api/src/openapi.ts`             |
+| Operational API surface | `apps/api/src/phase2/`                   | `controllers/` -> `services/` -> `helpers/`                         |
+| Pure domain rules       | `packages/core/src/core/`                | adjacent `*.test.ts` files and reference fixtures                   |
+| Runtime contracts       | `packages/shared/src/schemas/`           | `schemas/domain/`, `contracts/openapi/openapi.json`                 |
+| Persistence             | `packages/database/prisma/schema.prisma` | `packages/database/prisma/migrations/`                              |
+| Verification harness    | `Makefile`                               | `scripts/check.sh`, `turbo.json`, package `vitest*.config.ts` files |
+
+For a typical request, trace from a localized page to the shared API client,
+then to the matching Nest controller. Controllers keep transport concerns thin;
+domain services coordinate authorization, transactions, persistence, audit, and
+side effects; helpers isolate sub-domain logic; reusable calculations belong in
+`@cueq/core` where they can be tested without NestJS or Prisma.
 
 ---
 
@@ -298,7 +343,7 @@ cueq/
 | **Database**   | PostgreSQL 16 + Prisma | Type-safe ORM with migration management             |
 | **Validation** | Zod                    | Runtime validation shared across API + UI           |
 | **API Docs**   | @nestjs/swagger        | OpenAPI spec generated from decorators              |
-| **Testing**    | Vitest                 | Fast, TypeScript-native test runner                 |
+| **Testing**    | Vitest + Playwright    | Unit/integration tests and browser E2E coverage     |
 | **CI/CD**      | GitHub Actions         | Automated lint, typecheck, test, build              |
 | **Dev Tools**  | Docker Compose         | Local PostgreSQL, reproducible environment          |
 
@@ -329,45 +374,58 @@ make dev
 make check
 ```
 
+`make check`, browser tests, and service-backed suites require the local
+PostgreSQL service. Do not infer release readiness from unit/build results alone.
+
 ## Standard Commands
 
 Run `make help` for a full list. Key commands:
 
-| Command                 | Description                                                                                        |
-| ----------------------- | -------------------------------------------------------------------------------------------------- |
-| `make setup`            | Install dependencies, start Docker, generate Prisma client, push schema                            |
-| `make dev`              | Start API + Web with hot reload                                                                    |
-| `make check`            | Full validation: lint + format + typecheck + docs links + schemas/fixtures + tests + OpenAPI drift |
-| `make quick`            | Fast local validation: lint + typecheck + unit tests only                                          |
-| `make docs-check`       | Validate internal markdown links only                                                              |
-| `make lint`             | Run linters (check mode)                                                                           |
-| `make lint-fix`         | Auto-fix lint + format                                                                             |
-| `make typecheck`        | TypeScript type checking                                                                           |
-| `make schemas`          | Validate JSON Schemas and fixture contracts                                                        |
-| `make generate`         | Generate Prisma client, OpenAPI snapshot, and generated schema docs                                |
-| `make openapi-check`    | Compare generated OpenAPI spec against committed snapshot                                          |
-| `make test`             | Run all tests                                                                                      |
-| `make test-all`         | Run all test suites (unit + integration + acceptance + compliance + backup/restore)                |
-| `make demo-screenshots` | Generate local German demo screenshots using mock-university seed data                             |
-| `make build`            | Build all packages and apps                                                                        |
-| `make db-generate`      | Regenerate Prisma client after schema change                                                       |
-| `make db-migrate`       | Run database migrations                                                                            |
-| `make clean`            | Stop Docker, remove artifacts                                                                      |
+| Command                 | Description                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| `make setup`            | Install dependencies, start Docker, generate Prisma client, push schema                             |
+| `make dev`              | Start API + Web with hot reload                                                                     |
+| `make check`            | Full validation: hygiene + lint + format + typecheck + docs links + schemas + tests + OpenAPI drift |
+| `make quick`            | Fast local validation: lint + typecheck + unit tests only                                           |
+| `make docs-check`       | Validate internal markdown links only                                                               |
+| `make hygiene-check`    | Reject private, local-only, and generated artifacts tracked by Git                                  |
+| `make lint`             | Run linters (check mode)                                                                            |
+| `make lint-fix`         | Auto-fix lint + format                                                                              |
+| `make typecheck`        | TypeScript type checking                                                                            |
+| `make schemas`          | Validate JSON Schemas and fixture contracts                                                         |
+| `make generate`         | Generate Prisma client, OpenAPI snapshot, and generated schema docs                                 |
+| `make openapi-check`    | Compare generated OpenAPI spec against committed snapshot                                           |
+| `make test`             | Run all tests                                                                                       |
+| `make test-e2e`         | Run browser E2E tests against the built web app and local API                                       |
+| `make test-all`         | Run all test suites (unit + integration + acceptance + compliance + backup/restore)                 |
+| `make demo-screenshots` | Generate local German demo screenshots using mock-university seed data                              |
+| `make build`            | Build all packages and apps                                                                         |
+| `make db-generate`      | Regenerate Prisma client after schema change                                                        |
+| `make db-migrate`       | Run database migrations                                                                             |
+| `make clean`            | Stop Docker, remove artifacts                                                                       |
 
 ---
 
-## Screenshots
+## End-to-End Tests
 
-All screenshots are generated from mock university seed data (German locale) via `make demo-screenshots`.
+Browser E2E tests use the existing Playwright harness in
+`apps/web/tests/acceptance`. The harness starts the NestJS API on port `3001`
+and a production-built Next.js app on port `3000`, then exercises the real UI
+against a deterministic PostgreSQL schema named `web_acceptance`.
 
-| Screen                                                             | Preview                                                     |
-| ------------------------------------------------------------------ | ----------------------------------------------------------- |
-| **Dashboard** -- Target/actual hours, balance, quick actions       | ![Dashboard](docs/assets/demo-screenshots/01-dashboard.png) |
-| **Leave** -- Absence requests, quota tracking, carry-over          | ![Leave](docs/assets/demo-screenshots/02-leave.png)         |
-| **Roster** -- Shift planning, min-staffing, plan-vs-actual         | ![Roster](docs/assets/demo-screenshots/03-roster.png)       |
-| **Approvals** -- Workflow inbox with delegation and escalation     | ![Approvals](docs/assets/demo-screenshots/04-approvals.png) |
-| **Closing** -- Monthly closing checklist, export runs, corrections | ![Closing](docs/assets/demo-screenshots/05-closing.png)     |
-| **Reports** -- Aggregated analytics with privacy guardrails        | ![Reports](docs/assets/demo-screenshots/06-reports.png)     |
+```bash
+# From a clean checkout, run setup once so dependencies, Prisma, and Postgres exist.
+make setup
+
+# Browser E2E only.
+make test-e2e
+
+# Full acceptance suite, including browser E2E plus service/package acceptance.
+make test-acceptance
+```
+
+The E2E suite uses mock bearer tokens and synthetic seed data only. It does not
+call external services or require secrets.
 
 ---
 
@@ -402,19 +460,21 @@ erDiagram
 
 ## Documentation Map
 
-| Document                                                             | Description                                            | Audience                   |
-| -------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------- |
-| [AGENTS.md](AGENTS.md)                                               | Contributor guide, conventions, security constraints   | Developers, AI agents      |
-| [ARCHITECTURE.md](ARCHITECTURE.md)                                   | C4-level system overview, service descriptions         | Developers, architects     |
-| [docs/DESIGN.md](docs/DESIGN.md)                                     | DDD patterns, hexagonal architecture, testing strategy | Developers                 |
-| [docs/PLANS.md](docs/PLANS.md)                                       | Phase 0–3 execution plan with DoD                      | Project management         |
-| [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md)                       | Personas, success metrics, trade-offs                  | Product, stakeholders      |
-| [docs/SECURITY.md](docs/SECURITY.md)                                 | Threat model, RBAC matrix, GDPR compliance             | Security, DPO, Personalrat |
-| [docs/RELIABILITY.md](docs/RELIABILITY.md)                           | Availability, backup, failover, monitoring             | Operations                 |
-| [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md)                       | Coverage targets, test performance budgets             | QA, CI                     |
-| [docs/FRONTEND.md](docs/FRONTEND.md)                                 | UI architecture, i18n, accessibility, privacy          | Frontend developers        |
-| [docs/design-docs/core-beliefs.md](docs/design-docs/core-beliefs.md) | Design principles + full domain glossary (50 terms)    | Everyone                   |
-| [docs/product-specs/](docs/product-specs/index.md)                   | Product specifications                                 | Product, developers        |
+| Document                                                       | Description                                             | Audience                   |
+| -------------------------------------------------------------- | ------------------------------------------------------- | -------------------------- |
+| [PRODUCT.md](PRODUCT.md)                                       | Current users, purpose, principles, and role model      | Everyone                   |
+| [DESIGN.md](DESIGN.md)                                         | Trusted Operations Desk visual system                   | Product, frontend          |
+| [AGENTS.md](AGENTS.md)                                         | Contributor conventions and verification expectations   | Developers, contributors   |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                             | System overview and dependency boundaries               | Developers, architects     |
+| [docs/README.md](docs/README.md)                               | Public documentation index and public/private boundary  | Everyone                   |
+| [docs/PLANS.md](docs/PLANS.md)                                 | Current implementation and release-verification status  | Maintainers                |
+| [docs/verification-baseline.md](docs/verification-baseline.md) | Latest observed local verification and gaps             | Maintainers, reviewers     |
+| [docs/SECURITY.md](docs/SECURITY.md)                           | Threat model, role matrix, and privacy design           | Security, DPO, Personalrat |
+| [SECURITY.md](SECURITY.md)                                     | GitHub vulnerability disclosure entry point             | Security reporters         |
+| [docs/RELIABILITY.md](docs/RELIABILITY.md)                     | Availability, backup, failover, and monitoring          | Operations                 |
+| [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md)                 | Quality targets and enforcing commands                  | QA, CI                     |
+| [docs/FRONTEND.md](docs/FRONTEND.md)                           | Current UI architecture, i18n, accessibility, and roles | Frontend developers        |
+| [docs/product-specs/](docs/product-specs/index.md)             | Capability specifications                               | Product, developers        |
 
 ---
 
@@ -422,7 +482,7 @@ erDiagram
 
 See [AGENTS.md](AGENTS.md) for the full guide. Key points:
 
-- **Small PRs** — max 400 lines, one concern per PR
+- **Focused PRs** — one coherent concern with reviewable evidence
 - **Conventional Commits** — `type(scope): description`
 - **Tests required** — new behavior must have tests
 - **No secrets** — use `.env.example` for templates

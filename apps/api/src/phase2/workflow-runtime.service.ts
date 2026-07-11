@@ -195,7 +195,7 @@ export class WorkflowRuntimeService {
   async decide(
     actor: WorkflowActor,
     command: WorkflowDecisionCommand,
-    tx?: Pick<PrismaService, 'workflowInstance'>,
+    tx?: Pick<PrismaService, 'workflowInstance' | 'auditEntry'>,
   ): Promise<WorkflowDecisionResult> {
     const db = tx ?? this.prisma;
     const action = this.normalizeAction(command);
@@ -273,26 +273,29 @@ export class WorkflowRuntimeService {
       },
     });
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action:
-        action === 'DELEGATE'
-          ? 'WORKFLOW_DELEGATED'
-          : action === 'CANCEL'
-            ? 'WORKFLOW_CANCELLED'
-            : 'WORKFLOW_DECIDED',
-      entityType: 'WorkflowInstance',
-      entityId: workflow.id,
-      before: {
-        status: workflow.status,
-        approverId: workflow.approverId,
+    await this.auditHelper.appendAudit(
+      {
+        actorId: actor.id,
+        action:
+          action === 'DELEGATE'
+            ? 'WORKFLOW_DELEGATED'
+            : action === 'CANCEL'
+              ? 'WORKFLOW_CANCELLED'
+              : 'WORKFLOW_DECIDED',
+        entityType: 'WorkflowInstance',
+        entityId: workflow.id,
+        before: {
+          status: workflow.status,
+          approverId: workflow.approverId,
+        },
+        after: {
+          status: updated.status,
+          approverId: updated.approverId,
+        },
+        reason: command.reason,
       },
-      after: {
-        status: updated.status,
-        approverId: updated.approverId,
-      },
-      reason: command.reason,
-    });
+      db,
+    );
 
     return {
       action,
@@ -321,8 +324,12 @@ export class WorkflowRuntimeService {
     return this.assignmentHelper.listPolicyHistory(type);
   }
 
-  async upsertPolicy(type: WorkflowType, payload: WorkflowPolicyUpsert): Promise<WorkflowPolicy> {
-    return this.assignmentHelper.upsertPolicy(type, payload);
+  async upsertPolicy(
+    type: WorkflowType,
+    payload: WorkflowPolicyUpsert,
+    actorId?: string,
+  ): Promise<WorkflowPolicy> {
+    return this.assignmentHelper.upsertPolicy(type, payload, actorId);
   }
 
   async escalateOverdueWorkflows(now = new Date()) {

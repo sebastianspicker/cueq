@@ -9,6 +9,119 @@ import { PrismaService } from '../../src/persistence/prisma.service';
 describe('FR-500 integration', () => {
   let app: INestApplication;
 
+  interface WorkflowEntry {
+    id: string;
+    type: string;
+    entityId: string;
+    approverId?: string;
+    availableActions?: string[];
+  }
+
+  function as(token: string) {
+    const server = app.getHttpServer();
+
+    return {
+      delete: (path: string) =>
+        request(server).delete(path).set('Authorization', `Bearer ${token}`),
+      get: (path: string) => request(server).get(path).set('Authorization', `Bearer ${token}`),
+      patch: (path: string) => request(server).patch(path).set('Authorization', `Bearer ${token}`),
+      post: (path: string) => request(server).post(path).set('Authorization', `Bearer ${token}`),
+      put: (path: string) => request(server).put(path).set('Authorization', `Bearer ${token}`),
+    };
+  }
+
+  async function getInboxWorkflow(
+    token: string,
+    match: (workflow: WorkflowEntry) => boolean,
+    query?: { type: string },
+  ) {
+    const inboxRequest = as(token).get('/v1/workflows/inbox');
+    const inbox = query ? await inboxRequest.query(query) : await inboxRequest;
+    expect(inbox.status).toBe(200);
+
+    const workflow = inbox.body.find((entry: WorkflowEntry) => match(entry));
+    expect(workflow).toBeDefined();
+    if (!workflow) {
+      throw new Error('Expected workflow in inbox');
+    }
+    return workflow;
+  }
+
+  function decideWorkflow(workflowId: string, token: string, payload: Record<string, unknown>) {
+    return as(token).post(`/v1/workflows/${workflowId}/decision`).send(payload);
+  }
+
+  function createBookingCorrection(reason: string, token = TOKENS.employee) {
+    return as(token).post('/v1/workflows/booking-corrections').send({
+      bookingId: SEED_IDS.bookingEmployeeIn,
+      reason,
+    });
+  }
+
+  async function createPlannerRosterShift(params: {
+    periodStart: string;
+    periodEnd: string;
+    shiftStart: string;
+    shiftEnd: string;
+  }) {
+    const roster = await as(TOKENS.planner).post('/v1/rosters').send({
+      organizationUnitId: SEED_IDS.ouSecurity,
+      periodStart: params.periodStart,
+      periodEnd: params.periodEnd,
+    });
+    expect(roster.status).toBe(201);
+
+    const shift = await as(TOKENS.planner).post(`/v1/rosters/${roster.body.id}/shifts`).send({
+      startTime: params.shiftStart,
+      endTime: params.shiftEnd,
+      shiftType: 'DAY',
+      minStaffing: 1,
+    });
+    expect(shift.status).toBe(201);
+
+    const assignment = await as(TOKENS.planner)
+      .post(`/v1/rosters/${roster.body.id}/shifts/${shift.body.id}/assignments`)
+      .send({ personId: SEED_IDS.personPlanner });
+    expect(assignment.status).toBe(201);
+
+    return { assignment, roster, shift };
+  }
+
+  async function upsertSwapTarget(params: {
+    id: string;
+    externalId: string;
+    firstName?: string;
+    lastName: string;
+    email: string;
+  }) {
+    const prisma = app.get(PrismaService);
+    const planner = await prisma.person.findUnique({
+      where: { id: SEED_IDS.personPlanner },
+      select: { workTimeModelId: true },
+    });
+    if (!planner) {
+      throw new Error('Expected seeded planner user');
+    }
+
+    await prisma.person.upsert({
+      where: { id: params.id },
+      create: {
+        id: params.id,
+        externalId: params.externalId,
+        firstName: params.firstName ?? 'Swap',
+        lastName: params.lastName,
+        email: params.email,
+        role: 'EMPLOYEE',
+        organizationUnitId: SEED_IDS.ouSecurity,
+        workTimeModelId: planner.workTimeModelId,
+      },
+      update: {
+        organizationUnitId: SEED_IDS.ouSecurity,
+        workTimeModelId: planner.workTimeModelId,
+      },
+    });
+  }
+
   function tokenForPerson(personId: string | null | undefined) {
     if (personId === SEED_IDS.personLead) {
       return TOKENS.lead;
@@ -40,16 +153,13 @@ describe('FR-500 integration', () => {
   });
 
   it('supports workflow policy list and upsert for HR', async () => {
-    const list = await request(app.getHttpServer())
-      .get('/v1/workflows/policies')
-      .set('Authorization', `Bearer ${TOKENS.hr}`);
+    const list = await as(TOKENS.hr).get('/v1/workflows/policies');
     expect(list.status).toBe(200);
     expect(Array.isArray(list.body)).toBe(true);
     expect(list.body.some((entry: { type: string }) => entry.type === 'LEAVE_REQUEST')).toBe(true);
 
-    const updated = await request(app.getHttpServer())
+    const updated = await as(TOKENS.hr)
       .put('/v1/workflows/policies/BOOKING_CORRECTION')
-      .set('Authorization', `Bearer ${TOKENS.hr}`)
       .send({
         escalationDeadlineHours: 12,
         escalationRoles: ['HR', 'ADMIN'],
@@ -58,12 +168,22 @@ describe('FR-500 integration', () => {
     expect(updated.status).toBe(200);
     expect(updated.body.escalationDeadlineHours).toBe(12);
     expect(updated.body.maxDelegationDepth).toBe(4);
+
+    const prisma = app.get(PrismaService);
+    const audit = await prisma.auditEntry.findFirst({
+      where: {
+        action: 'WORKFLOW_POLICY_UPDATED',
+        entityType: 'WorkflowPolicy',
+        entityId: updated.body.id,
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+    expect(audit).not.toBeNull();
   });
 
   it('rejects workflow policy escalation roles that are invalid for the workflow type', async () => {
-    const invalid = await request(app.getHttpServer())
+    const invalid = await as(TOKENS.hr)
       .put('/v1/workflows/policies/LEAVE_REQUEST')
-      .set('Authorization', `Bearer ${TOKENS.hr}`)
       .send({
         escalationDeadlineHours: 12,
         escalationRoles: ['SHIFT_PLANNER'],
@@ -74,208 +194,135 @@ describe('FR-500 integration', () => {
   });
 
   it('supports workflow delegation CRUD for HR', async () => {
-    const created = await request(app.getHttpServer())
-      .post('/v1/workflows/delegations')
-      .set('Authorization', `Bearer ${TOKENS.hr}`)
-      .send({
-        delegatorId: SEED_IDS.personLead,
-        delegateId: SEED_IDS.personHr,
-        workflowType: 'LEAVE_REQUEST',
-        organizationUnitId: SEED_IDS.ouAdmin,
-        activeFrom: '2026-01-01T00:00:00.000Z',
-        priority: 2,
-      });
+    const created = await as(TOKENS.hr).post('/v1/workflows/delegations').send({
+      delegatorId: SEED_IDS.personLead,
+      delegateId: SEED_IDS.personHr,
+      workflowType: 'LEAVE_REQUEST',
+      organizationUnitId: SEED_IDS.ouAdmin,
+      activeFrom: '2026-01-01T00:00:00.000Z',
+      priority: 2,
+    });
     expect(created.status).toBe(201);
     expect(created.body.delegatorId).toBe(SEED_IDS.personLead);
 
-    const listed = await request(app.getHttpServer())
+    const listed = await as(TOKENS.hr)
       .get('/v1/workflows/delegations')
-      .query({ delegatorId: SEED_IDS.personLead, workflowType: 'LEAVE_REQUEST' })
-      .set('Authorization', `Bearer ${TOKENS.hr}`);
+      .query({ delegatorId: SEED_IDS.personLead, workflowType: 'LEAVE_REQUEST' });
     expect(listed.status).toBe(200);
     expect(listed.body.some((entry: { id: string }) => entry.id === created.body.id)).toBe(true);
 
-    const patched = await request(app.getHttpServer())
+    const patched = await as(TOKENS.hr)
       .patch(`/v1/workflows/delegations/${created.body.id}`)
-      .set('Authorization', `Bearer ${TOKENS.hr}`)
       .send({ priority: 9, isActive: false });
     expect(patched.status).toBe(200);
     expect(patched.body.priority).toBe(9);
     expect(patched.body.isActive).toBe(false);
 
-    const removed = await request(app.getHttpServer())
-      .delete(`/v1/workflows/delegations/${created.body.id}`)
-      .set('Authorization', `Bearer ${TOKENS.hr}`);
+    const removed = await as(TOKENS.hr).delete(`/v1/workflows/delegations/${created.body.id}`);
     expect(removed.status).toBe(200);
     expect(removed.body.deleted).toBe(true);
   });
 
   it('accepts legacy decision payloads and syncs leave status', async () => {
-    const created = await request(app.getHttpServer())
-      .post('/v1/absences')
-      .set('Authorization', `Bearer ${TOKENS.employee}`)
-      .send({
-        personId: SEED_IDS.personEmployee,
-        type: 'ANNUAL_LEAVE',
-        startDate: '2026-04-20',
-        endDate: '2026-04-22',
-        note: 'FR-500 legacy decision',
-      });
+    const created = await as(TOKENS.employee).post('/v1/absences').send({
+      personId: SEED_IDS.personEmployee,
+      type: 'ANNUAL_LEAVE',
+      startDate: '2026-04-20',
+      endDate: '2026-04-22',
+      note: 'FR-500 legacy decision',
+    });
     expect(created.status).toBe(201);
 
-    const inbox = await request(app.getHttpServer())
-      .get('/v1/workflows/inbox')
-      .set('Authorization', `Bearer ${TOKENS.lead}`);
-    const workflow = inbox.body.find(
-      (entry: { type: string; entityId: string }) =>
-        entry.type === 'LEAVE_REQUEST' && entry.entityId === created.body.id,
+    const workflow = await getInboxWorkflow(
+      TOKENS.lead,
+      (entry) => entry.type === 'LEAVE_REQUEST' && entry.entityId === created.body.id,
     );
-    expect(workflow).toBeDefined();
-    if (!workflow) {
-      throw new Error('Expected leave workflow');
-    }
 
-    const approved = await request(app.getHttpServer())
-      .post(`/v1/workflows/${workflow.id}/decision`)
-      .set('Authorization', `Bearer ${TOKENS.lead}`)
-      .send({ decision: 'APPROVED', reason: 'Legacy payload' });
+    const approved = await decideWorkflow(workflow.id, TOKENS.lead, {
+      decision: 'APPROVED',
+      reason: 'Legacy payload',
+    });
     expect(approved.status).toBe(201);
 
-    const mine = await request(app.getHttpServer())
-      .get('/v1/absences/me')
-      .set('Authorization', `Bearer ${TOKENS.employee}`);
+    const mine = await as(TOKENS.employee).get('/v1/absences/me');
     const absence = mine.body.find((entry: { id: string }) => entry.id === created.body.id);
     expect(absence?.status).toBe('APPROVED');
   });
 
   it('supports action-based delegation and decision', async () => {
-    const created = await request(app.getHttpServer())
-      .post('/v1/workflows/booking-corrections')
-      .set('Authorization', `Bearer ${TOKENS.employee}`)
-      .send({
-        bookingId: SEED_IDS.bookingEmployeeIn,
-        reason: 'FR-500 delegation action test',
-      });
+    const created = await createBookingCorrection('FR-500 delegation action test');
     expect(created.status).toBe(201);
 
-    const leadInbox = await request(app.getHttpServer())
-      .get('/v1/workflows/inbox')
-      .query({ type: 'BOOKING_CORRECTION' })
-      .set('Authorization', `Bearer ${TOKENS.lead}`);
-    const workflow = leadInbox.body.find(
-      (entry: { type: string; entityId: string }) =>
+    const workflow = await getInboxWorkflow(
+      TOKENS.lead,
+      (entry) =>
         entry.type === 'BOOKING_CORRECTION' && entry.entityId === SEED_IDS.bookingEmployeeIn,
+      { type: 'BOOKING_CORRECTION' },
     );
-    expect(workflow).toBeDefined();
-    if (!workflow) {
-      throw new Error('Expected correction workflow');
-    }
 
-    const delegated = await request(app.getHttpServer())
-      .post(`/v1/workflows/${workflow.id}/decision`)
-      .set('Authorization', `Bearer ${TOKENS.lead}`)
-      .send({
-        action: 'DELEGATE',
-        delegateToId: SEED_IDS.personHr,
-        reason: 'Delegating to HR',
-      });
+    const delegated = await decideWorkflow(workflow.id, TOKENS.lead, {
+      action: 'DELEGATE',
+      delegateToId: SEED_IDS.personHr,
+      reason: 'Delegating to HR',
+    });
     expect(delegated.status).toBe(201);
     expect(delegated.body.approverId).toBe(SEED_IDS.personHr);
 
-    const hrInbox = await request(app.getHttpServer())
-      .get('/v1/workflows/inbox')
-      .query({ type: 'BOOKING_CORRECTION' })
-      .set('Authorization', `Bearer ${TOKENS.hr}`);
-    const hrWorkflow = hrInbox.body.find((entry: { id: string }) => entry.id === workflow.id);
-    expect(hrWorkflow).toBeDefined();
+    const hrWorkflow = await getInboxWorkflow(TOKENS.hr, (entry) => entry.id === workflow.id, {
+      type: 'BOOKING_CORRECTION',
+    });
     expect(hrWorkflow.availableActions).toContain('APPROVE');
 
-    const approved = await request(app.getHttpServer())
-      .post(`/v1/workflows/${workflow.id}/decision`)
-      .set('Authorization', `Bearer ${TOKENS.hr}`)
-      .send({
-        action: 'APPROVE',
-        reason: 'Approved by HR',
-      });
+    const approved = await decideWorkflow(workflow.id, TOKENS.hr, {
+      action: 'APPROVE',
+      reason: 'Approved by HR',
+    });
     expect(approved.status).toBe(201);
     expect(approved.body.status).toBe('APPROVED');
   });
 
   it('rejects delegation action to ineligible or unknown delegate targets', async () => {
-    const created = await request(app.getHttpServer())
-      .post('/v1/workflows/booking-corrections')
-      .set('Authorization', `Bearer ${TOKENS.employee}`)
-      .send({
-        bookingId: SEED_IDS.bookingEmployeeIn,
-        reason: 'FR-500 invalid delegation target test',
-      });
+    const created = await createBookingCorrection('FR-500 invalid delegation target test');
     expect(created.status).toBe(201);
 
-    const leadInbox = await request(app.getHttpServer())
-      .get('/v1/workflows/inbox')
-      .query({ type: 'BOOKING_CORRECTION' })
-      .set('Authorization', `Bearer ${TOKENS.lead}`);
-    const workflow = leadInbox.body.find(
-      (entry: { type: string; entityId: string }) =>
+    const workflow = await getInboxWorkflow(
+      TOKENS.lead,
+      (entry) =>
         entry.type === 'BOOKING_CORRECTION' && entry.entityId === SEED_IDS.bookingEmployeeIn,
+      { type: 'BOOKING_CORRECTION' },
     );
-    expect(workflow).toBeDefined();
-    if (!workflow) {
-      throw new Error('Expected correction workflow');
-    }
 
-    const delegateToIneligibleRole = await request(app.getHttpServer())
-      .post(`/v1/workflows/${workflow.id}/decision`)
-      .set('Authorization', `Bearer ${TOKENS.lead}`)
-      .send({
-        action: 'DELEGATE',
-        delegateToId: SEED_IDS.personPlanner,
-        reason: 'Invalid delegate role',
-      });
+    const delegateToIneligibleRole = await decideWorkflow(workflow.id, TOKENS.lead, {
+      action: 'DELEGATE',
+      delegateToId: SEED_IDS.personPlanner,
+      reason: 'Invalid delegate role',
+    });
     expect(delegateToIneligibleRole.status).toBe(400);
 
-    const delegateToUnknownPerson = await request(app.getHttpServer())
-      .post(`/v1/workflows/${workflow.id}/decision`)
-      .set('Authorization', `Bearer ${TOKENS.lead}`)
-      .send({
-        action: 'DELEGATE',
-        delegateToId: 'c000000000000000000000999',
-        reason: 'Unknown delegate',
-      });
+    const delegateToUnknownPerson = await decideWorkflow(workflow.id, TOKENS.lead, {
+      action: 'DELEGATE',
+      delegateToId: 'c000000000000000000000999',
+      reason: 'Unknown delegate',
+    });
     expect(delegateToUnknownPerson.status).toBe(400);
   });
 
   it('rejects delegation action to self', async () => {
-    const created = await request(app.getHttpServer())
-      .post('/v1/workflows/booking-corrections')
-      .set('Authorization', `Bearer ${TOKENS.employee}`)
-      .send({
-        bookingId: SEED_IDS.bookingEmployeeIn,
-        reason: 'FR-500 self delegation target test',
-      });
+    const created = await createBookingCorrection('FR-500 self delegation target test');
     expect(created.status).toBe(201);
 
-    const leadInbox = await request(app.getHttpServer())
-      .get('/v1/workflows/inbox')
-      .query({ type: 'BOOKING_CORRECTION' })
-      .set('Authorization', `Bearer ${TOKENS.lead}`);
-    const workflow = leadInbox.body.find(
-      (entry: { type: string; entityId: string }) =>
+    const workflow = await getInboxWorkflow(
+      TOKENS.lead,
+      (entry) =>
         entry.type === 'BOOKING_CORRECTION' && entry.entityId === SEED_IDS.bookingEmployeeIn,
+      { type: 'BOOKING_CORRECTION' },
     );
-    expect(workflow).toBeDefined();
-    if (!workflow) {
-      throw new Error('Expected correction workflow');
-    }
 
-    const selfDelegate = await request(app.getHttpServer())
-      .post(`/v1/workflows/${workflow.id}/decision`)
-      .set('Authorization', `Bearer ${TOKENS.lead}`)
-      .send({
-        action: 'DELEGATE',
-        delegateToId: SEED_IDS.personLead,
-        reason: 'No-op self delegation',
-      });
+    const selfDelegate = await decideWorkflow(workflow.id, TOKENS.lead, {
+      action: 'DELEGATE',
+      delegateToId: SEED_IDS.personLead,
+      reason: 'No-op self delegation',
+    });
     expect(selfDelegate.status).toBe(400);
     expect(String(selfDelegate.body.message)).toContain('delegate to self');
   });
@@ -439,6 +486,22 @@ describe('FR-500 integration', () => {
     expect(response.status).toBe(400);
   });
 
+  it('rejects persistent delegation rules to cross-unit non-HR/Admin delegates', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/v1/workflows/delegations')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send({
+        delegatorId: SEED_IDS.personLead,
+        delegateId: SEED_IDS.personPlanner,
+        workflowType: 'SHIFT_SWAP',
+        organizationUnitId: SEED_IDS.ouAdmin,
+        activeFrom: '2026-01-01T00:00:00.000Z',
+      });
+
+    expect(response.status).toBe(400);
+    expect(String(response.body.message)).toContain('delegated organization unit');
+  });
+
   it('rejects delegation rules with invalid active window', async () => {
     const response = await request(app.getHttpServer())
       .post('/v1/workflows/delegations')
@@ -584,88 +647,42 @@ describe('FR-500 integration', () => {
   });
 
   it('supports shift swap workflow and applies assignment swap on approval', async () => {
-    const roster = await request(app.getHttpServer())
-      .post('/v1/rosters')
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        organizationUnitId: SEED_IDS.ouSecurity,
-        periodStart: '2026-06-01T00:00:00.000Z',
-        periodEnd: '2026-06-30T23:59:59.000Z',
-      });
-    expect(roster.status).toBe(201);
-
-    const shift = await request(app.getHttpServer())
-      .post(`/v1/rosters/${roster.body.id}/shifts`)
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        startTime: '2026-06-05T08:00:00.000Z',
-        endTime: '2026-06-05T16:00:00.000Z',
-        shiftType: 'DAY',
-        minStaffing: 1,
-      });
-    expect(shift.status).toBe(201);
-
-    const assign = await request(app.getHttpServer())
-      .post(`/v1/rosters/${roster.body.id}/shifts/${shift.body.id}/assignments`)
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        personId: SEED_IDS.personPlanner,
-      });
-    expect(assign.status).toBe(201);
-
-    const prisma = app.get(PrismaService);
-    const planner = await prisma.person.findUnique({
-      where: { id: SEED_IDS.personPlanner },
-      select: { workTimeModelId: true },
+    const { roster, shift } = await createPlannerRosterShift({
+      periodStart: '2026-06-01T00:00:00.000Z',
+      periodEnd: '2026-06-30T23:59:59.000Z',
+      shiftStart: '2026-06-05T08:00:00.000Z',
+      shiftEnd: '2026-06-05T16:00:00.000Z',
     });
-    if (!planner) {
-      throw new Error('Expected seeded planner user');
-    }
 
     const swapTargetId = 'c000000000000000000000990';
-    await prisma.person.upsert({
-      where: { id: swapTargetId },
-      create: {
-        id: swapTargetId,
-        externalId: 'swap_target_990',
-        firstName: 'Swap',
-        lastName: 'Target',
-        email: 'swap-target@cueq.local',
-        role: 'EMPLOYEE',
-        organizationUnitId: SEED_IDS.ouSecurity,
-        workTimeModelId: planner.workTimeModelId,
-      },
-      update: {
-        organizationUnitId: SEED_IDS.ouSecurity,
-        workTimeModelId: planner.workTimeModelId,
-      },
+    await upsertSwapTarget({
+      id: swapTargetId,
+      externalId: 'swap_target_990',
+      lastName: 'Target',
+      email: 'swap-target@cueq.local',
     });
 
-    const created = await request(app.getHttpServer())
-      .post('/v1/workflows/shift-swaps')
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        shiftId: shift.body.id,
-        fromPersonId: SEED_IDS.personPlanner,
-        toPersonId: swapTargetId,
-        reason: 'Requesting a shift swap due to availability conflict.',
-      });
+    const created = await as(TOKENS.planner).post('/v1/workflows/shift-swaps').send({
+      shiftId: shift.body.id,
+      fromPersonId: SEED_IDS.personPlanner,
+      toPersonId: swapTargetId,
+      reason: 'Requesting a shift swap due to availability conflict.',
+    });
     expect(created.status).toBe(201);
     expect(created.body.type).toBe('SHIFT_SWAP');
 
-    const approval = await request(app.getHttpServer())
-      .post(`/v1/workflows/${created.body.id}/decision`)
-      .set('Authorization', `Bearer ${tokenForPerson(created.body.approverId)}`)
-      .send({
+    const approval = await decideWorkflow(
+      created.body.id,
+      tokenForPerson(created.body.approverId),
+      {
         action: 'APPROVE',
         reason: 'Approved swap request',
-      });
+      },
+    );
     expect(approval.status).toBe(201);
     expect(approval.body.status).toBe('APPROVED');
 
-    const detail = await request(app.getHttpServer())
-      .get(`/v1/rosters/${roster.body.id}`)
-      .set('Authorization', `Bearer ${TOKENS.planner}`);
+    const detail = await as(TOKENS.planner).get(`/v1/rosters/${roster.body.id}`);
     expect(detail.status).toBe(200);
     const updatedShift = detail.body.shifts.find(
       (entry: { id: string }) => entry.id === shift.body.id,
@@ -683,138 +700,68 @@ describe('FR-500 integration', () => {
   });
 
   it('rejects shift swap approval when target person is already assigned before decision', async () => {
-    const roster = await request(app.getHttpServer())
-      .post('/v1/rosters')
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        organizationUnitId: SEED_IDS.ouSecurity,
-        periodStart: '2026-06-01T00:00:00.000Z',
-        periodEnd: '2026-06-30T23:59:59.000Z',
-      });
-    expect(roster.status).toBe(201);
-
-    const shift = await request(app.getHttpServer())
-      .post(`/v1/rosters/${roster.body.id}/shifts`)
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        startTime: '2026-06-06T08:00:00.000Z',
-        endTime: '2026-06-06T16:00:00.000Z',
-        shiftType: 'DAY',
-        minStaffing: 1,
-      });
-    expect(shift.status).toBe(201);
-
-    const plannerAssignment = await request(app.getHttpServer())
-      .post(`/v1/rosters/${roster.body.id}/shifts/${shift.body.id}/assignments`)
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        personId: SEED_IDS.personPlanner,
-      });
-    expect(plannerAssignment.status).toBe(201);
-
-    const prisma = app.get(PrismaService);
-    const planner = await prisma.person.findUnique({
-      where: { id: SEED_IDS.personPlanner },
-      select: { workTimeModelId: true },
+    const { roster, shift } = await createPlannerRosterShift({
+      periodStart: '2026-06-01T00:00:00.000Z',
+      periodEnd: '2026-06-30T23:59:59.000Z',
+      shiftStart: '2026-06-06T08:00:00.000Z',
+      shiftEnd: '2026-06-06T16:00:00.000Z',
     });
-    if (!planner) {
-      throw new Error('Expected seeded planner user');
-    }
 
     const swapTargetId = 'c000000000000000000000995';
-    await prisma.person.upsert({
-      where: { id: swapTargetId },
-      create: {
-        id: swapTargetId,
-        externalId: 'swap_target_995',
-        firstName: 'Swap',
-        lastName: 'Collision',
-        email: 'swap-collision@cueq.local',
-        role: 'EMPLOYEE',
-        organizationUnitId: SEED_IDS.ouSecurity,
-        workTimeModelId: planner.workTimeModelId,
-      },
-      update: {
-        organizationUnitId: SEED_IDS.ouSecurity,
-        workTimeModelId: planner.workTimeModelId,
-      },
+    await upsertSwapTarget({
+      id: swapTargetId,
+      externalId: 'swap_target_995',
+      lastName: 'Collision',
+      email: 'swap-collision@cueq.local',
     });
 
-    const created = await request(app.getHttpServer())
-      .post('/v1/workflows/shift-swaps')
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        shiftId: shift.body.id,
-        fromPersonId: SEED_IDS.personPlanner,
-        toPersonId: swapTargetId,
-        reason: 'Swap should fail if target is assigned before approval.',
-      });
+    const created = await as(TOKENS.planner).post('/v1/workflows/shift-swaps').send({
+      shiftId: shift.body.id,
+      fromPersonId: SEED_IDS.personPlanner,
+      toPersonId: swapTargetId,
+      reason: 'Swap should fail if target is assigned before approval.',
+    });
     expect(created.status).toBe(201);
 
-    const targetAssignment = await request(app.getHttpServer())
+    const targetAssignment = await as(TOKENS.planner)
       .post(`/v1/rosters/${roster.body.id}/shifts/${shift.body.id}/assignments`)
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
       .send({
         personId: swapTargetId,
       });
     expect(targetAssignment.status).toBe(201);
 
-    const approval = await request(app.getHttpServer())
-      .post(`/v1/workflows/${created.body.id}/decision`)
-      .set('Authorization', `Bearer ${tokenForPerson(created.body.approverId)}`)
-      .send({
+    const approval = await decideWorkflow(
+      created.body.id,
+      tokenForPerson(created.body.approverId),
+      {
         action: 'APPROVE',
         reason: 'Attempting approval after state drift.',
-      });
+      },
+    );
     expect(approval.status).toBe(400);
     expect(String(approval.body.message)).toContain('already exists on shift');
 
-    const detail = await request(app.getHttpServer())
-      .get(`/v1/workflows/${created.body.id}`)
-      .set('Authorization', `Bearer ${tokenForPerson(created.body.approverId)}`);
+    const detail = await as(tokenForPerson(created.body.approverId)).get(
+      `/v1/workflows/${created.body.id}`,
+    );
     expect(detail.status).toBe(200);
     expect(detail.body.status).toBe('PENDING');
   });
 
   it('rejects shift swap workflow when toPerson belongs to another organization unit', async () => {
-    const roster = await request(app.getHttpServer())
-      .post('/v1/rosters')
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        organizationUnitId: SEED_IDS.ouSecurity,
-        periodStart: '2026-07-01T00:00:00.000Z',
-        periodEnd: '2026-07-31T23:59:59.000Z',
-      });
-    expect(roster.status).toBe(201);
+    const { shift } = await createPlannerRosterShift({
+      periodStart: '2026-07-01T00:00:00.000Z',
+      periodEnd: '2026-07-31T23:59:59.000Z',
+      shiftStart: '2026-07-05T08:00:00.000Z',
+      shiftEnd: '2026-07-05T16:00:00.000Z',
+    });
 
-    const shift = await request(app.getHttpServer())
-      .post(`/v1/rosters/${roster.body.id}/shifts`)
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        startTime: '2026-07-05T08:00:00.000Z',
-        endTime: '2026-07-05T16:00:00.000Z',
-        shiftType: 'DAY',
-        minStaffing: 1,
-      });
-    expect(shift.status).toBe(201);
-
-    const assign = await request(app.getHttpServer())
-      .post(`/v1/rosters/${roster.body.id}/shifts/${shift.body.id}/assignments`)
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        personId: SEED_IDS.personPlanner,
-      });
-    expect(assign.status).toBe(201);
-
-    const created = await request(app.getHttpServer())
-      .post('/v1/workflows/shift-swaps')
-      .set('Authorization', `Bearer ${TOKENS.planner}`)
-      .send({
-        shiftId: shift.body.id,
-        fromPersonId: SEED_IDS.personPlanner,
-        toPersonId: SEED_IDS.personHr,
-        reason: 'Cross-unit swap attempt',
-      });
+    const created = await as(TOKENS.planner).post('/v1/workflows/shift-swaps').send({
+      shiftId: shift.body.id,
+      fromPersonId: SEED_IDS.personPlanner,
+      toPersonId: SEED_IDS.personHr,
+      reason: 'Cross-unit swap attempt',
+    });
     expect(created.status).toBe(400);
     expect(String(created.body.message)).toContain('organization unit');
   });

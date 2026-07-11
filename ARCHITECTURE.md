@@ -75,6 +75,20 @@ The `phase2/` directory inside the API app is named after the delivery phase in 
 
 The name is intentionally kept until a domain-scoped rename is agreed (see [ADR-004](docs/design-decisions/004-phase2-naming.md)). New features in this area should be placed under `phase2/` until the ADR decision is enacted. Do not create new top-level feature directories without an ADR.
 
+### Reading an API Feature
+
+Most operational API requests follow this path:
+
+```text
+controller -> domain service -> helper/runtime service -> @cueq/core -> Prisma -> audit/outbox
+```
+
+- Controllers own HTTP shape, decorators, guards, and schema parsing at the edge.
+- Domain services coordinate actor lookup, role checks, transactions, and side effects.
+- Helpers keep one sub-domain readable when a service would otherwise become a mixed workflow script.
+- `@cueq/core` owns pure rules and state machines; if logic can run without NestJS or Prisma, prefer putting it there.
+- Persistence adapters and Prisma calls stay outside `@cueq/core` so business rules remain unit-testable.
+
 ---
 
 ## 5. Data Architecture (Conceptual)

@@ -62,6 +62,7 @@ export class ReportsController {
   @Roles(Role.TEAM_LEAD, Role.HR, Role.ADMIN, Role.DATA_PROTECTION, Role.WORKS_COUNCIL)
   @ApiOperation({ summary: 'Closing completion report by status' })
   @ApiOkResponse({ type: ClosingCompletionReportDto })
+  @ApiQuery({ name: 'organizationUnitId', required: false, type: String })
   @ApiQuery({ name: 'from', required: true, type: String })
   @ApiQuery({ name: 'to', required: true, type: String })
   closingCompletion(

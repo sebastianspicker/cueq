@@ -3,6 +3,8 @@
 # Start with:  docker-compose up -d
 # Stop with:   docker-compose down
 # Reset with:  docker-compose down -v
+# All committed credentials are synthetic local-development defaults. Never
+# expose this stack publicly or reuse these values in a deployed environment.
 
 services:
   postgres:
@@ -44,7 +46,7 @@ services:
 
   # ── Monitoring stack (optional profile) ────────────────────────────────────
   # Start with:  docker-compose --profile monitoring up -d
-  # Grafana UI:  http://localhost:3001  (admin/admin — change on first login)
+  # Grafana UI:  http://localhost:3002  (admin/admin — local development only)
   # Prometheus:  http://localhost:9090
 
   prometheus:
@@ -86,7 +88,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: 'false'
     ports:
-      - '3001:3000'
+      - '3002:3000'
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana

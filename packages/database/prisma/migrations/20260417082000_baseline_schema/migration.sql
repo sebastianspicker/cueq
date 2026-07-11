@@ -51,13 +51,13 @@ CREATE TABLE "persons" (
     "lastName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'EMPLOYEE',
-    "employmentStartDate" TIMESTAMP(3),
-    "employmentEndDate" TIMESTAMP(3),
+    "employmentStartDate" TIMESTAMP (3),
+    "employmentEndDate" TIMESTAMP (3),
     "organizationUnitId" TEXT NOT NULL,
     "supervisorId" TEXT,
     "workTimeModelId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "persons_pkey" PRIMARY KEY ("id")
 );
@@ -67,8 +67,8 @@ CREATE TABLE "organization_units" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "parentId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "organization_units_pkey" PRIMARY KEY ("id")
 );
@@ -78,14 +78,14 @@ CREATE TABLE "work_time_models" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "type" "WorkTimeModelType" NOT NULL,
-    "weeklyHours" DECIMAL(10,2) NOT NULL,
-    "dailyTargetHours" DECIMAL(10,2),
+    "weeklyHours" DECIMAL(10, 2) NOT NULL,
+    "dailyTargetHours" DECIMAL(10, 2),
     "coreTimeStart" TEXT,
     "coreTimeEnd" TEXT,
-    "effectiveFrom" TIMESTAMP(3) NOT NULL,
-    "effectiveTo" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "effectiveFrom" TIMESTAMP (3) NOT NULL,
+    "effectiveTo" TIMESTAMP (3),
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "work_time_models_pkey" PRIMARY KEY ("id")
 );
@@ -95,13 +95,13 @@ CREATE TABLE "bookings" (
     "id" TEXT NOT NULL,
     "personId" TEXT NOT NULL,
     "timeTypeId" TEXT NOT NULL,
-    "startTime" TIMESTAMP(3) NOT NULL,
-    "endTime" TIMESTAMP(3),
+    "startTime" TIMESTAMP (3) NOT NULL,
+    "endTime" TIMESTAMP (3),
     "source" "BookingSource" NOT NULL,
     "note" TEXT,
     "shiftId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "bookings_pkey" PRIMARY KEY ("id")
 );
@@ -114,8 +114,8 @@ CREATE TABLE "time_types" (
     "nameEn" TEXT,
     "category" "TimeTypeCategory" NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "time_types_pkey" PRIMARY KEY ("id")
 );
@@ -124,14 +124,14 @@ CREATE TABLE "time_types" (
 CREATE TABLE "time_accounts" (
     "id" TEXT NOT NULL,
     "personId" TEXT NOT NULL,
-    "periodStart" TIMESTAMP(3) NOT NULL,
-    "periodEnd" TIMESTAMP(3) NOT NULL,
-    "targetHours" DECIMAL(10,2) NOT NULL,
-    "actualHours" DECIMAL(10,2) NOT NULL,
-    "balance" DECIMAL(10,2) NOT NULL,
-    "overtimeHours" DECIMAL(10,2) NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "periodStart" TIMESTAMP (3) NOT NULL,
+    "periodEnd" TIMESTAMP (3) NOT NULL,
+    "targetHours" DECIMAL(10, 2) NOT NULL,
+    "actualHours" DECIMAL(10, 2) NOT NULL,
+    "balance" DECIMAL(10, 2) NOT NULL,
+    "overtimeHours" DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "time_accounts_pkey" PRIMARY KEY ("id")
 );
@@ -140,12 +140,12 @@ CREATE TABLE "time_accounts" (
 CREATE TABLE "rosters" (
     "id" TEXT NOT NULL,
     "organizationUnitId" TEXT NOT NULL,
-    "periodStart" TIMESTAMP(3) NOT NULL,
-    "periodEnd" TIMESTAMP(3) NOT NULL,
+    "periodStart" TIMESTAMP (3) NOT NULL,
+    "periodEnd" TIMESTAMP (3) NOT NULL,
     "status" "RosterStatus" NOT NULL DEFAULT 'DRAFT',
-    "publishedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "publishedAt" TIMESTAMP (3),
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "rosters_pkey" PRIMARY KEY ("id")
 );
@@ -155,12 +155,12 @@ CREATE TABLE "shifts" (
     "id" TEXT NOT NULL,
     "rosterId" TEXT NOT NULL,
     "personId" TEXT,
-    "startTime" TIMESTAMP(3) NOT NULL,
-    "endTime" TIMESTAMP(3) NOT NULL,
+    "startTime" TIMESTAMP (3) NOT NULL,
+    "endTime" TIMESTAMP (3) NOT NULL,
     "shiftType" TEXT NOT NULL,
     "minStaffing" INTEGER NOT NULL DEFAULT 1,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "shifts_pkey" PRIMARY KEY ("id")
 );
@@ -170,8 +170,8 @@ CREATE TABLE "shift_assignments" (
     "id" TEXT NOT NULL,
     "shiftId" TEXT NOT NULL,
     "personId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "shift_assignments_pkey" PRIMARY KEY ("id")
 );
@@ -181,13 +181,13 @@ CREATE TABLE "absences" (
     "id" TEXT NOT NULL,
     "personId" TEXT NOT NULL,
     "type" "AbsenceType" NOT NULL,
-    "startDate" TIMESTAMP(3) NOT NULL,
-    "endDate" TIMESTAMP(3) NOT NULL,
-    "days" DECIMAL(10,2) NOT NULL,
+    "startDate" TIMESTAMP (3) NOT NULL,
+    "endDate" TIMESTAMP (3) NOT NULL,
+    "days" DECIMAL(10, 2) NOT NULL,
     "status" "AbsenceStatus" NOT NULL DEFAULT 'REQUESTED',
     "note" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "absences_pkey" PRIMARY KEY ("id")
 );
@@ -197,10 +197,10 @@ CREATE TABLE "leave_adjustments" (
     "id" TEXT NOT NULL,
     "personId" TEXT NOT NULL,
     "year" INTEGER NOT NULL,
-    "deltaDays" DECIMAL(10,2) NOT NULL,
+    "deltaDays" DECIMAL(10, 2) NOT NULL,
     "reason" TEXT NOT NULL,
     "createdBy" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "leave_adjustments_pkey" PRIMARY KEY ("id")
 );
@@ -210,12 +210,12 @@ CREATE TABLE "oncall_rotations" (
     "id" TEXT NOT NULL,
     "personId" TEXT NOT NULL,
     "organizationUnitId" TEXT NOT NULL,
-    "startTime" TIMESTAMP(3) NOT NULL,
-    "endTime" TIMESTAMP(3) NOT NULL,
+    "startTime" TIMESTAMP (3) NOT NULL,
+    "endTime" TIMESTAMP (3) NOT NULL,
     "rotationType" "OnCallRotationType" NOT NULL,
     "note" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "oncall_rotations_pkey" PRIMARY KEY ("id")
 );
@@ -225,14 +225,14 @@ CREATE TABLE "oncall_deployments" (
     "id" TEXT NOT NULL,
     "personId" TEXT NOT NULL,
     "rotationId" TEXT NOT NULL,
-    "startTime" TIMESTAMP(3) NOT NULL,
-    "endTime" TIMESTAMP(3) NOT NULL,
+    "startTime" TIMESTAMP (3) NOT NULL,
+    "endTime" TIMESTAMP (3) NOT NULL,
     "remote" BOOLEAN NOT NULL DEFAULT true,
     "ticketReference" TEXT,
     "eventReference" TEXT,
     "description" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "oncall_deployments_pkey" PRIMARY KEY ("id")
 );
@@ -250,13 +250,13 @@ CREATE TABLE "workflow_instances" (
     "decisionReason" TEXT,
     "requestPayload" JSONB,
     "delegationTrail" JSONB,
-    "submittedAt" TIMESTAMP(3),
-    "dueAt" TIMESTAMP(3),
-    "escalatedAt" TIMESTAMP(3),
+    "submittedAt" TIMESTAMP (3),
+    "dueAt" TIMESTAMP (3),
+    "escalatedAt" TIMESTAMP (3),
     "escalationLevel" INTEGER NOT NULL DEFAULT 0,
-    "decidedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "decidedAt" TIMESTAMP (3),
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "workflow_instances_pkey" PRIMARY KEY ("id")
 );
@@ -268,9 +268,9 @@ CREATE TABLE "workflow_policies" (
     "escalationDeadlineHours" INTEGER NOT NULL,
     "escalationRoles" JSONB NOT NULL,
     "maxDelegationDepth" INTEGER NOT NULL DEFAULT 5,
-    "activeFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "activeFrom" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "workflow_policies_pkey" PRIMARY KEY ("id")
 );
@@ -282,13 +282,13 @@ CREATE TABLE "workflow_delegation_rules" (
     "delegateId" TEXT NOT NULL,
     "workflowType" "WorkflowType",
     "organizationUnitId" TEXT,
-    "activeFrom" TIMESTAMP(3) NOT NULL,
-    "activeTo" TIMESTAMP(3),
+    "activeFrom" TIMESTAMP (3) NOT NULL,
+    "activeTo" TIMESTAMP (3),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "priority" INTEGER NOT NULL DEFAULT 0,
     "createdById" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "workflow_delegation_rules_pkey" PRIMARY KEY ("id")
 );
@@ -297,19 +297,19 @@ CREATE TABLE "workflow_delegation_rules" (
 CREATE TABLE "closing_periods" (
     "id" TEXT NOT NULL,
     "organizationUnitId" TEXT,
-    "periodStart" TIMESTAMP(3) NOT NULL,
-    "periodEnd" TIMESTAMP(3) NOT NULL,
+    "periodStart" TIMESTAMP (3) NOT NULL,
+    "periodEnd" TIMESTAMP (3) NOT NULL,
     "status" "ClosingStatus" NOT NULL DEFAULT 'OPEN',
-    "leadApprovedAt" TIMESTAMP(3),
+    "leadApprovedAt" TIMESTAMP (3),
     "leadApprovedById" TEXT,
-    "hrApprovedAt" TIMESTAMP(3),
+    "hrApprovedAt" TIMESTAMP (3),
     "hrApprovedById" TEXT,
-    "lockedAt" TIMESTAMP(3),
+    "lockedAt" TIMESTAMP (3),
     "lockSource" "ClosingLockSource",
-    "closedAt" TIMESTAMP(3),
+    "closedAt" TIMESTAMP (3),
     "closedById" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "closing_periods_pkey" PRIMARY KEY ("id")
 );
@@ -323,7 +323,7 @@ CREATE TABLE "export_runs" (
     "checksum" TEXT NOT NULL,
     "artifact" TEXT,
     "contentType" TEXT,
-    "exportedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "exportedAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "exportedById" TEXT NOT NULL,
 
     CONSTRAINT "export_runs_pkey" PRIMARY KEY ("id")
@@ -338,10 +338,10 @@ CREATE TABLE "domain_event_outbox" (
     "payload" JSONB NOT NULL,
     "status" "OutboxStatus" NOT NULL DEFAULT 'PENDING',
     "attempts" INTEGER NOT NULL DEFAULT 0,
-    "nextAttemptAt" TIMESTAMP(3),
+    "nextAttemptAt" TIMESTAMP (3),
     "lastError" TEXT,
-    "processedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "processedAt" TIMESTAMP (3),
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "domain_event_outbox_pkey" PRIMARY KEY ("id")
 );
@@ -353,10 +353,10 @@ CREATE TABLE "webhook_endpoints" (
     "url" TEXT NOT NULL,
     "secretRef" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "subscribedEvents" TEXT[],
+    "subscribedEvents" TEXT [],
     "createdById" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "webhook_endpoints_pkey" PRIMARY KEY ("id")
 );
@@ -371,8 +371,8 @@ CREATE TABLE "webhook_deliveries" (
     "httpStatus" INTEGER,
     "responseBody" TEXT,
     "error" TEXT,
-    "deliveredAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deliveredAt" TIMESTAMP (3),
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "webhook_deliveries_pkey" PRIMARY KEY ("id")
 );
@@ -383,10 +383,10 @@ CREATE TABLE "terminal_devices" (
     "terminalId" TEXT NOT NULL,
     "name" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "lastSeenAt" TIMESTAMP(3),
+    "lastSeenAt" TIMESTAMP (3),
     "lastErrorCount" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP (3) NOT NULL,
 
     CONSTRAINT "terminal_devices_pkey" PRIMARY KEY ("id")
 );
@@ -395,11 +395,11 @@ CREATE TABLE "terminal_devices" (
 CREATE TABLE "terminal_heartbeats" (
     "id" TEXT NOT NULL,
     "terminalDeviceId" TEXT NOT NULL,
-    "observedAt" TIMESTAMP(3) NOT NULL,
+    "observedAt" TIMESTAMP (3) NOT NULL,
     "bufferedRecords" INTEGER NOT NULL DEFAULT 0,
     "errorCount" INTEGER NOT NULL DEFAULT 0,
     "details" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "terminal_heartbeats_pkey" PRIMARY KEY ("id")
 );
@@ -410,7 +410,7 @@ CREATE TABLE "terminal_sync_batches" (
     "terminalId" TEXT NOT NULL,
     "terminalDeviceId" TEXT,
     "sourceFile" TEXT,
-    "importedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "importedAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "importedById" TEXT,
     "rawPayload" JSONB NOT NULL,
     "resultPayload" JSONB NOT NULL,
@@ -431,7 +431,7 @@ CREATE TABLE "hr_import_runs" (
     "errorCount" INTEGER NOT NULL DEFAULT 0,
     "summary" JSONB NOT NULL,
     "importedById" TEXT,
-    "importedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "importedAt" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "hr_import_runs_pkey" PRIMARY KEY ("id")
 );
@@ -439,7 +439,7 @@ CREATE TABLE "hr_import_runs" (
 -- CreateTable
 CREATE TABLE "audit_entries" (
     "id" TEXT NOT NULL,
-    "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "timestamp" TIMESTAMP (3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "actorId" TEXT NOT NULL,
     "action" TEXT NOT NULL,
     "entityType" TEXT NOT NULL,
@@ -453,178 +453,178 @@ CREATE TABLE "audit_entries" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "persons_externalId_key" ON "persons"("externalId");
+CREATE UNIQUE INDEX "persons_externalId_key" ON "persons" ("externalId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "persons_email_key" ON "persons"("email");
+CREATE UNIQUE INDEX "persons_email_key" ON "persons" ("email");
 
 -- CreateIndex
-CREATE INDEX "persons_organizationUnitId_idx" ON "persons"("organizationUnitId");
+CREATE INDEX "persons_organizationUnitId_idx" ON "persons" ("organizationUnitId");
 
 -- CreateIndex
-CREATE INDEX "persons_supervisorId_idx" ON "persons"("supervisorId");
+CREATE INDEX "persons_supervisorId_idx" ON "persons" ("supervisorId");
 
 -- CreateIndex
-CREATE INDEX "bookings_personId_startTime_idx" ON "bookings"("personId", "startTime");
+CREATE INDEX "bookings_personId_startTime_idx" ON "bookings" ("personId", "startTime");
 
 -- CreateIndex
-CREATE INDEX "bookings_timeTypeId_idx" ON "bookings"("timeTypeId");
+CREATE INDEX "bookings_timeTypeId_idx" ON "bookings" ("timeTypeId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "time_types_code_key" ON "time_types"("code");
+CREATE UNIQUE INDEX "time_types_code_key" ON "time_types" ("code");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "time_accounts_personId_periodStart_key" ON "time_accounts"("personId", "periodStart");
+CREATE UNIQUE INDEX "time_accounts_personId_periodStart_key" ON "time_accounts" ("personId", "periodStart");
 
 -- CreateIndex
-CREATE INDEX "rosters_organizationUnitId_periodStart_idx" ON "rosters"("organizationUnitId", "periodStart");
+CREATE INDEX "rosters_organizationUnitId_periodStart_idx" ON "rosters" ("organizationUnitId", "periodStart");
 
 -- CreateIndex
-CREATE INDEX "shifts_rosterId_idx" ON "shifts"("rosterId");
+CREATE INDEX "shifts_rosterId_idx" ON "shifts" ("rosterId");
 
 -- CreateIndex
-CREATE INDEX "shift_assignments_personId_shiftId_idx" ON "shift_assignments"("personId", "shiftId");
+CREATE INDEX "shift_assignments_personId_shiftId_idx" ON "shift_assignments" ("personId", "shiftId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "shift_assignments_shiftId_personId_key" ON "shift_assignments"("shiftId", "personId");
+CREATE UNIQUE INDEX "shift_assignments_shiftId_personId_key" ON "shift_assignments" ("shiftId", "personId");
 
 -- CreateIndex
-CREATE INDEX "absences_personId_startDate_idx" ON "absences"("personId", "startDate");
+CREATE INDEX "absences_personId_startDate_idx" ON "absences" ("personId", "startDate");
 
 -- CreateIndex
-CREATE INDEX "leave_adjustments_personId_year_idx" ON "leave_adjustments"("personId", "year");
+CREATE INDEX "leave_adjustments_personId_year_idx" ON "leave_adjustments" ("personId", "year");
 
 -- CreateIndex
-CREATE INDEX "leave_adjustments_createdBy_createdAt_idx" ON "leave_adjustments"("createdBy", "createdAt");
+CREATE INDEX "leave_adjustments_createdBy_createdAt_idx" ON "leave_adjustments" ("createdBy", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "oncall_rotations_personId_startTime_idx" ON "oncall_rotations"("personId", "startTime");
+CREATE INDEX "oncall_rotations_personId_startTime_idx" ON "oncall_rotations" ("personId", "startTime");
 
 -- CreateIndex
-CREATE INDEX "oncall_rotations_organizationUnitId_startTime_idx" ON "oncall_rotations"("organizationUnitId", "startTime");
+CREATE INDEX "oncall_rotations_organizationUnitId_startTime_idx" ON "oncall_rotations" ("organizationUnitId", "startTime");
 
 -- CreateIndex
-CREATE INDEX "oncall_deployments_personId_startTime_idx" ON "oncall_deployments"("personId", "startTime");
+CREATE INDEX "oncall_deployments_personId_startTime_idx" ON "oncall_deployments" ("personId", "startTime");
 
 -- CreateIndex
-CREATE INDEX "oncall_deployments_rotationId_idx" ON "oncall_deployments"("rotationId");
+CREATE INDEX "oncall_deployments_rotationId_idx" ON "oncall_deployments" ("rotationId");
 
 -- CreateIndex
-CREATE INDEX "workflow_instances_status_dueAt_idx" ON "workflow_instances"("status", "dueAt");
+CREATE INDEX "workflow_instances_status_dueAt_idx" ON "workflow_instances" ("status", "dueAt");
 
 -- CreateIndex
-CREATE INDEX "workflow_instances_type_status_idx" ON "workflow_instances"("type", "status");
+CREATE INDEX "workflow_instances_type_status_idx" ON "workflow_instances" ("type", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "workflow_policies_type_key" ON "workflow_policies"("type");
+CREATE UNIQUE INDEX "workflow_policies_type_key" ON "workflow_policies" ("type");
 
 -- CreateIndex
-CREATE INDEX "workflow_delegation_rules_delegatorId_isActive_activeFrom_a_idx" ON "workflow_delegation_rules"("delegatorId", "isActive", "activeFrom", "activeTo");
+CREATE INDEX "workflow_delegation_rules_delegatorId_isActive_activeFrom_a_idx" ON "workflow_delegation_rules" ("delegatorId", "isActive", "activeFrom", "activeTo");
 
 -- CreateIndex
-CREATE INDEX "workflow_delegation_rules_workflowType_organizationUnitId_p_idx" ON "workflow_delegation_rules"("workflowType", "organizationUnitId", "priority");
+CREATE INDEX "workflow_delegation_rules_workflowType_organizationUnitId_p_idx" ON "workflow_delegation_rules" ("workflowType", "organizationUnitId", "priority");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "closing_periods_organizationUnitId_periodStart_key" ON "closing_periods"("organizationUnitId", "periodStart");
+CREATE UNIQUE INDEX "closing_periods_organizationUnitId_periodStart_key" ON "closing_periods" ("organizationUnitId", "periodStart");
 
 -- CreateIndex
-CREATE INDEX "export_runs_closingPeriodId_idx" ON "export_runs"("closingPeriodId");
+CREATE INDEX "export_runs_closingPeriodId_idx" ON "export_runs" ("closingPeriodId");
 
 -- CreateIndex
-CREATE INDEX "domain_event_outbox_status_nextAttemptAt_createdAt_idx" ON "domain_event_outbox"("status", "nextAttemptAt", "createdAt");
+CREATE INDEX "domain_event_outbox_status_nextAttemptAt_createdAt_idx" ON "domain_event_outbox" ("status", "nextAttemptAt", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "webhook_endpoints_isActive_idx" ON "webhook_endpoints"("isActive");
+CREATE INDEX "webhook_endpoints_isActive_idx" ON "webhook_endpoints" ("isActive");
 
 -- CreateIndex
-CREATE INDEX "webhook_deliveries_outboxEventId_endpointId_attempt_idx" ON "webhook_deliveries"("outboxEventId", "endpointId", "attempt");
+CREATE INDEX "webhook_deliveries_outboxEventId_endpointId_attempt_idx" ON "webhook_deliveries" ("outboxEventId", "endpointId", "attempt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "terminal_devices_terminalId_key" ON "terminal_devices"("terminalId");
+CREATE UNIQUE INDEX "terminal_devices_terminalId_key" ON "terminal_devices" ("terminalId");
 
 -- CreateIndex
-CREATE INDEX "terminal_heartbeats_terminalDeviceId_observedAt_idx" ON "terminal_heartbeats"("terminalDeviceId", "observedAt");
+CREATE INDEX "terminal_heartbeats_terminalDeviceId_observedAt_idx" ON "terminal_heartbeats" ("terminalDeviceId", "observedAt");
 
 -- CreateIndex
-CREATE INDEX "terminal_sync_batches_terminalId_importedAt_idx" ON "terminal_sync_batches"("terminalId", "importedAt");
+CREATE INDEX "terminal_sync_batches_terminalId_importedAt_idx" ON "terminal_sync_batches" ("terminalId", "importedAt");
 
 -- CreateIndex
-CREATE INDEX "terminal_sync_batches_terminalDeviceId_idx" ON "terminal_sync_batches"("terminalDeviceId");
+CREATE INDEX "terminal_sync_batches_terminalDeviceId_idx" ON "terminal_sync_batches" ("terminalDeviceId");
 
 -- CreateIndex
-CREATE INDEX "hr_import_runs_importedAt_idx" ON "hr_import_runs"("importedAt");
+CREATE INDEX "hr_import_runs_importedAt_idx" ON "hr_import_runs" ("importedAt");
 
 -- CreateIndex
-CREATE INDEX "audit_entries_entityType_entityId_idx" ON "audit_entries"("entityType", "entityId");
+CREATE INDEX "audit_entries_entityType_entityId_idx" ON "audit_entries" ("entityType", "entityId");
 
 -- CreateIndex
-CREATE INDEX "audit_entries_actorId_timestamp_idx" ON "audit_entries"("actorId", "timestamp");
+CREATE INDEX "audit_entries_actorId_timestamp_idx" ON "audit_entries" ("actorId", "timestamp");
 
 -- AddForeignKey
-ALTER TABLE "persons" ADD CONSTRAINT "persons_organizationUnitId_fkey" FOREIGN KEY ("organizationUnitId") REFERENCES "organization_units"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "persons" ADD CONSTRAINT "persons_organizationUnitId_fkey" FOREIGN KEY ("organizationUnitId") REFERENCES "organization_units" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "persons" ADD CONSTRAINT "persons_supervisorId_fkey" FOREIGN KEY ("supervisorId") REFERENCES "persons"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "persons" ADD CONSTRAINT "persons_supervisorId_fkey" FOREIGN KEY ("supervisorId") REFERENCES "persons" ("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "persons" ADD CONSTRAINT "persons_workTimeModelId_fkey" FOREIGN KEY ("workTimeModelId") REFERENCES "work_time_models"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "persons" ADD CONSTRAINT "persons_workTimeModelId_fkey" FOREIGN KEY ("workTimeModelId") REFERENCES "work_time_models" ("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "organization_units" ADD CONSTRAINT "organization_units_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "organization_units"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "organization_units" ADD CONSTRAINT "organization_units_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "organization_units" ("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "bookings" ADD CONSTRAINT "bookings_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "bookings" ADD CONSTRAINT "bookings_timeTypeId_fkey" FOREIGN KEY ("timeTypeId") REFERENCES "time_types"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_timeTypeId_fkey" FOREIGN KEY ("timeTypeId") REFERENCES "time_types" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "bookings" ADD CONSTRAINT "bookings_shiftId_fkey" FOREIGN KEY ("shiftId") REFERENCES "shifts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_shiftId_fkey" FOREIGN KEY ("shiftId") REFERENCES "shifts" ("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "time_accounts" ADD CONSTRAINT "time_accounts_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "time_accounts" ADD CONSTRAINT "time_accounts_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "rosters" ADD CONSTRAINT "rosters_organizationUnitId_fkey" FOREIGN KEY ("organizationUnitId") REFERENCES "organization_units"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "rosters" ADD CONSTRAINT "rosters_organizationUnitId_fkey" FOREIGN KEY ("organizationUnitId") REFERENCES "organization_units" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "shifts" ADD CONSTRAINT "shifts_rosterId_fkey" FOREIGN KEY ("rosterId") REFERENCES "rosters"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "shifts" ADD CONSTRAINT "shifts_rosterId_fkey" FOREIGN KEY ("rosterId") REFERENCES "rosters" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "shift_assignments" ADD CONSTRAINT "shift_assignments_shiftId_fkey" FOREIGN KEY ("shiftId") REFERENCES "shifts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "shift_assignments" ADD CONSTRAINT "shift_assignments_shiftId_fkey" FOREIGN KEY ("shiftId") REFERENCES "shifts" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "shift_assignments" ADD CONSTRAINT "shift_assignments_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "shift_assignments" ADD CONSTRAINT "shift_assignments_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "absences" ADD CONSTRAINT "absences_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "absences" ADD CONSTRAINT "absences_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "leave_adjustments" ADD CONSTRAINT "leave_adjustments_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "leave_adjustments" ADD CONSTRAINT "leave_adjustments_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "oncall_rotations" ADD CONSTRAINT "oncall_rotations_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "oncall_rotations" ADD CONSTRAINT "oncall_rotations_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "oncall_rotations" ADD CONSTRAINT "oncall_rotations_organizationUnitId_fkey" FOREIGN KEY ("organizationUnitId") REFERENCES "organization_units"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "oncall_rotations" ADD CONSTRAINT "oncall_rotations_organizationUnitId_fkey" FOREIGN KEY ("organizationUnitId") REFERENCES "organization_units" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "oncall_deployments" ADD CONSTRAINT "oncall_deployments_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "oncall_deployments" ADD CONSTRAINT "oncall_deployments_personId_fkey" FOREIGN KEY ("personId") REFERENCES "persons" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "oncall_deployments" ADD CONSTRAINT "oncall_deployments_rotationId_fkey" FOREIGN KEY ("rotationId") REFERENCES "oncall_rotations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "oncall_deployments" ADD CONSTRAINT "oncall_deployments_rotationId_fkey" FOREIGN KEY ("rotationId") REFERENCES "oncall_rotations" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "export_runs" ADD CONSTRAINT "export_runs_closingPeriodId_fkey" FOREIGN KEY ("closingPeriodId") REFERENCES "closing_periods"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "export_runs" ADD CONSTRAINT "export_runs_closingPeriodId_fkey" FOREIGN KEY ("closingPeriodId") REFERENCES "closing_periods" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_outboxEventId_fkey" FOREIGN KEY ("outboxEventId") REFERENCES "domain_event_outbox"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_outboxEventId_fkey" FOREIGN KEY ("outboxEventId") REFERENCES "domain_event_outbox" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_endpointId_fkey" FOREIGN KEY ("endpointId") REFERENCES "webhook_endpoints"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_endpointId_fkey" FOREIGN KEY ("endpointId") REFERENCES "webhook_endpoints" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "terminal_heartbeats" ADD CONSTRAINT "terminal_heartbeats_terminalDeviceId_fkey" FOREIGN KEY ("terminalDeviceId") REFERENCES "terminal_devices"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "terminal_heartbeats" ADD CONSTRAINT "terminal_heartbeats_terminalDeviceId_fkey" FOREIGN KEY ("terminalDeviceId") REFERENCES "terminal_devices" ("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "terminal_sync_batches" ADD CONSTRAINT "terminal_sync_batches_terminalDeviceId_fkey" FOREIGN KEY ("terminalDeviceId") REFERENCES "terminal_devices"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "terminal_sync_batches" ADD CONSTRAINT "terminal_sync_batches_terminalDeviceId_fkey" FOREIGN KEY ("terminalDeviceId") REFERENCES "terminal_devices" ("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { Phase2Service } from './phase2.service';
 import { AuditController } from './controllers/audit.controller';
 import { MeController } from './controllers/me.controller';
 import { DashboardController } from './controllers/dashboard.controller';
@@ -60,6 +59,13 @@ import { WebhookDomainService } from './services/webhook-domain.service';
 import { AbsenceDomainService } from './services/absence-domain.service';
 import { BookingDomainService } from './services/booking-domain.service';
 
+/**
+ * Consolidated operational API module.
+ *
+ * The `phase2/` name is historical; ADR-004 keeps workflow, roster, closing,
+ * reporting, and integration endpoints together here until a dedicated
+ * domain-split refactor can happen without merge churn.
+ */
 @Module({
   providers: [
     AuditHelper,
@@ -78,7 +84,6 @@ import { BookingDomainService } from './services/booking-domain.service';
     RosterQueryHelper,
     RosterShiftHelper,
     TimeThresholdPolicyHelper,
-    Phase2Service,
     PolicyQueryService,
     TimeEngineDomainService,
     ReportingService,
@@ -89,6 +94,8 @@ import { BookingDomainService } from './services/booking-domain.service';
     {
       provide: HR_MASTER_PROVIDER,
       useFactory: () => {
+        // Default to deterministic local data; `http` mode is the pilot adapter
+        // for an external HR master-data system.
         const mode = (process.env.HR_PROVIDER_MODE ?? 'stub').toLowerCase();
         if (mode === 'http') {
           return new HttpHrMasterProvider();
@@ -139,7 +146,6 @@ import { BookingDomainService } from './services/booking-domain.service';
     EventOutboxHelper,
     HolidayProvider,
     PersonHelper,
-    Phase2Service,
     PolicyQueryService,
     TimeEngineDomainService,
     ReportingService,
