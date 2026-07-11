@@ -1,4 +1,5 @@
 import { BadGatewayException } from '@nestjs/common';
+import { ClosingStatus, OutboxStatus } from '@cueq/database';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
@@ -95,6 +96,8 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.protocol).toBe('HONEYWELL_CSV_V1');
+    expect(response.body.rawRows).toBe(3);
+    expect(response.body.validRows).toBe(2);
     expect(response.body.created).toBe(1);
     expect(response.body.duplicates).toBe(1);
     expect(response.body.malformedRows).toBe(1);
@@ -103,6 +106,9 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       .get(`/v1/terminal/sync/batches/${response.body.batchId}`)
       .set('Authorization', `Bearer ${TOKENS.hr}`);
     expect(detailAsHr.status).toBe(200);
+    expect(detailAsHr.body.resultPayload.rawRows).toBe(3);
+    expect(detailAsHr.body.resultPayload.validRows).toBe(2);
+    expect(detailAsHr.body.resultPayload.malformedRows).toBe(1);
 
     const detailAsEmployee = await request(app.getHttpServer())
       .get(`/v1/terminal/sync/batches/${response.body.batchId}`)
@@ -199,6 +205,93 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
 
     expect(getRun.status).toBe(200);
     expect(getRun.body.id).toBe(run.body.id);
+  });
+
+  it('fails HR import when externalId and email match different existing people', async () => {
+    const prisma = app.get(PrismaService);
+    const employeeBefore = await prisma.person.findUniqueOrThrow({
+      where: { externalId: 'employee01' },
+    });
+    const leadBefore = await prisma.person.findUniqueOrThrow({
+      where: { email: 'lead@cueq.local' },
+    });
+    const csv = [
+      'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours',
+      'employee01,Cross,Merge,lead@cueq.local,EMPLOYEE,Verwaltung,Gleitzeit Vollzeit,39.83,7.97',
+    ].join('\n');
+
+    const run = await request(app.getHttpServer())
+      .post('/v1/hr/import-runs')
+      .set('x-integration-token', HR_IMPORT_TOKEN)
+      .send({
+        sourceFile: 'hr-master-cross-identifier.csv',
+        csv,
+      });
+
+    expect(run.status).toBe(422);
+    expect(run.body.status).toBe('FAILED');
+    expect(run.body.errorCount).toBe(1);
+    expect(run.body.summary.errors[0]).toContain('HR identity conflict');
+
+    const employeeAfter = await prisma.person.findUniqueOrThrow({
+      where: { id: employeeBefore.id },
+    });
+    const leadAfter = await prisma.person.findUniqueOrThrow({
+      where: { id: leadBefore.id },
+    });
+
+    expect(employeeAfter.externalId).toBe(employeeBefore.externalId);
+    expect(employeeAfter.email).toBe(employeeBefore.email);
+    expect(employeeAfter.firstName).toBe(employeeBefore.firstName);
+    expect(leadAfter.externalId).toBe(leadBefore.externalId);
+    expect(leadAfter.email).toBe(leadBefore.email);
+    expect(leadAfter.firstName).toBe(leadBefore.firstName);
+  });
+
+  it('returns non-2xx for HR import row validation failures', async () => {
+    const csv = [
+      'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours',
+      'hrbadrole100,Bad,Role,bad.role@cueq.local,UNKNOWN_ROLE,Verwaltung,Gleitzeit Vollzeit,39.83,7.97',
+    ].join('\n');
+
+    const run = await request(app.getHttpServer())
+      .post('/v1/hr/import-runs')
+      .set('x-integration-token', HR_IMPORT_TOKEN)
+      .send({
+        sourceFile: 'hr-master-bad-role.csv',
+        csv,
+      });
+
+    expect(run.status).toBe(422);
+    expect(run.body.status).toBe('FAILED');
+    expect(run.body.errorCount).toBe(1);
+    expect(run.body.summary.errors[0]).toContain('Unsupported HR role');
+  });
+
+  it('returns non-2xx for HR import supervisor resolution failures', async () => {
+    const prisma = app.get(PrismaService);
+    const csv = [
+      'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours,supervisorExternalId',
+      'hrmissingsupervisor100,Missing,Supervisor,missing.supervisor@cueq.local,EMPLOYEE,Verwaltung,Gleitzeit Vollzeit,39.83,7.97,does-not-exist',
+    ].join('\n');
+
+    const run = await request(app.getHttpServer())
+      .post('/v1/hr/import-runs')
+      .set('x-integration-token', HR_IMPORT_TOKEN)
+      .send({
+        sourceFile: 'hr-master-missing-supervisor.csv',
+        csv,
+      });
+
+    expect(run.status).toBe(422);
+    expect(run.body.status).toBe('FAILED');
+    expect(run.body.errorCount).toBe(1);
+    expect(run.body.summary.errors[0]).toContain('Supervisor externalId not found');
+
+    const importedPerson = await prisma.person.findFirst({
+      where: { externalId: 'hrmissingsupervisor100' },
+    });
+    expect(importedPerson).toBeNull();
   });
 
   it('rejects oversized HR import CSV payloads', async () => {
@@ -309,6 +402,17 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       .set('Authorization', `Bearer ${TOKENS.payroll}`)
       .send();
     expect(payrollDownload.status).toBe(200);
+
+    const prisma = app.get(PrismaService);
+    const downloadAudit = await prisma.auditEntry.findFirst({
+      where: {
+        action: 'PAYROLL_EXPORT_DOWNLOADED',
+        entityType: 'ExportRun',
+        entityId: exported.body.exportRun.id,
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+    expect(downloadAudit).not.toBeNull();
 
     const payrollExport = await request(app.getHttpServer())
       .post(`/v1/closing-periods/${SEED_IDS.closingPeriod}/export`)
@@ -457,6 +561,24 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
   });
 
   it('serves custom report builder options and preview with allowlist enforcement', async () => {
+    const prisma = app.get(PrismaService);
+    await prisma.closingPeriod.createMany({
+      data: [
+        {
+          organizationUnitId: SEED_IDS.ouAdmin,
+          periodStart: new Date('2026-05-01T00:00:00.000Z'),
+          periodEnd: new Date('2026-05-31T23:59:59.000Z'),
+          status: ClosingStatus.EXPORTED,
+        },
+        {
+          organizationUnitId: SEED_IDS.ouSecurity,
+          periodStart: new Date('2026-05-01T00:00:00.000Z'),
+          periodEnd: new Date('2026-05-31T23:59:59.000Z'),
+          status: ClosingStatus.OPEN,
+        },
+      ],
+    });
+
     const options = await request(app.getHttpServer())
       .get('/v1/reports/custom/options')
       .set('Authorization', `Bearer ${TOKENS.hr}`);
@@ -476,6 +598,40 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       });
     expect(preview.status).toBe(200);
     expect(preview.body.reportType).toBe('TEAM_ABSENCE');
+
+    const closingPreview = await request(app.getHttpServer())
+      .get('/v1/reports/custom/preview')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        reportType: 'CLOSING_COMPLETION',
+        groupBy: 'ORGANIZATION_UNIT',
+        from: '2026-05-01',
+        to: '2026-05-31',
+        organizationUnitId: SEED_IDS.ouAdmin,
+        metrics: ['completionRate', 'exported'],
+      });
+    expect(closingPreview.status).toBe(200);
+    expect(closingPreview.body.rows).toEqual([
+      {
+        group: SEED_IDS.ouAdmin,
+        metrics: {
+          completionRate: 1,
+          exported: 1,
+        },
+      },
+    ]);
+
+    const unsupportedClosingPreview = await request(app.getHttpServer())
+      .get('/v1/reports/custom/preview')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        reportType: 'CLOSING_COMPLETION',
+        groupBy: 'ORGANIZATION_UNIT',
+        from: '2026-05-01',
+        to: '2026-05-31',
+        metrics: ['completionRate'],
+      });
+    expect(unsupportedClosingPreview.status).toBe(400);
 
     const forbiddenMetric = await request(app.getHttpServer())
       .get('/v1/reports/custom/preview')
@@ -1137,6 +1293,44 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       .set('Authorization', `Bearer ${TOKENS.hr}`);
     expect(deliveries.status).toBe(200);
     expect(deliveries.body.length).toBeGreaterThan(0);
+  });
+
+  it('marks outbox events with no subscribed endpoint as skipped, not delivered', async () => {
+    const prisma = app.get(PrismaService);
+    const event = await prisma.domainEventOutbox.create({
+      data: {
+        eventType: 'violation.detected',
+        aggregateType: 'Person',
+        aggregateId: SEED_IDS.personEmployee,
+        payload: { reason: 'integration-test' },
+      },
+    });
+
+    const dispatch = await request(app.getHttpServer())
+      .post('/v1/integrations/webhooks/dispatch')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .send();
+    expect(dispatch.status).toBe(201);
+    expect(dispatch.body.skipped).toBeGreaterThanOrEqual(1);
+
+    const skipped = await request(app.getHttpServer())
+      .get('/v1/integrations/events/outbox')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({ status: OutboxStatus.SKIPPED });
+    expect(skipped.status).toBe(200);
+    expect(
+      skipped.body.some(
+        (outboxEvent: { id: string; status: string }) =>
+          outboxEvent.id === event.id && outboxEvent.status === OutboxStatus.SKIPPED,
+      ),
+    ).toBe(true);
+
+    const deliveries = await request(app.getHttpServer())
+      .get('/v1/integrations/webhooks/deliveries')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({ eventId: event.id });
+    expect(deliveries.status).toBe(200);
+    expect(deliveries.body).toEqual([]);
   });
 
   it('rejects webhook endpoints targeting private addresses when explicitly disabled', async () => {

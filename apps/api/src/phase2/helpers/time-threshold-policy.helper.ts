@@ -42,10 +42,7 @@ export class TimeThresholdPolicyHelper {
    * Closes the current active policy and activates a new one.
    * Returns the newly created policy record.
    */
-  async upsertThresholds(
-    dailyMaxMinutes: number,
-    minRestMinutes: number,
-  ): Promise<TimeThresholds> {
+  async upsertThresholds(dailyMaxMinutes: number, minRestMinutes: number): Promise<TimeThresholds> {
     const now = new Date();
 
     return this.prisma.$transaction(async (tx) => {

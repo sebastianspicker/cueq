@@ -101,6 +101,100 @@ function coveredMonthFactor(
   return coveredMonths / 12;
 }
 
+function usageEntriesForLedger(
+  usageEntries: LeaveUsageEntry[] | undefined,
+  year: number,
+  asOf: Date,
+): LeaveUsageEntry[] {
+  const yearStart = startOfYear(year);
+  const yearEnd = endOfYear(year);
+
+  return (usageEntries ?? [])
+    .filter((entry) => {
+      const when = parseDateOrDateTime(entry.date);
+      return when >= yearStart && when <= yearEnd && when <= asOf;
+    })
+    .sort((left, right) => left.date.localeCompare(right.date));
+}
+
+function employmentFractionForWeeklyHours(weeklyHours: number, rule: LeaveRule): number {
+  const fullTimeWeeklyHours = Number(rule.fullTimeWeeklyHours ?? 39.83);
+  return Math.max(weeklyHours / fullTimeWeeklyHours, 0);
+}
+
+function calculateEntitlementDays(input: LeaveLedgerInput, rule: LeaveRule): number {
+  const employmentFraction = employmentFractionForWeeklyHours(input.workTimeModelWeeklyHours, rule);
+  const monthFactor = coveredMonthFactor(
+    input.year,
+    input.employmentStartDate,
+    input.employmentEndDate,
+  );
+  const shouldProrate = rule.proRataOnEntry || rule.proRataOnExit;
+
+  return roundToTwo(
+    rule.annualEntitlementDays * employmentFraction * (shouldProrate ? monthFactor : 1),
+  );
+}
+
+function cappedCarryOverDays(input: LeaveLedgerInput, rule: LeaveRule): number {
+  return roundToTwo(
+    Math.min(Math.max(input.priorYearCarryOverDays ?? 0, 0), rule.carryOver.maxDays),
+  );
+}
+
+function adjustmentDaysForYear(input: LeaveLedgerInput): number {
+  return roundToTwo(
+    (input.adjustments ?? [])
+      .filter((entry) => entry.year === input.year)
+      .reduce((sum, entry) => sum + entry.deltaDays, 0),
+  );
+}
+
+function sumUsageDays(usage: LeaveUsageEntry[]): number {
+  return roundToTwo(usage.reduce((sum, entry) => sum + entry.days, 0));
+}
+
+function allocateCarryOverUsage(input: {
+  usage: LeaveUsageEntry[];
+  asOf: Date;
+  deadline: Date;
+  carriedOverDays: number;
+  carryOverEnabled: boolean;
+}): {
+  carriedOverUsedDays: number;
+  carriedOverRemainingDays: number;
+  forfeitedDays: number;
+} {
+  let carryRemaining = input.carriedOverDays;
+  let carriedOverUsedDays = 0;
+  let forfeitedDays = 0;
+  let deadlineApplied = false;
+
+  for (const entry of input.usage) {
+    const entryDate = parseDateOrDateTime(entry.date);
+    if (input.carryOverEnabled && !deadlineApplied && entryDate > input.deadline) {
+      forfeitedDays = roundToTwo(forfeitedDays + carryRemaining);
+      carryRemaining = 0;
+      deadlineApplied = true;
+    }
+
+    const fromCarry = Math.min(carryRemaining, entry.days);
+    carryRemaining = roundToTwo(carryRemaining - fromCarry);
+    carriedOverUsedDays = roundToTwo(carriedOverUsedDays + fromCarry);
+  }
+
+  if (input.carryOverEnabled && !deadlineApplied && input.asOf > input.deadline) {
+    forfeitedDays = roundToTwo(forfeitedDays + carryRemaining);
+    carryRemaining = 0;
+  }
+
+  return {
+    carriedOverUsedDays,
+    carriedOverRemainingDays: carryRemaining,
+    forfeitedDays,
+  };
+}
+
 /**
  * Compute a full leave ledger for a given year according to TV-L rules.
  *
@@ -114,60 +208,19 @@ export function calculateLeaveLedger(
   rule: LeaveRule = DEFAULT_LEAVE_RULE,
 ): LeaveLedgerResult {
   const asOf = parseDateOrDateTime(input.asOfDate);
-  const yearStart = startOfYear(input.year);
-  const yearEnd = endOfYear(input.year);
-  const usage = (input.annualLeaveUsage ?? [])
-    .filter((entry) => {
-      const when = parseDateOrDateTime(entry.date);
-      return when >= yearStart && when <= yearEnd && when <= asOf;
-    })
-    .sort((left, right) => left.date.localeCompare(right.date));
-
-  const fullTimeWeeklyHours = Number(rule.fullTimeWeeklyHours ?? 39.83);
-  const employmentFraction = Math.max(input.workTimeModelWeeklyHours / fullTimeWeeklyHours, 0);
-  const monthFactor = coveredMonthFactor(
-    input.year,
-    input.employmentStartDate,
-    input.employmentEndDate,
-  );
-  const shouldProrate = rule.proRataOnEntry || rule.proRataOnExit;
-  const entitlementDays = roundToTwo(
-    rule.annualEntitlementDays * employmentFraction * (shouldProrate ? monthFactor : 1),
-  );
-  const carriedOverDays = roundToTwo(
-    Math.min(Math.max(input.priorYearCarryOverDays ?? 0, 0), rule.carryOver.maxDays),
-  );
-  const adjustmentsDays = roundToTwo(
-    (input.adjustments ?? [])
-      .filter((entry) => entry.year === input.year)
-      .reduce((sum, entry) => sum + entry.deltaDays, 0),
-  );
-
+  const usage = usageEntriesForLedger(input.annualLeaveUsage, input.year, asOf);
+  const entitlementDays = calculateEntitlementDays(input, rule);
+  const carriedOverDays = cappedCarryOverDays(input, rule);
+  const adjustmentsDays = adjustmentDaysForYear(input);
   const deadline = deadlineForYear(input.year, rule.carryOver.forfeitureDeadline);
-  let carryRemaining = carriedOverDays;
-  let carriedOverUsedDays = 0;
-  let forfeitedDays = 0;
-  let deadlineApplied = false;
-
-  for (const entry of usage) {
-    const entryDate = parseDateOrDateTime(entry.date);
-    if (rule.carryOver.enabled && !deadlineApplied && entryDate > deadline) {
-      forfeitedDays = roundToTwo(forfeitedDays + carryRemaining);
-      carryRemaining = 0;
-      deadlineApplied = true;
-    }
-
-    const fromCarry = Math.min(carryRemaining, entry.days);
-    carryRemaining = roundToTwo(carryRemaining - fromCarry);
-    carriedOverUsedDays = roundToTwo(carriedOverUsedDays + fromCarry);
-  }
-
-  if (rule.carryOver.enabled && !deadlineApplied && asOf > deadline) {
-    forfeitedDays = roundToTwo(forfeitedDays + carryRemaining);
-    carryRemaining = 0;
-  }
-
-  const usedDays = roundToTwo(usage.reduce((sum, entry) => sum + entry.days, 0));
+  const { carriedOverUsedDays, carriedOverRemainingDays, forfeitedDays } = allocateCarryOverUsage({
+    usage,
+    asOf,
+    deadline,
+    carriedOverDays,
+    carryOverEnabled: rule.carryOver.enabled,
+  });
+  const usedDays = sumUsageDays(usage);
   const currentYearUsedDays = roundToTwo(Math.max(usedDays - carriedOverUsedDays, 0));
   const remainingDays = roundToTwo(
     entitlementDays + carriedOverDays + adjustmentsDays - forfeitedDays - usedDays,
@@ -179,7 +232,7 @@ export function calculateLeaveLedger(
     forfeitedDays,
     usedDays,
     carriedOverUsedDays,
-    carriedOverRemainingDays: carryRemaining,
+    carriedOverRemainingDays,
     currentYearUsedDays,
     adjustmentsDays,
     remainingDays,

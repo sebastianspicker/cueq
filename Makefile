@@ -86,9 +86,17 @@ test: ## Run all tests
 test-unit: ## Run unit tests only (fast, <10s target)
 	$(SCRIPTS)/pnpm.sh test:unit
 
+.PHONY: test-coverage
+test-coverage: ## Run unit tests with coverage reporting and thresholds
+	$(SCRIPTS)/pnpm.sh test:coverage
+
 .PHONY: test-integration
 test-integration: ## Run integration tests (requires Docker)
 	$(SCRIPTS)/pnpm.sh test:integration
+
+.PHONY: test-e2e
+test-e2e: ## Run browser end-to-end tests against the built web app and local API
+	$(SCRIPTS)/pnpm.sh test:e2e
 
 .PHONY: test-acceptance
 test-acceptance: ## Run acceptance tests (full stack)

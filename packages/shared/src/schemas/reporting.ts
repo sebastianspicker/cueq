@@ -83,6 +83,7 @@ export type OeOvertimeQuery = z.infer<typeof OeOvertimeQuerySchema>;
 
 export const ClosingCompletionQuerySchema = z
   .object({
+    organizationUnitId: IdSchema.optional(),
     from: DateSchema,
     to: DateSchema,
   })

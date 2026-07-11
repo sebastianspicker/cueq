@@ -39,23 +39,24 @@ const OPEN_PERIOD = {
 
 const REVIEW_PERIOD = { ...OPEN_PERIOD, status: ClosingStatus.REVIEW };
 
-const makeHelper = (overrides: {
-  findUnique?: unknown;
-  checklist?: { hasErrors: boolean };
-}) => {
+const makeHelper = (overrides: { findUnique?: unknown; checklist?: { hasErrors: boolean } }) => {
   const updated = { ...OPEN_PERIOD };
   const prisma = {
     closingPeriod: {
       findUnique: vi.fn().mockResolvedValue(overrides.findUnique ?? null),
-      update: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
-        Promise.resolve({ ...updated, ...args.data }),
-      ),
+      update: vi
+        .fn()
+        .mockImplementation((args: { data: Record<string, unknown> }) =>
+          Promise.resolve({ ...updated, ...args.data }),
+        ),
     },
   };
   const personHelper = {
-    personForUser: vi.fn().mockImplementation((user: AuthenticatedIdentity) =>
-      Promise.resolve({ id: `person-${user.subject}`, role: user.role }),
-    ),
+    personForUser: vi
+      .fn()
+      .mockImplementation((user: AuthenticatedIdentity) =>
+        Promise.resolve({ id: `person-${user.subject}`, role: user.role }),
+      ),
   };
   const auditHelper = { appendAudit: vi.fn().mockResolvedValue(undefined) };
   const eventOutboxHelper = { enqueueDomainEvent: vi.fn().mockResolvedValue(undefined) };
@@ -75,7 +76,7 @@ const makeHelper = (overrides: {
 };
 
 describe('ClosingLifecycleHelper', () => {
-describe('startClosingReview', () => {
+  describe('startClosingReview', () => {
     beforeEach(() => {
       process.env['CLOSING_ALLOW_MANUAL_REVIEW_START'] = 'true';
     });
@@ -176,7 +177,9 @@ describe('startClosingReview', () => {
 
     it('throws NotFoundException when period does not exist', async () => {
       const { helper } = makeHelper({ findUnique: null });
-      await expect(helper.approveClosing(HR_USER, 'cp-1')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(helper.approveClosing(HR_USER, 'cp-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('throws BadRequestException when org unit lacks lead approval', async () => {

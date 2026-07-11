@@ -13,8 +13,10 @@
     "lint:fix": "turbo run lint:fix",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage --filter=@cueq/api --filter=@cueq/core",
     "test:unit": "turbo run test:unit",
     "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e --filter=@cueq/web",
     "test:acceptance": "turbo run test:acceptance",
     "test:compliance": "turbo run test:compliance",
     "test:backup-restore": "node ./scripts/backup-restore-verify.mjs",
@@ -55,7 +57,12 @@
       "multer": ">=2.1.1",
       "file-type": ">=21.3.3",
       "serialize-javascript": ">=7.0.3",
-      "flatted": ">=3.4.0"
+      "flatted": ">=3.4.0",
+      "effect": ">=3.20.0",
+      "picomatch": ">=4.0.4",
+      "path-to-regexp": ">=8.4.0",
+      "lodash": ">=4.18.0",
+      "defu": ">=6.1.5"
     }
   }
 }

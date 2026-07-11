@@ -7,6 +7,8 @@
 
 **Target Audience:** German university HR departments, team leads (Teamleitungen), and shift planners (Dienstplaner) managing workforce time-tracking, absence quotas, and roster compliance under TV-L / NRW regulations.
 
+**Project Status:** cueq is a proof of concept and reference implementation. It demonstrates that public institutions can approach workforce management with transparent, auditable, self-hostable open-source software instead of treating closed-source vendor platforms as the only realistic option.
+
 ---
 
 ## What is cueq?
@@ -153,7 +155,6 @@ graph TD
         subgraph Docs ["docs/"]
             DD[design-docs/]
             ADR[design-decisions/]
-            EP[exec-plans/]
             PS[product-specs/]
             GEN[generated/]
         end
@@ -240,13 +241,11 @@ cueq/
 ├── docs/                       # Full documentation suite
 │   ├── design-docs/            # Core beliefs, glossary
 │   ├── design-decisions/       # ADRs (template + 001-tech-stack)
-│   ├── exec-plans/             # Active plans, completed, tech debt
 │   ├── generated/              # Auto-generated (db-schema.md)
 │   ├── product-specs/          # Product specifications
-│   ├── references/             # Agent context files
 │   ├── DESIGN.md               # Design patterns & conventions
 │   ├── FRONTEND.md             # Frontend architecture
-│   ├── PLANS.md                # Phase 0–3 execution plan
+│   ├── PLANS.md                # Current implementation and release status
 │   ├── PRODUCT_SENSE.md        # Product thinking & personas
 │   ├── QUALITY_SCORE.md        # Quality metrics & targets
 │   ├── RELIABILITY.md          # Ops, failover, backup
@@ -280,11 +279,43 @@ cueq/
 ├── .prettierrc                 # Code formatting
 ├── .editorconfig               # Editor consistency
 ├── .env.example                # Environment template
-├── AGENTS.md                   # AI/contributor guide
+├── AGENTS.md                   # Contributor guide
 ├── ARCHITECTURE.md             # System architecture
 ├── README.md                   # ← You are here
 └── LICENSE                     # MIT
 ```
+
+---
+
+## Maintainer Orientation
+
+If you are a competent programmer or IT operator coming to cueq cold, read the
+repository in this order:
+
+1. `README.md` for product scope, setup, commands, and the directory map.
+2. `ARCHITECTURE.md` for the domain boundaries and the API request path.
+3. `docs/product-specs/index.md` for the implemented feature contracts.
+4. `docs/FRONTEND.md` for the Next.js route surface and API client pattern.
+5. `docs/OPERATIONS_RUNBOOK.md` for terminal, HR import, export, backup, and
+   incident procedures.
+
+The main runtime path is:
+
+| Concern                 | Start here                               | Follow-up files                                                     |
+| ----------------------- | ---------------------------------------- | ------------------------------------------------------------------- |
+| Web UI                  | `apps/web/src/app/[locale]/*/page.tsx`   | `apps/web/src/lib/api-client.ts`, `apps/web/src/messages/*.json`    |
+| API bootstrap           | `apps/api/src/main.ts`                   | `apps/api/src/app.module.ts`, `apps/api/src/openapi.ts`             |
+| Operational API surface | `apps/api/src/phase2/`                   | `controllers/` -> `services/` -> `helpers/`                         |
+| Pure domain rules       | `packages/core/src/core/`                | adjacent `*.test.ts` files and reference fixtures                   |
+| Runtime contracts       | `packages/shared/src/schemas/`           | `schemas/domain/`, `contracts/openapi/openapi.json`                 |
+| Persistence             | `packages/database/prisma/schema.prisma` | `packages/database/prisma/migrations/`                              |
+| Verification harness    | `Makefile`                               | `scripts/check.sh`, `turbo.json`, package `vitest*.config.ts` files |
+
+For a typical request, trace from a localized page to the shared API client,
+then to the matching Nest controller. Controllers keep transport concerns thin;
+domain services coordinate authorization, transactions, persistence, audit, and
+side effects; helpers isolate sub-domain logic; reusable calculations belong in
+`@cueq/core` where they can be tested without NestJS or Prisma.
 
 ---
 
@@ -298,7 +329,7 @@ cueq/
 | **Database**   | PostgreSQL 16 + Prisma | Type-safe ORM with migration management             |
 | **Validation** | Zod                    | Runtime validation shared across API + UI           |
 | **API Docs**   | @nestjs/swagger        | OpenAPI spec generated from decorators              |
-| **Testing**    | Vitest                 | Fast, TypeScript-native test runner                 |
+| **Testing**    | Vitest + Playwright    | Unit/integration tests and browser E2E coverage     |
 | **CI/CD**      | GitHub Actions         | Automated lint, typecheck, test, build              |
 | **Dev Tools**  | Docker Compose         | Local PostgreSQL, reproducible environment          |
 
@@ -347,12 +378,36 @@ Run `make help` for a full list. Key commands:
 | `make generate`         | Generate Prisma client, OpenAPI snapshot, and generated schema docs                                |
 | `make openapi-check`    | Compare generated OpenAPI spec against committed snapshot                                          |
 | `make test`             | Run all tests                                                                                      |
+| `make test-e2e`         | Run browser E2E tests against the built web app and local API                                      |
 | `make test-all`         | Run all test suites (unit + integration + acceptance + compliance + backup/restore)                |
 | `make demo-screenshots` | Generate local German demo screenshots using mock-university seed data                             |
 | `make build`            | Build all packages and apps                                                                        |
 | `make db-generate`      | Regenerate Prisma client after schema change                                                       |
 | `make db-migrate`       | Run database migrations                                                                            |
 | `make clean`            | Stop Docker, remove artifacts                                                                      |
+
+---
+
+## End-to-End Tests
+
+Browser E2E tests use the existing Playwright harness in
+`apps/web/tests/acceptance`. The harness starts the NestJS API on port `3001`
+and a production-built Next.js app on port `3000`, then exercises the real UI
+against a deterministic PostgreSQL schema named `web_acceptance`.
+
+```bash
+# From a clean checkout, run setup once so dependencies, Prisma, and Postgres exist.
+make setup
+
+# Browser E2E only.
+make test-e2e
+
+# Full acceptance suite, including browser E2E plus service/package acceptance.
+make test-acceptance
+```
+
+The E2E suite uses mock bearer tokens and synthetic seed data only. It does not
+call external services or require secrets.
 
 ---
 
@@ -404,12 +459,13 @@ erDiagram
 
 | Document                                                             | Description                                            | Audience                   |
 | -------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------- |
-| [AGENTS.md](AGENTS.md)                                               | Contributor guide, conventions, security constraints   | Developers, AI agents      |
+| [AGENTS.md](AGENTS.md)                                               | Contributor guide, conventions, security constraints   | Developers, contributors   |
 | [ARCHITECTURE.md](ARCHITECTURE.md)                                   | C4-level system overview, service descriptions         | Developers, architects     |
 | [docs/DESIGN.md](docs/DESIGN.md)                                     | DDD patterns, hexagonal architecture, testing strategy | Developers                 |
-| [docs/PLANS.md](docs/PLANS.md)                                       | Phase 0–3 execution plan with DoD                      | Project management         |
+| [docs/PLANS.md](docs/PLANS.md)                                       | Current implementation status and release gates        | Maintainers                |
 | [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md)                       | Personas, success metrics, trade-offs                  | Product, stakeholders      |
 | [docs/SECURITY.md](docs/SECURITY.md)                                 | Threat model, RBAC matrix, GDPR compliance             | Security, DPO, Personalrat |
+| [SECURITY.md](SECURITY.md)                                           | GitHub vulnerability disclosure entry point            | Security reporters         |
 | [docs/RELIABILITY.md](docs/RELIABILITY.md)                           | Availability, backup, failover, monitoring             | Operations                 |
 | [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md)                       | Coverage targets, test performance budgets             | QA, CI                     |
 | [docs/FRONTEND.md](docs/FRONTEND.md)                                 | UI architecture, i18n, accessibility, privacy          | Frontend developers        |

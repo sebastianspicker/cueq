@@ -4,7 +4,13 @@ import {
   DEFAULT_REST_RULE,
   DEFAULT_SURCHARGE_RULE,
 } from '@cueq/policy';
-import type { SurchargeCategory } from '@cueq/policy';
+import type {
+  BreakRule,
+  MaxHoursRule,
+  RestRule,
+  SurchargeCategory,
+  SurchargeRule,
+} from '@cueq/policy';
 import { toHolidaySet } from '@cueq/shared';
 import type { CoreTimeRuleEvaluationContract } from '@cueq/shared';
 import { requiredBreakMinutes } from '../break-utils';
@@ -28,6 +34,15 @@ export type { OnCallDeployment, OnCallRestInput, OnCallRestResult } from './onca
 export { evaluateOnCallRestCompliance } from './oncall-rest';
 
 const MINUTE_MS = 60_000;
+
+type DailyTotals = { workMinutes: number; pauseMinutes: number };
+type SurchargeCategoryConfig = SurchargeRule['categories'][number];
+type CategoryConfigByCategory = Map<SurchargeCategory, SurchargeCategoryConfig>;
+
+interface ClassifiedIntervals {
+  workIntervals: TimeRuleInterval[];
+  pauseIntervals: TimeRuleInterval[];
+}
 
 function mergeWorkIntervals(intervals: TimeRuleInterval[]): TimeRuleInterval[] {
   if (intervals.length <= 1) {
@@ -70,53 +85,12 @@ export type TimeRuleEvaluationResult = Omit<
   warnings: DomainWarning[];
 };
 
-/**
- * Evaluate ArbZG / TV-L time-tracking rules for a set of work intervals.
- *
- * Checks daily max hours, weekly max hours, minimum rest between shifts,
- * required break durations, and computes surcharge category buckets
- * (night, weekend, holiday) per the configured surcharge rule.
- *
- * Returns actual hours, delta vs. target, any rule violations, and warnings.
- */
-export function evaluateTimeRules(
-  input: TimeRuleEvaluationInput,
-  policy: TimeEnginePolicy = {},
-): TimeRuleEvaluationResult {
-  const breakRule = policy.breakRule ?? DEFAULT_BREAK_RULE;
-  const maxHoursRule = policy.maxHoursRule ?? DEFAULT_MAX_HOURS_RULE;
-  const restRule = policy.restRule ?? DEFAULT_REST_RULE;
-  const surchargeRule = policy.surchargeRule ?? DEFAULT_SURCHARGE_RULE;
-  const timezone = input.timezone ?? surchargeRule.timezoneDefault ?? 'Europe/Berlin';
-
-  const warnings: DomainWarning[] = [];
-  const violations: RuleViolation[] = [];
-  const holidayDates = toHolidaySet(input.holidayDates);
-  const daily = new Map<string, { workMinutes: number; pauseMinutes: number }>();
-  const surchargeBuckets = new Map<SurchargeCategory, number>();
-  let totalWorkMinutes = 0;
-
-  const sortedIntervals = [...input.intervals].sort((left, right) =>
-    left.start.localeCompare(right.start),
-  );
+function classifyIntervals(
+  sortedIntervals: TimeRuleInterval[],
+  violations: RuleViolation[],
+): ClassifiedIntervals {
   const workIntervals: TimeRuleInterval[] = [];
   const pauseIntervals: TimeRuleInterval[] = [];
-
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    weekday: 'short',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  const nightStart = parseLocalTimeToMinute(surchargeRule.nightWindow.startLocalTime);
-  const nightEnd = parseLocalTimeToMinute(surchargeRule.nightWindow.endLocalTime);
-  const categoryConfigByCategory = new Map(
-    surchargeRule.categories.map((entry) => [entry.category, entry]),
-  );
 
   for (const interval of sortedIntervals) {
     const start = new Date(interval.start);
@@ -142,24 +116,51 @@ export function evaluateTimeRules(
     }
   }
 
-  const overlapIssues = overlapExists(workIntervals.map(({ start, end }) => ({ start, end })));
-  for (const issue of overlapIssues) {
-    violations.push(
-      toViolation({
-        code: 'OVERLAP',
-        message: issue.message,
-        context: issue.context,
-      }),
-    );
+  return { workIntervals, pauseIntervals };
+}
+
+function recordSurchargeMinute(
+  localMinute: ReturnType<typeof localMinuteInfo>,
+  holidayDates: Set<string>,
+  nightStart: number | null,
+  nightEnd: number | null,
+  categoryConfigByCategory: CategoryConfigByCategory,
+  surchargeBuckets: Map<SurchargeCategory, number>,
+): void {
+  const matchedCategories: SurchargeCategory[] = [];
+  if (holidayDates.has(localMinute.isoDate)) {
+    matchedCategories.push('HOLIDAY');
+  }
+  if (localMinute.weekday === 0 || localMinute.weekday === 6) {
+    matchedCategories.push('WEEKEND');
+  }
+  if (
+    nightStart !== null &&
+    nightEnd !== null &&
+    isWithinWindow(localMinute.localMinuteOfDay, nightStart, nightEnd)
+  ) {
+    matchedCategories.push('NIGHT');
   }
 
-  const normalizedWorkIntervals = mergeWorkIntervals(
-    [...workIntervals]
-      .map((interval) => ({ ...interval }))
-      .sort((left, right) => left.start.localeCompare(right.start)),
-  );
+  const selected = selectSurchargeCategory(matchedCategories, categoryConfigByCategory);
+  if (selected) {
+    surchargeBuckets.set(selected, (surchargeBuckets.get(selected) ?? 0) + 1);
+  }
+}
 
-  for (const interval of normalizedWorkIntervals) {
+function recordWorkMinutes(
+  intervals: TimeRuleInterval[],
+  formatter: Intl.DateTimeFormat,
+  daily: Map<string, DailyTotals>,
+  holidayDates: Set<string>,
+  nightStart: number | null,
+  nightEnd: number | null,
+  categoryConfigByCategory: CategoryConfigByCategory,
+  surchargeBuckets: Map<SurchargeCategory, number>,
+): number {
+  let totalWorkMinutes = 0;
+
+  for (const interval of intervals) {
     const startMs = new Date(interval.start).getTime();
     const endMs = new Date(interval.end).getTime();
 
@@ -169,28 +170,28 @@ export function evaluateTimeRules(
 
       day.workMinutes += 1;
       totalWorkMinutes += 1;
-
-      const matchedCategories: SurchargeCategory[] = [];
-      if (holidayDates.has(localMinute.isoDate)) {
-        matchedCategories.push('HOLIDAY');
-      }
-      if (localMinute.weekday === 0 || localMinute.weekday === 6) {
-        matchedCategories.push('WEEKEND');
-      }
-      if (isWithinWindow(localMinute.localMinuteOfDay, nightStart, nightEnd)) {
-        matchedCategories.push('NIGHT');
-      }
-
-      const selected = selectSurchargeCategory(matchedCategories, categoryConfigByCategory);
-      if (selected) {
-        surchargeBuckets.set(selected, (surchargeBuckets.get(selected) ?? 0) + 1);
-      }
+      recordSurchargeMinute(
+        localMinute,
+        holidayDates,
+        nightStart,
+        nightEnd,
+        categoryConfigByCategory,
+        surchargeBuckets,
+      );
 
       daily.set(localMinute.isoDate, day);
     }
   }
 
-  for (const interval of pauseIntervals) {
+  return totalWorkMinutes;
+}
+
+function recordPauseMinutes(
+  intervals: TimeRuleInterval[],
+  formatter: Intl.DateTimeFormat,
+  daily: Map<string, DailyTotals>,
+): void {
+  for (const interval of intervals) {
     const startMs = new Date(interval.start).getTime();
     const endMs = new Date(interval.end).getTime();
 
@@ -201,7 +202,29 @@ export function evaluateTimeRules(
       daily.set(localMinute.isoDate, day);
     }
   }
+}
 
+function addOverlapViolations(
+  workIntervals: TimeRuleInterval[],
+  violations: RuleViolation[],
+): void {
+  const overlapIssues = overlapExists(workIntervals.map(({ start, end }) => ({ start, end })));
+  for (const issue of overlapIssues) {
+    violations.push(
+      toViolation({
+        code: 'OVERLAP',
+        message: issue.message,
+        context: issue.context,
+      }),
+    );
+  }
+}
+
+function addRestViolations(
+  normalizedWorkIntervals: TimeRuleInterval[],
+  restRule: RestRule,
+  violations: RuleViolation[],
+): void {
   const sortedRestIntervals = [...normalizedWorkIntervals].sort((left, right) =>
     left.start.localeCompare(right.start),
   );
@@ -225,7 +248,15 @@ export function evaluateTimeRules(
       );
     }
   }
+}
 
+function addDailyRuleOutcomes(
+  daily: Map<string, DailyTotals>,
+  maxHoursRule: MaxHoursRule,
+  breakRule: BreakRule,
+  warnings: DomainWarning[],
+  violations: RuleViolation[],
+): void {
   for (const [day, totals] of daily.entries()) {
     const workedHours = roundToTwo(totals.workMinutes / 60);
     if (workedHours > maxHoursRule.maxDailyHoursExtended) {
@@ -260,8 +291,13 @@ export function evaluateTimeRules(
       );
     }
   }
+}
 
-  const actualHours = roundToTwo(totalWorkMinutes / 60);
+function addWeeklyMaxHoursViolation(
+  actualHours: number,
+  maxHoursRule: MaxHoursRule,
+  violations: RuleViolation[],
+): void {
   if (actualHours > maxHoursRule.maxWeeklyHours) {
     violations.push(
       toViolation({
@@ -272,8 +308,13 @@ export function evaluateTimeRules(
       }),
     );
   }
+}
 
-  const surchargeMinutes = [...surchargeBuckets.entries()]
+function buildSurchargeMinutes(
+  surchargeBuckets: Map<SurchargeCategory, number>,
+  categoryConfigByCategory: CategoryConfigByCategory,
+): TimeRuleEvaluationResult['surchargeMinutes'] {
+  return [...surchargeBuckets.entries()]
     .map(([category, minutes]) => ({
       category,
       minutes,
@@ -284,12 +325,92 @@ export function evaluateTimeRules(
       const rightPriority = categoryConfigByCategory.get(right.category)?.priority ?? 0;
       return rightPriority - leftPriority;
     });
+}
+
+/**
+ * Evaluate ArbZG / TV-L time-tracking rules for a set of work intervals.
+ *
+ * Checks daily max hours, weekly max hours, minimum rest between shifts,
+ * required break durations, and computes surcharge category buckets
+ * (night, weekend, holiday) per the configured surcharge rule.
+ *
+ * Returns actual hours, delta vs. target, any rule violations, and warnings.
+ */
+export function evaluateTimeRules(
+  input: TimeRuleEvaluationInput,
+  policy: TimeEnginePolicy = {},
+): TimeRuleEvaluationResult {
+  const breakRule = policy.breakRule ?? DEFAULT_BREAK_RULE;
+  const maxHoursRule = policy.maxHoursRule ?? DEFAULT_MAX_HOURS_RULE;
+  const restRule = policy.restRule ?? DEFAULT_REST_RULE;
+  const surchargeRule = policy.surchargeRule ?? DEFAULT_SURCHARGE_RULE;
+  const timezone = input.timezone ?? surchargeRule.timezoneDefault ?? 'Europe/Berlin';
+
+  const warnings: DomainWarning[] = [];
+  const violations: RuleViolation[] = [];
+  const holidayDates = toHolidaySet(input.holidayDates);
+  const daily = new Map<string, DailyTotals>();
+  const surchargeBuckets = new Map<SurchargeCategory, number>();
+
+  const sortedIntervals = [...input.intervals].sort((left, right) =>
+    left.start.localeCompare(right.start),
+  );
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'short',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const nightStart = parseLocalTimeToMinute(surchargeRule.nightWindow.startLocalTime);
+  const nightEnd = parseLocalTimeToMinute(surchargeRule.nightWindow.endLocalTime);
+  const hasValidNightWindow = nightStart !== null && nightEnd !== null;
+  if (!hasValidNightWindow) {
+    violations.push(
+      toViolation({
+        code: 'INVALID_SURCHARGE_NIGHT_WINDOW',
+        message: 'Surcharge nightWindow startLocalTime and endLocalTime must be valid HH:MM times.',
+        context: { nightWindow: surchargeRule.nightWindow },
+      }),
+    );
+  }
+  const categoryConfigByCategory = new Map(
+    surchargeRule.categories.map((entry) => [entry.category, entry]),
+  );
+  const { workIntervals, pauseIntervals } = classifyIntervals(sortedIntervals, violations);
+
+  addOverlapViolations(workIntervals, violations);
+  const normalizedWorkIntervals = mergeWorkIntervals(
+    [...workIntervals]
+      .map((interval) => ({ ...interval }))
+      .sort((left, right) => left.start.localeCompare(right.start)),
+  );
+
+  const totalWorkMinutes = recordWorkMinutes(
+    normalizedWorkIntervals,
+    formatter,
+    daily,
+    holidayDates,
+    nightStart,
+    nightEnd,
+    categoryConfigByCategory,
+    surchargeBuckets,
+  );
+  recordPauseMinutes(pauseIntervals, formatter, daily);
+  addRestViolations(normalizedWorkIntervals, restRule, violations);
+  addDailyRuleOutcomes(daily, maxHoursRule, breakRule, warnings, violations);
+
+  const actualHours = roundToTwo(totalWorkMinutes / 60);
+  addWeeklyMaxHoursViolation(actualHours, maxHoursRule, violations);
 
   return {
     actualHours,
     deltaHours: roundToTwo(actualHours - input.targetHours),
     violations,
     warnings,
-    surchargeMinutes,
+    surchargeMinutes: buildSurchargeMinutes(surchargeBuckets, categoryConfigByCategory),
   };
 }

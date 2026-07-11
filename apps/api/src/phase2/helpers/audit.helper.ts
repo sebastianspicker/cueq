@@ -4,19 +4,24 @@ import { Role } from '@cueq/database';
 import { buildAuditEntry } from '@cueq/core';
 import { PrismaService } from '../../persistence/prisma.service';
 
+type AuditWriteClient = Pick<PrismaService, 'auditEntry'>;
+
 @Injectable()
 export class AuditHelper {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async appendAudit(input: {
-    actorId: string;
-    action: string;
-    entityType: string;
-    entityId: string;
-    before?: Prisma.JsonValue;
-    after?: Prisma.JsonValue;
-    reason?: string;
-  }) {
+  async appendAudit(
+    input: {
+      actorId: string;
+      action: string;
+      entityType: string;
+      entityId: string;
+      before?: Prisma.JsonValue;
+      after?: Prisma.JsonValue;
+      reason?: string;
+    },
+    db: AuditWriteClient = this.prisma,
+  ) {
     const draft = buildAuditEntry({
       actorId: input.actorId,
       action: input.action,
@@ -27,7 +32,7 @@ export class AuditHelper {
       reason: input.reason,
     });
 
-    await this.prisma.auditEntry.create({
+    await db.auditEntry.create({
       data: {
         id: draft.id,
         timestamp: new Date(draft.timestamp),

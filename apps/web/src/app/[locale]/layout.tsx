@@ -1,6 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { AppClientEffects } from '../../components/AppClientEffects';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { LocaleSwitchLink } from '../../components/LocaleSwitchLink';
@@ -102,11 +103,15 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
             <div className="cq-locale-panel">
               <span>{messages.app.localeSwitch}</span>
-              <LocaleSwitchLink
-                locale={locale}
-                targetLocale={altLocale}
-                label={altLocale.toUpperCase()}
-              />
+              <Suspense
+                fallback={<span className="cq-locale-switch">{altLocale.toUpperCase()}</span>}
+              >
+                <LocaleSwitchLink
+                  locale={locale}
+                  targetLocale={altLocale}
+                  label={altLocale.toUpperCase()}
+                />
+              </Suspense>
             </div>
           </aside>
 

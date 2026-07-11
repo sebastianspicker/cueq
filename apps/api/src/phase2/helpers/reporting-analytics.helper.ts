@@ -10,7 +10,7 @@ import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { AuditHelper } from './audit.helper';
 import { PersonHelper } from './person.helper';
 import { ReportingComplianceHelper } from './reporting-compliance.helper';
-import { REPORT_ALLOWED_ROLES } from './role-constants';
+import { HR_LIKE_ROLES, REPORT_ALLOWED_ROLES } from './role-constants';
 
 @Injectable()
 export class ReportingAnalyticsHelper {
@@ -51,6 +51,7 @@ export class ReportingAnalyticsHelper {
 
     let totals = { requests: 0, days: 0 };
     let buckets: Array<{ type: string; requests: number; days: number }> = [];
+    const canViewAbsenceTypeBuckets = HR_LIKE_ROLES.has(user.role);
 
     if (!suppressed) {
       const absences = await this.prisma.absence.findMany({
@@ -61,24 +62,26 @@ export class ReportingAnalyticsHelper {
         },
       });
 
-      const byType = new Map<string, { requests: number; days: number }>();
-      for (const absence of absences) {
-        const type = absence.type;
-        const current = byType.get(type) ?? { requests: 0, days: 0 };
-        current.requests += 1;
-        current.days += Number(absence.days);
-        byType.set(type, current);
-      }
-
       totals = {
         requests: absences.length,
         days: Number(absences.reduce((sum, absence) => sum + Number(absence.days), 0).toFixed(2)),
       };
-      buckets = [...byType.entries()].map(([type, value]) => ({
-        type,
-        requests: value.requests,
-        days: Number(value.days.toFixed(2)),
-      }));
+      if (canViewAbsenceTypeBuckets) {
+        const byType = new Map<string, { requests: number; days: number }>();
+        for (const absence of absences) {
+          const type = absence.type;
+          const current = byType.get(type) ?? { requests: 0, days: 0 };
+          current.requests += 1;
+          current.days += Number(absence.days);
+          byType.set(type, current);
+        }
+
+        buckets = [...byType.entries()].map(([type, value]) => ({
+          type,
+          requests: value.requests,
+          days: Number(value.days.toFixed(2)),
+        }));
+      }
     }
 
     await this.auditHelper.appendAudit({
@@ -90,6 +93,7 @@ export class ReportingAnalyticsHelper {
         report: 'team-absence',
         organizationUnitId: targetOuId,
         suppressed,
+        absenceTypeBucketsVisible: canViewAbsenceTypeBuckets && !suppressed,
       },
     });
 
@@ -172,7 +176,15 @@ export class ReportingAnalyticsHelper {
     const parsed = ClosingCompletionQuerySchema.parse(query ?? {});
     const from = new Date(`${parsed.from}T00:00:00.000Z`);
     const to = new Date(`${parsed.to}T23:59:59.000Z`);
-    const organizationUnitId = user.role === Role.TEAM_LEAD ? actor.organizationUnitId : null;
+    if (
+      user.role === Role.TEAM_LEAD &&
+      parsed.organizationUnitId &&
+      parsed.organizationUnitId !== actor.organizationUnitId
+    ) {
+      throw new ForbiddenException('Team leads can only access reports for their own unit.');
+    }
+    const organizationUnitId =
+      user.role === Role.TEAM_LEAD ? actor.organizationUnitId : (parsed.organizationUnitId ?? null);
 
     const periods = await this.prisma.closingPeriod.findMany({
       where: {

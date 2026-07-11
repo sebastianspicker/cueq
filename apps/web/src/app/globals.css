@@ -904,14 +904,6 @@ button.cq-btn-ghost.cq-btn-loading::after {
   animation: cq-spin 0.6s linear infinite;
 }
 
-.cq-empty-state {
-  padding: 2rem;
-  text-align: center;
-  color: var(--cq-text-muted);
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
 /* Screen-reader only utility */
 .cq-sr-only {
   position: absolute;
@@ -1080,38 +1072,6 @@ button:focus-visible {
   border: 1px solid var(--cq-error-border);
   background: var(--cq-error-soft);
   box-shadow: 0 4px 20px rgba(239, 68, 68, 0.1);
-}
-
-/* -------------------------------------
-   Pagination
-------------------------------------- */
-
-.cq-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 0.75rem 0;
-}
-
-.cq-pagination-info {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--cq-text-muted);
-  min-width: 4rem;
-  text-align: center;
-}
-
-/* -------------------------------------
-   Search Input
-------------------------------------- */
-
-.cq-search-input {
-  position: relative;
-}
-
-.cq-search-field {
-  padding-left: 1.25rem;
 }
 
 /* -------------------------------------

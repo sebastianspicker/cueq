@@ -36,6 +36,8 @@ type ValidatedRow = ParsedRow & {
   workTimeModelId: string;
 };
 
+type HrImportTransaction = Prisma.TransactionClient;
+
 @Injectable()
 export class HrImportService {
   constructor(
@@ -177,6 +179,165 @@ export class HrImportService {
     };
   }
 
+  private async findExistingPersonForRow(tx: HrImportTransaction, row: ValidatedRow) {
+    const [byExternalId, byEmail] = await Promise.all([
+      tx.person.findUnique({
+        where: { externalId: row.externalId },
+        select: { id: true },
+      }),
+      tx.person.findUnique({
+        where: { email: row.email },
+        select: { id: true },
+      }),
+    ]);
+
+    if (byExternalId && byEmail && byExternalId.id !== byEmail.id) {
+      throw new BadRequestException(
+        `HR identity conflict for externalId="${row.externalId}" and email="${row.email}".`,
+      );
+    }
+
+    return byExternalId ?? byEmail;
+  }
+
+  private personDataForRow(row: ValidatedRow) {
+    return {
+      externalId: row.externalId,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      email: row.email,
+      role: row.parsedRole,
+      organizationUnitId: row.organizationUnitId,
+      workTimeModelId: row.workTimeModelId,
+    };
+  }
+
+  private async upsertOrganizationUnit(tx: HrImportTransaction, row: ValidatedRow) {
+    await tx.organizationUnit.upsert({
+      where: { id: row.organizationUnitId },
+      create: {
+        id: row.organizationUnitId,
+        name: row.organizationUnit,
+      },
+      update: { name: row.organizationUnit },
+    });
+  }
+
+  private async upsertWorkTimeModel(tx: HrImportTransaction, row: ValidatedRow) {
+    await tx.workTimeModel.upsert({
+      where: { id: row.workTimeModelId },
+      create: {
+        id: row.workTimeModelId,
+        name: row.workTimeModel,
+        type: WorkTimeModelType.FLEXTIME,
+        weeklyHours: row.parsedWeeklyHours,
+        dailyTargetHours: row.parsedDailyTargetHours,
+        effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      update: {
+        name: row.workTimeModel,
+        weeklyHours: row.parsedWeeklyHours,
+        dailyTargetHours: row.parsedDailyTargetHours,
+      },
+    });
+  }
+
+  private async upsertPersonForRow(tx: HrImportTransaction, row: ValidatedRow) {
+    const existing = await this.findExistingPersonForRow(tx, row);
+    const data = this.personDataForRow(row);
+    const person = existing
+      ? await tx.person.update({
+          where: { id: existing.id },
+          data,
+        })
+      : await tx.person.create({ data });
+
+    return { person, existing };
+  }
+
+  private async importValidatedRows(tx: HrImportTransaction, rows: ValidatedRow[]) {
+    const importedPeople = new Map<string, string>();
+    let createdRows = 0;
+    let updatedRows = 0;
+
+    for (const row of rows) {
+      await this.upsertOrganizationUnit(tx, row);
+      await this.upsertWorkTimeModel(tx, row);
+      const { person, existing } = await this.upsertPersonForRow(tx, row);
+
+      importedPeople.set(row.externalId, person.id);
+      if (existing) {
+        updatedRows += 1;
+      } else {
+        createdRows += 1;
+      }
+    }
+
+    return { importedPeople, createdRows, updatedRows };
+  }
+
+  private async resolveSupervisorId(
+    tx: HrImportTransaction,
+    row: ValidatedRow,
+    importedPeople: Map<string, string>,
+  ) {
+    if (!row.supervisorExternalId) {
+      return null;
+    }
+
+    return (
+      importedPeople.get(row.supervisorExternalId) ??
+      (
+        await tx.person.findFirst({
+          where: { externalId: row.supervisorExternalId },
+          select: { id: true },
+        })
+      )?.id ??
+      null
+    );
+  }
+
+  private async linkSupervisors(
+    tx: HrImportTransaction,
+    rows: ValidatedRow[],
+    importedPeople: Map<string, string>,
+  ) {
+    for (const row of rows) {
+      if (!row.supervisorExternalId) {
+        continue;
+      }
+
+      const supervisorId = await this.resolveSupervisorId(tx, row, importedPeople);
+      if (!supervisorId) {
+        throw new BadRequestException(
+          `Supervisor externalId not found in batch: ${row.supervisorExternalId}`,
+        );
+      }
+
+      const personId = importedPeople.get(row.externalId);
+      if (!personId) {
+        throw new BadRequestException(`Imported person missing for externalId: ${row.externalId}`);
+      }
+
+      await tx.person.update({
+        where: { id: personId },
+        data: { supervisorId },
+      });
+    }
+  }
+
+  private async importRowsInTransaction(validatedRows: ValidatedRow[]) {
+    return this.prisma.$transaction(async (tx) => {
+      const result = await this.importValidatedRows(tx, validatedRows);
+      await this.linkSupervisors(tx, validatedRows, result.importedPeople);
+
+      return {
+        createdRows: result.createdRows,
+        updatedRows: result.updatedRows,
+      };
+    });
+  }
+
   async runImport(token: string | string[] | undefined, payload: unknown) {
     assertIntegrationToken(token, 'HR_IMPORT_TOKEN', 'dev-hr-token');
     const parsedPayload = HrImportPayloadSchema.parse(payload) as HrImportPayload;
@@ -211,111 +372,7 @@ export class HrImportService {
     }
 
     try {
-      const result = await this.prisma.$transaction(async (tx) => {
-        const importedPeople = new Map<string, string>();
-        let createdRows = 0;
-        let updatedRows = 0;
-
-        for (const row of validatedRows) {
-          await tx.organizationUnit.upsert({
-            where: { id: row.organizationUnitId },
-            create: {
-              id: row.organizationUnitId,
-              name: row.organizationUnit,
-            },
-            update: { name: row.organizationUnit },
-          });
-
-          await tx.workTimeModel.upsert({
-            where: { id: row.workTimeModelId },
-            create: {
-              id: row.workTimeModelId,
-              name: row.workTimeModel,
-              type: WorkTimeModelType.FLEXTIME,
-              weeklyHours: row.parsedWeeklyHours,
-              dailyTargetHours: row.parsedDailyTargetHours,
-              effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
-            },
-            update: {
-              name: row.workTimeModel,
-              weeklyHours: row.parsedWeeklyHours,
-              dailyTargetHours: row.parsedDailyTargetHours,
-            },
-          });
-
-          const existing = await tx.person.findFirst({
-            where: {
-              OR: [{ externalId: row.externalId }, { email: row.email }],
-            },
-          });
-
-          const person = existing
-            ? await tx.person.update({
-                where: { id: existing.id },
-                data: {
-                  externalId: row.externalId,
-                  firstName: row.firstName,
-                  lastName: row.lastName,
-                  email: row.email,
-                  role: row.parsedRole,
-                  organizationUnitId: row.organizationUnitId,
-                  workTimeModelId: row.workTimeModelId,
-                },
-              })
-            : await tx.person.create({
-                data: {
-                  externalId: row.externalId,
-                  firstName: row.firstName,
-                  lastName: row.lastName,
-                  email: row.email,
-                  role: row.parsedRole,
-                  organizationUnitId: row.organizationUnitId,
-                  workTimeModelId: row.workTimeModelId,
-                },
-              });
-
-          importedPeople.set(row.externalId, person.id);
-          if (existing) {
-            updatedRows += 1;
-          } else {
-            createdRows += 1;
-          }
-        }
-
-        for (const row of validatedRows) {
-          if (!row.supervisorExternalId) {
-            continue;
-          }
-
-          const supervisorId =
-            importedPeople.get(row.supervisorExternalId) ??
-            (
-              await tx.person.findFirst({
-                where: { externalId: row.supervisorExternalId },
-                select: { id: true },
-              })
-            )?.id;
-          if (!supervisorId) {
-            throw new BadRequestException(
-              `Supervisor externalId not found in batch: ${row.supervisorExternalId}`,
-            );
-          }
-
-          const personId = importedPeople.get(row.externalId);
-          if (!personId) {
-            throw new BadRequestException(
-              `Imported person missing for externalId: ${row.externalId}`,
-            );
-          }
-
-          await tx.person.update({
-            where: { id: personId },
-            data: { supervisorId },
-          });
-        }
-
-        return { createdRows, updatedRows };
-      });
+      const result = await this.importRowsInTransaction(validatedRows);
 
       return this.finalizeRun({
         ...baseSummary,

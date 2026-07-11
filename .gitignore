@@ -4,13 +4,15 @@ node_modules/
 
 # Build outputs
 dist/
+**/dist/
 .next/
+**/.next/
 out/
 contracts/openapi/openapi.generated.json
-contracts/openapi/openapi.json
 
 # Turbo
 .turbo/
+**/.turbo/
 
 # Prisma
 packages/database/generated/
@@ -34,9 +36,12 @@ Thumbs.db
 
 # Test coverage
 coverage/
+**/coverage/
 .nyc_output/
 apps/web/test-results/
+**/test-results/
 apps/web/playwright-report/
+**/playwright-report/
 
 # Logs
 *.log
@@ -53,10 +58,23 @@ credentials.json
 service-account*.json
 .env.production
 
-# Claude / AI dev artifacts
+# Local tooling artifacts
 .claude/
+.codex/
+.agents/
 progress.md
 AUDIT.md
+/plan.md
+/status.md
+/*-ledger.md
+/*-status.md
+/*-audit.md
+/docs/*-ledger.md
+/docs/*-status.md
+/docs/*-audit.md
+docs/archive/
+docs/agent/
+/archive/
 
 # Misc
 *.tsbuildinfo

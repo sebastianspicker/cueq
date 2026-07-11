@@ -178,6 +178,7 @@ export class ClosingExportHelper {
     if (!EXPORT_DOWNLOAD_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin/Payroll can download payroll export CSV.');
     }
+    const actor = await this.personHelper.personForUser(user);
 
     const exportRun = await this.prisma.exportRun.findFirst({
       where: {
@@ -194,6 +195,19 @@ export class ClosingExportHelper {
       throw new BadRequestException('CSV artifact is unavailable for this export run.');
     }
 
+    await this.auditHelper.appendAudit({
+      actorId: actor.id,
+      action: 'PAYROLL_EXPORT_DOWNLOADED',
+      entityType: 'ExportRun',
+      entityId: exportRun.id,
+      after: {
+        closingPeriodId,
+        checksum: exportRun.checksum,
+        format: exportRun.format,
+        endpoint: 'csv',
+      },
+    });
+
     return {
       filename: `payroll-export-${closingPeriodId}-${runId}.csv`,
       csv: exportRun.artifact,
@@ -206,6 +220,7 @@ export class ClosingExportHelper {
     if (!EXPORT_DOWNLOAD_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin/Payroll can download payroll export artifacts.');
     }
+    const actor = await this.personHelper.personForUser(user);
 
     const exportRun = await this.prisma.exportRun.findFirst({
       where: {
@@ -223,6 +238,19 @@ export class ClosingExportHelper {
     const extension = exportRun.format === 'XML_V1' ? 'xml' : 'csv';
     const contentType =
       exportRun.contentType ?? (exportRun.format === 'XML_V1' ? 'application/xml' : 'text/csv');
+
+    await this.auditHelper.appendAudit({
+      actorId: actor.id,
+      action: 'PAYROLL_EXPORT_DOWNLOADED',
+      entityType: 'ExportRun',
+      entityId: exportRun.id,
+      after: {
+        closingPeriodId,
+        checksum: exportRun.checksum,
+        format: exportRun.format,
+        endpoint: 'artifact',
+      },
+    });
 
     return {
       filename: `payroll-export-${closingPeriodId}-${runId}.${extension}`,

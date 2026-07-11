@@ -45,6 +45,20 @@ This runbook covers operational procedures introduced in Phase 3:
 - `heartbeatAgeSeconds > 1800` (30 min) is stale
 - `lastErrorCount > 0` signals degraded terminal state
 
+### Honeywell Terminal File Protocol
+
+- Endpoint: `POST /v1/terminal/sync/batches/file`
+- Protocol: `HONEYWELL_CSV_V1`
+- Payload shape:
+  - `terminalId`
+  - `sourceFile`
+  - `protocol` (`HONEYWELL_CSV_V1`)
+  - `csv` (header: `personId,timeTypeCode,startTime,endTime,note`)
+- Behavior:
+  - malformed rows are counted and skipped
+  - duplicate rows are deduplicated deterministically
+  - ingestion checksum is emitted in response/audit
+
 ## 4. HR Import Operations
 
 ### API Import
@@ -92,20 +106,6 @@ node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv
 - `CLOSING_BOOKING_GAP_MINUTES=240`
 - `CLOSING_BALANCE_ANOMALY_HOURS=40`
 - `CLOSING_ALLOW_MANUAL_REVIEW_START=false`
-
-## 5.2 Honeywell Terminal File Protocol
-
-- Endpoint: `POST /v1/terminal/sync/batches/file`
-- Protocol: `HONEYWELL_CSV_V1`
-- Payload shape:
-  - `terminalId`
-  - `sourceFile`
-  - `protocol` (`HONEYWELL_CSV_V1`)
-  - `csv` (header: `personId,timeTypeCode,startTime,endTime,note`)
-- Behavior:
-  - malformed rows are counted and skipped
-  - duplicate rows are deduplicated deterministically
-  - ingestion checksum is emitted in response/audit
 
 ## 5.1 Reporting Operations (FR-700)
 
@@ -197,27 +197,32 @@ This section covers how to investigate the most common production problems.
    tail -f /var/log/postgresql/postgresql.log | grep duration
    ```
 3. Check the most common hot paths and their indexes:
+
    ```sql
-   -- Approval inbox (WorkflowInstance by assignee + status)
+   -- Approval inbox (WorkflowInstance by approver + status)
    EXPLAIN ANALYZE
    SELECT * FROM workflow_instances
-   WHERE assignee_id = '<uuid>' AND status = 'PENDING';
+   WHERE "approverId" = '<uuid>' AND status = 'PENDING';
 
    -- Absence status dashboard
    EXPLAIN ANALYZE
    SELECT * FROM absences
-   WHERE person_id = '<uuid>' AND status IN ('PENDING', 'APPROVED');
+   WHERE "personId" = '<uuid>' AND status IN ('REQUESTED', 'APPROVED');
 
-   -- Booking lookup by person + status
+   -- Booking lookup by person + accounting period
    EXPLAIN ANALYZE
    SELECT * FROM bookings
-   WHERE person_id = '<uuid>' AND status = 'ACTIVE';
+   WHERE "personId" = '<uuid>'
+     AND "startTime" >= TIMESTAMPTZ '2026-04-01T00:00:00Z'
+     AND "startTime" <  TIMESTAMPTZ '2026-05-01T00:00:00Z';
    ```
+
    If any of these show `Seq Scan`, confirm the relevant indexes are present:
-   - `idx_workflow_instance_assignee_status`
-   - `idx_absence_person_status`
-   - `idx_booking_person_status`
-   
+   - `workflow_instances_approverId_status_idx`
+   - `workflow_instances_requesterId_status_idx`
+   - `absences_personId_status_idx`
+   - `bookings_personId_startTime_idx`
+
    Re-run `make db-migrate` if indexes are missing.
 
 4. Reset slow-query logging after investigation:
@@ -321,15 +326,16 @@ The readiness endpoint is `GET /health/ready`. A `200` response with the followi
 }
 ```
 
-| Field | Expected | Action if stale/missing |
-|---|---|---|
-| `db` | `"ok"` | Check Postgres container; run `docker compose ps` |
-| `terminalLastSeen` | All terminals within 15 min | Check terminal network; inspect terminal firmware logs |
-| `latestHrImport` | Within 25 h (daily import) | Re-trigger `POST /v1/hr-import` manually; check SFTP credentials |
-| `latestPayrollExport` | Present if period is closed | Check `ClosingPeriod.status`; re-trigger export if stuck |
+| Field                 | Expected                    | Action if stale/missing                                          |
+| --------------------- | --------------------------- | ---------------------------------------------------------------- |
+| `db`                  | `"ok"`                      | Check Postgres container; run `docker compose ps`                |
+| `terminalLastSeen`    | All terminals within 15 min | Check terminal network; inspect terminal firmware logs           |
+| `latestHrImport`      | Within 25 h (daily import)  | Re-trigger `POST /v1/hr-import` manually; check SFTP credentials |
+| `latestPayrollExport` | Present if period is closed | Check `ClosingPeriod.status`; re-trigger export if stuck         |
 
 A `503` response means at least one subsystem is unhealthy. The `status` field will be `"error"` and individual fields will show `"degraded"` or an error message.
 
 **Common false positives:**
+
 - Terminals show stale during network maintenance windows (expected; suppress alerts for scheduled windows).
 - `latestHrImport` stale on weekends if HR has no Saturday delivery — confirm with HR schedule.

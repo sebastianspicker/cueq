@@ -86,10 +86,7 @@ export class WorkflowsDomainService {
     return this.workflowRuntimeService.getPolicy(parsedType);
   }
 
-  async listWorkflowPolicyHistory(
-    user: AuthenticatedIdentity,
-    type: string,
-  ): Promise<unknown> {
+  async listWorkflowPolicyHistory(user: AuthenticatedIdentity, type: string): Promise<unknown> {
     assertHrLikeRole(user);
     const parsedType = WorkflowTypeSchema.parse(type) as WorkflowType;
     return this.workflowRuntimeService.listPolicyHistory(parsedType);
@@ -101,9 +98,14 @@ export class WorkflowsDomainService {
     payload: unknown,
   ): Promise<unknown> {
     assertHrLikeRole(user);
+    const actor = await this.personHelper.personForUser(user);
     const parsedType = WorkflowTypeSchema.parse(type);
     const parsedPayload = WorkflowPolicyUpsertSchema.parse(payload);
-    return this.workflowRuntimeService.upsertPolicy(parsedType as WorkflowType, parsedPayload);
+    return this.workflowRuntimeService.upsertPolicy(
+      parsedType as WorkflowType,
+      parsedPayload,
+      actor.id,
+    );
   }
 
   /* ── Workflow Delegations ────────────────────────────────────── */

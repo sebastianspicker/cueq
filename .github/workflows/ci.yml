@@ -1,15 +1,15 @@
 # cueq — Continuous Integration
 # ================================
-# Runs on every pull request and push to dev.
+# Runs on every pull request and push to main.
 # Validates: lint, typecheck, tests, Prisma schema.
 
 name: CI
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
   pull_request:
-    branches: [dev]
+    branches: [main]
 
 permissions:
   contents: read
@@ -73,13 +73,15 @@ jobs:
 
       - name: Audit dependencies
         run: pnpm audit --prod --audit-level=high
-        continue-on-error: true
 
       - name: Setup
         run: make setup
 
       - name: Check
         run: make check
+
+      - name: Coverage
+        run: make test-coverage
 
       - name: Acceptance
         run: make test-acceptance

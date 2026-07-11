@@ -14,6 +14,55 @@ import { SEED_IDS } from '../../src/test-utils/seed-ids';
 describe('GDPR compliance edge cases (P6.2)', () => {
   let app: INestApplication;
 
+  function as(token: string) {
+    const server = app.getHttpServer();
+
+    return {
+      get: (path: string) => request(server).get(path).set('Authorization', `Bearer ${token}`),
+      post: (path: string) => request(server).post(path).set('Authorization', `Bearer ${token}`),
+    };
+  }
+
+  function createAbsence(
+    token: string,
+    payload: {
+      personId: string;
+      type: string;
+      startDate: string;
+      endDate: string;
+      note?: string;
+      status?: string;
+    },
+  ) {
+    return as(token).post('/v1/absences').send(payload);
+  }
+
+  function teamCalendar(token: string, start: string, end: string) {
+    return as(token).get('/v1/calendar/team').query({ start, end });
+  }
+
+  function report(token: string, path: string, query: Record<string, string | string[]>) {
+    return as(token).get(path).query(query);
+  }
+
+  async function approveFirstLeaveRequest() {
+    const inbox = await as(TOKENS.lead).get('/v1/workflows/inbox');
+    const leaveWorkflow = inbox.body.find(
+      (entry: { type: string }) => entry.type === 'LEAVE_REQUEST',
+    );
+    if (leaveWorkflow) {
+      await as(TOKENS.lead)
+        .post(`/v1/workflows/${leaveWorkflow.id}/decision`)
+        .send({ decision: 'APPROVED', reason: 'Approved' });
+    }
+  }
+
+  async function reportAccessCount() {
+    return prisma.auditEntry.count({
+      where: { action: 'REPORT_ACCESSED' },
+    });
+  }
+
   beforeAll(async () => {
     seedPhase2Data();
     app = await createTestApp();
@@ -30,35 +79,18 @@ describe('GDPR compliance edge cases (P6.2)', () => {
   describe('absence reason visibility scoping', () => {
     it('employee sees only APPROVED absences without type or note on team calendar', async () => {
       // Create absence with a note that should be redacted for employees
-      await request(app.getHttpServer())
-        .post('/v1/absences')
-        .set('Authorization', `Bearer ${TOKENS.employee}`)
-        .send({
-          personId: SEED_IDS.personEmployee,
-          type: 'SICK',
-          startDate: '2026-05-01',
-          endDate: '2026-05-02',
-          note: 'Medical appointment — private',
-        });
+      await createAbsence(TOKENS.employee, {
+        personId: SEED_IDS.personEmployee,
+        type: 'SICK',
+        startDate: '2026-05-01',
+        endDate: '2026-05-02',
+        note: 'Medical appointment — private',
+      });
 
       // Approve the absence via the lead workflow
-      const inbox = await request(app.getHttpServer())
-        .get('/v1/workflows/inbox')
-        .set('Authorization', `Bearer ${TOKENS.lead}`);
-      const leaveWorkflow = inbox.body.find(
-        (entry: { type: string }) => entry.type === 'LEAVE_REQUEST',
-      );
-      if (leaveWorkflow) {
-        await request(app.getHttpServer())
-          .post(`/v1/workflows/${leaveWorkflow.id}/decision`)
-          .set('Authorization', `Bearer ${TOKENS.lead}`)
-          .send({ decision: 'APPROVED', reason: 'Approved' });
-      }
+      await approveFirstLeaveRequest();
 
-      const employeeView = await request(app.getHttpServer())
-        .get('/v1/calendar/team')
-        .query({ start: '2026-05-01', end: '2026-05-31' })
-        .set('Authorization', `Bearer ${TOKENS.employee}`);
+      const employeeView = await teamCalendar(TOKENS.employee, '2026-05-01', '2026-05-31');
 
       expect(employeeView.status).toBe(200);
       for (const entry of employeeView.body) {
@@ -74,21 +106,15 @@ describe('GDPR compliance edge cases (P6.2)', () => {
     });
 
     it('team lead sees type and note on team calendar entries', async () => {
-      await request(app.getHttpServer())
-        .post('/v1/absences')
-        .set('Authorization', `Bearer ${TOKENS.employee}`)
-        .send({
-          personId: SEED_IDS.personEmployee,
-          type: 'ANNUAL_LEAVE',
-          startDate: '2026-05-10',
-          endDate: '2026-05-11',
-          note: 'Vacation trip',
-        });
+      await createAbsence(TOKENS.employee, {
+        personId: SEED_IDS.personEmployee,
+        type: 'ANNUAL_LEAVE',
+        startDate: '2026-05-10',
+        endDate: '2026-05-11',
+        note: 'Vacation trip',
+      });
 
-      const leadView = await request(app.getHttpServer())
-        .get('/v1/calendar/team')
-        .query({ start: '2026-05-01', end: '2026-05-31' })
-        .set('Authorization', `Bearer ${TOKENS.lead}`);
+      const leadView = await teamCalendar(TOKENS.lead, '2026-05-01', '2026-05-31');
 
       expect(leadView.status).toBe(200);
       // Lead should see REQUESTED absences (not just APPROVED)
@@ -104,10 +130,7 @@ describe('GDPR compliance edge cases (P6.2)', () => {
     });
 
     it('HR user sees type and note on team calendar entries', async () => {
-      const hrView = await request(app.getHttpServer())
-        .get('/v1/calendar/team')
-        .query({ start: '2026-05-01', end: '2026-05-31' })
-        .set('Authorization', `Bearer ${TOKENS.hr}`);
+      const hrView = await teamCalendar(TOKENS.hr, '2026-05-01', '2026-05-31');
 
       expect(hrView.status).toBe(200);
       // HR should see all entries with type visible
@@ -125,16 +148,13 @@ describe('GDPR compliance edge cases (P6.2)', () => {
   describe('audit trail immutability', () => {
     it('rejects Prisma update on audit entries (should throw or be a no-op)', async () => {
       // Create an audit entry through a normal operation
-      const booking = await request(app.getHttpServer())
-        .post('/v1/bookings')
-        .set('Authorization', `Bearer ${TOKENS.employee}`)
-        .send({
-          personId: SEED_IDS.personEmployee,
-          timeTypeId: SEED_IDS.timeTypeWork,
-          startTime: '2026-06-01T08:00:00.000Z',
-          endTime: '2026-06-01T16:00:00.000Z',
-          source: 'WEB',
-        });
+      const booking = await as(TOKENS.employee).post('/v1/bookings').send({
+        personId: SEED_IDS.personEmployee,
+        timeTypeId: SEED_IDS.timeTypeWork,
+        startTime: '2026-06-01T08:00:00.000Z',
+        endTime: '2026-06-01T16:00:00.000Z',
+        source: 'WEB',
+      });
       expect(booking.status).toBe(201);
 
       const auditEntry = await prisma.auditEntry.findFirst({
@@ -171,16 +191,13 @@ describe('GDPR compliance edge cases (P6.2)', () => {
     });
 
     it('every booking creation produces a corresponding audit entry', async () => {
-      const booking = await request(app.getHttpServer())
-        .post('/v1/bookings')
-        .set('Authorization', `Bearer ${TOKENS.employee}`)
-        .send({
-          personId: SEED_IDS.personEmployee,
-          timeTypeId: SEED_IDS.timeTypeWork,
-          startTime: '2026-06-02T08:00:00.000Z',
-          endTime: '2026-06-02T16:00:00.000Z',
-          source: 'WEB',
-        });
+      const booking = await as(TOKENS.employee).post('/v1/bookings').send({
+        personId: SEED_IDS.personEmployee,
+        timeTypeId: SEED_IDS.timeTypeWork,
+        startTime: '2026-06-02T08:00:00.000Z',
+        endTime: '2026-06-02T16:00:00.000Z',
+        source: 'WEB',
+      });
       expect(booking.status).toBe(201);
 
       const audit = await prisma.auditEntry.findFirst({
@@ -199,26 +216,21 @@ describe('GDPR compliance edge cases (P6.2)', () => {
 
   describe('data minimization — absence type access', () => {
     it('employee can see their own absence type via GET /v1/absences/me', async () => {
-      await request(app.getHttpServer())
-        .post('/v1/absences')
-        .set('Authorization', `Bearer ${TOKENS.employee}`)
-        .send({
-          personId: SEED_IDS.personEmployee,
-          type: 'ANNUAL_LEAVE',
-          startDate: '2026-07-14',
-          endDate: '2026-07-14',
-          note: 'Personal day',
-        });
+      await createAbsence(TOKENS.employee, {
+        personId: SEED_IDS.personEmployee,
+        type: 'ANNUAL_LEAVE',
+        startDate: '2026-07-14',
+        endDate: '2026-07-14',
+        note: 'Personal day',
+      });
 
-      const res = await request(app.getHttpServer())
-        .get('/v1/absences/me')
-        .set('Authorization', `Bearer ${TOKENS.employee}`);
+      const res = await as(TOKENS.employee).get('/v1/absences/me');
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
       // Employee has the right to see their own absence type
-      const myAbsence = res.body.find(
-        (a: { startDate: string }) => a.startDate.startsWith('2026-07-14'),
+      const myAbsence = res.body.find((a: { startDate: string }) =>
+        a.startDate.startsWith('2026-07-14'),
       );
       if (myAbsence) {
         expect(myAbsence.type).toBe('ANNUAL_LEAVE');
@@ -230,15 +242,12 @@ describe('GDPR compliance edge cases (P6.2)', () => {
         where: { action: 'ABSENCE_REQUESTED', entityType: 'Absence' },
       });
 
-      await request(app.getHttpServer())
-        .post('/v1/absences')
-        .set('Authorization', `Bearer ${TOKENS.employee}`)
-        .send({
-          personId: SEED_IDS.personEmployee,
-          type: 'SICK',
-          startDate: '2026-07-21',
-          endDate: '2026-07-21',
-        });
+      await createAbsence(TOKENS.employee, {
+        personId: SEED_IDS.personEmployee,
+        type: 'SICK',
+        startDate: '2026-07-21',
+        endDate: '2026-07-21',
+      });
 
       const entries = await prisma.auditEntry.findMany({
         where: { action: { in: ['ABSENCE_REQUESTED', 'ABSENCE_RECORDED'] }, entityType: 'Absence' },
@@ -255,22 +264,16 @@ describe('GDPR compliance edge cases (P6.2)', () => {
 
     it('employee cannot retrieve another person absence details via team calendar type field', async () => {
       // Create a SICK absence for a second person (HR acts on behalf) and approve it
-      await request(app.getHttpServer())
-        .post('/v1/absences')
-        .set('Authorization', `Bearer ${TOKENS.hr}`)
-        .send({
-          personId: SEED_IDS.personEmployee,
-          type: 'SICK',
-          startDate: '2026-08-04',
-          endDate: '2026-08-04',
-          status: 'APPROVED',
-        });
+      await createAbsence(TOKENS.hr, {
+        personId: SEED_IDS.personEmployee,
+        type: 'SICK',
+        startDate: '2026-08-04',
+        endDate: '2026-08-04',
+        status: 'APPROVED',
+      });
 
       // A different employee checking the team calendar must not see the SICK type
-      const res = await request(app.getHttpServer())
-        .get('/v1/calendar/team')
-        .query({ start: '2026-08-01', end: '2026-08-31' })
-        .set('Authorization', `Bearer ${TOKENS.employee}`);
+      const res = await teamCalendar(TOKENS.employee, '2026-08-01', '2026-08-31');
 
       expect(res.status).toBe(200);
       for (const entry of res.body as Array<Record<string, unknown>>) {
@@ -285,10 +288,10 @@ describe('GDPR compliance edge cases (P6.2)', () => {
 
   describe('data minimization in report outputs', () => {
     it('audit-summary report does not expose individual actor IDs', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/reports/audit-summary')
-        .set('Authorization', `Bearer ${TOKENS.dataProtection}`)
-        .query({ from: '2026-03-01', to: '2026-03-31' });
+      const response = await report(TOKENS.dataProtection, '/v1/reports/audit-summary', {
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('totals');
@@ -303,10 +306,10 @@ describe('GDPR compliance edge cases (P6.2)', () => {
     });
 
     it('compliance-summary report uses aggregate metrics only', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/reports/compliance-summary')
-        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
-        .query({ from: '2026-03-01', to: '2026-03-31' });
+      const response = await report(TOKENS.worksCouncil, '/v1/reports/compliance-summary', {
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('privacy');
@@ -321,17 +324,14 @@ describe('GDPR compliance edge cases (P6.2)', () => {
     });
 
     it('custom report preview uses aggregate-only output without person IDs', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/reports/custom/preview')
-        .set('Authorization', `Bearer ${TOKENS.hr}`)
-        .query({
-          reportType: 'TEAM_ABSENCE',
-          groupBy: 'ORGANIZATION_UNIT',
-          from: '2026-03-01',
-          to: '2026-03-31',
-          organizationUnitId: SEED_IDS.ouAdmin,
-          metrics: ['days'],
-        });
+      const response = await report(TOKENS.hr, '/v1/reports/custom/preview', {
+        reportType: 'TEAM_ABSENCE',
+        groupBy: 'ORGANIZATION_UNIT',
+        from: '2026-03-01',
+        to: '2026-03-31',
+        organizationUnitId: SEED_IDS.ouAdmin,
+        metrics: ['days'],
+      });
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body.rows)).toBe(true);
@@ -344,14 +344,11 @@ describe('GDPR compliance edge cases (P6.2)', () => {
     });
 
     it('team-absence report enforces minimum group size for privacy', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/reports/team-absence')
-        .set('Authorization', `Bearer ${TOKENS.hr}`)
-        .query({
-          from: '2026-03-01',
-          to: '2026-03-31',
-          organizationUnitId: SEED_IDS.ouAdmin,
-        });
+      const response = await report(TOKENS.hr, '/v1/reports/team-absence', {
+        from: '2026-03-01',
+        to: '2026-03-31',
+        organizationUnitId: SEED_IDS.ouAdmin,
+      });
 
       expect(response.status).toBe(200);
       // Report should contain aggregated data, not individual records
@@ -361,14 +358,11 @@ describe('GDPR compliance edge cases (P6.2)', () => {
     });
 
     it('oe-overtime report provides aggregate data only', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/reports/oe-overtime')
-        .set('Authorization', `Bearer ${TOKENS.hr}`)
-        .query({
-          from: '2026-03-01',
-          to: '2026-03-31',
-          organizationUnitId: SEED_IDS.ouAdmin,
-        });
+      const response = await report(TOKENS.hr, '/v1/reports/oe-overtime', {
+        from: '2026-03-01',
+        to: '2026-03-31',
+        organizationUnitId: SEED_IDS.ouAdmin,
+      });
 
       expect(response.status).toBe(200);
       // Must not contain personal email addresses
@@ -381,35 +375,27 @@ describe('GDPR compliance edge cases (P6.2)', () => {
 
   describe('report access generates audit trail entries', () => {
     it('accessing audit-summary logs a REPORT_ACCESSED audit entry', async () => {
-      const countBefore = await prisma.auditEntry.count({
-        where: { action: 'REPORT_ACCESSED' },
+      const countBefore = await reportAccessCount();
+
+      await report(TOKENS.dataProtection, '/v1/reports/audit-summary', {
+        from: '2026-03-01',
+        to: '2026-03-31',
       });
 
-      await request(app.getHttpServer())
-        .get('/v1/reports/audit-summary')
-        .set('Authorization', `Bearer ${TOKENS.dataProtection}`)
-        .query({ from: '2026-03-01', to: '2026-03-31' });
-
-      const countAfter = await prisma.auditEntry.count({
-        where: { action: 'REPORT_ACCESSED' },
-      });
+      const countAfter = await reportAccessCount();
 
       expect(countAfter).toBeGreaterThan(countBefore);
     });
 
     it('accessing compliance-summary logs a REPORT_ACCESSED audit entry', async () => {
-      const countBefore = await prisma.auditEntry.count({
-        where: { action: 'REPORT_ACCESSED' },
+      const countBefore = await reportAccessCount();
+
+      await report(TOKENS.worksCouncil, '/v1/reports/compliance-summary', {
+        from: '2026-03-01',
+        to: '2026-03-31',
       });
 
-      await request(app.getHttpServer())
-        .get('/v1/reports/compliance-summary')
-        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
-        .query({ from: '2026-03-01', to: '2026-03-31' });
-
-      const countAfter = await prisma.auditEntry.count({
-        where: { action: 'REPORT_ACCESSED' },
-      });
+      const countAfter = await reportAccessCount();
 
       expect(countAfter).toBeGreaterThan(countBefore);
     });

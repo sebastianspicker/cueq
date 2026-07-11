@@ -1,51 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class TeamAbsenceQueryDto {
-  @ApiPropertyOptional({ type: String })
-  organizationUnitId?: string;
-
-  @ApiProperty({ type: String, format: 'date' })
-  from!: string;
-
-  @ApiProperty({ type: String, format: 'date' })
-  to!: string;
-}
-
-export class OeOvertimeQueryDto {
-  @ApiPropertyOptional({ type: String })
-  organizationUnitId?: string;
-
-  @ApiProperty({ type: String, format: 'date' })
-  from!: string;
-
-  @ApiProperty({ type: String, format: 'date' })
-  to!: string;
-}
-
-export class ClosingCompletionQueryDto {
-  @ApiProperty({ type: String, format: 'date' })
-  from!: string;
-
-  @ApiProperty({ type: String, format: 'date' })
-  to!: string;
-}
-
-export class AuditSummaryQueryDto {
-  @ApiProperty({ type: String, format: 'date' })
-  from!: string;
-
-  @ApiProperty({ type: String, format: 'date' })
-  to!: string;
-}
-
-export class ComplianceSummaryQueryDto {
-  @ApiProperty({ type: String, format: 'date' })
-  from!: string;
-
-  @ApiProperty({ type: String, format: 'date' })
-  to!: string;
-}
-
 export class ReportSuppressionDto {
   @ApiProperty({ type: Boolean })
   suppressed!: boolean;

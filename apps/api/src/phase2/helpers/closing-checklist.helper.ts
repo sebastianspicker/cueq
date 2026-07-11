@@ -130,6 +130,8 @@ export class ClosingChecklistHelper {
     const balanceThresholdHours = closingBalanceAnomalyHours();
     const timeThresholds = await this.timeThresholdPolicyHelper.getActiveThresholds();
 
+    // A closing period is complete for a person when it has either work bookings
+    // or an approved absence. Requested absences still block closure below.
     const [bookings, approvedAbsences] = await Promise.all([
       personIds.length === 0
         ? Promise.resolve([])
@@ -196,11 +198,17 @@ export class ClosingChecklistHelper {
           if (gapMinutes > gapThresholdMinutes) {
             bookingGaps += 1;
           }
+          // Same-day gaps are booking-completeness warnings. The statutory rest
+          // check only applies when the break crosses local German workdays.
           const toLocalDate = (d: Date) =>
             d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
           const previousDay = toLocalDate(previous.endTime);
           const currentDay = toLocalDate(current.startTime);
-          if (previousDay !== currentDay && gapMinutes > 0 && gapMinutes < timeThresholds.minRestMinutes) {
+          if (
+            previousDay !== currentDay &&
+            gapMinutes > 0 &&
+            gapMinutes < timeThresholds.minRestMinutes
+          ) {
             ruleViolations += 1;
           }
         }

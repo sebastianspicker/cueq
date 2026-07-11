@@ -1,134 +1,46 @@
-# PLANS.md — Current Execution Plans & Phases
+# PLANS.md - Current Implementation Status
 
-> This document summarizes where cueq is in its development lifecycle. For active execution plans, see [`exec-plans/active/`](exec-plans/active/).
+This document is the public status summary for cueq. Historical execution
+plans, prior audits, and release-candidate notes are not part of the committed
+public documentation surface.
 
----
+## Current Status
 
-## Current Phase: Phase 3 — Integrations + Operations
+cueq is a proof of concept and reference implementation for university
+workforce management under TV-L / NRW constraints. The repository contains the
+implemented Phase 0-3 scope:
 
-**Goal**: Deliver pilot-ready integrations and operations hardening (terminal gateway ops, HR import, payroll export, backup/restore verification).
+| Phase   | Scope                                                                                    | Status   |
+| ------- | ---------------------------------------------------------------------------------------- | -------- |
+| Phase 0 | Harness foundation: CI, schemas, config, scripts, docs skeleton                          | Complete |
+| Phase 1 | Domain core: time, absence, workflow, roster, closing, audit                             | Complete |
+| Phase 2 | Services and UI: API, adapters, frontend flows, acceptance tests                         | Complete |
+| Phase 3 | Integrations and operations: terminal gateway, HR import, payroll/export, backup/restore | Complete |
 
-**Status**: ✅ Completed on branch (pending merge/default-branch confirmation)
+Release readiness is verified by the repository gates, not by this status file.
+Before publishing a release candidate, run `make check` locally and confirm the
+GitHub Actions workflow is green on the default branch.
 
----
+One-off agent remediation plans, ledgers, and status scratchpads are not part of
+the live project documentation. Keep them out of the committed tree; use this
+file, the product specs, and the standard verification commands for current
+status.
 
-## Phase Overview
+## Active Release Gates
 
-| Phase       | Name               | Goal                                                                                         | Status                |
-| ----------- | ------------------ | -------------------------------------------------------------------------------------------- | --------------------- |
-| **Phase 0** | Harness Foundation | CI, schemas, config, scripts, docs skeleton                                                  | ✅ Complete           |
-| **Phase 1** | Domain Core        | Pure logic (time engine, absence, workflow, roster, closing, audit) with full unit tests     | ✅ Complete           |
-| **Phase 2** | Services + UI      | API, adapters, frontend; 7/8 acceptance tests green                                          | ✅ Complete           |
-| **Phase 3** | Integrations + Ops | Terminal gateway, HR import, payroll/reporting/export hardening, backup/restore; pilot-ready | ✅ Complete on branch |
-
----
-
-## Phase 0 — Harness Foundation
-
-### Deliverables
-
-| #    | Deliverable                                                                              | Status      |
-| ---- | ---------------------------------------------------------------------------------------- | ----------- |
-| 0.1  | Root config files (`tsconfig.json`, linter, formatter, `Makefile`, `docker-compose.yml`) | ✅ Complete |
-| 0.2  | CI pipeline (`.github/workflows/ci.yml`)                                                 | ✅ Complete |
-| 0.3  | JSON Schema stubs for all domain entities                                                | ✅ Complete |
-| 0.4  | OpenAPI stub with health endpoint                                                        | ✅ Complete |
-| 0.5  | Fixture stubs (reference calculations)                                                   | ✅ Complete |
-| 0.6  | Test scaffolding (runner config, placeholder tests)                                      | ✅ Complete |
-| 0.7  | Script stubs (`scripts/*.sh`)                                                            | ✅ Complete |
-| 0.8  | Documentation foundation (this PR: AGENTS.md, ARCHITECTURE.md, docs/)                    | ✅ Complete |
-| 0.9  | Issue/PR templates                                                                       | ✅ Complete |
-| 0.10 | ADR-001: Tech stack decision                                                             | ✅ Complete |
-
-### Definition of Done (Phase 0)
-
-- [x] `make check` passes on a fresh clone (validated by CI smoke job)
-- [ ] CI runs green on the default branch (external confirmation required)
-- [x] All schemas pass validation
-- [x] ADR-001 is written and merged
-- [x] A new contributor can run `make setup && make check` successfully (validated by CI smoke job)
-
-Default-branch confirmation should include workflow run URL and commit SHA when reconciled after merge.
-
----
-
-## Phase 1 — Domain Core
-
-### Deliverables
-
-- [x] `packages/core/src/core/time-engine/`: plausibility checks, balance calculation, rule-violation mapping
-- [x] `packages/core/src/core/absence/`: pro-rata targets and leave quota/carry-over/forfeiture helpers
-- [x] `packages/core/src/core/workflow/`: approval state machine, escalation trigger, delegation chain resolution
-- [x] `packages/core/src/core/roster/`: shift compliance, min-staffing, plan-vs-actual
-- [x] `packages/core/src/core/closing/`: checklist generation and cut-off lock transitions
-- [x] `packages/core/src/core/audit/`: immutable audit entry builder (append-only API surface)
-- [x] Core domain schemas under `schemas/domain/core-*.schema.json`
-- [x] Type generation wired into `make generate` (`scripts/generate-core-schema-types.mjs`)
-- [x] Dual fixture tracks: synthetic (`fixtures/reference-calculations/`) + anonymized-derived (`fixtures/reference-calculations-real/`)
-- [x] NRW holiday dataset (`fixtures/calendars/nrw-holidays-2026.json`) for deterministic rule tests
-- [x] Coverage gate configured for `packages/core/src/core/**` (>=90% lines/statements/functions)
-
-### Definition of Done (Phase 1)
-
-- [x] 4 reference calculations pass (flextime, shift/Pforte, part-time change, on-call/IT)
-- [x] Rule violations correctly detected per PRD
-- [x] Audit entries immutable by type-system design
-- [x] Domain glossary complete in `docs/design-docs/core-beliefs.md`
-
----
-
-## Phase 2 — Services + UI
-
-### Deliverables
-
-- PostgreSQL persistence adapters
-- SSO adapter (mock/OIDC/SAML) with config-based provider selection
-- REST API matching OpenAPI spec
-- Employee dashboard, team calendar, roster view, approval inbox, policy admin view
-- DE + EN translations
-- 7/8 acceptance tests passing
-
-### Definition of Done (Phase 2)
-
-- [x] OpenAPI spec and implementation match (contract-tested)
-- [x] 7 of 8 MVP acceptance tests pass
-- [x] UI passes axe-core a11y checks (no critical violations)
-- [x] `make test-all` passes
-
----
-
-## Phase 3 — Integrations + Operations
-
-### Deliverables
-
-- Honeywell terminal gateway (record + `HONEYWELL_CSV_V1` file import, offline buffer, sync)
-- HR master data import (file + HTTP API provider mode)
-- Payroll export (schema-compliant, reproducible, multi-format artifact)
-- Backup/restore automated verification
-- Pilot seed data (admin dept, Pforte, IT on-call)
-- Completed runbook, monitoring, and compliance docs
-
-### Definition of Done (Phase 3)
-
-- [x] All 8 acceptance tests pass
-- [x] Terminal offline→sync works with simulated data
-- [x] Export reproducibility verified
-- [x] Backup/restore tested in CI
-- [x] Pilot readiness checklist fully green
-
----
-
-## Execution Plans
-
-Active and completed execution plans are tracked in:
-
-- **Active**: [`exec-plans/active/`](exec-plans/active/) — use the [template](exec-plans/active/000-template.md)
-- **Completed**: [`exec-plans/completed/`](exec-plans/completed/) — moved here with linked PRs
-  - Latest: [`008-fr-700-reports-export.md`](exec-plans/completed/008-fr-700-reports-export.md)
-- **Tech Debt**: [`exec-plans/tech-debt-tracker.md`](exec-plans/tech-debt-tracker.md)
-
----
+- `make check` passes on a fresh clone.
+- GitHub Actions runs on `main` for pushes and pull requests.
+- `contracts/openapi/openapi.json` is committed and matches the generated API.
+- Generated contract artifacts are refreshed with `make generate` when schemas
+  or API decorators change.
+- Documentation links pass with `make docs-check`.
+- No secrets, PII, telemetry, local caches, or machine-specific paths are
+  committed.
 
 ## References
 
-- [`ARCHITECTURE.md`](../ARCHITECTURE.md) — System architecture
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) - System architecture
+- [`DESIGN.md`](DESIGN.md) - Design principles and implementation patterns
+- [`SECURITY.md`](SECURITY.md) - Threat model, RBAC, GDPR constraints
+- [`RELIABILITY.md`](RELIABILITY.md) - Operations, backups, monitoring
+- [`product-specs/index.md`](product-specs/index.md) - Product specifications
