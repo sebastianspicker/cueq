@@ -20,22 +20,7 @@ export interface Booking {
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-export function BookingCorrectionSection({
-  t,
-  loading,
-  bookingId,
-  timeTypeId,
-  startTime,
-  endTime,
-  reason,
-  fieldErrors,
-  onBookingIdChange,
-  onTimeTypeIdChange,
-  onStartTimeChange,
-  onEndTimeChange,
-  onReasonChange,
-  onRequestCorrection,
-}: {
+interface BookingCorrectionSectionProps {
   t: TranslationFn;
   loading: boolean;
   bookingId: string;
@@ -50,7 +35,25 @@ export function BookingCorrectionSection({
   onEndTimeChange: (value: string) => void;
   onReasonChange: (value: string) => void;
   onRequestCorrection: () => void;
-}) {
+}
+
+export function BookingCorrectionSection(props: BookingCorrectionSectionProps) {
+  const {
+    t,
+    loading,
+    bookingId,
+    timeTypeId,
+    startTime,
+    endTime,
+    reason,
+    fieldErrors,
+    onBookingIdChange,
+    onTimeTypeIdChange,
+    onStartTimeChange,
+    onEndTimeChange,
+    onReasonChange,
+    onRequestCorrection,
+  } = props;
   return (
     <SectionCard>
       <h2>{t('correctionTitle')}</h2>

@@ -101,20 +101,7 @@ export function QuickActionsSection({
   );
 }
 
-export function OvertimeSection({
-  t,
-  loading,
-  summary,
-  overtimeHours,
-  overtimeReason,
-  overtimePeriodStart,
-  overtimePeriodEnd,
-  onOvertimeHoursChange,
-  onOvertimeReasonChange,
-  onOvertimePeriodStartChange,
-  onOvertimePeriodEndChange,
-  onRequestOvertimeApproval,
-}: {
+interface OvertimeSectionProps {
   t: TranslationFn;
   loading: boolean;
   summary: DashboardSummary | null;
@@ -127,7 +114,23 @@ export function OvertimeSection({
   onOvertimePeriodStartChange: (value: string) => void;
   onOvertimePeriodEndChange: (value: string) => void;
   onRequestOvertimeApproval: () => void;
-}) {
+}
+
+export function OvertimeSection(props: OvertimeSectionProps) {
+  const {
+    t,
+    loading,
+    summary,
+    overtimeHours,
+    overtimeReason,
+    overtimePeriodStart,
+    overtimePeriodEnd,
+    onOvertimeHoursChange,
+    onOvertimeReasonChange,
+    onOvertimePeriodStartChange,
+    onOvertimePeriodEndChange,
+    onRequestOvertimeApproval,
+  } = props;
   return (
     <SectionCard>
       <h2>{t('overtimeTitle')}</h2>

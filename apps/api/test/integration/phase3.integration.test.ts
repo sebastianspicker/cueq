@@ -262,10 +262,11 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
         csv,
       });
 
-    expect(run.status).toBe(422);
-    expect(run.body.status).toBe('FAILED');
-    expect(run.body.errorCount).toBe(1);
-    expect(run.body.summary.errors[0]).toContain('Unsupported HR role');
+    expect(run.status).toBe(400);
+    expect(run.body.statusCode).toBe(400);
+    expect(run.body.code).toBe('HR_IMPORT_VALIDATION_FAILED');
+    expect(run.body.message).toBe('HR import payload validation failed.');
+    expect(run.body.errors[0]).toContain('Unsupported HR role');
   });
 
   it('returns non-2xx for HR import supervisor resolution failures', async () => {
@@ -562,22 +563,23 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
 
   it('serves custom report builder options and preview with allowlist enforcement', async () => {
     const prisma = app.get(PrismaService);
-    await prisma.closingPeriod.createMany({
-      data: [
-        {
-          organizationUnitId: SEED_IDS.ouAdmin,
-          periodStart: new Date('2026-05-01T00:00:00.000Z'),
-          periodEnd: new Date('2026-05-31T23:59:59.000Z'),
-          status: ClosingStatus.EXPORTED,
+    const periodStart = new Date('2026-05-01T00:00:00.000Z');
+    const periodEnd = new Date('2026-05-31T23:59:59.000Z');
+    for (const period of [
+      { organizationUnitId: SEED_IDS.ouAdmin, status: ClosingStatus.EXPORTED },
+      { organizationUnitId: SEED_IDS.ouSecurity, status: ClosingStatus.OPEN },
+    ]) {
+      await prisma.closingPeriod.upsert({
+        where: {
+          organizationUnitId_periodStart: {
+            organizationUnitId: period.organizationUnitId,
+            periodStart,
+          },
         },
-        {
-          organizationUnitId: SEED_IDS.ouSecurity,
-          periodStart: new Date('2026-05-01T00:00:00.000Z'),
-          periodEnd: new Date('2026-05-31T23:59:59.000Z'),
-          status: ClosingStatus.OPEN,
-        },
-      ],
-    });
+        create: { ...period, periodStart, periodEnd },
+        update: { periodEnd, status: period.status },
+      });
+    }
 
     const options = await request(app.getHttpServer())
       .get('/v1/reports/custom/options')

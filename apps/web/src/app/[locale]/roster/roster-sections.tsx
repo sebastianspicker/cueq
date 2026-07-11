@@ -197,21 +197,7 @@ export function DraftRosterSection({
   );
 }
 
-export function CreateShiftSection({
-  t,
-  loading,
-  roster,
-  shiftStart,
-  shiftEnd,
-  shiftType,
-  minStaffing,
-  onShiftStartChange,
-  onShiftEndChange,
-  onShiftTypeChange,
-  onMinStaffingChange,
-  onCreateShift,
-  canEdit,
-}: {
+interface CreateShiftSectionProps {
   t: TranslationFn;
   loading: boolean;
   roster: RosterDetail | null;
@@ -225,7 +211,24 @@ export function CreateShiftSection({
   onMinStaffingChange: (value: number) => void;
   onCreateShift: () => void;
   canEdit: boolean;
-}) {
+}
+
+export function CreateShiftSection(props: CreateShiftSectionProps) {
+  const {
+    t,
+    loading,
+    roster,
+    shiftStart,
+    shiftEnd,
+    shiftType,
+    minStaffing,
+    onShiftStartChange,
+    onShiftEndChange,
+    onShiftTypeChange,
+    onMinStaffingChange,
+    onCreateShift,
+    canEdit,
+  } = props;
   if (!canEdit) {
     return null;
   }
@@ -415,20 +418,7 @@ function AssignmentList({ row }: { row: ShiftRowProps }) {
   );
 }
 
-export function ShiftSwapSection({
-  t,
-  loading,
-  roster,
-  swapShiftId,
-  swapFromPersonId,
-  swapToPersonId,
-  swapReason,
-  onSwapShiftIdChange,
-  onSwapFromPersonIdChange,
-  onSwapToPersonIdChange,
-  onSwapReasonChange,
-  onRequestShiftSwap,
-}: {
+interface ShiftSwapSectionProps {
   t: TranslationFn;
   loading: boolean;
   roster: RosterDetail | null;
@@ -441,7 +431,23 @@ export function ShiftSwapSection({
   onSwapToPersonIdChange: (value: string) => void;
   onSwapReasonChange: (value: string) => void;
   onRequestShiftSwap: () => void;
-}) {
+}
+
+export function ShiftSwapSection(props: ShiftSwapSectionProps) {
+  const {
+    t,
+    loading,
+    roster,
+    swapShiftId,
+    swapFromPersonId,
+    swapToPersonId,
+    swapReason,
+    onSwapShiftIdChange,
+    onSwapFromPersonIdChange,
+    onSwapToPersonIdChange,
+    onSwapReasonChange,
+    onRequestShiftSwap,
+  } = props;
   return (
     <SectionCard>
       <h2>{t('swapTitle')}</h2>

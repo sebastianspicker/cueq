@@ -243,7 +243,7 @@ async function seedSupportPeople() {
   });
 }
 
-async function seedTimeOperations() {
+async function seedTimeTypes() {
   await prisma.timeType.createMany({
     data: [
       {
@@ -276,7 +276,9 @@ async function seedTimeOperations() {
       },
     ],
   });
+}
 
+async function seedRosterAndShift() {
   await prisma.roster.create({
     data: {
       id: IDs.rosterCurrent,
@@ -306,7 +308,9 @@ async function seedTimeOperations() {
       personId: IDs.personPlanner,
     },
   });
+}
 
+async function seedTimeOperationBookings() {
   await prisma.booking.createMany({
     data: [
       {
@@ -335,7 +339,9 @@ async function seedTimeOperations() {
       },
     ],
   });
+}
 
+async function seedOnCallOperations() {
   await prisma.onCallRotation.create({
     data: {
       id: IDs.onCallRotation,
@@ -361,7 +367,9 @@ async function seedTimeOperations() {
       description: 'Synthetic deployment for acceptance tests',
     },
   });
+}
 
+async function seedTimeOperationAbsences() {
   await prisma.absence.createMany({
     data: [
       {
@@ -386,6 +394,14 @@ async function seedTimeOperations() {
       },
     ],
   });
+}
+
+async function seedTimeOperations() {
+  await seedTimeTypes();
+  await seedRosterAndShift();
+  await seedTimeOperationBookings();
+  await seedOnCallOperations();
+  await seedTimeOperationAbsences();
 }
 
 async function seedWorkflowClosing() {

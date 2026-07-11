@@ -216,7 +216,7 @@ async function seedDemoSecurityPeople() {
   });
 }
 
-async function seedDemoScheduling() {
+async function seedDemoShifts() {
   await prisma.shift.update({
     where: { id: IDs.shiftNight },
     data: {
@@ -267,7 +267,9 @@ async function seedDemoScheduling() {
       endTime: new Date('2026-03-10T22:00:00.000Z'),
     },
   });
+}
 
+async function seedDemoAssignments() {
   const assignments = [
     { shiftId: IDs.shiftNight, personId: IDs.personPlanner },
     { shiftId: IDs.shiftNight, personId: IDs.personSecurity1 },
@@ -287,7 +289,9 @@ async function seedDemoScheduling() {
       update: {},
     });
   }
+}
 
+async function seedDemoSecurityBookings() {
   const securityBookings = [
     {
       id: IDs.bookingSecurityNightPlanner,
@@ -347,7 +351,9 @@ async function seedDemoScheduling() {
       },
     });
   }
+}
 
+async function seedDemoAbsences() {
   const absences = [
     {
       id: IDs.absenceEmployeeRequested,
@@ -416,7 +422,14 @@ async function seedDemoScheduling() {
   }
 }
 
-async function seedDemoClosing() {
+async function seedDemoScheduling() {
+  await seedDemoShifts();
+  await seedDemoAssignments();
+  await seedDemoSecurityBookings();
+  await seedDemoAbsences();
+}
+
+async function seedDemoWorkflow() {
   await prisma.workflowInstance.upsert({
     where: { id: IDs.workflowPendingLeave },
     create: {
@@ -449,7 +462,9 @@ async function seedDemoClosing() {
       createdAt: new Date('2026-03-18T08:30:00.000Z'),
     },
   });
+}
 
+async function seedDemoTimeAccounts() {
   const securityTimeAccounts = [
     {
       id: IDs.timeAccountPlanner,
@@ -518,7 +533,9 @@ async function seedDemoClosing() {
       },
     });
   }
+}
 
+async function seedDemoExportRun() {
   await prisma.exportRun.upsert({
     where: { id: IDs.exportRun },
     create: {
@@ -545,7 +562,9 @@ async function seedDemoClosing() {
       exportedById: IDs.personHr,
     },
   });
+}
 
+async function seedDemoAuditEntries() {
   const auditEntries = [
     {
       id: IDs.auditReportAccessA,
@@ -638,6 +657,13 @@ async function seedDemoClosing() {
       },
     });
   }
+}
+
+async function seedDemoClosing() {
+  await seedDemoWorkflow();
+  await seedDemoTimeAccounts();
+  await seedDemoExportRun();
+  await seedDemoAuditEntries();
 }
 
 async function seed() {

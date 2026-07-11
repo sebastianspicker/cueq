@@ -378,21 +378,7 @@ export function ChecklistSection({
   );
 }
 
-export function CorrectionSection({
-  t,
-  loading,
-  period,
-  workflowId,
-  workflowReason,
-  correctionPayload,
-  onWorkflowIdChange,
-  onWorkflowReasonChange,
-  onCorrectionPayloadChange,
-  onApproveWorkflow,
-  onApplyCorrection,
-  role,
-  workflowApproved,
-}: {
+interface CorrectionSectionProps {
   t: TranslationFn;
   loading: boolean;
   period: ClosingPeriod | null;
@@ -406,7 +392,24 @@ export function CorrectionSection({
   onApplyCorrection: () => void;
   role: CueqRole | null;
   workflowApproved: boolean;
-}) {
+}
+
+export function CorrectionSection(props: CorrectionSectionProps) {
+  const {
+    t,
+    loading,
+    period,
+    workflowId,
+    workflowReason,
+    correctionPayload,
+    onWorkflowIdChange,
+    onWorkflowReasonChange,
+    onCorrectionPayloadChange,
+    onApproveWorkflow,
+    onApplyCorrection,
+    role,
+    workflowApproved,
+  } = props;
   if (role !== 'HR' && role !== 'ADMIN') {
     return null;
   }

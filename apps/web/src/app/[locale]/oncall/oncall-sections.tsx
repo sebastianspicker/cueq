@@ -70,40 +70,7 @@ export function OnCallCommandBar({
   );
 }
 
-export function OnCallFormSection({
-  t,
-  loading,
-  canManageRotations,
-  personId,
-  organizationUnitId,
-  rotationId,
-  startTime,
-  endTime,
-  rotationType,
-  ticketReference,
-  eventReference,
-  description,
-  note,
-  nextShiftStart,
-  remote,
-  updateRotationId,
-  onPersonIdChange,
-  onOrganizationUnitIdChange,
-  onRotationIdChange,
-  onStartTimeChange,
-  onEndTimeChange,
-  onRotationTypeChange,
-  onTicketReferenceChange,
-  onEventReferenceChange,
-  onDescriptionChange,
-  onNoteChange,
-  onNextShiftStartChange,
-  onRemoteChange,
-  onUpdateRotationIdChange,
-  onCreateDeployment,
-  onCreateRotation,
-  onUpdateRotation,
-}: {
+interface OnCallFormSectionProps {
   t: TranslationFn;
   loading: boolean;
   canManageRotations: boolean;
@@ -136,7 +103,43 @@ export function OnCallFormSection({
   onCreateDeployment: () => void;
   onCreateRotation: () => void;
   onUpdateRotation: () => void;
-}) {
+}
+
+export function OnCallFormSection(props: OnCallFormSectionProps) {
+  const {
+    t,
+    loading,
+    canManageRotations,
+    personId,
+    organizationUnitId,
+    rotationId,
+    startTime,
+    endTime,
+    rotationType,
+    ticketReference,
+    eventReference,
+    description,
+    note,
+    nextShiftStart,
+    remote,
+    updateRotationId,
+    onPersonIdChange,
+    onOrganizationUnitIdChange,
+    onRotationIdChange,
+    onStartTimeChange,
+    onEndTimeChange,
+    onRotationTypeChange,
+    onTicketReferenceChange,
+    onEventReferenceChange,
+    onDescriptionChange,
+    onNoteChange,
+    onNextShiftStartChange,
+    onRemoteChange,
+    onUpdateRotationIdChange,
+    onCreateDeployment,
+    onCreateRotation,
+    onUpdateRotation,
+  } = props;
   return (
     <SectionCard>
       <h2>{t('createDeploymentTitle')}</h2>

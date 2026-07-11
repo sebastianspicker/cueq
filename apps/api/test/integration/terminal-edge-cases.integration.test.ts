@@ -228,7 +228,7 @@ describe('Terminal gateway edge cases (P6.2)', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.statusCode).toBe(400);
-      expect(response.body.error).toBe('Validation Error');
+      expect(response.body.error).toBe('Bad Request');
       expect(response.body.message).toContain('String must contain at least 1 character');
     });
 

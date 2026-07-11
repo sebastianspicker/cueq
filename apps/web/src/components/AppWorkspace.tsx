@@ -171,6 +171,40 @@ function NavigationGroup({
   );
 }
 
+interface WorkspaceMobileHeaderProps {
+  messages: WorkspaceMessages;
+  profile: MeProfile | null;
+  sessionLabel: string;
+  navigationOpen: boolean;
+  onToggleNavigation: () => void;
+}
+
+function WorkspaceMobileHeader({
+  messages,
+  profile,
+  sessionLabel,
+  navigationOpen,
+  onToggleNavigation,
+}: WorkspaceMobileHeaderProps) {
+  return (
+    <header className="cq-mobile-header">
+      <div>
+        <strong>{messages.title}</strong>
+        <span>{profile ? messages.roles[profile.role] : sessionLabel}</span>
+      </div>
+      <button
+        type="button"
+        className="cq-nav-toggle"
+        aria-expanded={navigationOpen}
+        aria-controls="workspace-navigation"
+        onClick={onToggleNavigation}
+      >
+        {navigationOpen ? messages.closeNavigation : messages.openNavigation}
+      </button>
+    </header>
+  );
+}
+
 function failurePhase(): SessionPhase {
   return typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'error';
 }
@@ -252,21 +286,13 @@ export function AppWorkspace({ children, locale, altLocale, messages }: AppWorks
       <a className="cq-skip-link" href="#main-content">
         {messages.skipLink}
       </a>
-      <header className="cq-mobile-header">
-        <div>
-          <strong>{messages.title}</strong>
-          <span>{profile ? messages.roles[profile.role] : sessionLabel}</span>
-        </div>
-        <button
-          type="button"
-          className="cq-nav-toggle"
-          aria-expanded={navigationOpen}
-          aria-controls="workspace-navigation"
-          onClick={() => setNavigationOpen((value) => !value)}
-        >
-          {navigationOpen ? messages.closeNavigation : messages.openNavigation}
-        </button>
-      </header>
+      <WorkspaceMobileHeader
+        messages={messages}
+        profile={profile}
+        sessionLabel={sessionLabel}
+        navigationOpen={navigationOpen}
+        onToggleNavigation={() => setNavigationOpen((value) => !value)}
+      />
       <div className="cq-app-shell" data-navigation-open={navigationOpen || undefined}>
         <aside id="workspace-navigation" className="cq-app-sidebar" aria-label={messages.title}>
           <div className="cq-brand">
