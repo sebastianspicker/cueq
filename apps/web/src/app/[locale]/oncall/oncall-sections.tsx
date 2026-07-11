@@ -40,7 +40,7 @@ export interface MeResponse {
   role: string;
 }
 
-type TranslationFn = ReturnType<typeof useTranslations<'pages.oncall'>>;
+type TranslationFn = ReturnType<typeof useTranslations>;
 
 export function OnCallCommandBar({
   t,

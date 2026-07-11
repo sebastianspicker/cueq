@@ -60,7 +60,7 @@ export interface PlanVsActual {
   slots: PlanVsActualSlot[];
 }
 
-type TranslationFn = ReturnType<typeof useTranslations<'pages.roster'>>;
+type TranslationFn = ReturnType<typeof useTranslations>;
 
 function toLocalDateTimeInput(isoDate: string): string {
   return isoDate.slice(0, 16);
@@ -73,6 +73,7 @@ export function RosterCommandBar({
   onLoadCurrentRoster,
   onCreateDraftRoster,
   onPublishRoster,
+  canManage,
 }: {
   t: TranslationFn;
   loading: boolean;
@@ -80,18 +81,34 @@ export function RosterCommandBar({
   onLoadCurrentRoster: () => void;
   onCreateDraftRoster: () => void;
   onPublishRoster: () => void;
+  canManage: boolean;
 }) {
+  const canPublish = canManage && roster?.status === 'DRAFT';
   return (
     <div className="cq-inline-actions">
       <button type="button" disabled={loading} onClick={onLoadCurrentRoster}>
         {loading ? t('loading') : t('loadCurrent')}
       </button>
-      <button type="button" disabled={loading} onClick={onCreateDraftRoster}>
-        {t('createDraft')}
-      </button>
-      <button type="button" disabled={loading || !roster} onClick={onPublishRoster}>
-        {t('publish')}
-      </button>
+      {canManage ? (
+        <>
+          <button type="button" disabled={loading} onClick={onCreateDraftRoster}>
+            {t('createDraft')}
+          </button>
+          <button
+            type="button"
+            disabled={loading || !canPublish}
+            aria-describedby={!canPublish ? 'roster-publish-reason' : undefined}
+            onClick={onPublishRoster}
+          >
+            {t('publish')}
+          </button>
+        </>
+      ) : null}
+      {canManage && !canPublish ? (
+        <span id="roster-publish-reason" className="cq-form-hint">
+          {t('draftActionsUnavailable')}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -132,6 +149,7 @@ export function DraftRosterSection({
   onDraftOrganizationUnitIdChange,
   onDraftPeriodStartChange,
   onDraftPeriodEndChange,
+  canManage,
 }: {
   t: TranslationFn;
   draftOrganizationUnitId: string;
@@ -140,7 +158,11 @@ export function DraftRosterSection({
   onDraftOrganizationUnitIdChange: (value: string) => void;
   onDraftPeriodStartChange: (value: string) => void;
   onDraftPeriodEndChange: (value: string) => void;
+  canManage: boolean;
 }) {
+  if (!canManage) {
+    return null;
+  }
   return (
     <SectionCard>
       <h2>{t('createDraft')}</h2>
@@ -188,6 +210,7 @@ export function CreateShiftSection({
   onShiftTypeChange,
   onMinStaffingChange,
   onCreateShift,
+  canEdit,
 }: {
   t: TranslationFn;
   loading: boolean;
@@ -201,7 +224,11 @@ export function CreateShiftSection({
   onShiftTypeChange: (value: string) => void;
   onMinStaffingChange: (value: number) => void;
   onCreateShift: () => void;
+  canEdit: boolean;
 }) {
+  if (!canEdit) {
+    return null;
+  }
   return (
     <SectionCard>
       <h2>{t('createShift')}</h2>
@@ -257,6 +284,7 @@ export function ShiftsSection({
   onAssignSelectionChange,
   onAssignShift,
   onUnassignShift,
+  canEdit,
 }: {
   t: TranslationFn;
   loading: boolean;
@@ -265,6 +293,7 @@ export function ShiftsSection({
   onAssignSelectionChange: (shiftId: string, personId: string) => void;
   onAssignShift: (shiftId: string) => void;
   onUnassignShift: (shiftId: string, assignmentId: string) => void;
+  canEdit: boolean;
 }) {
   return (
     <SectionCard>
@@ -273,87 +302,116 @@ export function ShiftsSection({
         <p>{t('noShifts')}</p>
       ) : (
         <ul className="cq-list-stack">
-          {roster.shifts.map((shift) => {
-            const isUnderstaffed = shift.assignments.length < shift.minStaffing;
-            const defaultCandidate = roster.members[0]?.id ?? '';
-            const selectedPerson = assignSelection[shift.id] ?? defaultCandidate;
-
-            return (
-              <li key={shift.id} className="cq-list-item">
-                <div className="cq-list-item-header">
-                  <div className="cq-list-item-meta">
-                    <StatusBadge status={shift.shiftType} variant="info" />
-                    <span>
-                      {toLocalDateTimeInput(shift.startTime)} &ndash;{' '}
-                      {toLocalDateTimeInput(shift.endTime)}
-                    </span>
-                  </div>
-                  <div className="cq-list-item-meta">
-                    <span
-                      className={
-                        isUnderstaffed
-                          ? 'cq-status-dot cq-status-dot-warn'
-                          : 'cq-status-dot cq-status-dot-ok'
-                      }
-                    />
-                    <span>
-                      {t('assigned')}: {shift.assignments.length} / {shift.minStaffing}
-                    </span>
-                  </div>
-                </div>
-
-                {isUnderstaffed ? (
-                  <div className="cq-status-warning">{t('minStaffingWarning')}</div>
-                ) : null}
-
-                <div className="cq-flex-center cq-space-top-xs">
-                  <select
-                    aria-label={t('assignPersonLabel')}
-                    value={selectedPerson}
-                    onChange={(event) => onAssignSelectionChange(shift.id, event.target.value)}
-                  >
-                    {roster.members.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {member.firstName} {member.lastName}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="cq-btn-sm"
-                    disabled={loading}
-                    onClick={() => onAssignShift(shift.id)}
-                  >
-                    {t('assign')}
-                  </button>
-                </div>
-
-                {shift.assignments.length > 0 ? (
-                  <ul className="cq-space-top-xs">
-                    {shift.assignments.map((assignment) => (
-                      <li key={assignment.id} className="cq-list-item-meta">
-                        <span>
-                          {assignment.firstName} {assignment.lastName}
-                        </span>
-                        <button
-                          type="button"
-                          className="cq-btn-ghost cq-btn-sm"
-                          aria-label={`${t('removeAssignment')}: ${assignment.firstName} ${assignment.lastName}`}
-                          disabled={loading}
-                          onClick={() => onUnassignShift(shift.id, assignment.id)}
-                        >
-                          {t('remove')}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            );
-          })}
+          {roster.shifts.map((shift) => (
+            <ShiftRow
+              key={shift.id}
+              t={t}
+              loading={loading}
+              roster={roster}
+              shift={shift}
+              selectedPerson={assignSelection[shift.id] ?? roster.members[0]?.id ?? ''}
+              canEdit={canEdit}
+              onAssignSelectionChange={onAssignSelectionChange}
+              onAssignShift={onAssignShift}
+              onUnassignShift={onUnassignShift}
+            />
+          ))}
         </ul>
       )}
     </SectionCard>
+  );
+}
+
+interface ShiftRowProps {
+  t: TranslationFn;
+  loading: boolean;
+  roster: RosterDetail;
+  shift: RosterShift;
+  selectedPerson: string;
+  canEdit: boolean;
+  onAssignSelectionChange: (shiftId: string, personId: string) => void;
+  onAssignShift: (shiftId: string) => void;
+  onUnassignShift: (shiftId: string, assignmentId: string) => void;
+}
+
+function ShiftRow(props: ShiftRowProps) {
+  const { t, shift, canEdit } = props;
+  const isUnderstaffed = shift.assignments.length < shift.minStaffing;
+  return (
+    <li className="cq-list-item">
+      <div className="cq-list-item-header">
+        <div className="cq-list-item-meta">
+          <StatusBadge status={shift.shiftType} variant="info" />
+          <span>
+            {toLocalDateTimeInput(shift.startTime)} &ndash; {toLocalDateTimeInput(shift.endTime)}
+          </span>
+        </div>
+        <div className="cq-list-item-meta">
+          <span
+            className={
+              isUnderstaffed ? 'cq-status-dot cq-status-dot-warn' : 'cq-status-dot cq-status-dot-ok'
+            }
+          />
+          <span>
+            {t('assigned')}: {shift.assignments.length} / {shift.minStaffing}
+          </span>
+        </div>
+      </div>
+      {isUnderstaffed ? <div className="cq-status-warning">{t('minStaffingWarning')}</div> : null}
+      {canEdit ? <ShiftAssignmentControls row={props} /> : null}
+      {shift.assignments.length > 0 ? <AssignmentList row={props} /> : null}
+    </li>
+  );
+}
+
+function ShiftAssignmentControls({ row }: { row: ShiftRowProps }) {
+  return (
+    <div className="cq-flex-center cq-space-top-xs">
+      <select
+        aria-label={row.t('assignPersonLabel')}
+        value={row.selectedPerson}
+        onChange={(event) => row.onAssignSelectionChange(row.shift.id, event.target.value)}
+      >
+        {row.roster.members.map((member) => (
+          <option key={member.id} value={member.id}>
+            {member.firstName} {member.lastName}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="cq-btn-sm"
+        disabled={row.loading}
+        onClick={() => row.onAssignShift(row.shift.id)}
+      >
+        {row.t('assign')}
+      </button>
+    </div>
+  );
+}
+
+function AssignmentList({ row }: { row: ShiftRowProps }) {
+  return (
+    <ul className="cq-space-top-xs">
+      {row.shift.assignments.map((assignment) => (
+        <li key={assignment.id} className="cq-list-item-meta">
+          <span>
+            {assignment.firstName} {assignment.lastName}
+          </span>
+          {row.canEdit ? (
+            <button
+              type="button"
+              className="cq-btn-ghost cq-btn-sm"
+              aria-label={`${row.t('removeAssignment')}: ${assignment.firstName} ${assignment.lastName}`}
+              disabled={row.loading}
+              onClick={() => row.onUnassignShift(row.shift.id, assignment.id)}
+            >
+              {row.t('remove')}
+            </button>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 

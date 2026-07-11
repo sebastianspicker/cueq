@@ -40,7 +40,21 @@ export const TYPE_FILTERS = [
   'OVERTIME_APPROVAL',
 ] as const;
 
-type TranslationFn = ReturnType<typeof useTranslations<'pages.approvals'>>;
+type TranslationFn = ReturnType<typeof useTranslations>;
+const EMPTY_VALUE = '—';
+
+function displayOptional(value: string | number | null | undefined): string | number {
+  return value ?? EMPTY_VALUE;
+}
+
+function AvailableActions({ actions }: { actions: WorkflowAction[] }) {
+  if (actions.length === 0) {
+    return EMPTY_VALUE;
+  }
+  return actions.map((available) => (
+    <StatusBadge key={available} status={available} variant="muted" />
+  ));
+}
 
 export function FiltersSection({
   t,
@@ -183,85 +197,129 @@ export function WorkflowDetailSection({
   onReasonChange: (value: string) => void;
   onApplyAction: () => void;
 }) {
+  if (!detail) {
+    return (
+      <SectionCard>
+        <h2>{t('details')}</h2>
+        <p>{t('selectWorkflow')}</p>
+      </SectionCard>
+    );
+  }
+
   return (
     <SectionCard>
       <h2>{t('details')}</h2>
-      {!detail ? (
-        <p>{t('selectWorkflow')}</p>
-      ) : (
-        <div className="cq-list-stack">
-          <dl className="cq-kv-grid">
-            <dt>{t('workflowId')}</dt>
-            <dd className="cq-mono">{detail.id}</dd>
-            <dt>{t('statusLabel')}</dt>
-            <dd>
-              <StatusBadge status={detail.status} />
-            </dd>
-            <dt>{t('requesterId')}</dt>
-            <dd>{detail.requesterId}</dd>
-            <dt>{t('approverId')}</dt>
-            <dd>{detail.approverId ?? '—'}</dd>
-            <dt>{t('dueAt')}</dt>
-            <dd>{detail.dueAt ?? '—'}</dd>
-            <dt>{t('escalationLevel')}</dt>
-            <dd>{detail.escalationLevel ?? 0}</dd>
-            <dt>{t('reasonLabel')}</dt>
-            <dd>{detail.reason ?? '—'}</dd>
-            <dt>{t('decisionReasonLabel')}</dt>
-            <dd>{detail.decisionReason ?? '—'}</dd>
-            <dt>{t('availableActions')}</dt>
-            <dd>
-              {detail.availableActions.length > 0
-                ? detail.availableActions.map((available) => (
-                    <StatusBadge key={available} status={available} variant="muted" />
-                  ))
-                : '—'}
-            </dd>
-          </dl>
-
-          <hr className="cq-separator" />
-
-          <div className="cq-grid-2">
-            <label className="cq-form-field">
-              <span>{t('actionLabel')}</span>
-              <select
-                value={action}
-                onChange={(event) => onActionChange(event.target.value as WorkflowAction)}
-              >
-                {detail.availableActions.length > 0
-                  ? detail.availableActions.map((available) => (
-                      <option key={available} value={available}>
-                        {available}
-                      </option>
-                    ))
-                  : [<option key="none">NONE</option>]}
-              </select>
-            </label>
-
-            <label className="cq-form-field">
-              <span>{t('delegateToId')}</span>
-              <input
-                value={delegateToId}
-                onChange={(event) => onDelegateToIdChange(event.target.value)}
-                disabled={action !== 'DELEGATE'}
-              />
-            </label>
-          </div>
-
-          <label className="cq-form-field">
-            <span>{t('reasonInput')}</span>
-            <input value={reason} onChange={(event) => onReasonChange(event.target.value)} />
-          </label>
-
-          <button
-            type="button"
-            disabled={loading || detail.availableActions.length === 0}
-            onClick={onApplyAction}
-          >
-            {loading ? t('loading') : t('applyAction')}
-          </button>
-        </div>
-      )}
+      <div className="cq-list-stack">
+        <WorkflowFacts t={t} detail={detail} />
+        <hr className="cq-separator" />
+        <WorkflowActionForm
+          t={t}
+          loading={loading}
+          detail={detail}
+          action={action}
+          delegateToId={delegateToId}
+          reason={reason}
+          onActionChange={onActionChange}
+          onDelegateToIdChange={onDelegateToIdChange}
+          onReasonChange={onReasonChange}
+          onApplyAction={onApplyAction}
+        />
+      </div>
     </SectionCard>
+  );
+}
+
+function WorkflowFacts({ t, detail }: { t: TranslationFn; detail: WorkflowInboxItem }) {
+  return (
+    <dl className="cq-kv-grid">
+      <dt>{t('workflowId')}</dt>
+      <dd className="cq-mono">{detail.id}</dd>
+      <dt>{t('statusLabel')}</dt>
+      <dd>
+        <StatusBadge status={detail.status} />
+      </dd>
+      <dt>{t('requesterId')}</dt>
+      <dd>{detail.requesterId}</dd>
+      <dt>{t('approverId')}</dt>
+      <dd>{displayOptional(detail.approverId)}</dd>
+      <dt>{t('dueAt')}</dt>
+      <dd>{displayOptional(detail.dueAt)}</dd>
+      <dt>{t('escalationLevel')}</dt>
+      <dd>{displayOptional(detail.escalationLevel)}</dd>
+      <dt>{t('reasonLabel')}</dt>
+      <dd>{displayOptional(detail.reason)}</dd>
+      <dt>{t('decisionReasonLabel')}</dt>
+      <dd>{displayOptional(detail.decisionReason)}</dd>
+      <dt>{t('availableActions')}</dt>
+      <dd>
+        <AvailableActions actions={detail.availableActions} />
+      </dd>
+    </dl>
+  );
+}
+
+function WorkflowActionForm({
+  t,
+  loading,
+  detail,
+  action,
+  delegateToId,
+  reason,
+  onActionChange,
+  onDelegateToIdChange,
+  onReasonChange,
+  onApplyAction,
+}: {
+  t: TranslationFn;
+  loading: boolean;
+  detail: WorkflowInboxItem;
+  action: WorkflowAction;
+  delegateToId: string;
+  reason: string;
+  onActionChange: (value: WorkflowAction) => void;
+  onDelegateToIdChange: (value: string) => void;
+  onReasonChange: (value: string) => void;
+  onApplyAction: () => void;
+}) {
+  const hasActions = detail.availableActions.length > 0;
+  return (
+    <>
+      <div className="cq-grid-2">
+        <label className="cq-form-field">
+          <span>{t('actionLabel')}</span>
+          <select
+            value={action}
+            disabled={!hasActions}
+            onChange={(event) => onActionChange(event.target.value as WorkflowAction)}
+          >
+            {hasActions ? (
+              detail.availableActions.map((available) => (
+                <option key={available} value={available}>
+                  {available}
+                </option>
+              ))
+            ) : (
+              <option>{t('noAvailableAction')}</option>
+            )}
+          </select>
+        </label>
+        <label className="cq-form-field">
+          <span>{t('delegateToId')}</span>
+          <input
+            value={delegateToId}
+            onChange={(event) => onDelegateToIdChange(event.target.value)}
+            disabled={action !== 'DELEGATE'}
+          />
+        </label>
+      </div>
+      <label className="cq-form-field">
+        <span>{t('reasonInput')}</span>
+        <input value={reason} onChange={(event) => onReasonChange(event.target.value)} />
+      </label>
+      <button type="button" disabled={loading || !hasActions} onClick={onApplyAction}>
+        {loading ? t('loading') : t('applyAction')}
+      </button>
+      {!hasActions ? <p className="cq-form-hint">{t('noAvailableAction')}</p> : null}
+    </>
   );
 }

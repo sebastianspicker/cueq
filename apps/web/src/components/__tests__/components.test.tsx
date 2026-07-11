@@ -11,14 +11,15 @@ import { FormField } from '../FormField';
 // StatusBadge
 // ---------------------------------------------------------------------------
 describe('StatusBadge', () => {
+  const approvedLabel = 'Approved ✓';
   it('renders the status text by default', () => {
     render(<StatusBadge status="OPEN" />);
     expect(screen.getByText('OPEN')).toBeInTheDocument();
   });
 
   it('renders a custom label when provided', () => {
-    render(<StatusBadge status="APPROVED" label="Approved ✓" />);
-    expect(screen.getByText('Approved ✓')).toBeInTheDocument();
+    render(StatusBadge({ status: 'APPROVED', label: approvedLabel }));
+    expect(screen.getByText(approvedLabel)).toBeInTheDocument();
   });
 
   it('applies ok variant class for APPROVED status', () => {
@@ -146,19 +147,22 @@ describe('Button', () => {
 // LoadingSpinner
 // ---------------------------------------------------------------------------
 describe('LoadingSpinner', () => {
-  it('renders with default sr-only label', () => {
-    render(<LoadingSpinner />);
+  const englishLoadingLabel = 'Loading…';
+  const germanLoadingLabel = 'Bitte warten…';
+
+  it('renders its accessible label', () => {
+    render(<LoadingSpinner label={englishLoadingLabel} />);
     expect(screen.getByRole('status')).toBeInTheDocument();
-    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.getByText(englishLoadingLabel)).toBeInTheDocument();
   });
 
   it('renders custom label text', () => {
-    render(<LoadingSpinner label="Bitte warten…" />);
-    expect(screen.getByText('Bitte warten…')).toBeInTheDocument();
+    render(LoadingSpinner({ label: germanLoadingLabel }));
+    expect(screen.getByText(germanLoadingLabel)).toBeInTheDocument();
   });
 
   it('includes aria-hidden spinner span', () => {
-    render(<LoadingSpinner />);
+    render(<LoadingSpinner label={englishLoadingLabel} />);
     const spinner = document.querySelector('[aria-hidden="true"]');
     expect(spinner).not.toBeNull();
   });

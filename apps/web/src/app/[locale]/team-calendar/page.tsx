@@ -95,7 +95,6 @@ export default function TeamCalendarPage() {
                   <span>
                     {entry.startDate} &ndash; {entry.endDate}
                   </span>
-                  <span>&middot;</span>
                   <span>{entry.visibilityStatus}</span>
                 </div>
                 {entry.note ? <p>{entry.note}</p> : null}

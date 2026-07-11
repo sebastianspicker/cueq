@@ -17,7 +17,7 @@ export interface DashboardSummary {
   quickActions: string[];
 }
 
-type TranslationFn = ReturnType<typeof useTranslations<'pages.dashboard'>>;
+type TranslationFn = ReturnType<typeof useTranslations>;
 
 export function DashboardSummarySection({
   t,

@@ -159,24 +159,26 @@ export default function ApprovalsPage() {
 
       <StatusBanner message={message} error={error} />
 
-      <InboxSection
-        t={t}
-        items={items}
-        loading={loading}
-        onLoadDetail={(workflowId) => void loadDetail(workflowId)}
-      />
-      <WorkflowDetailSection
-        t={t}
-        loading={loading}
-        detail={detail}
-        action={action}
-        delegateToId={delegateToId}
-        reason={reason}
-        onActionChange={setAction}
-        onDelegateToIdChange={setDelegateToId}
-        onReasonChange={setReason}
-        onApplyAction={() => void applyAction()}
-      />
+      <div className="cq-workspace-split">
+        <InboxSection
+          t={t}
+          items={items}
+          loading={loading}
+          onLoadDetail={(workflowId) => void loadDetail(workflowId)}
+        />
+        <WorkflowDetailSection
+          t={t}
+          loading={loading}
+          detail={detail}
+          action={action}
+          delegateToId={delegateToId}
+          reason={reason}
+          onActionChange={setAction}
+          onDelegateToIdChange={setDelegateToId}
+          onReasonChange={setReason}
+          onApplyAction={() => void applyAction()}
+        />
+      </div>
     </PageShell>
   );
 }

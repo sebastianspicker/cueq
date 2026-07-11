@@ -10,22 +10,24 @@ import { useApiContext } from '../../../lib/api-context';
 import {
   applyThemePreference,
   getStoredPreference,
-  PAGE_SIZE_STORAGE_KEY,
+  PAGE_SIZE_PREFERENCE_SLOT,
   setStoredPreference,
-  THEME_STORAGE_KEY,
+  THEME_PREFERENCE_SLOT,
 } from '../../../lib/preferences';
 
 export default function SettingsPage() {
   const t = useTranslations('pages.settings');
   const { apiBaseUrl, setApiBaseUrl, token, setToken } = useApiContext();
 
-  const [theme, setTheme] = useState(() => getStoredPreference(THEME_STORAGE_KEY, 'system'));
-  const [pageSize, setPageSize] = useState(() => getStoredPreference(PAGE_SIZE_STORAGE_KEY, '20'));
+  const [theme, setTheme] = useState(() => getStoredPreference(THEME_PREFERENCE_SLOT, 'system'));
+  const [pageSize, setPageSize] = useState(() =>
+    getStoredPreference(PAGE_SIZE_PREFERENCE_SLOT, '20'),
+  );
   const [message, setMessage] = useState<string | null>(null);
 
   function handleSave() {
-    setStoredPreference(THEME_STORAGE_KEY, theme);
-    setStoredPreference(PAGE_SIZE_STORAGE_KEY, pageSize);
+    setStoredPreference(THEME_PREFERENCE_SLOT, theme);
+    setStoredPreference(PAGE_SIZE_PREFERENCE_SLOT, pageSize);
     applyThemePreference(theme);
     setMessage(t('saved'));
   }
