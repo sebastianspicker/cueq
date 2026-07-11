@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { type Prisma, Role, WorkTimeModelType } from '@cueq/database';
 import { z } from 'zod';
 import { PrismaService } from '../persistence/prisma.service';
@@ -15,6 +21,7 @@ const MAX_HR_IMPORT_CSV_BYTES = 2_000_000;
 // TV-L full-time: 39 h 50 min/week (39.83 h), 7.97 h/day
 const DEFAULT_WEEKLY_HOURS = 39.83;
 const DEFAULT_DAILY_TARGET_HOURS = 7.97;
+const HR_IMPORT_ADVISORY_LOCK_NAMESPACE = 1_138_425_457;
 
 const HrImportPayloadSchema = z.object({
   source: z.enum(['FILE', 'API']).default('FILE'),
@@ -127,20 +134,41 @@ export class HrImportService {
       ];
     });
 
-    return { rows: validatedRows, errors };
+    const byExternalId = new Map(validatedRows.map((row) => [row.externalId, row]));
+    for (const row of validatedRows) {
+      if (row.supervisorExternalId === row.externalId) {
+        errors.push(`Supervisor cycle detected for externalId="${row.externalId}".`);
+        continue;
+      }
+      const visited = new Set([row.externalId]);
+      let supervisorExternalId = row.supervisorExternalId;
+      while (supervisorExternalId && byExternalId.has(supervisorExternalId)) {
+        if (visited.has(supervisorExternalId)) {
+          errors.push(`Supervisor cycle detected for externalId="${row.externalId}".`);
+          break;
+        }
+        visited.add(supervisorExternalId);
+        supervisorExternalId = byExternalId.get(supervisorExternalId)?.supervisorExternalId;
+      }
+    }
+
+    return { rows: validatedRows, errors: [...new Set(errors)] };
   }
 
-  private async finalizeRun(summary: {
-    source: 'FILE' | 'API';
-    sourceFile: string | null;
-    totalRows: number;
-    createdRows: number;
-    updatedRows: number;
-    skippedRows: number;
-    errorCount: number;
-    errors: string[];
-  }) {
-    const run = await this.prisma.hrImportRun.create({
+  private async finalizeRun(
+    summary: {
+      source: 'FILE' | 'API';
+      sourceFile: string | null;
+      totalRows: number;
+      createdRows: number;
+      updatedRows: number;
+      skippedRows: number;
+      errorCount: number;
+      errors: string[];
+    },
+    db: HrImportTransaction = this.prisma,
+  ) {
+    const run = await db.hrImportRun.create({
       data: {
         source: summary.source,
         sourceFile: summary.sourceFile ?? undefined,
@@ -155,14 +183,17 @@ export class HrImportService {
       },
     });
 
-    await this.auditHelper.appendAudit({
-      actorId: 'system:hr-import',
-      action: 'HR_MASTER_IMPORT_COMPLETED',
-      entityType: 'HrImportRun',
-      entityId: run.id,
-      after: summary,
-      reason: summary.source,
-    });
+    await this.auditHelper.appendAudit(
+      {
+        actorId: 'system:hr-import',
+        action: 'HR_MASTER_IMPORT_COMPLETED',
+        entityType: 'HrImportRun',
+        entityId: run.id,
+        after: summary,
+        reason: summary.source,
+      },
+      db,
+    );
 
     return {
       id: run.id,
@@ -185,8 +216,8 @@ export class HrImportService {
         where: { externalId: row.externalId },
         select: { id: true },
       }),
-      tx.person.findUnique({
-        where: { email: row.email },
+      tx.person.findFirst({
+        where: { email: { equals: row.email, mode: 'insensitive' } },
         select: { id: true },
       }),
     ]);
@@ -276,6 +307,24 @@ export class HrImportService {
     return { importedPeople, createdRows, updatedRows };
   }
 
+  private async preflightRows(tx: HrImportTransaction, rows: ValidatedRow[]): Promise<void> {
+    const batchExternalIds = new Set(rows.map((row) => row.externalId));
+    for (const row of rows) {
+      await this.findExistingPersonForRow(tx, row);
+      if (row.supervisorExternalId && !batchExternalIds.has(row.supervisorExternalId)) {
+        const supervisor = await tx.person.findFirst({
+          where: { externalId: row.supervisorExternalId },
+          select: { id: true },
+        });
+        if (!supervisor) {
+          throw new BadRequestException(
+            `Supervisor externalId not found in batch: ${row.supervisorExternalId}`,
+          );
+        }
+      }
+    }
+  }
+
   private async resolveSupervisorId(
     tx: HrImportTransaction,
     row: ValidatedRow,
@@ -326,15 +375,45 @@ export class HrImportService {
     }
   }
 
-  private async importRowsInTransaction(validatedRows: ValidatedRow[]) {
+  private async importRowsInTransaction(
+    validatedRows: ValidatedRow[],
+    baseSummary: {
+      source: 'FILE' | 'API';
+      sourceFile: string | null;
+      totalRows: number;
+      createdRows: number;
+      updatedRows: number;
+      skippedRows: number;
+      errorCount: number;
+      errors: string[];
+    },
+  ) {
     return this.prisma.$transaction(async (tx) => {
+      const [lock] = await tx.$queryRaw<Array<{ acquired: boolean }>>`
+        SELECT pg_try_advisory_xact_lock(${HR_IMPORT_ADVISORY_LOCK_NAMESPACE}) AS acquired
+      `;
+      if (!lock?.acquired) {
+        throw new ConflictException({
+          code: 'HR_IMPORT_IN_PROGRESS',
+          message: 'Another HR import is already in progress.',
+          retryable: true,
+        });
+      }
+      await this.preflightRows(tx, validatedRows);
       const result = await this.importValidatedRows(tx, validatedRows);
       await this.linkSupervisors(tx, validatedRows, result.importedPeople);
 
-      return {
-        createdRows: result.createdRows,
-        updatedRows: result.updatedRows,
-      };
+      return this.finalizeRun(
+        {
+          ...baseSummary,
+          createdRows: result.createdRows,
+          updatedRows: result.updatedRows,
+          skippedRows: 0,
+          errorCount: 0,
+          errors: [],
+        },
+        tx,
+      );
     });
   }
 
@@ -368,25 +447,27 @@ export class HrImportService {
     };
 
     if (errors.length > 0) {
-      return this.finalizeRun(baseSummary);
+      throw new BadRequestException({
+        code: 'HR_IMPORT_VALIDATION_FAILED',
+        message: 'HR import payload validation failed.',
+        errors,
+      });
     }
 
     try {
-      const result = await this.importRowsInTransaction(validatedRows);
-
-      return this.finalizeRun({
-        ...baseSummary,
-        createdRows: result.createdRows,
-        updatedRows: result.updatedRows,
-        skippedRows: 0,
-        errorCount: 0,
-      });
+      return await this.importRowsInTransaction(validatedRows, baseSummary);
     } catch (error) {
-      return this.finalizeRun({
-        ...baseSummary,
-        errorCount: 1,
-        errors: [error instanceof Error ? error.message : 'Unknown HR import error'],
-      });
+      if (error instanceof ConflictException) throw error;
+      return this.prisma.$transaction((tx) =>
+        this.finalizeRun(
+          {
+            ...baseSummary,
+            errorCount: 1,
+            errors: [error instanceof Error ? error.message : 'Unknown HR import error'],
+          },
+          tx,
+        ),
+      );
     }
   }
 
