@@ -1,5 +1,10 @@
 # RELIABILITY.md — Reliability & Operations
 
+The values below are design targets for a future deployment, not measured
+service-level objectives from the local reference implementation. Deployment
+topology, retention, escalation, and recovery policy require institution-specific
+approval.
+
 ---
 
 ## 1. Availability Targets
@@ -40,17 +45,17 @@ Offline: Terminal → Local Buffer → [reconnect] → Gateway → Conflict Reso
 
 ## 3. Backup & Restore
 
-| Aspect                         | Policy                                                        |
-| ------------------------------ | ------------------------------------------------------------- |
-| Backup frequency               | Daily full + continuous WAL archiving (if PG)                 |
-| Retention                      | 30 days rolling; monthly snapshots retained 12 months         |
-| Restore testing                | Automated weekly in CI (Phase 3); manual quarterly until then |
-| Recovery Time Objective (RTO)  | <4 hours                                                      |
-| Recovery Point Objective (RPO) | <1 hour (WAL-based)                                           |
+| Aspect                         | Policy                                                     |
+| ------------------------------ | ---------------------------------------------------------- |
+| Backup frequency               | Daily full + continuous WAL archiving (if PG)              |
+| Retention                      | 30 days rolling; monthly snapshots retained 12 months      |
+| Restore testing                | Weekly workflow definition plus local verification command |
+| Recovery Time Objective (RTO)  | <4 hours                                                   |
+| Recovery Point Objective (RPO) | <1 hour (WAL-based)                                        |
 
 ### Restore Test (Acceptance Test AT-08)
 
-The automated backup/restore test verifies:
+The backup/restore verifier is designed to:
 
 1. Create a known dataset
 2. Take a backup
@@ -76,7 +81,7 @@ The automated backup/restore test verifies:
 | Monthly closing       | Closing status per OE            | Closing not completed by deadline |
 | Disk / resource usage | System metrics                   | >80% threshold                    |
 
-### Monitoring Stack
+### Optional Monitoring Stack
 
 - Metrics: Prometheus
 - Alert routing: Alertmanager
@@ -114,7 +119,9 @@ docker-compose --profile monitoring down
 
 #### Wiring the API metrics endpoint
 
-Install `prom-client` + `@willsoto/nestjs-prometheus` in `apps/api` and register
+The committed monitoring configuration is illustrative. A production metrics
+endpoint is not part of the current dependency graph. A future implementation
+could install `prom-client` plus a NestJS adapter and register
 the `PrometheusModule` in `AppModule`. Expose `/metrics` (internal only — **not** publicly routable).
 Add custom counters/gauges:
 
@@ -126,7 +133,8 @@ cueqAuditEntriesTotal.inc();
 cueqTerminalLastHeartbeatSeconds.set({ terminal_id }, Date.now() / 1000);
 ```
 
-Health payload now includes operational snapshots for:
+The current health surface and operational APIs should be checked before a
+deployment relies on any dashboard. Desired operational snapshots include:
 
 - terminal last-seen/stale counts
 - latest HR import run
@@ -181,5 +189,5 @@ Health payload now includes operational snapshots for:
 
 - [`SECURITY.md`](SECURITY.md) — Security controls and threat model
 - [`QUALITY_SCORE.md`](QUALITY_SCORE.md) — Operational quality targets
-- [`PLANS.md`](PLANS.md) — Phase 3 includes operational hardening
+- [`PLANS.md`](PLANS.md) — Current implementation and release status
 - [`OPERATIONS_RUNBOOK.md`](OPERATIONS_RUNBOOK.md) — Day-2 operational procedures

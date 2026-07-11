@@ -1,5 +1,9 @@
 # SECURITY.md — Security Design
 
+This document separates repository-enforced controls from deployment
+requirements. It is not a data-protection impact assessment, legal approval, or
+evidence of an institution's production configuration.
+
 ---
 
 ## 1. Security Principles
@@ -104,9 +108,9 @@ SAML adapter settings:
 - Audit entries are **not** deleted (legal requirement for auditability), but PII within them can be pseudonymized after the retention period.
 - Deletion is logged in the audit trail (meta-entry: "records deleted per retention policy").
 
-### DPIA (DSFA) Support
+### DPIA (DSFA) Inputs
 
-The system provides:
+The repository provides inputs that an institution can use in its own review:
 
 - Data flow documentation (which data, where, why)
 - Processing register entries
@@ -163,19 +167,13 @@ Integration tokens for terminal and HR endpoints must be rotated and delivered v
 
 ## 8. Vulnerability Reporting
 
-If you discover a security vulnerability in cueq:
+Do not open a public issue for a suspected vulnerability. Use the repository's
+GitHub private vulnerability-reporting flow when it is available. Include a
+minimal reproduction, affected commit, and impact without attaching real
+employee data, credentials, internal hostnames, or private governance records.
 
-1. **Do not** open a public issue.
-2. Email the security response team privately at `security@cueq.local`.
-3. Include: description, reproduction steps, impact assessment.
-4. We will acknowledge within 48 hours and work on a fix.
-
-### Security Ownership
-
-- Security mailbox: `security@cueq.local`
-- Primary owner: Platform Security Owner (Admin Team)
-- Backup owner: Ops On-Call Lead
-- Triage SLA owner: Platform Security Owner
+Response ownership, contact channels, and service-level agreements are defined
+by each deploying institution and are intentionally not published here.
 
 ---
 

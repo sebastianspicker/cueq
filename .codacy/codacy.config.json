@@ -2394,7 +2394,7 @@
     },
     {
       "toolId": "ESLint9",
-      "localConfigurationFile": "/Users/sebastian/Git/cueq/eslint.config.mjs",
+      "localConfigurationFile": "./eslint.config.mjs",
       "useLocalConfigurationFile": true,
       "patterns": []
     },
