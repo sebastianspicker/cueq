@@ -394,6 +394,51 @@ interface CorrectionSectionProps {
   workflowApproved: boolean;
 }
 
+function CorrectionPayloadFields(props: CorrectionSectionProps) {
+  const updatePayload = (change: Partial<ApplyCorrectionPayload>) =>
+    props.onCorrectionPayloadChange({ ...props.correctionPayload, ...change });
+
+  return (
+    <div className="cq-grid-2">
+      <label className="cq-form-field">
+        <span>{props.t('personIdLabel')}</span>
+        <input
+          value={props.correctionPayload.personId}
+          onChange={(event) => updatePayload({ personId: event.target.value })}
+        />
+      </label>
+      <label className="cq-form-field">
+        <span>{props.t('timeTypeIdLabel')}</span>
+        <input
+          value={props.correctionPayload.timeTypeId}
+          onChange={(event) => updatePayload({ timeTypeId: event.target.value })}
+        />
+      </label>
+      <label className="cq-form-field">
+        <span>{props.t('startTimeLabel')}</span>
+        <input
+          value={props.correctionPayload.startTime}
+          onChange={(event) => updatePayload({ startTime: event.target.value })}
+        />
+      </label>
+      <label className="cq-form-field">
+        <span>{props.t('endTimeLabel')}</span>
+        <input
+          value={props.correctionPayload.endTime}
+          onChange={(event) => updatePayload({ endTime: event.target.value })}
+        />
+      </label>
+      <label className="cq-form-field cq-full-span">
+        <span>{props.t('reasonLabel')}</span>
+        <input
+          value={props.correctionPayload.reason}
+          onChange={(event) => updatePayload({ reason: event.target.value })}
+        />
+      </label>
+    </div>
+  );
+}
+
 export function CorrectionSection(props: CorrectionSectionProps) {
   const {
     t,
@@ -401,10 +446,8 @@ export function CorrectionSection(props: CorrectionSectionProps) {
     period,
     workflowId,
     workflowReason,
-    correctionPayload,
     onWorkflowIdChange,
     onWorkflowReasonChange,
-    onCorrectionPayloadChange,
     onApproveWorkflow,
     onApplyCorrection,
     role,
@@ -451,53 +494,7 @@ export function CorrectionSection(props: CorrectionSectionProps) {
 
       <hr className="cq-separator" />
 
-      <div className="cq-grid-2">
-        <label className="cq-form-field">
-          <span>{t('personIdLabel')}</span>
-          <input
-            value={correctionPayload.personId}
-            onChange={(event) =>
-              onCorrectionPayloadChange({ ...correctionPayload, personId: event.target.value })
-            }
-          />
-        </label>
-        <label className="cq-form-field">
-          <span>{t('timeTypeIdLabel')}</span>
-          <input
-            value={correctionPayload.timeTypeId}
-            onChange={(event) =>
-              onCorrectionPayloadChange({ ...correctionPayload, timeTypeId: event.target.value })
-            }
-          />
-        </label>
-        <label className="cq-form-field">
-          <span>{t('startTimeLabel')}</span>
-          <input
-            value={correctionPayload.startTime}
-            onChange={(event) =>
-              onCorrectionPayloadChange({ ...correctionPayload, startTime: event.target.value })
-            }
-          />
-        </label>
-        <label className="cq-form-field">
-          <span>{t('endTimeLabel')}</span>
-          <input
-            value={correctionPayload.endTime}
-            onChange={(event) =>
-              onCorrectionPayloadChange({ ...correctionPayload, endTime: event.target.value })
-            }
-          />
-        </label>
-        <label className="cq-form-field cq-full-span">
-          <span>{t('reasonLabel')}</span>
-          <input
-            value={correctionPayload.reason}
-            onChange={(event) =>
-              onCorrectionPayloadChange({ ...correctionPayload, reason: event.target.value })
-            }
-          />
-        </label>
-      </div>
+      <CorrectionPayloadFields {...props} />
       <div className="cq-space-top-sm">
         <button
           type="button"
