@@ -23,7 +23,7 @@ export interface ZonedMinute {
   localMinuteOfDay: number;
 }
 
-export function parseLocalTimeToMinute(localTime: string): number {
+export function parseLocalTimeToMinute(localTime: string): number | null {
   const [hourRaw, minuteRaw] = localTime.split(':');
   const hour = Number(hourRaw);
   const minute = Number(minuteRaw);
@@ -36,7 +36,7 @@ export function parseLocalTimeToMinute(localTime: string): number {
     minute < 0 ||
     minute > 59
   ) {
-    return 0;
+    return null;
   }
 
   return hour * 60 + minute;

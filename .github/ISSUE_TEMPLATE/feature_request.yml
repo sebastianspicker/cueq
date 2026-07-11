@@ -28,6 +28,19 @@ body:
         - [ ]
     validations:
       required: true
+  - type: textarea
+    id: affected_contracts
+    attributes:
+      label: Affected Contracts
+      description: List expected API, schema, role, audit, retention, or generated-artifact changes.
+      placeholder: |
+        API/OpenAPI:
+        Database/schema:
+        Roles/visibility:
+        Audit/retention:
+        Generated artifacts:
+    validations:
+      required: true
   - type: checkboxes
     id: privacy
     attributes:
@@ -38,4 +51,6 @@ body:
         - label: Required roles/access scope are explicitly defined.
           required: true
         - label: Retention/deletion expectations are defined.
+          required: true
+        - label: Audit logging and works-council visibility impact are defined.
           required: true

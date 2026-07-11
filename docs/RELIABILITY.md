@@ -96,20 +96,20 @@ docker-compose --profile monitoring up -d
 docker-compose --profile monitoring down
 ```
 
-| Service       | Local URL                     | Credentials        |
-| ------------- | ----------------------------- | ------------------- |
-| Grafana       | <http://localhost:3001>        | admin / admin       |
-| Prometheus    | <http://localhost:9090>        | —                   |
-| Alertmanager  | <http://localhost:9093>        | —                   |
+| Service      | Local URL               | Credentials   |
+| ------------ | ----------------------- | ------------- |
+| Grafana      | <http://localhost:3001> | admin / admin |
+| Prometheus   | <http://localhost:9090> | —             |
+| Alertmanager | <http://localhost:9093> | —             |
 
 #### Configuration files
 
-| File | Purpose |
-| ---- | ------- |
-| `monitoring/prometheus.yml` | Scrape targets (API `/metrics`, self) |
-| `monitoring/alerting-rules.yml` | SLO alert rules (error rate, p99, audit-trail stall, terminal heartbeat) |
-| `monitoring/alertmanager.yml` | Alert routing and receiver templates |
-| `monitoring/grafana/provisioning/datasources/prometheus.yml` | Auto-provision Prometheus as default datasource |
+| File                                                                | Purpose                                                                                 |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `monitoring/prometheus.yml`                                         | Scrape targets (API `/metrics`, self)                                                   |
+| `monitoring/alerting-rules.yml`                                     | SLO alert rules (error rate, p99, audit-trail stall, terminal heartbeat)                |
+| `monitoring/alertmanager.yml`                                       | Alert routing and receiver templates                                                    |
+| `monitoring/grafana/provisioning/datasources/prometheus.yml`        | Auto-provision Prometheus as default datasource                                         |
 | `monitoring/grafana/provisioning/dashboards/cueq-api-overview.json` | Pre-built dashboard: request rate, error rate, latency percentiles, audit entry counter |
 
 #### Wiring the API metrics endpoint

@@ -5,17 +5,27 @@ const makePrisma = (policy: unknown) => ({
   timeThresholdPolicy: {
     findFirst: vi.fn().mockResolvedValue(policy),
     updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-    create: vi.fn().mockImplementation((args: { data: { dailyMaxMinutes: number; minRestMinutes: number } }) =>
-      Promise.resolve({ ...args.data, id: 'new-id', activeFrom: new Date(), activeTo: null }),
-    ),
+    create: vi
+      .fn()
+      .mockImplementation((args: { data: { dailyMaxMinutes: number; minRestMinutes: number } }) =>
+        Promise.resolve({ ...args.data, id: 'new-id', activeFrom: new Date(), activeTo: null }),
+      ),
   },
   $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
     const tx = {
       timeThresholdPolicy: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-        create: vi.fn().mockImplementation((args: { data: { dailyMaxMinutes: number; minRestMinutes: number } }) =>
-          Promise.resolve({ ...args.data, id: 'new-id', activeFrom: new Date(), activeTo: null }),
-        ),
+        create: vi
+          .fn()
+          .mockImplementation(
+            (args: { data: { dailyMaxMinutes: number; minRestMinutes: number } }) =>
+              Promise.resolve({
+                ...args.data,
+                id: 'new-id',
+                activeFrom: new Date(),
+                activeTo: null,
+              }),
+          ),
       },
     };
     return fn(tx);
@@ -35,7 +45,12 @@ describe('TimeThresholdPolicyHelper', () => {
 
     it('returns thresholds from the active policy row', async () => {
       helper = new TimeThresholdPolicyHelper(
-        makePrisma({ id: 'p1', dailyMaxMinutes: 480, minRestMinutes: 720, activeTo: null }) as never,
+        makePrisma({
+          id: 'p1',
+          dailyMaxMinutes: 480,
+          minRestMinutes: 720,
+          activeTo: null,
+        }) as never,
       );
       const result = await helper.getActiveThresholds();
       expect(result.dailyMaxMinutes).toBe(480);

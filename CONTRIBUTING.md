@@ -29,4 +29,7 @@ Use the [issue templates](.github/ISSUE_TEMPLATE/) — they include required com
 
 ## Security issues
 
-Do **not** open a public issue for security vulnerabilities. See [docs/SECURITY.md](docs/SECURITY.md#8-vulnerability-reporting) for the responsible disclosure process.
+Do **not** open a public issue for security vulnerabilities. See
+[SECURITY.md](SECURITY.md) for GitHub disclosure routing and
+[docs/SECURITY.md](docs/SECURITY.md#8-vulnerability-reporting) for the full
+security and data-protection model.

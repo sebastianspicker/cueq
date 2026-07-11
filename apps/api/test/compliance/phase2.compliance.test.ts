@@ -1,12 +1,49 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { ClosingStatus, WorkflowStatus, WorkflowType, prisma } from '@cueq/database';
+import {
+  AbsenceStatus,
+  AbsenceType,
+  ClosingStatus,
+  Role,
+  WorkflowStatus,
+  WorkflowType,
+  prisma,
+} from '@cueq/database';
 import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
 import { SEED_IDS } from '../../src/test-utils/seed-ids';
 
 describe('Phase 2 compliance', () => {
   let app: INestApplication;
+
+  async function ensureNonSuppressedAdminReportPopulation() {
+    await prisma.person.createMany({
+      data: Array.from({ length: 5 }, (_, index) => ({
+        id: `c0000000000000000000008${index}`,
+        externalId: `report-pop-${index}`,
+        firstName: 'Report',
+        lastName: `Population${index}`,
+        email: `report-pop-${index}@cueq.local`,
+        role: Role.EMPLOYEE,
+        organizationUnitId: SEED_IDS.ouAdmin,
+      })),
+      skipDuplicates: true,
+    });
+    await prisma.absence.createMany({
+      data: [
+        {
+          id: 'c000000000000000000000860',
+          personId: 'c00000000000000000000080',
+          type: AbsenceType.ANNUAL_LEAVE,
+          startDate: new Date('2026-03-10T00:00:00.000Z'),
+          endDate: new Date('2026-03-10T00:00:00.000Z'),
+          days: 1,
+          status: AbsenceStatus.APPROVED,
+        },
+      ],
+      skipDuplicates: true,
+    });
+  }
 
   beforeAll(async () => {
     seedPhase2Data();
@@ -283,6 +320,127 @@ describe('Phase 2 compliance', () => {
     expect(hrPreview.body).not.toHaveProperty('personIds');
   });
 
+  /* ── Works Council (Personalrat) RBAC ───────────────────────────── */
+
+  describe('works council (Personalrat) RBAC and aggregation-threshold enforcement', () => {
+    it('denies works council access to individual booking data', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/v1/bookings/${SEED_IDS.bookingEmployeeIn}`)
+        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('denies works council access to individual person details', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/v1/persons/${SEED_IDS.personEmployee}`)
+        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('denies works council access to individual absence with reason', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/v1/absences')
+        .set('Authorization', `Bearer ${TOKENS.employee}`)
+        .send({
+          personId: SEED_IDS.personEmployee,
+          type: 'SICK',
+          startDate: '2026-05-12',
+          endDate: '2026-05-13',
+          note: 'Medical certificate attached',
+        });
+      expect(created.status).toBe(201);
+
+      const response = await request(app.getHttpServer())
+        .get(`/v1/absences/${created.body.id}`)
+        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`);
+
+      expect(response.status).toBe(403);
+    });
+
+    it('suppresses team-absence report when group is below REPORT_MIN_GROUP_SIZE', async () => {
+      // ouSecurity has 1 person (SHIFT_PLANNER) — always below the default threshold of 5
+      const response = await request(app.getHttpServer())
+        .get('/v1/reports/team-absence')
+        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
+        .query({
+          organizationUnitId: SEED_IDS.ouSecurity,
+          from: '2026-03-01',
+          to: '2026-03-31',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.suppression.suppressed).toBe(true);
+      expect(response.body.totals.requests).toBe(0);
+      expect(response.body.totals.days).toBe(0);
+      expect(response.body.buckets).toHaveLength(0);
+    });
+
+    it('suppresses overtime report when group is below REPORT_MIN_GROUP_SIZE', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/v1/reports/oe-overtime')
+        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
+        .query({
+          organizationUnitId: SEED_IDS.ouSecurity,
+          from: '2026-03-01',
+          to: '2026-03-31',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.suppression.suppressed).toBe(true);
+      expect(response.body.totals.people).toBe(0);
+      expect(response.body.totals.totalOvertimeHours).toBe(0);
+    });
+
+    it('includes suppression metadata (minGroupSize and population) in report responses', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/v1/reports/team-absence')
+        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
+        .query({
+          organizationUnitId: SEED_IDS.ouSecurity,
+          from: '2026-03-01',
+          to: '2026-03-31',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.suppression).toHaveProperty('minGroupSize');
+      expect(response.body.suppression).toHaveProperty('population');
+      expect(typeof response.body.suppression.minGroupSize).toBe('number');
+      expect(response.body.suppression.minGroupSize).toBeGreaterThanOrEqual(1);
+    });
+
+    it('grants works council access to compliance summary with aggregate-only output', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/v1/reports/compliance-summary')
+        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
+        .query({ from: '2026-03-01', to: '2026-03-31' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('privacy');
+      expect(response.body).toHaveProperty('operations');
+      // Must not expose individual actor identifiers
+      expect(response.body).not.toHaveProperty('actorIds');
+      expect(response.body).not.toHaveProperty('actors');
+      expect(response.body.privacy).toHaveProperty('minGroupSize');
+      expect(response.body.privacy).toHaveProperty('suppressionRate');
+    });
+
+    it('grants works council access to audit summary without exposing actor IDs', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/v1/reports/audit-summary')
+        .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
+        .query({ from: '2026-03-01', to: '2026-03-31' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('totals');
+      // uniqueActors is a count — not an array of IDs
+      expect(typeof response.body.totals.uniqueActors).toBe('number');
+      expect(response.body).not.toHaveProperty('actorIds');
+      expect(response.body).not.toHaveProperty('actors');
+    });
+  });
+
   it('denies employee access to time-engine evaluation endpoint', async () => {
     const response = await request(app.getHttpServer())
       .post('/v1/time-engine/evaluate')
@@ -319,6 +477,42 @@ describe('Phase 2 compliance', () => {
 
     expect(latestAudit).not.toBeNull();
     expect(latestAudit?.entityType).toBe('Report');
+  });
+
+  it('redacts absence type buckets for non-HR report readers', async () => {
+    await ensureNonSuppressedAdminReportPopulation();
+
+    const response = await request(app.getHttpServer())
+      .get('/v1/reports/team-absence')
+      .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
+      .query({
+        organizationUnitId: SEED_IDS.ouAdmin,
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.suppression.suppressed).toBe(false);
+    expect(response.body.totals.requests).toBeGreaterThan(0);
+    expect(response.body.buckets).toEqual([]);
+  });
+
+  it('keeps absence type buckets visible for HR report readers', async () => {
+    await ensureNonSuppressedAdminReportPopulation();
+
+    const response = await request(app.getHttpServer())
+      .get('/v1/reports/team-absence')
+      .set('Authorization', `Bearer ${TOKENS.hr}`)
+      .query({
+        organizationUnitId: SEED_IDS.ouAdmin,
+        from: '2026-03-01',
+        to: '2026-03-31',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.suppression.suppressed).toBe(false);
+    expect(response.body.buckets.length).toBeGreaterThan(0);
+    expect(response.body.buckets[0]).toHaveProperty('type');
   });
 
   it('records booking creation audit entry for dashboard quick action path', async () => {

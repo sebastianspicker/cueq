@@ -67,6 +67,26 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     expect(body.role).toBe('EMPLOYEE');
   });
 
+  test('time-engine evaluator submits the default payload through the browser flow', async ({
+    page,
+  }) => {
+    const evaluatorToken = mockToken({
+      sub: 'c000000000000000000000103',
+      email: 'hr@cueq.local',
+      role: 'HR',
+      organizationUnitId: 'c000000000000000000000001',
+    });
+
+    await page.goto('http://localhost:3000/de/time-engine');
+    await page.getByLabel('Bearer-Token').fill(evaluatorToken);
+    await page.getByRole('button', { name: 'Auswerten' }).click();
+
+    await expect(page.getByText('Ist-Stunden')).toBeVisible();
+    await expect(page.getByText('Delta-Stunden')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Zuschlagsminuten' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'WEEKEND' })).toBeVisible();
+  });
+
   test('dashboard supports load + quick-action booking flow', async ({ page }) => {
     await page.goto('http://localhost:3000/de/dashboard');
     await page.getByLabel('Bearer-Token').fill(employeeToken);

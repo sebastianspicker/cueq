@@ -24,6 +24,8 @@ function parseJson(text: string): unknown {
 
 export type ApiRequest = <T>(path: string, init?: RequestInit) => Promise<T>;
 
+const ABSOLUTE_URL_PATTERN = /^[a-z][a-z\d+.-]*:/iu;
+
 function buildHeaders(token: string, init?: RequestInit): Headers {
   const headers = new Headers(init?.headers);
   if (token) {
@@ -47,6 +49,54 @@ function isStructuredError(value: unknown): value is StructuredError {
   return typeof value === 'object' && value !== null && 'message' in value;
 }
 
+function isLoopbackHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return (
+    normalized === 'localhost' ||
+    normalized === '[::1]' ||
+    /^127(?:\.\d{1,3}){3}$/u.test(normalized)
+  );
+}
+
+function isTrustedAbsoluteBaseUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return false;
+  }
+
+  if (typeof window !== 'undefined' && url.origin === window.location.origin) {
+    return true;
+  }
+
+  return isLoopbackHostname(url.hostname);
+}
+
+function assertTrustedBaseUrl(baseUrl: string): void {
+  if (baseUrl.startsWith('/') && !baseUrl.startsWith('//')) {
+    return;
+  }
+
+  if (isTrustedAbsoluteBaseUrl(baseUrl)) {
+    return;
+  }
+
+  throw new Error('Unsafe API base URL.');
+}
+
+function assertRelativeApiPath(path: string): void {
+  if (path.startsWith('/') && !path.startsWith('//') && !ABSOLUTE_URL_PATTERN.test(path)) {
+    return;
+  }
+
+  throw new Error('Unsafe API request path.');
+}
+
 /**
  * Extract a user-friendly error message from the API response.
  * Prefers the structured `message` field from the NestJS error envelope,
@@ -67,6 +117,9 @@ export function createApiRequest(
   const normalizedBaseUrl = (baseUrl.trim() || '/api').replace(/\/$/, '');
 
   return async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+    assertTrustedBaseUrl(normalizedBaseUrl);
+    assertRelativeApiPath(path);
+
     const response = await fetch(`${normalizedBaseUrl}${path}`, {
       ...init,
       headers: buildHeaders(token, init),

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_SURCHARGE_RULE } from '@cueq/policy';
 import { evaluateTimeRules } from '..';
 
 const BASE_INPUT = {
@@ -37,6 +38,36 @@ describe('evaluateTimeRules – edge cases', () => {
   });
 
   describe('invalid intervals', () => {
+    it('reports invalid surcharge night windows without applying all-day night surcharge', () => {
+      const result = evaluateTimeRules(
+        {
+          ...BASE_INPUT,
+          targetHours: 0,
+          intervals: [
+            {
+              start: '2026-03-03T10:00:00.000Z',
+              end: '2026-03-03T11:00:00.000Z',
+              type: 'WORK',
+            },
+          ],
+        },
+        {
+          surchargeRule: {
+            ...DEFAULT_SURCHARGE_RULE,
+            nightWindow: {
+              startLocalTime: '99:99',
+              endLocalTime: 'ab:cd',
+            },
+          },
+        },
+      );
+
+      expect(result.violations).toContainEqual(
+        expect.objectContaining({ code: 'INVALID_SURCHARGE_NIGHT_WINDOW' }),
+      );
+      expect(result.surchargeMinutes).toEqual([]);
+    });
+
     it('rejects interval where end equals start (zero duration)', () => {
       const result = evaluateTimeRules({
         ...BASE_INPUT,

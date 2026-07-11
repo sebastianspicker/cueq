@@ -1,29 +1,21 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ConnectionPanel } from '../../../components/ConnectionPanel';
-import { FormField } from '../../../components/FormField';
 import { LoadingSpinner } from '../../../components/LoadingSpinner';
 import { PageShell } from '../../../components/PageShell';
-import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 import { ApiRequestError } from '../../../lib/api-client';
-
-interface DashboardSummary {
-  personId: string;
-  modelName: string;
-  todayTargetHours: number;
-  currentBalanceHours: number;
-  todayBookingsCount: number;
-  hasFirstBooking: boolean;
-  showOrientation: boolean;
-  clockInTimeTypeId: string | null;
-  quickActions: string[];
-}
+import {
+  DashboardSummarySection,
+  OrientationSection,
+  OvertimeSection,
+  QuickActionsSection,
+  type DashboardSummary,
+} from './dashboard-sections';
 
 interface ClosingPeriodLockedErrorPayload {
   code?: string;
@@ -189,95 +181,29 @@ export default function DashboardPage() {
 
       <StatusBanner message={message} error={error} />
 
-      {summary ? (
-        <SectionCard>
-          <h2>{t('summaryTitle')}</h2>
-          <p>
-            {t('modelName')}: {summary.modelName}
-          </p>
-          <div className="cq-stat-row">
-            <div className="cq-stat-card">
-              <span className="cq-stat-label">{t('todayTargetHours')}</span>
-              <span className="cq-stat-value">{formatHours(summary.todayTargetHours)}</span>
-            </div>
-            <div className="cq-stat-card">
-              <span className="cq-stat-label">{t('currentBalanceHours')}</span>
-              <span className="cq-stat-value">{formatHours(summary.currentBalanceHours)}</span>
-            </div>
-            <div className="cq-stat-card">
-              <span className="cq-stat-label">{t('todayBookingsCount')}</span>
-              <span className="cq-stat-value">{summary.todayBookingsCount}</span>
-            </div>
-          </div>
-        </SectionCard>
-      ) : null}
-
-      {summary?.showOrientation ? (
-        <SectionCard>
-          <h2>{t('orientationTitle')}</h2>
-          <p>{t('orientationBody')}</p>
-        </SectionCard>
-      ) : null}
-
-      <SectionCard>
-        <h2>{t('quickActionsTitle')}</h2>
-        <div className="cq-inline-actions">
-          <button type="button" disabled={loading || !summary} onClick={() => void clockIn()}>
-            {t('clockIn')}
-          </button>
-          <Link href={`/${locale}/leave`}>{t('requestLeave')}</Link>
-        </div>
-      </SectionCard>
-
-      <SectionCard>
-        <h2>{t('overtimeTitle')}</h2>
-        <div className="cq-grid-2">
-          <FormField label={t('overtimeHours')} required>
-            <input
-              type="number"
-              min={0.25}
-              step={0.25}
-              value={overtimeHours}
-              onChange={(event) => setOvertimeHours(event.target.value)}
-              required
-            />
-          </FormField>
-          <FormField label={t('overtimeReason')} required>
-            <input
-              value={overtimeReason}
-              onChange={(event) => setOvertimeReason(event.target.value)}
-              required
-            />
-          </FormField>
-          <FormField label={t('overtimePeriodStart')} required>
-            <input
-              type="datetime-local"
-              value={overtimePeriodStart.slice(0, 16)}
-              onChange={(event) =>
-                setOvertimePeriodStart(new Date(event.target.value).toISOString())
-              }
-              required
-            />
-          </FormField>
-          <FormField label={t('overtimePeriodEnd')} required>
-            <input
-              type="datetime-local"
-              value={overtimePeriodEnd.slice(0, 16)}
-              onChange={(event) => setOvertimePeriodEnd(new Date(event.target.value).toISOString())}
-              required
-            />
-          </FormField>
-        </div>
-        <div className="cq-space-top-sm">
-          <button
-            type="button"
-            disabled={loading || !summary}
-            onClick={() => void requestOvertimeApproval()}
-          >
-            {t('requestOvertime')}
-          </button>
-        </div>
-      </SectionCard>
+      <DashboardSummarySection t={t} summary={summary} formatHours={formatHours} />
+      <OrientationSection t={t} summary={summary} />
+      <QuickActionsSection
+        t={t}
+        locale={locale}
+        loading={loading}
+        summary={summary}
+        onClockIn={() => void clockIn()}
+      />
+      <OvertimeSection
+        t={t}
+        loading={loading}
+        summary={summary}
+        overtimeHours={overtimeHours}
+        overtimeReason={overtimeReason}
+        overtimePeriodStart={overtimePeriodStart}
+        overtimePeriodEnd={overtimePeriodEnd}
+        onOvertimeHoursChange={setOvertimeHours}
+        onOvertimeReasonChange={setOvertimeReason}
+        onOvertimePeriodStartChange={setOvertimePeriodStart}
+        onOvertimePeriodEndChange={setOvertimePeriodEnd}
+        onRequestOvertimeApproval={() => void requestOvertimeApproval()}
+      />
     </PageShell>
   );
 }

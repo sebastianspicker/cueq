@@ -39,9 +39,9 @@ describe('audit trail integrity', () => {
         metadata: { affectedShiftIds: ['shift-a', 'shift-b'] },
       });
 
-      expect(
-        Object.isFrozen((entry.metadata as Record<string, unknown>).affectedShiftIds),
-      ).toBe(true);
+      expect(Object.isFrozen((entry.metadata as Record<string, unknown>).affectedShiftIds)).toBe(
+        true,
+      );
     });
   });
 

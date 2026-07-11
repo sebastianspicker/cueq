@@ -58,4 +58,38 @@ describe('createApiRequest', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/v1/dashboard/me', expect.any(Object));
   });
+
+  it('rejects untrusted absolute api base urls before sending credentials', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('{}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const apiRequest = createApiRequest(
+      'https://attacker.example',
+      'mock-token',
+      'Request failed.',
+    );
+
+    await expect(apiRequest('/v1/dashboard/me')).rejects.toThrow('Unsafe API base URL');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects absolute request paths before calling fetch', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('{}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const apiRequest = createApiRequest('http://localhost:3001', 'mock-token', 'Request failed.');
+
+    await expect(apiRequest('https://attacker.example/v1/dashboard/me')).rejects.toThrow(
+      'Unsafe API request path',
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });

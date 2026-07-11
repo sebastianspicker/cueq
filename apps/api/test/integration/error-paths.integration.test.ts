@@ -20,6 +20,29 @@ describe('Error-path coverage', () => {
 
   const FAKE_CUID = 'c999999999999999999999999';
 
+  function as(token: string) {
+    const server = app.getHttpServer();
+
+    return {
+      get: (path: string) => request(server).get(path).set('Authorization', `Bearer ${token}`),
+      post: (path: string) => request(server).post(path).set('Authorization', `Bearer ${token}`),
+    };
+  }
+
+  function expectStringMessage(response: { body: { message?: unknown } }) {
+    expect(typeof response.body.message).toBe('string');
+  }
+
+  function expectObjectErrorShape(response: { body: { message?: unknown } }) {
+    expect(typeof response.body).toBe('object');
+    expect(Array.isArray(response.body)).toBe(false);
+    expectStringMessage(response);
+  }
+
+  function expectNoStack(response: { body: Record<string, unknown> }) {
+    expect(response.body).not.toHaveProperty('stack');
+  }
+
   beforeAll(async () => {
     seedPhase3Data();
     app = await createTestApp();
@@ -357,43 +380,24 @@ describe('Error-path coverage', () => {
   /* ── Consistent Error Shape Across All Status Codes ──────────── */
 
   describe('all error responses have consistent shape', () => {
-    it('401 includes statusCode and message as string', async () => {
-      const response = await request(app.getHttpServer()).get('/v1/closing-periods');
+    it.each([
+      ['401', () => request(app.getHttpServer()).get('/v1/closing-periods'), 401],
+      ['403', () => as(TOKENS.employee).get('/v1/closing-periods'), 403],
+      ['404', () => as(TOKENS.hr).get(`/v1/closing-periods/${FAKE_CUID}`), 404],
+    ])('%s includes statusCode and message as string', async (_label, sendRequest, status) => {
+      const response = await sendRequest();
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(status);
       expect(typeof response.body.statusCode).toBe('number');
-      expect(typeof response.body.message).toBe('string');
-    });
-
-    it('403 includes statusCode and message as string', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/closing-periods')
-        .set('Authorization', `Bearer ${TOKENS.employee}`);
-
-      expect(response.status).toBe(403);
-      expect(typeof response.body.statusCode).toBe('number');
-      expect(typeof response.body.message).toBe('string');
-    });
-
-    it('404 includes statusCode and message as string', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/v1/closing-periods/${FAKE_CUID}`)
-        .set('Authorization', `Bearer ${TOKENS.hr}`);
-
-      expect(response.status).toBe(404);
-      expect(typeof response.body.statusCode).toBe('number');
-      expect(typeof response.body.message).toBe('string');
+      expectStringMessage(response);
     });
 
     it('400 validation includes statusCode, message as string, and details array', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/v1/absences')
-        .set('Authorization', `Bearer ${TOKENS.hr}`)
-        .send({});
+      const response = await as(TOKENS.hr).post('/v1/absences').send({});
 
       expect(response.status).toBe(400);
       expect(typeof response.body.statusCode).toBe('number');
-      expect(typeof response.body.message).toBe('string');
+      expectStringMessage(response);
       expect(Array.isArray(response.body.details)).toBe(true);
     });
   });
@@ -401,32 +405,15 @@ describe('Error-path coverage', () => {
   /* ── Error Responses Never Contain stack Property ──────────────── */
 
   describe('error responses never expose stack property', () => {
-    it('404 response has no stack property', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/v1/closing-periods/${FAKE_CUID}`)
-        .set('Authorization', `Bearer ${TOKENS.hr}`);
+    it.each([
+      ['404', () => as(TOKENS.hr).get(`/v1/closing-periods/${FAKE_CUID}`), 404],
+      ['403', () => as(TOKENS.employee).get('/v1/closing-periods'), 403],
+      ['400 validation', () => as(TOKENS.hr).post('/v1/absences').send({}), 400],
+    ])('%s response has no stack property', async (_label, sendRequest, status) => {
+      const response = await sendRequest();
 
-      expect(response.status).toBe(404);
-      expect(response.body).not.toHaveProperty('stack');
-    });
-
-    it('403 response has no stack property', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/closing-periods')
-        .set('Authorization', `Bearer ${TOKENS.employee}`);
-
-      expect(response.status).toBe(403);
-      expect(response.body).not.toHaveProperty('stack');
-    });
-
-    it('400 validation response has no stack property', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/v1/absences')
-        .set('Authorization', `Bearer ${TOKENS.hr}`)
-        .send({});
-
-      expect(response.status).toBe(400);
-      expect(response.body).not.toHaveProperty('stack');
+      expect(response.status).toBe(status);
+      expectNoStack(response);
     });
   });
 
@@ -444,9 +431,7 @@ describe('Error-path coverage', () => {
 
       // FAKE_CUID won't exist → 404; we verify the shape is still an object
       expect(response.status).toBe(404);
-      expect(typeof response.body).toBe('object');
-      expect(Array.isArray(response.body)).toBe(false);
-      expect(typeof response.body.message).toBe('string');
+      expectObjectErrorShape(response);
     });
 
     it('start-review on non-existent period returns proper error shape', async () => {
@@ -456,9 +441,7 @@ describe('Error-path coverage', () => {
 
       // Either 403 (manual review disabled) or 404 (not found) — both must be objects
       expect([403, 404]).toContain(response.status);
-      expect(typeof response.body).toBe('object');
-      expect(Array.isArray(response.body)).toBe(false);
-      expect(typeof response.body.message).toBe('string');
+      expectObjectErrorShape(response);
     });
 
     it('reopen on non-existent period returns proper error shape', async () => {
@@ -467,9 +450,7 @@ describe('Error-path coverage', () => {
         .set('Authorization', `Bearer ${TOKENS.hr}`);
 
       expect(response.status).toBe(404);
-      expect(typeof response.body).toBe('object');
-      expect(Array.isArray(response.body)).toBe(false);
-      expect(typeof response.body.message).toBe('string');
+      expectObjectErrorShape(response);
     });
   });
 
@@ -510,28 +491,27 @@ describe('Error-path coverage', () => {
   /* ── 403 Forbidden: Additional Role Violations ───────────────── */
 
   describe('403 Forbidden for additional role violations', () => {
-    it('rejects employee accessing compliance-summary report', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/reports/compliance-summary')
-        .set('Authorization', `Bearer ${TOKENS.employee}`)
-        .query({ from: '2026-01-01', to: '2026-01-31' });
-
-      expect(response.status).toBe(403);
-    });
-
-    it('rejects employee accessing integrations webhook endpoints', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/integrations/webhooks/endpoints')
-        .set('Authorization', `Bearer ${TOKENS.employee}`);
-
-      expect(response.status).toBe(403);
-    });
-
-    it('rejects employee accessing closing-completion report', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/v1/reports/closing-completion')
-        .set('Authorization', `Bearer ${TOKENS.employee}`)
-        .query({ from: '2026-01-01', to: '2026-01-31' });
+    it.each([
+      [
+        'compliance-summary report',
+        () =>
+          as(TOKENS.employee)
+            .get('/v1/reports/compliance-summary')
+            .query({ from: '2026-01-01', to: '2026-01-31' }),
+      ],
+      [
+        'integrations webhook endpoints',
+        () => as(TOKENS.employee).get('/v1/integrations/webhooks/endpoints'),
+      ],
+      [
+        'closing-completion report',
+        () =>
+          as(TOKENS.employee)
+            .get('/v1/reports/closing-completion')
+            .query({ from: '2026-01-01', to: '2026-01-31' }),
+      ],
+    ])('rejects employee accessing %s', async (_label, sendRequest) => {
+      const response = await sendRequest();
 
       expect(response.status).toBe(403);
     });
@@ -550,32 +530,28 @@ describe('Error-path coverage', () => {
   /* ── 404 for Additional Endpoint Types ────────────────────────── */
 
   describe('404 for additional endpoint types', () => {
-    it('returns 404 for checklist on non-existent closing period', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/v1/closing-periods/${FAKE_CUID}/checklist`)
-        .set('Authorization', `Bearer ${TOKENS.hr}`);
+    it.each([
+      [
+        'checklist on non-existent closing period',
+        () => as(TOKENS.hr).get(`/v1/closing-periods/${FAKE_CUID}/checklist`),
+      ],
+      [
+        'post-close correction on non-existent period',
+        () =>
+          as(TOKENS.hr)
+            .post(`/v1/closing-periods/${FAKE_CUID}/post-close-corrections`)
+            .send({ reason: 'Test correction' }),
+      ],
+      [
+        'export artifact on non-existent run',
+        () =>
+          as(TOKENS.hr).get(`/v1/closing-periods/${FAKE_CUID}/export-runs/${FAKE_CUID}/artifact`),
+      ],
+    ])('returns 404 for %s', async (_label, sendRequest) => {
+      const response = await sendRequest();
 
       expect(response.status).toBe(404);
-      expect(typeof response.body.message).toBe('string');
-    });
-
-    it('returns 404 for post-close correction on non-existent period', async () => {
-      const response = await request(app.getHttpServer())
-        .post(`/v1/closing-periods/${FAKE_CUID}/post-close-corrections`)
-        .set('Authorization', `Bearer ${TOKENS.hr}`)
-        .send({ reason: 'Test correction' });
-
-      expect(response.status).toBe(404);
-      expect(typeof response.body.message).toBe('string');
-    });
-
-    it('returns 404 for export artifact on non-existent run', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/v1/closing-periods/${FAKE_CUID}/export-runs/${FAKE_CUID}/artifact`)
-        .set('Authorization', `Bearer ${TOKENS.hr}`);
-
-      expect(response.status).toBe(404);
-      expect(typeof response.body.message).toBe('string');
+      expectStringMessage(response);
     });
 
     it('returns 404 for on-call compliance with non-existent person', async () => {

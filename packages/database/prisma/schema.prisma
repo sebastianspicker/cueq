@@ -1,7 +1,8 @@
 // cueq — Prisma Schema
 // ======================
-// This is the initial schema stub. Models correspond to the domain entities
-// defined in ARCHITECTURE.md and _ideas/PRD.md §9.
+// Persistence model for the domain described in ARCHITECTURE.md and
+// docs/product-specs/. JSON Schema and OpenAPI define external contracts;
+// this file defines how those concepts are stored in PostgreSQL.
 //
 // Run `pnpm db:generate` to generate the Prisma Client.
 // Run `pnpm db:migrate` to apply migrations.
@@ -502,6 +503,7 @@ enum OutboxStatus {
   PENDING
   FAILED
   DELIVERED
+  SKIPPED
 }
 
 model WebhookEndpoint {

@@ -11,6 +11,7 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run",
     "test:integration": "vitest run src/core/__tests__/phase2.integration.test.ts",
     "test:acceptance": "vitest run src/core/__tests__/phase2.acceptance.test.ts",

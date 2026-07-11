@@ -213,7 +213,7 @@ export class WebhookDomainService {
         await this.prisma.domainEventOutbox.update({
           where: { id: event.id },
           data: {
-            status: OutboxStatus.DELIVERED,
+            status: OutboxStatus.SKIPPED,
             attempts: attempt,
             processedAt: now,
             lastError: null,

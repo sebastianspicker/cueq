@@ -1,8 +1,26 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  Post,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
 import { HrImportService } from '../hr-import.service';
+
+function isFailedHrImportRun(result: unknown): result is { status: 'FAILED' } {
+  return (
+    typeof result === 'object' &&
+    result !== null &&
+    'status' in result &&
+    result.status === 'FAILED'
+  );
+}
 
 @ApiTags('hr-import')
 @Controller('v1/hr/import-runs')
@@ -16,7 +34,16 @@ export class HrImportController {
     @Headers('x-integration-token') integrationToken: string | string[] | undefined,
     @Body() payload: unknown,
   ): Promise<unknown> {
-    return this.hrImportService.runImport(integrationToken, payload);
+    return this.hrImportService.runImport(integrationToken, payload).then((result) => {
+      if (isFailedHrImportRun(result)) {
+        throw new UnprocessableEntityException({
+          message: 'HR import failed.',
+          ...result,
+        });
+      }
+
+      return result;
+    });
   }
 
   @Get(':id')

@@ -82,7 +82,7 @@ In a works-council environment, privacy controls are not a constraint to work ar
 | Mobile app                                | Web-first; mobile adds UX complexity and security concerns | Phase 2+ |
 | Project/grant time tracking (Drittmittel) | Different compliance regime; separate feature              | Phase 3  |
 | eAU technical integration                 | Depends on external infrastructure readiness               | Phase 3  |
-| AI-based roster optimization              | Requires historical data; premature optimization           | Phase 3+ |
+| Automated roster optimization             | Requires historical data; premature optimization           | Phase 3+ |
 | BI / analytics dashboards                 | Needs aggregation framework; privacy review first          | Phase 3+ |
 
 ---

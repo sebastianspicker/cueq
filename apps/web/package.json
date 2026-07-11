@@ -14,6 +14,7 @@
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test",
     "test:acceptance": "playwright test",
     "test:demo-screenshots": "playwright test --config playwright.demo.config.ts",
     "test:compliance": "vitest run --config vitest.compliance.config.ts",
@@ -21,7 +22,7 @@
   },
   "dependencies": {
     "@cueq/shared": "workspace:*",
-    "next": "^15.5.13",
+    "next": "^15.5.18",
     "next-intl": "^4.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

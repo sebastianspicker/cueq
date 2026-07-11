@@ -23,14 +23,39 @@ export class AuditController {
       'Access is restricted to HR, ADMIN, and DATA_PROTECTION roles.',
   })
   @ApiOkResponse({ description: 'Paginated audit entries matching the given filters' })
-  @ApiQuery({ name: 'from', required: false, type: String, description: 'ISO 8601 start timestamp' })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    type: String,
+    description: 'ISO 8601 start timestamp',
+  })
   @ApiQuery({ name: 'to', required: false, type: String, description: 'ISO 8601 end timestamp' })
-  @ApiQuery({ name: 'action', required: false, type: String, description: 'Exact action string, e.g. BOOKING_CREATED' })
-  @ApiQuery({ name: 'entityType', required: false, type: String, description: 'Entity type, e.g. Booking' })
+  @ApiQuery({
+    name: 'action',
+    required: false,
+    type: String,
+    description: 'Exact action string, e.g. BOOKING_CREATED',
+  })
+  @ApiQuery({
+    name: 'entityType',
+    required: false,
+    type: String,
+    description: 'Entity type, e.g. Booking',
+  })
   @ApiQuery({ name: 'actorId', required: false, type: String, description: 'Actor person ID' })
   @ApiQuery({ name: 'entityId', required: false, type: String, description: 'Entity ID' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Pagination offset (default: 0)' })
-  @ApiQuery({ name: 'take', required: false, type: Number, description: 'Page size 1–200 (default: 50)' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Pagination offset (default: 0)',
+  })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    type: Number,
+    description: 'Page size 1–200 (default: 50)',
+  })
   async listAuditEntries(
     @CurrentUser() _user: AuthenticatedIdentity,
     @Query(new ZodValidationPipe(AuditEntriesQuerySchema)) query: unknown,

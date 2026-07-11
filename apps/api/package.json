@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run test/health.smoke.test.ts",
     "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:acceptance": "vitest run --config vitest.acceptance.config.ts",
     "test:compliance": "vitest run --config vitest.compliance.config.ts",
@@ -42,6 +43,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/supertest": "^6.0.3",
+    "@vitest/coverage-v8": "^3.2.4",
     "supertest": "^7.1.1",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
