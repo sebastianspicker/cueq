@@ -47,6 +47,11 @@
     "turbo": "2.8.20",
     "typescript": "5.9.3"
   },
+  "pnpm": {
+    "overrides": {
+      "serialize-javascript": "7.0.7"
+    }
+  },
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20.0.0",
