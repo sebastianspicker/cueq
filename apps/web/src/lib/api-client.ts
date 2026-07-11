@@ -24,89 +24,56 @@ function parseJson(text: string): unknown {
 
 export type ApiRequest = <T>(path: string, init?: RequestInit) => Promise<T>;
 
-const ABSOLUTE_URL_PATTERN = /^[a-z][a-z\d+.-]*:/iu;
+const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/u;
+const SAFE_RELATIVE_URL_PATTERN = /^\/(?!\/)[^\\\u0000-\u001f\u007f]*$/u;
 
-function buildHeaders(token: string, init?: RequestInit): Headers {
-  const headers = new Headers(init?.headers);
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+class ApiRequestBoundary {
+  static buildHeaders(token: string, init?: RequestInit): Headers {
+    const headers = new Headers(init ? init.headers : undefined);
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    if (init?.body != null && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+    return headers;
   }
 
-  const hasBody = init?.body !== undefined && init.body !== null;
-  if (hasBody && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
+  static assertBaseUrl(baseUrl: string): void {
+    if (SAFE_RELATIVE_URL_PATTERN.test(baseUrl)) {
+      return;
+    }
+    if (CONTROL_CHARACTER_PATTERN.test(baseUrl) || baseUrl.includes('\\')) {
+      throw new Error('Unsafe API base URL.');
+    }
+
+    let url: URL;
+    try {
+      url = new URL(baseUrl);
+    } catch {
+      throw new Error('Unsafe API base URL.');
+    }
+    if (
+      typeof window === 'undefined' ||
+      url.origin !== window.location.origin ||
+      Boolean(url.username) ||
+      Boolean(url.password)
+    ) {
+      throw new Error('Unsafe API base URL.');
+    }
   }
 
-  return headers;
-}
-
-interface StructuredError {
-  message?: unknown;
-  details?: unknown;
-}
-
-function isStructuredError(value: unknown): value is StructuredError {
-  return typeof value === 'object' && value !== null && 'message' in value;
-}
-
-function isLoopbackHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
-  return (
-    normalized === 'localhost' ||
-    normalized === '[::1]' ||
-    /^127(?:\.\d{1,3}){3}$/u.test(normalized)
-  );
-}
-
-function isTrustedAbsoluteBaseUrl(value: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return false;
+  static assertPath(path: string): void {
+    if (!SAFE_RELATIVE_URL_PATTERN.test(path)) {
+      throw new Error('Unsafe API request path.');
+    }
   }
 
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    return false;
+  static errorMessage(payload: unknown, rawText: string, fallback: string): string {
+    const message =
+      typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'message') : null;
+    return typeof message === 'string' ? message : rawText || fallback;
   }
-
-  if (typeof window !== 'undefined' && url.origin === window.location.origin) {
-    return true;
-  }
-
-  return isLoopbackHostname(url.hostname);
-}
-
-function assertTrustedBaseUrl(baseUrl: string): void {
-  if (baseUrl.startsWith('/') && !baseUrl.startsWith('//')) {
-    return;
-  }
-
-  if (isTrustedAbsoluteBaseUrl(baseUrl)) {
-    return;
-  }
-
-  throw new Error('Unsafe API base URL.');
-}
-
-function assertRelativeApiPath(path: string): void {
-  if (path.startsWith('/') && !path.startsWith('//') && !ABSOLUTE_URL_PATTERN.test(path)) {
-    return;
-  }
-
-  throw new Error('Unsafe API request path.');
-}
-
-/**
- * Extract a user-friendly error message from the API response.
- * Prefers the structured `message` field from the NestJS error envelope,
- * falling back to raw text or the default message.
- */
-function extractErrorMessage(payload: unknown, rawText: string, defaultMessage: string): string {
-  if (isStructuredError(payload) && typeof payload.message === 'string') {
-    return payload.message;
-  }
-  return rawText || defaultMessage;
 }
 
 export function createApiRequest(
@@ -114,22 +81,22 @@ export function createApiRequest(
   token: string,
   defaultMessage: string,
 ): ApiRequest {
-  const normalizedBaseUrl = (baseUrl.trim() || '/api').replace(/\/$/, '');
+  const normalizedBaseUrl = (baseUrl || '/api').replace(/\/$/, '');
 
   return async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
-    assertTrustedBaseUrl(normalizedBaseUrl);
-    assertRelativeApiPath(path);
+    ApiRequestBoundary.assertBaseUrl(normalizedBaseUrl);
+    ApiRequestBoundary.assertPath(path);
 
     const response = await fetch(`${normalizedBaseUrl}${path}`, {
       ...init,
-      headers: buildHeaders(token, init),
+      headers: ApiRequestBoundary.buildHeaders(token, init),
     });
 
     const text = await response.text();
     const payload = parseJson(text);
 
     if (!response.ok) {
-      const userMessage = extractErrorMessage(payload, text, defaultMessage);
+      const userMessage = ApiRequestBoundary.errorMessage(payload, text, defaultMessage);
       throw new ApiRequestError(response.status, `${response.status}: ${userMessage}`, payload);
     }
 

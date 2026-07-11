@@ -21,18 +21,20 @@ export async function resolveAuthenticatedPerson<
     return personById;
   }
 
-  const personBySubject = await prisma.person.findFirst({
-    where: {
-      OR: [{ id: user.subject }, { externalId: user.subject }],
-    },
+  const personBySubjectId = await prisma.person.findUnique({
+    where: { id: user.subject },
     ...(include ? { include } : {}),
   });
 
-  if (personBySubject) {
-    if (personBySubject.email.toLowerCase() !== user.email.toLowerCase()) {
-      throw new ForbiddenException('Authenticated claims do not match person identity.');
-    }
+  const personBySubject =
+    personBySubjectId ??
+    (await prisma.person.findUnique({
+      where: { externalId: user.subject },
+      ...(include ? { include } : {}),
+    }));
 
+  if (personBySubject) {
+    assertMatchingEmail(personBySubject.email, user.email);
     return personBySubject;
   }
 
@@ -46,4 +48,10 @@ export async function resolveAuthenticatedPerson<
   }
 
   return personByEmail;
+}
+
+function assertMatchingEmail(persistedEmail: string, claimedEmail: string): void {
+  if (persistedEmail.toLowerCase() !== claimedEmail.toLowerCase()) {
+    throw new ForbiddenException('Authenticated claims do not match person identity.');
+  }
 }

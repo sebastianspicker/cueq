@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { lookup } from 'node:dns/promises';
-import { assertWebhookDispatchTargetUrl, assertWebhookTargetUrl } from './webhook-url';
+import {
+  assertWebhookDispatchTargetUrl,
+  assertWebhookTargetUrl,
+  isPublicWebhookAddress,
+  resolveWebhookDispatchTarget,
+} from './webhook-url';
 
 vi.mock('node:dns/promises', () => ({
   lookup: vi.fn(),
@@ -69,6 +74,15 @@ describe('assertWebhookTargetUrl', () => {
       }),
     ).not.toThrow();
   });
+
+  it('supports explicit private-target denial outside production', () => {
+    expect(() =>
+      assertWebhookTargetUrl('http://localhost:8080/hook', {
+        NODE_ENV: 'test',
+        WEBHOOK_ALLOW_PRIVATE_TARGETS: 'false',
+      }),
+    ).toThrow(/must not target localhost or private network addresses/iu);
+  });
 });
 
 describe('assertWebhookDispatchTargetUrl', () => {
@@ -77,7 +91,7 @@ describe('assertWebhookDispatchTargetUrl', () => {
 
     await expect(
       assertWebhookDispatchTargetUrl('https://dispatch.example/hook', { NODE_ENV: 'production' }),
-    ).rejects.toThrow(/must not target localhost or private network addresses/iu);
+    ).rejects.toThrow(/must resolve only to public network addresses/iu);
   });
 
   it('allows hostnames that resolve to public addresses in production', async () => {
@@ -88,14 +102,64 @@ describe('assertWebhookDispatchTargetUrl', () => {
     ).resolves.toBeInstanceOf(URL);
   });
 
-  it('skips dns private-target enforcement when explicit private-target override is enabled', async () => {
-    lookupMock.mockResolvedValue([{ address: '127.0.0.1', family: 4 }] as never);
+  it('rejects mixed public and private DNS results across address families', async () => {
+    lookupMock.mockResolvedValue([
+      { address: '2606:4700:4700::1111', family: 6 },
+      { address: '10.0.0.4', family: 4 },
+    ] as never);
 
     await expect(
-      assertWebhookDispatchTargetUrl('https://dispatch.example/hook', {
-        NODE_ENV: 'production',
-        WEBHOOK_ALLOW_PRIVATE_TARGETS: 'true',
-      }),
-    ).resolves.toBeInstanceOf(URL);
+      assertWebhookDispatchTargetUrl('https://dispatch.example/hook', { NODE_ENV: 'test' }),
+    ).rejects.toThrow(/must resolve only to public network addresses/iu);
+  });
+
+  it('rejects DNS lookup errors and empty results', async () => {
+    lookupMock.mockRejectedValueOnce(new Error('resolver internals'));
+    await expect(assertWebhookDispatchTargetUrl('https://dispatch.example/hook')).rejects.toThrow(
+      'Webhook target DNS lookup failed.',
+    );
+
+    lookupMock.mockResolvedValueOnce([] as never);
+    await expect(assertWebhookDispatchTargetUrl('https://dispatch.example/hook')).rejects.toThrow(
+      'Webhook target DNS lookup returned no addresses.',
+    );
+  });
+
+  it('uses verbatim all-address lookup and pins the first vetted result', async () => {
+    lookupMock.mockResolvedValue([
+      { address: '93.184.216.34', family: 4 },
+      { address: '2606:2800:220:1:248:1893:25c8:1946', family: 6 },
+    ] as never);
+
+    await expect(
+      resolveWebhookDispatchTarget('https://dispatch.example/hook'),
+    ).resolves.toMatchObject({ address: '93.184.216.34', family: 4 });
+    expect(lookupMock).toHaveBeenCalledWith('dispatch.example', {
+      all: true,
+      verbatim: true,
+    });
+  });
+});
+
+describe('isPublicWebhookAddress', () => {
+  it.each([
+    '127.0.0.1',
+    '100.64.0.1',
+    '169.254.169.254',
+    '192.0.2.10',
+    '198.51.100.4',
+    '203.0.113.8',
+    '::1',
+    'fc00::1',
+    'fe80::1',
+    '::ffff:10.0.0.1',
+    '::ffff:7f00:1',
+    'fec0::1',
+  ])('rejects non-public address %s', (address) => {
+    expect(isPublicWebhookAddress(address)).toBe(false);
+  });
+
+  it.each(['93.184.216.34', '2606:4700:4700::1111'])('accepts public address %s', (address) => {
+    expect(isPublicWebhookAddress(address)).toBe(true);
   });
 });
