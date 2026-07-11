@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { URL } from 'node:url';
+import { pathToFileURL, URL } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 
 const sourceUrl =
@@ -21,10 +21,11 @@ function sortById(rows) {
   return [...rows].sort((left, right) => String(left.id).localeCompare(String(right.id)));
 }
 
-function parseDatabaseUrl(databaseUrl) {
+export function parseDatabaseUrl(databaseUrl) {
   const url = new URL(databaseUrl);
   const schema = url.searchParams.get('schema') ?? 'public';
-  const database = url.pathname.replace(/^\//u, '') || 'postgres';
+  const pathname = url.pathname.startsWith('/') ? url.pathname.slice(1) : url.pathname;
+  const database = pathname || 'postgres';
   const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
 
   return {
@@ -318,7 +319,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error('Backup/restore verification failed:', error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error('Backup/restore verification failed:', error);
+    process.exitCode = 1;
+  });
+}

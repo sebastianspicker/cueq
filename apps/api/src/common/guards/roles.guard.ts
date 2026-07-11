@@ -2,7 +2,7 @@ import type { CanActivate, ExecutionContext } from '@nestjs/common';
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Role } from '@cueq/database';
-import { ROLES_KEY } from '../decorators/roles.decorator';
+import { ALLOWED_ROLES_METADATA } from '../decorators/roles.decorator';
 import type { AuthenticatedIdentity } from '../auth/auth.types';
 
 @Injectable()
@@ -11,7 +11,7 @@ export class RolesGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const reflector = this.reflector ?? new Reflector();
-    const requiredRoles = reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
+    const requiredRoles = reflector.getAllAndOverride<Role[]>(ALLOWED_ROLES_METADATA, [
       context.getHandler(),
       context.getClass(),
     ]);

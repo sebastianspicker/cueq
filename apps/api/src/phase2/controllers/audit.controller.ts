@@ -1,7 +1,11 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
-import { AuditEntriesQuerySchema, type AuditEntriesResult } from '@cueq/shared';
+import {
+  AuditEntriesQuerySchema,
+  type AuditEntriesQuery,
+  type AuditEntriesResult,
+} from '@cueq/shared';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -60,7 +64,7 @@ export class AuditController {
     @CurrentUser() _user: AuthenticatedIdentity,
     @Query(new ZodValidationPipe(AuditEntriesQuerySchema)) query: unknown,
   ): Promise<AuditEntriesResult> {
-    const parsed = query as import('@cueq/shared').AuditEntriesQuery;
+    const parsed = query as AuditEntriesQuery;
 
     const where = {
       ...(parsed.from || parsed.to

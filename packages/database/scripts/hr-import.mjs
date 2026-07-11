@@ -19,59 +19,83 @@ function pushRow(rows, row) {
   rows.push(normalized);
 }
 
+function consumeQuote(csv, index, state) {
+  if (csv[index] !== '"') return null;
+  if (state.inQuotes && csv[index + 1] === '"') {
+    state.current += '"';
+    return index + 1;
+  }
+  state.inQuotes = !state.inQuotes;
+  return index;
+}
+
+function consumeRecordBreak(csv, index, state, rows) {
+  const char = csv[index];
+  if (state.inQuotes || (char !== '\n' && char !== '\r')) return null;
+  state.row.push(state.current);
+  state.current = '';
+  pushRow(rows, state.row);
+  state.row = [];
+  return char === '\r' && csv[index + 1] === '\n' ? index + 1 : index;
+}
+
 function parseCsvRows(csv) {
   const rows = [];
-  let row = [];
-  let current = '';
-  let inQuotes = false;
+  const state = { row: [], current: '', inQuotes: false };
 
   for (let index = 0; index < csv.length; index += 1) {
     const char = csv[index];
-    if (!char) {
+    const quoteIndex = consumeQuote(csv, index, state);
+    if (quoteIndex !== null) {
+      index = quoteIndex;
       continue;
     }
 
-    if (char === '"') {
-      const next = csv[index + 1];
-      if (inQuotes && next === '"') {
-        current += '"';
-        index += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
+    if (char === ',' && !state.inQuotes) {
+      state.row.push(state.current);
+      state.current = '';
       continue;
     }
 
-    if (char === ',' && !inQuotes) {
-      row.push(current);
-      current = '';
+    const breakIndex = consumeRecordBreak(csv, index, state, rows);
+    if (breakIndex !== null) {
+      index = breakIndex;
       continue;
     }
 
-    if ((char === '\n' || char === '\r') && !inQuotes) {
-      row.push(current);
-      current = '';
-      pushRow(rows, row);
-      row = [];
-      if (char === '\r' && csv[index + 1] === '\n') {
-        index += 1;
-      }
-      continue;
-    }
-
-    current += char;
+    state.current += char;
   }
 
-  if (inQuotes) {
+  if (state.inQuotes) {
     throw new Error('CSV parse error: unmatched quote in input.');
   }
 
-  if (current.length > 0 || row.length > 0) {
-    row.push(current);
-    pushRow(rows, row);
+  if (state.current.length > 0 || state.row.length > 0) {
+    state.row.push(state.current);
+    pushRow(rows, state.row);
   }
 
   return rows;
+}
+
+function recordField(row, key, fallback) {
+  return row[key] ?? fallback;
+}
+
+function parsedRowFromRecord(row) {
+  const supervisorExternalId = row.supervisorExternalId;
+  return {
+    externalId: recordField(row, 'externalId', ''),
+    firstName: recordField(row, 'firstName', ''),
+    lastName: recordField(row, 'lastName', ''),
+    email: recordField(row, 'email', ''),
+    role: recordField(row, 'role', 'EMPLOYEE'),
+    organizationUnit: recordField(row, 'organizationUnit', 'Unassigned'),
+    workTimeModel: recordField(row, 'workTimeModel', 'Default'),
+    weeklyHours: recordField(row, 'weeklyHours', '39.83'),
+    dailyTargetHours: recordField(row, 'dailyTargetHours', '7.97'),
+    supervisorExternalId: supervisorExternalId || undefined,
+  };
 }
 
 export function parseCsvRecords(csv) {
@@ -102,20 +126,7 @@ export function parseCsvRecords(csv) {
 
 function parseCsv(csv) {
   const { rows } = parseCsvRecords(csv);
-  return rows.map((row) => {
-    return {
-      externalId: row.externalId ?? '',
-      firstName: row.firstName ?? '',
-      lastName: row.lastName ?? '',
-      email: row.email ?? '',
-      role: row.role ?? 'EMPLOYEE',
-      organizationUnit: row.organizationUnit ?? 'Unassigned',
-      workTimeModel: row.workTimeModel ?? 'Default',
-      weeklyHours: row.weeklyHours ?? '39.83',
-      dailyTargetHours: row.dailyTargetHours ?? '7.97',
-      supervisorExternalId: row.supervisorExternalId || undefined,
-    };
-  });
+  return rows.map(parsedRowFromRecord);
 }
 
 function slug(prefix, value) {

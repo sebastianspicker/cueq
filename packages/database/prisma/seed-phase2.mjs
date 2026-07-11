@@ -86,7 +86,7 @@ async function reset() {
   await prisma.organizationUnit.deleteMany();
 }
 
-async function seed() {
+async function seedOrganizationPeople() {
   await prisma.organizationUnit.createMany({
     data: [
       { id: IDs.ouAdmin, name: 'Verwaltung' },
@@ -125,7 +125,9 @@ async function seed() {
       },
     ],
   });
+}
 
+async function seedCorePeople() {
   await prisma.person.createMany({
     data: [
       {
@@ -185,6 +187,13 @@ async function seed() {
         organizationUnitId: IDs.ouAdmin,
         workTimeModelId: IDs.modelFlextime,
       },
+    ],
+  });
+}
+
+async function seedSupportPeople() {
+  await prisma.person.createMany({
+    data: [
       {
         id: IDs.personItOncall,
         externalId: 'oncall01',
@@ -232,7 +241,9 @@ async function seed() {
       },
     ],
   });
+}
 
+async function seedTimeOperations() {
   await prisma.timeType.createMany({
     data: [
       {
@@ -375,7 +386,9 @@ async function seed() {
       },
     ],
   });
+}
 
+async function seedWorkflowClosing() {
   await prisma.workflowPolicy.createMany({
     data: [
       {
@@ -473,6 +486,14 @@ async function seed() {
       ipAddress: '127.0.0.1',
     },
   });
+}
+
+async function seed() {
+  await seedOrganizationPeople();
+  await seedCorePeople();
+  await seedSupportPeople();
+  await seedTimeOperations();
+  await seedWorkflowClosing();
 }
 
 async function main() {

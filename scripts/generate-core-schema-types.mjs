@@ -1,6 +1,7 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { format, resolveConfig } from 'prettier';
 
 const root = resolve(import.meta.dirname, '..');
 const schemasDir = resolve(root, 'schemas/domain');
@@ -102,7 +103,11 @@ async function main() {
       schema: JSON.parse(await readFile(resolve(schemasDir, file), 'utf8')),
     })),
   );
-  const content = renderCoreSchemaTypes(schemas);
+  const prettierConfig = (await resolveConfig(outputFile)) ?? {};
+  const content = await format(renderCoreSchemaTypes(schemas), {
+    ...prettierConfig,
+    filepath: outputFile,
+  });
 
   await writeFile(outputFile, content, 'utf8');
   console.log(`Generated ${outputFile}`);

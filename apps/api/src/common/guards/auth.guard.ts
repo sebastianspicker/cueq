@@ -2,7 +2,7 @@ import type { CanActivate, ExecutionContext } from '@nestjs/common';
 import { ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { AuthService } from '../auth/auth.service';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { PUBLIC_ROUTE_METADATA } from '../decorators/public.decorator';
 import type { PrismaService } from '../../persistence/prisma.service';
 import { resolveAuthenticatedPerson } from '../auth/resolve-authenticated-person';
 
@@ -48,7 +48,7 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const reflector = this.reflector ?? new Reflector();
-    const isPublic = reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+    const isPublic = reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE_METADATA, [
       context.getHandler(),
       context.getClass(),
     ]);

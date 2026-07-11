@@ -86,11 +86,9 @@ components:
     padding: '4px 8px'
 ---
 
-# Design System: cueq
-
 ## Overview
 
-**Creative North Star: "Trusted Operations Desk"**
+### Creative North Star: "Trusted Operations Desk"
 
 Staff use cueq in bright university offices and quieter after-hours operations,
 reviewing sensitive queues where a wrong action has payroll, legal, or privacy
@@ -139,7 +137,7 @@ semantic colors communicate state and never become decoration.
 - **Night Canvas / Night Surface / Night Queue:** Dark-theme equivalents with
   the same hierarchy, not an alternate visual identity.
 
-### Named Rules
+### Color Rules
 
 **The One Civic Accent Rule.** Accent marks an actionable or selected state. It
 never fills dashboards for atmosphere.
@@ -165,7 +163,7 @@ type.
 - **Label** (600, 0.875rem, 1.35): Controls, metadata labels, and compact table
   headers; sentence case is the default.
 
-### Named Rules
+### Typography Rules
 
 **The Operational Scale Rule.** Product headings use a fixed rem scale. No
 fluid hero typography, display font, or tracked uppercase eyebrow is permitted.
@@ -181,7 +179,7 @@ scrolling content. The maximum structural shadow uses an 8px blur.
 - **Floating control** (`0 2px 8px rgba(10, 31, 38, 0.14)`): Menus and drawers
   only, without a decorative border-and-wide-shadow pairing.
 
-### Named Rules
+### Elevation Rules
 
 **The Structural Shadow Rule.** If a surface does not overlap other content, it
 does not receive a shadow.
@@ -241,7 +239,7 @@ contextual drawer.
 
 ## Do's and Don'ts
 
-### Do:
+### Do
 
 - **Do** show permission, current state, prerequisites, freshness, and the next
   valid action in the main reading order.
@@ -252,7 +250,7 @@ contextual drawer.
 - **Do** preserve German-first copy, English parity, keyboard access, visible
   focus, and light/dark semantic equivalence.
 
-### Don't:
+### Don't
 
 - **Don't** use SaaS gamification, competitive productivity scores,
   surveillance metrics, or attention-seeking dashboards.

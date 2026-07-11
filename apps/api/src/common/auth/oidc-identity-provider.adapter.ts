@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { Role } from '@cueq/database';
 import type { IdentityProviderPort } from './identity-provider.port';
@@ -7,6 +7,7 @@ import { selectHighestRoleClaim } from './role-mapping';
 
 @Injectable()
 export class OidcIdentityProviderAdapter implements IdentityProviderPort {
+  private readonly logger = new Logger(OidcIdentityProviderAdapter.name);
   private readonly issuer = process.env.OIDC_ISSUER_URL;
   private readonly audience = process.env.OIDC_CLIENT_ID;
 
@@ -46,8 +47,8 @@ export class OidcIdentityProviderAdapter implements IdentityProviderPort {
         claims,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[OidcIdentityProviderAdapter] Token validation failed: ${message}`, error);
+      const errorClass = error instanceof Error ? error.constructor.name : 'UnknownError';
+      this.logger.warn('oidc_token_validation_failed', errorClass);
       throw new UnauthorizedException('OIDC token validation failed.');
     }
   }
