@@ -12,11 +12,12 @@ import {
   ClosingStatus,
   OnCallRotationType,
 } from '@prisma/client';
+import { stableCuid } from './seed-helpers.mjs';
 
 const prisma = new PrismaClient();
 
 function cuidFor(index) {
-  return `c${String(index).padStart(24, '0')}`;
+  return stableCuid(index);
 }
 
 const IDs = {
@@ -56,6 +57,7 @@ const IDs = {
   timeAccountEmployee: cuidFor(800),
   onCallDeployment: cuidFor(900),
   onCallRotation: cuidFor(901),
+  auditSeed: cuidFor(950),
 };
 
 async function reset() {
@@ -460,6 +462,7 @@ async function seed() {
 
   await prisma.auditEntry.create({
     data: {
+      id: IDs.auditSeed,
       timestamp: new Date('2026-03-15T12:00:00.000Z'),
       actorId: IDs.personAdmin,
       action: 'PHASE2_SEED_COMPLETED',
