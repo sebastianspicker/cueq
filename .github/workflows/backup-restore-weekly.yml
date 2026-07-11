@@ -59,5 +59,8 @@ jobs:
       - name: Setup
         run: make setup
 
+      - name: Seed verification data
+        run: pnpm --filter @cueq/database db:seed:phase2
+
       - name: Backup/restore verification
         run: make test-backup-restore

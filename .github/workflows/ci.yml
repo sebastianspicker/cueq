@@ -80,6 +80,9 @@ jobs:
       - name: Setup
         run: make setup
 
+      - name: Seed verification data
+        run: pnpm --filter @cueq/database db:seed:phase2
+
       - name: Check
         run: make check
 
@@ -149,5 +152,6 @@ jobs:
       - name: Fresh clone setup and check
         run: |
           make setup
+          pnpm --filter @cueq/database db:seed:phase2
           pnpm --filter @cueq/web exec playwright install --with-deps chromium
           make check
