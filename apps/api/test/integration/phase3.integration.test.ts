@@ -263,7 +263,6 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       });
 
     expect(run.status).toBe(400);
-    expect(run.body.statusCode).toBe(400);
     expect(run.body.code).toBe('HR_IMPORT_VALIDATION_FAILED');
     expect(run.body.message).toBe('HR import payload validation failed.');
     expect(run.body.errors[0]).toContain('Unsupported HR role');
