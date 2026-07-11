@@ -1048,5 +1048,33 @@ describe('evaluateTimeRules – edge cases', () => {
       // cursor at 10:00:00.000 < end at 10:00:30.000 → 1 iteration
       expect(result.actualHours).toBe(0.02); // 1 min / 60
     });
+
+    it('counts a one-millisecond interval as one started minute', () => {
+      const result = evaluateTimeRules({
+        ...BASE_INPUT,
+        targetHours: 0,
+        intervals: [
+          {
+            start: '2026-03-03T10:00:59.999Z',
+            end: '2026-03-03T10:01:00.000Z',
+            type: 'WORK',
+          },
+        ],
+      });
+
+      expect(result.actualHours).toBe(0.02);
+    });
+  });
+
+  describe('timezone validation boundary', () => {
+    it('rejects an invalid IANA timezone before evaluating intervals', () => {
+      expect(() =>
+        evaluateTimeRules({
+          ...BASE_INPUT,
+          timezone: 'Europe/Not-A-Zone',
+          intervals: [],
+        }),
+      ).toThrow(RangeError);
+    });
   });
 });
