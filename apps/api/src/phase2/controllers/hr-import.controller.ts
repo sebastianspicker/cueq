@@ -8,7 +8,13 @@ import {
   Post,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiConflictResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
 import { HrImportService } from '../hr-import.service';
@@ -30,6 +36,7 @@ export class HrImportController {
   @Post()
   @Public()
   @ApiOperation({ summary: 'Run HR master data import (file/API, integration token required)' })
+  @ApiCreatedResponse({ description: 'HR import accepted and completed successfully' })
   @ApiBadRequestResponse({ description: 'CSV or pre-acceptance validation failed; no run created' })
   @ApiConflictResponse({
     description: 'Another import holds the advisory lock; retry with the same payload',

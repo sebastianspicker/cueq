@@ -45,6 +45,35 @@ type ValidatedRow = ParsedRow & {
 
 type HrImportTransaction = Prisma.TransactionClient;
 
+function csvField(row: Record<string, string>, key: string, fallback: string): string {
+  return row[key] ?? fallback;
+}
+
+function parsedRowFromCsv(row: Record<string, string>): ParsedRow {
+  const supervisorExternalId = row['supervisorExternalId'];
+  return {
+    externalId: csvField(row, 'externalId', ''),
+    firstName: csvField(row, 'firstName', ''),
+    lastName: csvField(row, 'lastName', ''),
+    email: csvField(row, 'email', ''),
+    role: csvField(row, 'role', 'EMPLOYEE'),
+    organizationUnit: csvField(row, 'organizationUnit', 'Unassigned'),
+    workTimeModel: csvField(row, 'workTimeModel', 'Default'),
+    weeklyHours: csvField(row, 'weeklyHours', String(DEFAULT_WEEKLY_HOURS)),
+    dailyTargetHours: csvField(row, 'dailyTargetHours', String(DEFAULT_DAILY_TARGET_HOURS)),
+    supervisorExternalId: supervisorExternalId || undefined,
+  };
+}
+
+function hasRequiredIdentity(row: ParsedRow): boolean {
+  return Boolean(row.externalId && row.email && row.firstName && row.lastName);
+}
+
+function parseNonnegativeHours(value: string, fallback: number): number | null {
+  const parsed = Number(value || fallback);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 @Injectable()
 export class HrImportService {
   constructor(
@@ -55,20 +84,7 @@ export class HrImportService {
 
   private parseCsv(csv: string): ParsedRow[] {
     const { rows } = parseCsvRecords(csv);
-    return rows.map((row) => {
-      return {
-        externalId: row.externalId ?? '',
-        firstName: row.firstName ?? '',
-        lastName: row.lastName ?? '',
-        email: row.email ?? '',
-        role: row.role ?? 'EMPLOYEE',
-        organizationUnit: row.organizationUnit ?? 'Unassigned',
-        workTimeModel: row.workTimeModel ?? 'Default',
-        weeklyHours: row.weeklyHours ?? String(DEFAULT_WEEKLY_HOURS),
-        dailyTargetHours: row.dailyTargetHours ?? String(DEFAULT_DAILY_TARGET_HOURS),
-        supervisorExternalId: row.supervisorExternalId || undefined,
-      };
-    });
+    return rows.map(parsedRowFromCsv);
   }
 
   private toRole(input: string): Role {
@@ -85,54 +101,12 @@ export class HrImportService {
     const seenExternalIds = new Set<string>();
     const seenEmails = new Set<string>();
 
-    const validatedRows = rows.flatMap((row) => {
-      if (!row.externalId || !row.email || !row.firstName || !row.lastName) {
-        errors.push(`Missing required fields for externalId="${row.externalId}".`);
-        return [];
-      }
-
-      if (seenExternalIds.has(row.externalId)) {
-        errors.push(`Duplicate externalId in batch: "${row.externalId}".`);
-        return [];
-      }
-      if (seenEmails.has(row.email.toLowerCase())) {
-        errors.push(`Duplicate email in batch: "${row.email}".`);
-        return [];
-      }
-
-      seenExternalIds.add(row.externalId);
-      seenEmails.add(row.email.toLowerCase());
-
-      const parsedWeeklyHours = Number(row.weeklyHours || DEFAULT_WEEKLY_HOURS);
-      const parsedDailyTargetHours = Number(row.dailyTargetHours || DEFAULT_DAILY_TARGET_HOURS);
-      if (!Number.isFinite(parsedWeeklyHours) || parsedWeeklyHours < 0) {
-        errors.push(`Invalid weeklyHours for externalId="${row.externalId}".`);
-        return [];
-      }
-      if (!Number.isFinite(parsedDailyTargetHours) || parsedDailyTargetHours < 0) {
-        errors.push(`Invalid dailyTargetHours for externalId="${row.externalId}".`);
-        return [];
-      }
-
-      let parsedRole: Role;
-      try {
-        parsedRole = this.toRole(row.role);
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : `Unsupported HR role: ${row.role}`);
-        return [];
-      }
-
-      return [
-        {
-          ...row,
-          parsedRole,
-          parsedWeeklyHours,
-          parsedDailyTargetHours,
-          organizationUnitId: `ou_${row.organizationUnit.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
-          workTimeModelId: `wtm_${row.workTimeModel.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
-        },
-      ];
-    });
+    const validatedRows: ValidatedRow[] = [];
+    for (const row of rows) {
+      const validated = this.validateRow(row, seenExternalIds, seenEmails);
+      if (typeof validated === 'string') errors.push(validated);
+      else validatedRows.push(validated);
+    }
 
     const byExternalId = new Map(validatedRows.map((row) => [row.externalId, row]));
     for (const row of validatedRows) {
@@ -153,6 +127,50 @@ export class HrImportService {
     }
 
     return { rows: validatedRows, errors: [...new Set(errors)] };
+  }
+
+  private validateRow(
+    row: ParsedRow,
+    seenExternalIds: Set<string>,
+    seenEmails: Set<string>,
+  ): ValidatedRow | string {
+    if (!hasRequiredIdentity(row)) {
+      return `Missing required fields for externalId="${row.externalId}".`;
+    }
+    const normalizedEmail = row.email.toLowerCase();
+    if (seenExternalIds.has(row.externalId)) {
+      return `Duplicate externalId in batch: "${row.externalId}".`;
+    }
+    if (seenEmails.has(normalizedEmail)) return `Duplicate email in batch: "${row.email}".`;
+
+    const parsedWeeklyHours = parseNonnegativeHours(row.weeklyHours, DEFAULT_WEEKLY_HOURS);
+    const parsedDailyTargetHours = parseNonnegativeHours(
+      row.dailyTargetHours,
+      DEFAULT_DAILY_TARGET_HOURS,
+    );
+    if (parsedWeeklyHours === null) {
+      return `Invalid weeklyHours for externalId="${row.externalId}".`;
+    }
+    if (parsedDailyTargetHours === null) {
+      return `Invalid dailyTargetHours for externalId="${row.externalId}".`;
+    }
+
+    let parsedRole: Role;
+    try {
+      parsedRole = this.toRole(row.role);
+    } catch (error) {
+      return error instanceof Error ? error.message : `Unsupported HR role: ${row.role}`;
+    }
+    seenExternalIds.add(row.externalId);
+    seenEmails.add(normalizedEmail);
+    return {
+      ...row,
+      parsedRole,
+      parsedWeeklyHours,
+      parsedDailyTargetHours,
+      organizationUnitId: `ou_${row.organizationUnit.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
+      workTimeModelId: `wtm_${row.workTimeModel.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
+    };
   }
 
   private async finalizeRun(

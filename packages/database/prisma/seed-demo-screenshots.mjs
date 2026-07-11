@@ -97,7 +97,7 @@ async function upsertPerson(data) {
   });
 }
 
-async function seed() {
+async function seedDemoPeople() {
   runPhase3('seed');
 
   await prisma.organizationUnit.update({
@@ -150,7 +150,9 @@ async function seed() {
     where: { id: IDs.personItOncall },
     data: { firstName: 'Ida', lastName: 'Bereitschaft' },
   });
+}
 
+async function seedDemoSecurityPeople() {
   const securityEmploymentStart = new Date('2025-01-01T00:00:00.000Z');
   await upsertPerson({
     id: IDs.personSecurity1,
@@ -212,7 +214,9 @@ async function seed() {
     supervisorId: IDs.personLead,
     workTimeModelId: IDs.modelShift,
   });
+}
 
+async function seedDemoScheduling() {
   await prisma.shift.update({
     where: { id: IDs.shiftNight },
     data: {
@@ -410,7 +414,9 @@ async function seed() {
       },
     });
   }
+}
 
+async function seedDemoClosing() {
   await prisma.workflowInstance.upsert({
     where: { id: IDs.workflowPendingLeave },
     create: {
@@ -632,6 +638,13 @@ async function seed() {
       },
     });
   }
+}
+
+async function seed() {
+  await seedDemoPeople();
+  await seedDemoSecurityPeople();
+  await seedDemoScheduling();
+  await seedDemoClosing();
 }
 
 async function reset() {

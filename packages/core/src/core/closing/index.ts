@@ -188,10 +188,20 @@ const CLOSING_ACTION_HANDLERS: Record<ClosingAction, ClosingActionHandler> = {
  * Returns the next status and any transition violations.
  */
 export function applyCutoffLock(input: CutoffTransitionInput): CutoffTransitionResult {
-  const handler = CLOSING_ACTION_HANDLERS[input.action];
-  return handler
-    ? handler(input)
-    : rejected(input, 'UNSUPPORTED_ACTION', 'Unsupported closing action.');
+  switch (input.action) {
+    case 'ADVANCE_TO_REVIEW':
+      return CLOSING_ACTION_HANDLERS.ADVANCE_TO_REVIEW(input);
+    case 'APPROVE':
+      return CLOSING_ACTION_HANDLERS.APPROVE(input);
+    case 'EXPORT':
+      return CLOSING_ACTION_HANDLERS.EXPORT(input);
+    case 'REOPEN':
+      return CLOSING_ACTION_HANDLERS.REOPEN(input);
+    case 'POST_CLOSE_CORRECTION':
+      return CLOSING_ACTION_HANDLERS.POST_CLOSE_CORRECTION(input);
+    default:
+      return rejected(input, 'UNSUPPORTED_ACTION', 'Unsupported closing action.');
+  }
 }
 
 // ── Export run idempotency ────────────────────────────────────────────

@@ -18,6 +18,35 @@ import { PersonHelper } from './person.helper';
 import { EXPORT_DOWNLOAD_ROLES, HR_LIKE_ROLES } from './role-constants';
 import { escapeXml, toClosingActorRole, toPersistenceClosingStatus } from './closing-utils';
 
+function xmlAttribute(name: string, value: string): string {
+  return [' ', name, '="', escapeXml(value), '"'].join('');
+}
+
+function payrollExportStart(format: string, closingPeriodId: string): string {
+  return [
+    '<payrollExport',
+    xmlAttribute('format', format),
+    xmlAttribute('closingPeriodId', closingPeriodId),
+    '>',
+  ].join('');
+}
+
+function payrollRow(row: {
+  personId: string;
+  targetHours: number;
+  actualHours: number;
+  balance: number;
+}): string {
+  return [
+    '  <row',
+    xmlAttribute('personId', row.personId),
+    xmlAttribute('targetHours', row.targetHours.toFixed(2)),
+    xmlAttribute('actualHours', row.actualHours.toFixed(2)),
+    xmlAttribute('balance', row.balance.toFixed(2)),
+    ' />',
+  ].join('');
+}
+
 @Injectable()
 export class ClosingExportHelper {
   constructor(
@@ -71,11 +100,8 @@ export class ClosingExportHelper {
     const csv = `${header}\n${body}\n`;
     const xml = [
       '<?xml version="1.0" encoding="UTF-8"?>',
-      `<payrollExport format="${format}" closingPeriodId="${escapeXml(closingPeriodId)}">`,
-      ...normalizedRows.map(
-        (row) =>
-          `  <row personId="${escapeXml(row.personId)}" targetHours="${row.targetHours.toFixed(2)}" actualHours="${row.actualHours.toFixed(2)}" balance="${row.balance.toFixed(2)}" />`,
-      ),
+      payrollExportStart(format, closingPeriodId),
+      ...normalizedRows.map(payrollRow),
       '</payrollExport>',
       '',
     ].join('\n');

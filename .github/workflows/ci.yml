@@ -22,7 +22,7 @@ env:
   NODE_ENV: test
   SKIP_DOCKER: 1
   HUSKY: 0
-  DATABASE_URL: postgresql://cueq:cueq_ci_password@localhost:5432/cueq?schema=public
+  DATABASE_URL: ${{ format('postgresql://cueq:{0}@localhost:5432/cueq?schema=public', github.run_id) }}
 
 jobs:
   validate:
@@ -35,7 +35,7 @@ jobs:
         env:
           POSTGRES_DB: cueq
           POSTGRES_USER: cueq
-          POSTGRES_PASSWORD: cueq_ci_password
+          POSTGRES_PASSWORD: ${{ github.run_id }}
         ports:
           - 5432:5432
         options: >-
@@ -113,14 +113,14 @@ jobs:
       NODE_ENV: test
       SKIP_DOCKER: 1
       HUSKY: 0
-      DATABASE_URL: postgresql://cueq:cueq_ci_password@localhost:5432/cueq?schema=public
+      DATABASE_URL: ${{ format('postgresql://cueq:{0}@localhost:5432/cueq?schema=public', github.run_id) }}
     services:
       postgres:
         image: postgres:16-alpine
         env:
           POSTGRES_DB: cueq
           POSTGRES_USER: cueq
-          POSTGRES_PASSWORD: cueq_ci_password
+          POSTGRES_PASSWORD: ${{ github.run_id }}
         ports:
           - 5432:5432
         options: >-

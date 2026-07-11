@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { OutboxStatus } from '@cueq/database';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { postWebhook } from '../../common/http/webhook-http-client';
@@ -7,6 +7,7 @@ import { WebhookDomainService } from './webhook-domain.service';
 vi.mock('../../common/http/webhook-http-client', () => ({ postWebhook: vi.fn() }));
 
 const postWebhookMock = vi.mocked(postWebhook);
+const SIGNING_SECRET = createHash('sha256').update('webhook test fixture').digest('hex');
 
 function fixture() {
   const event = {
@@ -23,7 +24,7 @@ function fixture() {
   const endpoint = {
     id: 'endpoint-1',
     url: 'https://receiver.example/hook',
-    secretRef: 'signing-secret',
+    secretRef: SIGNING_SECRET,
     eventType: event.eventType,
     createdAt: new Date('2026-07-10T05:00:00.000Z'),
   };
@@ -93,7 +94,7 @@ describe('WebhookDomainService dispatch transport', () => {
       headers: {
         'Content-Type': 'application/json',
         'X-Cueq-Event-Type': 'BOOKING_CREATED',
-        'X-Cueq-Signature': `sha256=${createHmac('sha256', 'signing-secret')
+        'X-Cueq-Signature': `sha256=${createHmac('sha256', SIGNING_SECRET)
           .update(expectedBody)
           .digest('hex')}`,
       },

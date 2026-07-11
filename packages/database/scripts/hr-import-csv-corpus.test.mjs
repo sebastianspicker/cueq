@@ -22,6 +22,9 @@ for (const example of corpus.valid) {
 
 for (const example of corpus.invalid) {
   test(`MJS parser rejects ${example.name}`, () => {
-    assert.throws(() => parseCsvRecords(example.csv), new RegExp(example.error, 'u'));
+    assert.throws(
+      () => parseCsvRecords(example.csv),
+      (error) => error instanceof Error && error.message.includes(example.error),
+    );
   });
 }
