@@ -21,8 +21,11 @@ function createRun(overrides: Record<string, unknown> = {}) {
 
 function createService(txOverrides: Record<string, unknown> = {}) {
   const tx = {
+    $queryRaw: vi.fn().mockResolvedValue([{ acquired: true }]),
     organizationUnit: { upsert: vi.fn().mockResolvedValue({}) },
     workTimeModel: { upsert: vi.fn().mockResolvedValue({}) },
+    hrImportRun: { create: vi.fn(async ({ data }) => createRun(data)) },
+    auditEntry: { create: vi.fn().mockResolvedValue({}) },
     person: {
       findUnique: vi.fn().mockResolvedValue(null),
       findFirst: vi.fn().mockResolvedValue(null),
@@ -33,7 +36,7 @@ function createService(txOverrides: Record<string, unknown> = {}) {
   };
   const prisma = {
     $transaction: vi.fn(async (callback: (transaction: typeof tx) => unknown) => callback(tx)),
-    hrImportRun: { create: vi.fn(async ({ data }) => createRun(data)) },
+    hrImportRun: { findUnique: vi.fn() },
   };
   const provider: HrMasterProviderPort = { fetchMasterRecords: vi.fn() };
   const auditHelper = { appendAudit: vi.fn().mockResolvedValue(undefined) };
@@ -44,7 +47,7 @@ function createService(txOverrides: Record<string, unknown> = {}) {
 
 describe('HrImportService', () => {
   it('imports valid CSV rows and links supervisors from the same batch', async () => {
-    const { service, prisma, tx } = createService();
+    const { service, prisma, tx, auditHelper } = createService();
     tx.person.create
       .mockResolvedValueOnce({ id: 'person-lead' })
       .mockResolvedValueOnce({ id: 'person-employee' });
@@ -60,6 +63,7 @@ describe('HrImportService', () => {
     });
 
     expect(prisma.$transaction).toHaveBeenCalledOnce();
+    expect(tx.$queryRaw).toHaveBeenCalledOnce();
     expect(tx.organizationUnit.upsert).toHaveBeenCalledTimes(2);
     expect(tx.workTimeModel.upsert).toHaveBeenCalledTimes(2);
     expect(tx.person.create).toHaveBeenCalledTimes(2);
@@ -67,6 +71,7 @@ describe('HrImportService', () => {
       where: { id: 'person-employee' },
       data: { supervisorId: 'person-lead' },
     });
+    expect(auditHelper.appendAudit).toHaveBeenCalledWith(expect.any(Object), tx);
     expect(result).toMatchObject({
       status: 'SUCCEEDED',
       totalRows: 2,
@@ -77,10 +82,9 @@ describe('HrImportService', () => {
   });
 
   it('records a failed run when externalId and email resolve to different people', async () => {
-    const { service, prisma, tx } = createService();
-    tx.person.findUnique
-      .mockResolvedValueOnce({ id: 'person-by-external-id' })
-      .mockResolvedValueOnce({ id: 'person-by-email' });
+    const { service, tx } = createService();
+    tx.person.findUnique.mockResolvedValueOnce({ id: 'person-by-external-id' });
+    tx.person.findFirst.mockResolvedValueOnce({ id: 'person-by-email' });
 
     const result = await service.runImport('dev-hr-token', {
       source: 'FILE',
@@ -90,7 +94,7 @@ describe('HrImportService', () => {
       ].join('\n'),
     });
 
-    expect(prisma.hrImportRun.create).toHaveBeenCalledWith(
+    expect(tx.hrImportRun.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           status: 'FAILED',
@@ -109,23 +113,64 @@ describe('HrImportService', () => {
     });
   });
 
-  it('records validation failures without opening a transaction', async () => {
+  it('rejects pre-acceptance validation failures without creating a run', async () => {
     const { service, prisma } = createService();
 
-    const result = await service.runImport('dev-hr-token', {
-      source: 'FILE',
-      csv: [
-        'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours',
-        'emp01,Emp,One,,EMPLOYEE,HR,Full,39.83,7.97',
-      ].join('\n'),
+    await expect(
+      service.runImport('dev-hr-token', {
+        source: 'FILE',
+        csv: [
+          'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours',
+          'emp01,Emp,One,,EMPLOYEE,HR,Full,39.83,7.97',
+        ].join('\n'),
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'HR_IMPORT_VALIDATION_FAILED' }),
     });
 
     expect(prisma.$transaction).not.toHaveBeenCalled();
-    expect(result).toMatchObject({
-      status: 'FAILED',
-      totalRows: 1,
-      skippedRows: 1,
-      errorCount: 1,
+  });
+
+  it('returns a retryable conflict without creating a run when the advisory lock is held', async () => {
+    const { service, tx } = createService();
+    tx.$queryRaw.mockResolvedValueOnce([{ acquired: false }]);
+
+    await expect(
+      service.runImport('dev-hr-token', {
+        source: 'FILE',
+        csv: [
+          'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours',
+          'emp01,Emp,One,emp@cueq.local,EMPLOYEE,HR,Full,39.83,7.97',
+        ].join('\n'),
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        code: 'HR_IMPORT_IN_PROGRESS',
+        message: 'Another HR import is already in progress.',
+        retryable: true,
+      },
     });
+
+    expect(tx.hrImportRun.create).not.toHaveBeenCalled();
+    expect(tx.person.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects supervisor cycles before opening a transaction', async () => {
+    const { service, prisma } = createService();
+
+    await expect(
+      service.runImport('dev-hr-token', {
+        source: 'FILE',
+        csv: [
+          'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours,supervisorExternalId',
+          'emp01,Emp,One,one@cueq.local,EMPLOYEE,HR,Full,39.83,7.97,emp02',
+          'emp02,Emp,Two,two@cueq.local,EMPLOYEE,HR,Full,39.83,7.97,emp01',
+        ].join('\n'),
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'HR_IMPORT_VALIDATION_FAILED' }),
+    });
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
