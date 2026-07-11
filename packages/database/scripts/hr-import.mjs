@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { PrismaClient, Role, WorkTimeModelType } from '@prisma/client';
 import { parseArgsMap } from '../../../scripts/lib/parse-args.mjs';
 
@@ -73,7 +74,7 @@ function parseCsvRows(csv) {
   return rows;
 }
 
-function parseCsvRecords(csv) {
+export function parseCsvRecords(csv) {
   const parsedRows = parseCsvRows(csv);
   if (parsedRows.length < 2) {
     return { headers: [], rows: [] };
@@ -480,11 +481,13 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  if (error instanceof Error && error.message === 'HR_IMPORT_IN_PROGRESS') {
-    console.error('HR_IMPORT_IN_PROGRESS');
-  } else {
-    console.error('HR import failed:', error);
-  }
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    if (error instanceof Error && error.message === 'HR_IMPORT_IN_PROGRESS') {
+      console.error('HR_IMPORT_IN_PROGRESS');
+    } else {
+      console.error('HR import failed:', error);
+    }
+    process.exitCode = 1;
+  });
+}

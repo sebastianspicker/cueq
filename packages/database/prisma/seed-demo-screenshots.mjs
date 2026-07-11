@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -10,6 +9,7 @@ import {
   WorkflowStatus,
   WorkflowType,
 } from '@prisma/client';
+import { runSeedLayer, stableCuid } from './seed-helpers.mjs';
 
 const DEFAULT_DATABASE_URL =
   'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public';
@@ -21,7 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 function cuidFor(index) {
-  return `c${String(index).padStart(24, '0')}`;
+  return stableCuid(index);
 }
 
 const IDs = {
@@ -76,12 +76,7 @@ const MARCH_PERIOD_START = new Date('2026-03-01T00:00:00.000Z');
 const MARCH_PERIOD_END = new Date('2026-03-31T23:59:59.000Z');
 
 function runPhase3(command) {
-  execSync(`node ${resolve(__dirname, 'seed-phase3.mjs')} ${command}`, {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-    },
-  });
+  runSeedLayer(resolve(__dirname, 'seed-phase3.mjs'), command);
 }
 
 async function upsertPerson(data) {
