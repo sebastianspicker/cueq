@@ -1,17 +1,19 @@
 # Contributing to cueq
 
-cueq is an internal university workforce-management system with strict legal, privacy, and compliance requirements. Read this before opening a PR.
+cueq is a reference implementation for university workforce management with
+strict privacy, authorization, and audit requirements. Read this before opening
+a PR.
 
 ## Contributor guide
 
 The full guide is in **[AGENTS.md](AGENTS.md)**. It covers:
 
 - Repo structure and context loading order
-- Small, reviewable change policy (one concern per PR, max 400 lines)
+- Small, reviewable change policy (one coherent concern per PR)
 - Standard commands (`make check`, `make test-all`, `make quick`)
 - Conventional Commits format
-- Definition of Done (code, documentation, schema changes)
-- Security and privacy constraints (non-negotiable hard rules)
+- Verification expectations for code, documentation, and schema changes
+- Security and privacy constraints
 - GDPR / works-council compliance requirements
 
 ## Quick checklist

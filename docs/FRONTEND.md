@@ -20,7 +20,7 @@ The CueQ frontend is a Next.js App Router application that provides:
 | Framework | Next.js App Router + React              | Route-driven UI under `apps/web/src/app`                             |
 | i18n      | `next-intl`                             | Locale segment routing (`/[locale]`) with `de` default, `en` support |
 | API       | Browser `fetch` + shared API client     | Bearer-token based calls to API (`http://localhost:3001` in dev)     |
-| Styling   | Shared global CSS + reusable components | Foundation-first approach, not a full design-system rewrite          |
+| Styling   | Shared global CSS + reusable components | Trusted Operations Desk tokens and responsive workspace patterns     |
 | Testing   | Vitest + Playwright + axe               | Unit/integration/compliance/acceptance coverage                      |
 
 ## 3. Route Surface
@@ -38,6 +38,8 @@ Primary route tree in `apps/web/src/app/[locale]/`:
 - `/reports`
 - `/oncall`
 - `/policy-admin`
+- `/audit`
+- `/settings`
 
 ## 4. Shared Frontend Structure
 
@@ -50,10 +52,11 @@ apps/web/src/
 │       ├── layout.tsx
 │       └── */page.tsx
 ├── components/
+│   ├── AppWorkspace.tsx
 │   ├── PageShell.tsx
 │   ├── SectionCard.tsx
-│   ├── ConnectionPanel.tsx
 │   ├── StatusBanner.tsx
+│   ├── StatusBadge.tsx
 │   └── FormField.tsx
 ├── i18n/
 ├── lib/
@@ -70,7 +73,9 @@ apps/web/src/
 
 - Page components must use the shared API context/client.
 - Duplicate per-page `apiBaseUrl` and `apiRequest` implementations are disallowed.
-- Request headers must consistently include `Authorization: Bearer <token>` when token is configured.
+- `AppWorkspace` loads `/v1/me` and derives navigation from the persisted role.
+- The API token is held in React memory only; it is not persisted to browser storage.
+- Request headers include `Authorization: Bearer <token>` only when a token is configured.
 
 ### Internationalization
 
@@ -90,11 +95,16 @@ apps/web/src/
 - API is the source of truth for access control; UI must avoid leaking restricted fields.
 - Team calendar and reporting views must preserve privacy guardrails.
 
-## 6. MVP Implementation Status
+## 6. Current Implementation Status
 
-- Core MVP views are implemented and integrated with API endpoints.
-- Frontend architecture has moved from isolated page-local helpers to shared API/UI primitives.
-- Deferred roadmap items (mobile-first experience, advanced design system migration) are intentionally out of this MVP baseline.
+- The current route surface uses a global role-aware workspace and session state.
+- Approvals and closing use queue/detail layouts; secondary connection controls
+  live in settings rather than repeated page panels.
+- The light and dark themes share the Trusted Operations Desk tokens from
+  [`../DESIGN.md`](../DESIGN.md).
+- Unit, lint, typecheck, and production-build checks passed in the latest local
+  snapshot. Database-backed Playwright verification remains environment-bound;
+  see [`verification-baseline.md`](verification-baseline.md).
 
 ## 7. References
 

@@ -17,10 +17,8 @@ contracts/openapi/openapi.generated.json
 # Prisma
 packages/database/generated/
 
-# Environment
-.env
-.env.local
-.env.*.local
+# Environment (only the synthetic template is public)
+.env*
 !.env.example
 
 # IDE
@@ -54,14 +52,26 @@ pnpm-debug.log*
 *.p12
 *.pfx
 *.cert
+*.crt
+*.cer
+*.jks
+*.keystore
 credentials.json
 service-account*.json
-.env.production
+id_rsa*
+id_ed25519*
 
 # Local tooling artifacts
 .claude/
 .codex/
 .agents/
+.codegraph/
+.serena/
+.codacy/generated/
+.codacy/logs/
+.codacy/tools-configs/
+.codacy/cli-config.yaml
+.codacy/configure-codacy-summary.json
 progress.md
 AUDIT.md
 /plan.md
@@ -72,9 +82,24 @@ AUDIT.md
 /docs/*-ledger.md
 /docs/*-status.md
 /docs/*-audit.md
+/docs/*-review-log.md
+/docs/**/*-review-log.md
+/docs/code-index.md
 docs/archive/
 docs/agent/
 /archive/
+
+# Local reports, traces, dumps, and editor leftovers
+*.sarif
+*.har
+*.dump
+*.backup
+*.tmp
+*.orig
+*.rej
+/tmp/
+/temp/
+/docs/assets/demo-screenshots/
 
 # Misc
 *.tsbuildinfo

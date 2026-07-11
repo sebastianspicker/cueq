@@ -6,10 +6,14 @@
 
 ## Core Documents
 
-| Document                                                        | Description                                                                      |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Core Beliefs](core-beliefs.md)                                 | Design principles, domain glossary, and non-negotiable constraints               |
-| [Reporting Privacy Review Log](reporting-privacy-review-log.md) | Governance evidence log for reporting privacy and works-council review decisions |
+| Document                        | Description                                                        |
+| ------------------------------- | ------------------------------------------------------------------ |
+| [Core Beliefs](core-beliefs.md) | Design principles, domain glossary, and non-negotiable constraints |
+
+Governance minutes, reviewer identities, internal ticket references, and
+works-council decisions belong in the institution's private records system.
+Public product specs document the required controls without publishing private
+governance evidence.
 
 ## Architecture Decision Records (ADRs)
 
@@ -22,4 +26,4 @@ ADRs are stored in [`docs/design-decisions/`](../design-decisions/) and follow a
 1. Create a new `.md` file in this directory.
 2. Add it to the table above.
 3. Follow the [core beliefs](core-beliefs.md) naming and terminology conventions.
-4. Submit as a `docs(design-docs): ...` PR per the [small change policy](../../AGENTS.md#2-small-reviewable-change-policy).
+4. Submit it as a focused documentation change and run `make docs-check`.

@@ -190,18 +190,20 @@ domain code should remain free of NestJS, Prisma, HTTP, and filesystem concerns.
   values are untrusted.
 - Validation: UI performs local form constraints inconsistently by page; server
   schemas remain the real validation boundary.
-- State read: browser session storage, API responses, localized message files.
-- State written: browser session storage, page-local React state, API-side state
-  through HTTP calls.
+- State read: the session-stored API endpoint, in-memory token, `/v1/me`, API
+  responses, and localized message files.
+- State written: the API endpoint preference, in-memory React state, and
+  API-side state through HTTP calls. Authentication tokens are not persisted by
+  the web client.
 - Can fail: invalid API base URL, missing token, network/API error, stale UI
   contract, rejected server validation.
 - Failure surfaced: `ApiRequestError`, page-local status banners/error states, or
   React error boundary.
 - Tests protecting it: web unit/component tests, API client tests, web acceptance
   tests, a11y route tests.
-- Wrong-result risk: pages duplicate API contract/state assumptions locally;
-  browser acceptance tests are currently blocked without Playwright Chromium per
-  the verification baseline.
+- Wrong-result risk: UI permission presentation can drift from API policy. The
+  API remains authoritative, and role/state behavior requires database-backed
+  browser verification; see the current verification snapshot.
 
 ### 3. Booking Creation
 

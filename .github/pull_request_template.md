@@ -41,12 +41,12 @@
 - [ ] Audit logging for report access
 - [ ] No individual performance/behavior metrics exposed
 - [ ] Works council compatibility confirmed
-- Reporting review artifact link (required): <!-- e.g. docs/design-docs/reporting-privacy-review-log.md#rpr-20260301-01 -->
+- Private governance evidence reference, when required: <!-- Do not paste private minutes, names, or tickets. -->
 
 ## Scope Guardrails
 
 - [ ] One concern per PR
-- [ ] <= 400 changed lines (excluding generated files)
+- [ ] Change is small enough to review as one coherent concern
 - [ ] Relevant docs updated
 - [ ] Generated artifacts refreshed or explicitly not affected
 - [ ] OpenAPI, Prisma migrations, and schema contracts reviewed when touched

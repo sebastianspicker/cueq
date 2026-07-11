@@ -7,13 +7,24 @@
 
 **Target Audience:** German university HR departments, team leads (Teamleitungen), and shift planners (Dienstplaner) managing workforce time-tracking, absence quotas, and roster compliance under TV-L / NRW regulations.
 
-**Project Status:** cueq is a proof of concept and reference implementation. It demonstrates that public institutions can approach workforce management with transparent, auditable, self-hostable open-source software instead of treating closed-source vendor platforms as the only realistic option.
+**Project Status:** cueq is a proof of concept and reference implementation, not
+a certified production system or legal opinion. The current source implements
+the major domain, API, web, integration, and operations capability families;
+service-backed release gates still need to pass in an authorized environment.
+See [Current Implementation Status](docs/PLANS.md) and the latest
+[Local Verification Snapshot](docs/verification-baseline.md).
 
 ---
 
 ## What is cueq?
 
-**cueq** (pronounced "cue-Q") is a workforce-management system built for German universities operating under the [TV-L](https://de.wikipedia.org/wiki/Tarifvertrag_f%C3%BCr_den_%C3%B6ffentlichen_Dienst_der_L%C3%A4nder) collective agreement in [Nordrhein-Westfalen (NRW)](https://de.wikipedia.org/wiki/Nordrhein-Westfalen). It replaces fragmented tools (paper, Excel, disconnected terminal systems) with a single, legally compliant, auditable, and user-friendly system.
+**cueq** (pronounced "cue-Q") is a workforce-management reference system for
+German universities operating under the
+[TV-L](https://de.wikipedia.org/wiki/Tarifvertrag_f%C3%BCr_den_%C3%B6ffentlichen_Dienst_der_L%C3%A4nder)
+collective agreement in
+[Nordrhein-Westfalen (NRW)](https://de.wikipedia.org/wiki/Nordrhein-Westfalen).
+It explores how fragmented time, leave, roster, approval, and closing workflows
+can be brought into one auditable, permission-aware, self-hostable application.
 
 ### The Problem
 
@@ -40,7 +51,7 @@ cueq provides:
 | **Approval Workflows** | Configurable approval chains with delegation, escalation, and automatic deputy routing                                           |
 | **Monthly Closing**    | Structured end-of-month process: checklists, locking, HR corrections, and payroll export                                         |
 | **Audit Trail**        | Immutable, append-only log of every change, decision, and export — required for legal compliance                                 |
-| **GDPR Compliance**    | Role-based data access, configurable retention/deletion, no individual performance monitoring                                    |
+| **Privacy Guardrails** | Role-based data access, configurable retention/deletion, no individual performance monitoring                                    |
 
 ### Key Constraints
 
@@ -207,8 +218,8 @@ cueq/
 │   │   └── package.json
 │   └── web/                    # Next.js frontend
 │       ├── src/app/
-│       │   ├── layout.tsx      # Root layout (lang=de)
-│       │   └── page.tsx        # Landing page
+│       │   ├── layout.tsx      # Root layout
+│       │   └── [locale]/       # DE/EN role-aware application routes
 │       ├── next.config.ts
 │       ├── tsconfig.json
 │       └── package.json
@@ -220,7 +231,7 @@ cueq/
 │   │   └── package.json
 │   ├── database/               # Prisma schema + generated client
 │   │   ├── prisma/
-│   │   │   └── schema.prisma   # 14 models, 10 enums
+│   │   │   └── schema.prisma   # Current storage contract
 │   │   ├── src/index.ts        # Re-exports PrismaClient
 │   │   └── package.json
 │   ├── policy/                 # Policy-as-code definitions + golden tests
@@ -243,7 +254,8 @@ cueq/
 │   ├── design-decisions/       # ADRs (template + 001-tech-stack)
 │   ├── generated/              # Auto-generated (db-schema.md)
 │   ├── product-specs/          # Product specifications
-│   ├── DESIGN.md               # Design patterns & conventions
+│   ├── README.md               # Public documentation index and boundary
+│   ├── DESIGN.md               # Domain/application design patterns
 │   ├── FRONTEND.md             # Frontend architecture
 │   ├── PLANS.md                # Current implementation and release status
 │   ├── PRODUCT_SENSE.md        # Product thinking & personas
@@ -281,6 +293,8 @@ cueq/
 ├── .env.example                # Environment template
 ├── AGENTS.md                   # Contributor guide
 ├── ARCHITECTURE.md             # System architecture
+├── PRODUCT.md                  # Product purpose, users, and principles
+├── DESIGN.md                   # Trusted Operations Desk visual system
 ├── README.md                   # ← You are here
 └── LICENSE                     # MIT
 ```
@@ -360,6 +374,9 @@ make dev
 make check
 ```
 
+`make check`, browser tests, and service-backed suites require the local
+PostgreSQL service. Do not infer release readiness from unit/build results alone.
+
 ## Standard Commands
 
 Run `make help` for a full list. Key commands:
@@ -411,21 +428,6 @@ call external services or require secrets.
 
 ---
 
-## Screenshots
-
-All screenshots are generated from mock university seed data (German locale) via `make demo-screenshots`.
-
-| Screen                                                             | Preview                                                     |
-| ------------------------------------------------------------------ | ----------------------------------------------------------- |
-| **Dashboard** -- Target/actual hours, balance, quick actions       | ![Dashboard](docs/assets/demo-screenshots/01-dashboard.png) |
-| **Leave** -- Absence requests, quota tracking, carry-over          | ![Leave](docs/assets/demo-screenshots/02-leave.png)         |
-| **Roster** -- Shift planning, min-staffing, plan-vs-actual         | ![Roster](docs/assets/demo-screenshots/03-roster.png)       |
-| **Approvals** -- Workflow inbox with delegation and escalation     | ![Approvals](docs/assets/demo-screenshots/04-approvals.png) |
-| **Closing** -- Monthly closing checklist, export runs, corrections | ![Closing](docs/assets/demo-screenshots/05-closing.png)     |
-| **Reports** -- Aggregated analytics with privacy guardrails        | ![Reports](docs/assets/demo-screenshots/06-reports.png)     |
-
----
-
 ## Domain Model
 
 The database schema models the core domain entities from the [PRD](docs/product-specs/index.md).
@@ -457,20 +459,21 @@ erDiagram
 
 ## Documentation Map
 
-| Document                                                             | Description                                            | Audience                   |
-| -------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------- |
-| [AGENTS.md](AGENTS.md)                                               | Contributor guide, conventions, security constraints   | Developers, contributors   |
-| [ARCHITECTURE.md](ARCHITECTURE.md)                                   | C4-level system overview, service descriptions         | Developers, architects     |
-| [docs/DESIGN.md](docs/DESIGN.md)                                     | DDD patterns, hexagonal architecture, testing strategy | Developers                 |
-| [docs/PLANS.md](docs/PLANS.md)                                       | Current implementation status and release gates        | Maintainers                |
-| [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md)                       | Personas, success metrics, trade-offs                  | Product, stakeholders      |
-| [docs/SECURITY.md](docs/SECURITY.md)                                 | Threat model, RBAC matrix, GDPR compliance             | Security, DPO, Personalrat |
-| [SECURITY.md](SECURITY.md)                                           | GitHub vulnerability disclosure entry point            | Security reporters         |
-| [docs/RELIABILITY.md](docs/RELIABILITY.md)                           | Availability, backup, failover, monitoring             | Operations                 |
-| [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md)                       | Coverage targets, test performance budgets             | QA, CI                     |
-| [docs/FRONTEND.md](docs/FRONTEND.md)                                 | UI architecture, i18n, accessibility, privacy          | Frontend developers        |
-| [docs/design-docs/core-beliefs.md](docs/design-docs/core-beliefs.md) | Design principles + full domain glossary (50 terms)    | Everyone                   |
-| [docs/product-specs/](docs/product-specs/index.md)                   | Product specifications                                 | Product, developers        |
+| Document                                                       | Description                                             | Audience                   |
+| -------------------------------------------------------------- | ------------------------------------------------------- | -------------------------- |
+| [PRODUCT.md](PRODUCT.md)                                       | Current users, purpose, principles, and role model      | Everyone                   |
+| [DESIGN.md](DESIGN.md)                                         | Trusted Operations Desk visual system                   | Product, frontend          |
+| [AGENTS.md](AGENTS.md)                                         | Contributor conventions and verification expectations   | Developers, contributors   |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                             | System overview and dependency boundaries               | Developers, architects     |
+| [docs/README.md](docs/README.md)                               | Public documentation index and public/private boundary  | Everyone                   |
+| [docs/PLANS.md](docs/PLANS.md)                                 | Current implementation and release-verification status  | Maintainers                |
+| [docs/verification-baseline.md](docs/verification-baseline.md) | Latest observed local verification and gaps             | Maintainers, reviewers     |
+| [docs/SECURITY.md](docs/SECURITY.md)                           | Threat model, role matrix, and privacy design           | Security, DPO, Personalrat |
+| [SECURITY.md](SECURITY.md)                                     | GitHub vulnerability disclosure entry point             | Security reporters         |
+| [docs/RELIABILITY.md](docs/RELIABILITY.md)                     | Availability, backup, failover, and monitoring          | Operations                 |
+| [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md)                 | Quality targets and enforcing commands                  | QA, CI                     |
+| [docs/FRONTEND.md](docs/FRONTEND.md)                           | Current UI architecture, i18n, accessibility, and roles | Frontend developers        |
+| [docs/product-specs/](docs/product-specs/index.md)             | Capability specifications                               | Product, developers        |
 
 ---
 
@@ -478,7 +481,7 @@ erDiagram
 
 See [AGENTS.md](AGENTS.md) for the full guide. Key points:
 
-- **Small PRs** — max 400 lines, one concern per PR
+- **Focused PRs** — one coherent concern with reviewable evidence
 - **Conventional Commits** — `type(scope): description`
 - **Tests required** — new behavior must have tests
 - **No secrets** — use `.env.example` for templates
