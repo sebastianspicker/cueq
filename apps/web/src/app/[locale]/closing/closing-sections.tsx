@@ -394,44 +394,44 @@ interface CorrectionSectionProps {
   workflowApproved: boolean;
 }
 
-function CorrectionPayloadFields(props: CorrectionSectionProps) {
+function CorrectionPayloadFields({ form }: { form: CorrectionSectionProps }) {
   const updatePayload = (change: Partial<ApplyCorrectionPayload>) =>
-    props.onCorrectionPayloadChange({ ...props.correctionPayload, ...change });
+    form.onCorrectionPayloadChange({ ...form.correctionPayload, ...change });
 
   return (
     <div className="cq-grid-2">
       <label className="cq-form-field">
-        <span>{props.t('personIdLabel')}</span>
+        <span>{form.t('personIdLabel')}</span>
         <input
-          value={props.correctionPayload.personId}
+          value={form.correctionPayload.personId}
           onChange={(event) => updatePayload({ personId: event.target.value })}
         />
       </label>
       <label className="cq-form-field">
-        <span>{props.t('timeTypeIdLabel')}</span>
+        <span>{form.t('timeTypeIdLabel')}</span>
         <input
-          value={props.correctionPayload.timeTypeId}
+          value={form.correctionPayload.timeTypeId}
           onChange={(event) => updatePayload({ timeTypeId: event.target.value })}
         />
       </label>
       <label className="cq-form-field">
-        <span>{props.t('startTimeLabel')}</span>
+        <span>{form.t('startTimeLabel')}</span>
         <input
-          value={props.correctionPayload.startTime}
+          value={form.correctionPayload.startTime}
           onChange={(event) => updatePayload({ startTime: event.target.value })}
         />
       </label>
       <label className="cq-form-field">
-        <span>{props.t('endTimeLabel')}</span>
+        <span>{form.t('endTimeLabel')}</span>
         <input
-          value={props.correctionPayload.endTime}
+          value={form.correctionPayload.endTime}
           onChange={(event) => updatePayload({ endTime: event.target.value })}
         />
       </label>
       <label className="cq-form-field cq-full-span">
-        <span>{props.t('reasonLabel')}</span>
+        <span>{form.t('reasonLabel')}</span>
         <input
-          value={props.correctionPayload.reason}
+          value={form.correctionPayload.reason}
           onChange={(event) => updatePayload({ reason: event.target.value })}
         />
       </label>
@@ -494,7 +494,7 @@ export function CorrectionSection(props: CorrectionSectionProps) {
 
       <hr className="cq-separator" />
 
-      <CorrectionPayloadFields {...props} />
+      <CorrectionPayloadFields form={props} />
       <div className="cq-space-top-sm">
         <button
           type="button"

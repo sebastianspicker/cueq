@@ -105,44 +105,44 @@ interface OnCallFormSectionProps {
   onUpdateRotation: () => void;
 }
 
-function OnCallFormFields(props: OnCallFormSectionProps) {
+function OnCallFormFields({ form }: { form: OnCallFormSectionProps }) {
   return (
     <div className="cq-grid-2">
-      <FormField label={props.t('personIdLabel')}>
+      <FormField label={form.t('personIdLabel')}>
         <input
-          value={props.personId}
-          onChange={(event) => props.onPersonIdChange(event.target.value)}
+          value={form.personId}
+          onChange={(event) => form.onPersonIdChange(event.target.value)}
         />
       </FormField>
-      <FormField label={props.t('organizationUnitIdLabel')}>
+      <FormField label={form.t('organizationUnitIdLabel')}>
         <input
-          value={props.organizationUnitId}
-          onChange={(event) => props.onOrganizationUnitIdChange(event.target.value)}
+          value={form.organizationUnitId}
+          onChange={(event) => form.onOrganizationUnitIdChange(event.target.value)}
         />
       </FormField>
-      <FormField label={props.t('rotationIdLabel')}>
+      <FormField label={form.t('rotationIdLabel')}>
         <input
-          value={props.rotationId}
-          onChange={(event) => props.onRotationIdChange(event.target.value)}
+          value={form.rotationId}
+          onChange={(event) => form.onRotationIdChange(event.target.value)}
         />
       </FormField>
-      <FormField label={props.t('startTimeLabel')}>
+      <FormField label={form.t('startTimeLabel')}>
         <input
-          value={props.startTime}
-          onChange={(event) => props.onStartTimeChange(event.target.value)}
+          value={form.startTime}
+          onChange={(event) => form.onStartTimeChange(event.target.value)}
         />
       </FormField>
-      <FormField label={props.t('endTimeLabel')}>
+      <FormField label={form.t('endTimeLabel')}>
         <input
-          value={props.endTime}
-          onChange={(event) => props.onEndTimeChange(event.target.value)}
+          value={form.endTime}
+          onChange={(event) => form.onEndTimeChange(event.target.value)}
         />
       </FormField>
-      <FormField label={props.t('rotationTypeLabel')}>
+      <FormField label={form.t('rotationTypeLabel')}>
         <select
-          value={props.rotationType}
+          value={form.rotationType}
           onChange={(event) =>
-            props.onRotationTypeChange(event.target.value as 'WEEKLY' | 'DAILY' | 'CUSTOM')
+            form.onRotationTypeChange(event.target.value as 'WEEKLY' | 'DAILY' | 'CUSTOM')
           }
         >
           <option value="WEEKLY">WEEKLY</option>
@@ -150,37 +150,37 @@ function OnCallFormFields(props: OnCallFormSectionProps) {
           <option value="CUSTOM">CUSTOM</option>
         </select>
       </FormField>
-      <FormField label={props.t('ticketLabel')}>
+      <FormField label={form.t('ticketLabel')}>
         <input
-          value={props.ticketReference}
-          onChange={(event) => props.onTicketReferenceChange(event.target.value)}
+          value={form.ticketReference}
+          onChange={(event) => form.onTicketReferenceChange(event.target.value)}
         />
       </FormField>
-      <FormField label={props.t('eventLabel')}>
+      <FormField label={form.t('eventLabel')}>
         <input
-          value={props.eventReference}
-          onChange={(event) => props.onEventReferenceChange(event.target.value)}
+          value={form.eventReference}
+          onChange={(event) => form.onEventReferenceChange(event.target.value)}
         />
       </FormField>
-      <FormField label={props.t('descriptionLabel')}>
+      <FormField label={form.t('descriptionLabel')}>
         <input
-          value={props.description}
-          onChange={(event) => props.onDescriptionChange(event.target.value)}
+          value={form.description}
+          onChange={(event) => form.onDescriptionChange(event.target.value)}
         />
       </FormField>
-      <FormField label={props.t('noteLabel')}>
-        <input value={props.note} onChange={(event) => props.onNoteChange(event.target.value)} />
+      <FormField label={form.t('noteLabel')}>
+        <input value={form.note} onChange={(event) => form.onNoteChange(event.target.value)} />
       </FormField>
-      <FormField label={props.t('nextShiftStartLabel')}>
+      <FormField label={form.t('nextShiftStartLabel')}>
         <input
-          value={props.nextShiftStart}
-          onChange={(event) => props.onNextShiftStartChange(event.target.value)}
+          value={form.nextShiftStart}
+          onChange={(event) => form.onNextShiftStartChange(event.target.value)}
         />
       </FormField>
-      <FormField label={props.t('remoteLabel')}>
+      <FormField label={form.t('remoteLabel')}>
         <select
-          value={props.remote ? 'true' : 'false'}
-          onChange={(event) => props.onRemoteChange(event.target.value === 'true')}
+          value={form.remote ? 'true' : 'false'}
+          onChange={(event) => form.onRemoteChange(event.target.value === 'true')}
         >
           <option value="true">true</option>
           <option value="false">false</option>
@@ -194,7 +194,7 @@ export function OnCallFormSection(props: OnCallFormSectionProps) {
   return (
     <SectionCard>
       <h2>{props.t('createDeploymentTitle')}</h2>
-      <OnCallFormFields {...props} />
+      <OnCallFormFields form={props} />
       <div className="cq-flex-wrap cq-space-top-sm">
         <button type="button" disabled={props.loading} onClick={props.onCreateDeployment}>
           {props.loading ? props.t('loading') : props.t('createDeployment')}
