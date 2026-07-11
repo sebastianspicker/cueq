@@ -1,5 +1,11 @@
 import { defineConfig } from '@playwright/test';
 
+const acceptanceDatabaseUrl = new URL(
+  process.env.DATABASE_URL ??
+    'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public',
+);
+acceptanceDatabaseUrl.searchParams.set('schema', 'web_acceptance');
+
 export default defineConfig({
   testDir: './tests/acceptance',
   timeout: 60_000,
@@ -10,8 +16,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command:
-        'WEB_DB_URL=postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=web_acceptance; DATABASE_URL=$WEB_DB_URL pnpm --filter @cueq/database db:push:force && DATABASE_URL=$WEB_DB_URL pnpm --filter @cueq/database db:seed:phase2 && DATABASE_URL=$WEB_DB_URL pnpm --filter @cueq/api... build && DATABASE_URL=$WEB_DB_URL AUTH_MODE=mock pnpm --filter @cueq/api start',
+      command: `WEB_DB_URL=${JSON.stringify(acceptanceDatabaseUrl.toString())}; DATABASE_URL=$WEB_DB_URL pnpm --filter @cueq/database db:push:force && DATABASE_URL=$WEB_DB_URL pnpm --filter @cueq/database db:seed:phase2 && DATABASE_URL=$WEB_DB_URL pnpm --filter @cueq/api... build && DATABASE_URL=$WEB_DB_URL AUTH_MODE=mock pnpm --filter @cueq/api start`,
       url: 'http://localhost:3001/health',
       reuseExistingServer: true,
       timeout: 120_000,
