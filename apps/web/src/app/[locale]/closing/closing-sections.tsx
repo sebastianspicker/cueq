@@ -1,6 +1,7 @@
 'use client';
 
 import type { useTranslations } from 'next-intl';
+import type { CueqRole } from '../../../components/AppWorkspace';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 
@@ -52,7 +53,7 @@ export interface ApplyCorrectionPayload {
   note?: string;
 }
 
-type TranslationFn = ReturnType<typeof useTranslations<'pages.closing'>>;
+type TranslationFn = ReturnType<typeof useTranslations>;
 
 function checklistSeverityClass(severity: string): string {
   if (severity === 'ERROR') {
@@ -88,6 +89,7 @@ export function PeriodQuerySection({
   onToMonthChange,
   onOrganizationUnitChange,
   onLoadPeriods,
+  organizationUnitLocked = false,
 }: {
   t: TranslationFn;
   fromMonth: string;
@@ -98,6 +100,7 @@ export function PeriodQuerySection({
   onToMonthChange: (value: string) => void;
   onOrganizationUnitChange: (value: string) => void;
   onLoadPeriods: () => void;
+  organizationUnitLocked?: boolean;
 }) {
   return (
     <SectionCard>
@@ -123,6 +126,7 @@ export function PeriodQuerySection({
           <span>{t('organizationUnitId')}</span>
           <input
             value={organizationUnitId}
+            disabled={organizationUnitLocked}
             onChange={(event) => onOrganizationUnitChange(event.target.value)}
           />
         </label>
@@ -220,6 +224,8 @@ export function ActionsSection({
   workflowReason,
   onExportFormatChange,
   onRunPeriodAction,
+  role,
+  checklist,
 }: {
   t: TranslationFn;
   loading: boolean;
@@ -228,64 +234,114 @@ export function ActionsSection({
   workflowReason: string;
   onExportFormatChange: (format: 'CSV_V1' | 'XML_V1') => void;
   onRunPeriodAction: (pathSuffix: string, body?: unknown) => void;
+  role: CueqRole | null;
+  checklist: ClosingChecklistResponse | null;
 }) {
+  if (role !== 'TEAM_LEAD' && role !== 'HR' && role !== 'ADMIN') {
+    return null;
+  }
+
+  const inReview = period?.status === 'REVIEW';
+  const canLeadApprove = role === 'TEAM_LEAD' && inReview && !period?.leadApprovedAt;
+  const isHrAuthority = role === 'HR' || role === 'ADMIN';
+  const canApprove =
+    isHrAuthority && inReview && Boolean(period?.leadApprovedAt) && checklist?.hasErrors === false;
+  const canExport = isHrAuthority && ['APPROVED', 'CLOSED'].includes(period?.status ?? '');
+  const canReopen = isHrAuthority && ['REVIEW', 'APPROVED'].includes(period?.status ?? '');
+  const canRequestCorrection = isHrAuthority && period?.status === 'EXPORTED';
+
   return (
     <SectionCard>
       <h2>{t('actionsTitle')}</h2>
-      <label className="cq-form-field" style={{ maxWidth: '16rem' }}>
-        <span>{t('exportFormatLabel')}</span>
-        <select
-          value={exportFormat}
-          onChange={(event) => onExportFormatChange(event.target.value as 'CSV_V1' | 'XML_V1')}
-        >
-          <option value="CSV_V1">CSV_V1</option>
-          <option value="XML_V1">XML_V1</option>
-        </select>
-      </label>
+      {isHrAuthority ? (
+        <label className="cq-form-field" style={{ maxWidth: '16rem' }}>
+          <span>{t('exportFormatLabel')}</span>
+          <select
+            value={exportFormat}
+            onChange={(event) => onExportFormatChange(event.target.value as 'CSV_V1' | 'XML_V1')}
+          >
+            <option value="CSV_V1">CSV_V1</option>
+            <option value="XML_V1">XML_V1</option>
+          </select>
+        </label>
+      ) : null}
       <div className="cq-inline-actions">
-        <button
-          type="button"
-          disabled={loading || !period}
-          onClick={() => onRunPeriodAction('start-review')}
-        >
-          {t('startReview')}
-        </button>
-        <button
-          type="button"
-          disabled={loading || !period}
-          onClick={() => onRunPeriodAction('lead-approve')}
-        >
-          {t('leadApprove')}
-        </button>
-        <button
-          type="button"
-          disabled={loading || !period}
-          onClick={() => onRunPeriodAction('approve')}
-        >
-          {t('approve')}
-        </button>
-        <button
-          type="button"
-          disabled={loading || !period}
-          onClick={() => onRunPeriodAction('export', { format: exportFormat })}
-        >
-          {t('export')}
-        </button>
-        <button
-          type="button"
-          disabled={loading || !period}
-          onClick={() => onRunPeriodAction('reopen')}
-        >
-          {t('reopen')}
-        </button>
-        <button
-          type="button"
-          disabled={loading || !period}
-          onClick={() => onRunPeriodAction('post-close-corrections', { reason: workflowReason })}
-        >
-          {t('postCloseCorrection')}
-        </button>
+        {role === 'TEAM_LEAD' ? (
+          <button
+            type="button"
+            disabled={loading || !canLeadApprove}
+            aria-describedby={!canLeadApprove ? 'closing-lead-action-reason' : undefined}
+            onClick={() => onRunPeriodAction('lead-approve')}
+          >
+            {t('leadApprove')}
+          </button>
+        ) : null}
+        {isHrAuthority ? (
+          <>
+            <button
+              type="button"
+              disabled={loading || !canApprove}
+              aria-describedby={!canApprove ? 'closing-approve-action-reason' : undefined}
+              onClick={() => onRunPeriodAction('approve')}
+            >
+              {t('approve')}
+            </button>
+            <button
+              type="button"
+              disabled={loading || !canExport}
+              aria-describedby={!canExport ? 'closing-export-action-reason' : undefined}
+              onClick={() => onRunPeriodAction('export', { format: exportFormat })}
+            >
+              {t('export')}
+            </button>
+            <button
+              type="button"
+              disabled={loading || !canReopen}
+              aria-describedby={!canReopen ? 'closing-reopen-action-reason' : undefined}
+              onClick={() => onRunPeriodAction('reopen')}
+            >
+              {t('reopen')}
+            </button>
+            <button
+              type="button"
+              disabled={loading || !canRequestCorrection}
+              aria-describedby={
+                !canRequestCorrection ? 'closing-correction-action-reason' : undefined
+              }
+              onClick={() =>
+                onRunPeriodAction('post-close-corrections', { reason: workflowReason })
+              }
+            >
+              {t('postCloseCorrection')}
+            </button>
+          </>
+        ) : null}
       </div>
+      {role === 'TEAM_LEAD' && !canLeadApprove ? (
+        <p id="closing-lead-action-reason" className="cq-form-hint">
+          {t('leadApproveUnavailable')}
+        </p>
+      ) : null}
+      {isHrAuthority && !canApprove ? (
+        <p id="closing-approve-action-reason" className="cq-form-hint">
+          {t('approveUnavailable')}
+        </p>
+      ) : null}
+      {isHrAuthority && !canExport ? (
+        <p id="closing-export-action-reason" className="cq-form-hint">
+          {t('exportUnavailable')}
+        </p>
+      ) : null}
+      {isHrAuthority && !canReopen ? (
+        <p id="closing-reopen-action-reason" className="cq-form-hint">
+          {t('reopenUnavailable')}
+        </p>
+      ) : null}
+      {isHrAuthority && !canRequestCorrection ? (
+        <p id="closing-correction-action-reason" className="cq-form-hint">
+          {t('correctionRequestUnavailable')}
+        </p>
+      ) : null}
     </SectionCard>
   );
 }
@@ -334,6 +390,8 @@ export function CorrectionSection({
   onCorrectionPayloadChange,
   onApproveWorkflow,
   onApplyCorrection,
+  role,
+  workflowApproved,
 }: {
   t: TranslationFn;
   loading: boolean;
@@ -346,7 +404,16 @@ export function CorrectionSection({
   onCorrectionPayloadChange: (payload: ApplyCorrectionPayload) => void;
   onApproveWorkflow: () => void;
   onApplyCorrection: () => void;
+  role: CueqRole | null;
+  workflowApproved: boolean;
 }) {
+  if (role !== 'HR' && role !== 'ADMIN') {
+    return null;
+  }
+
+  const canApproveWorkflow = period?.status === 'REVIEW' && Boolean(workflowId);
+  const canApplyCorrection = period?.status === 'REVIEW' && workflowApproved;
+
   return (
     <SectionCard>
       <h2>{t('correctionTitle')}</h2>
@@ -364,10 +431,20 @@ export function CorrectionSection({
         </label>
       </div>
       <div className="cq-space-top-sm">
-        <button type="button" disabled={loading || !workflowId} onClick={onApproveWorkflow}>
+        <button
+          type="button"
+          disabled={loading || !canApproveWorkflow}
+          aria-describedby={!canApproveWorkflow ? 'closing-workflow-reason' : undefined}
+          onClick={onApproveWorkflow}
+        >
           {t('approveWorkflow')}
         </button>
       </div>
+      {!canApproveWorkflow ? (
+        <p id="closing-workflow-reason" className="cq-form-hint">
+          {t('workflowApprovalUnavailable')}
+        </p>
+      ) : null}
 
       <hr className="cq-separator" />
 
@@ -419,10 +496,20 @@ export function CorrectionSection({
         </label>
       </div>
       <div className="cq-space-top-sm">
-        <button type="button" disabled={loading || !period} onClick={onApplyCorrection}>
+        <button
+          type="button"
+          disabled={loading || !canApplyCorrection}
+          aria-describedby={!canApplyCorrection ? 'closing-apply-correction-reason' : undefined}
+          onClick={onApplyCorrection}
+        >
           {t('applyCorrection')}
         </button>
       </div>
+      {!canApplyCorrection ? (
+        <p id="closing-apply-correction-reason" className="cq-form-hint">
+          {t('applyCorrectionUnavailable')}
+        </p>
+      ) : null}
     </SectionCard>
   );
 }
@@ -451,8 +538,7 @@ export function ExportsSection({
                 <div className="cq-list-item-meta">
                   <StatusBadge status={run.format} variant="info" label={run.format} />
                   <span>{run.exportedAt}</span>
-                  <span>&middot;</span>
-                  <span>{run.recordCount} records</span>
+                  <span>{t('recordCount', { count: run.recordCount })}</span>
                 </div>
                 <button
                   type="button"

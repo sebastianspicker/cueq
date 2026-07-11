@@ -18,7 +18,7 @@ export interface Booking {
   shiftId?: string | null;
 }
 
-type TranslationFn = ReturnType<typeof useTranslations<'pages.bookings'>>;
+type TranslationFn = ReturnType<typeof useTranslations>;
 
 export function BookingCorrectionSection({
   t,
@@ -95,7 +95,7 @@ export function BookingsTableSection({ t, bookings }: { t: TranslationFn; bookin
           <caption className="cq-sr-only">{t('title')}</caption>
           <thead>
             <tr>
-              <th>ID</th>
+              <th>{t('bookingIdLabel')}</th>
               <th>{t('timeTypeIdLabel')}</th>
               <th>{t('startTimeLabel')}</th>
               <th>{t('endTimeLabel')}</th>

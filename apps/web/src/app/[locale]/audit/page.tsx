@@ -7,7 +7,7 @@ import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
-import { getStoredPreference, PAGE_SIZE_STORAGE_KEY } from '../../../lib/preferences';
+import { getStoredPreference, PAGE_SIZE_PREFERENCE_SLOT } from '../../../lib/preferences';
 import type { AuditEntriesResult, AuditEntryItem } from '@cueq/shared';
 
 interface AuditSummaryReport {
@@ -47,7 +47,7 @@ export default function AuditPage() {
   const [entriesSkip, setEntriesSkip] = useState(0);
 
   useEffect(() => {
-    setPageSize(Number(getStoredPreference(PAGE_SIZE_STORAGE_KEY, '20')) || 20);
+    setPageSize(Number(getStoredPreference(PAGE_SIZE_PREFERENCE_SLOT, '20')) || 20);
   }, []);
 
   useEffect(() => {

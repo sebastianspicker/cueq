@@ -3,8 +3,7 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import { createApiRequest, type ApiRequest } from './api-client';
 
-const API_BASE_STORAGE_KEY = 'cq-api-base-url';
-const TOKEN_STORAGE_KEY = 'cq-token';
+const SESSION_ENDPOINT_SLOT = 'cq-api-base-url';
 const DEFAULT_API_BASE_URL = '/api';
 
 function readSessionValue(key: string, fallback: string): string {
@@ -61,25 +60,23 @@ interface ApiProviderProps {
 
 export function ApiProvider({ children }: ApiProviderProps) {
   const [apiBaseUrl, setApiBaseUrlState] = useState(() =>
-    normalizeApiBaseUrl(readSessionValue(API_BASE_STORAGE_KEY, DEFAULT_API_BASE_URL)),
+    normalizeApiBaseUrl(readSessionValue(SESSION_ENDPOINT_SLOT, DEFAULT_API_BASE_URL)),
   );
-  const [token, setTokenState] = useState(() => readSessionValue(TOKEN_STORAGE_KEY, ''));
+  const [token, setTokenState] = useState('');
 
   const value = useMemo<ApiContextValue>(() => {
     const setApiBaseUrl = (nextValue: string) => {
       const normalized = normalizeApiBaseUrl(nextValue);
       setApiBaseUrlState(normalized);
-      writeSessionValue(API_BASE_STORAGE_KEY, normalized);
+      writeSessionValue(SESSION_ENDPOINT_SLOT, normalized);
 
       if (normalized !== apiBaseUrl) {
         setTokenState('');
-        writeSessionValue(TOKEN_STORAGE_KEY, '');
       }
     };
 
     const setToken = (nextValue: string) => {
       setTokenState(nextValue);
-      writeSessionValue(TOKEN_STORAGE_KEY, nextValue);
     };
 
     return {

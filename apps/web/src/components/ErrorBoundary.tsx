@@ -23,8 +23,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return { error };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('ErrorBoundary caught:', error, info.componentStack);
+  componentDidCatch(error: Error, _info: ErrorInfo): void {
+    console.error('ui_boundary_error', error.name);
   }
 
   render(): ReactNode {
@@ -36,7 +36,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <div className="cq-section-card" role="alert">
           <h2>{this.props.fallbackTitle ?? 'Something went wrong'}</h2>
-          <p>{this.state.error.message}</p>
           <button type="button" onClick={() => this.setState({ error: null })}>
             {this.props.fallbackAction ?? 'Try again'}
           </button>
