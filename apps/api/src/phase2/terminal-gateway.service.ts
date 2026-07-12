@@ -76,6 +76,8 @@ export class TerminalGatewayService {
       endTime?: string;
       note?: string;
     }>;
+    rawRows: number;
+    validRows: number;
     malformedRows: number;
   } {
     let headers: string[] = [];
@@ -88,7 +90,7 @@ export class TerminalGatewayService {
       );
     }
     if (headers.length === 0) {
-      return { records: [], malformedRows: 0 };
+      return { records: [], rawRows: 0, validRows: 0, malformedRows: 0 };
     }
     const requiredHeaders = ['personId', 'timeTypeCode', 'startTime'];
     const missingHeader = requiredHeaders.find((required) => !headers.includes(required));
@@ -120,7 +122,7 @@ export class TerminalGatewayService {
       records.push(parsed.data);
     }
 
-    return { records, malformedRows };
+    return { records, rawRows: rows.length, validRows: records.length, malformedRows };
   }
 
   async importBatch(user: AuthenticatedIdentity, actorId: string, payload: unknown) {
@@ -143,6 +145,11 @@ export class TerminalGatewayService {
       personId: string;
       startTime: string;
       type: 'ABSENCE_CONFLICT' | 'BOOKING_OVERLAP';
+    }> = [];
+    const unknownTimeTypes: Array<{
+      personId: string;
+      startTime: string;
+      timeTypeCode: string;
     }> = [];
 
     const terminalDevice = await this.prisma.terminalDevice.upsert({
@@ -172,6 +179,11 @@ export class TerminalGatewayService {
       });
 
       if (!timeType) {
+        unknownTimeTypes.push({
+          personId: record.personId,
+          startTime: record.startTime,
+          timeTypeCode: record.timeTypeCode,
+        });
         continue;
       }
 
@@ -261,6 +273,7 @@ export class TerminalGatewayService {
           created,
           duplicates,
           conflictFlags,
+          unknownTimeTypes,
           sorted: true,
           ingestionChecksum,
         } as Prisma.InputJsonValue,
@@ -277,6 +290,7 @@ export class TerminalGatewayService {
         created,
         duplicates,
         conflictFlags,
+        unknownTimeTypes,
         ingestionChecksum,
       },
       reason: `Imported by role ${user.role}`,
@@ -289,6 +303,7 @@ export class TerminalGatewayService {
       created,
       duplicates,
       conflictFlags,
+      unknownTimeTypes,
       ingestionChecksum,
       sorted: true,
     };
@@ -296,16 +311,36 @@ export class TerminalGatewayService {
 
   async importBatchFile(user: AuthenticatedIdentity, actorId: string, payload: unknown) {
     const parsed = TerminalSyncBatchFileSchema.parse(payload) as TerminalSyncBatchFileInput;
-    const { records, malformedRows } = this.parseHoneywellCsv(parsed.csv);
+    const { records, rawRows, validRows, malformedRows } = this.parseHoneywellCsv(parsed.csv);
     const imported = await this.importBatch(user, actorId, {
       terminalId: parsed.terminalId,
       sourceFile: parsed.sourceFile,
       records,
     });
 
+    await this.prisma.terminalSyncBatch.update({
+      where: { id: imported.batchId },
+      data: {
+        resultPayload: {
+          totalRecords: imported.totalRecords,
+          rawRows,
+          validRows,
+          malformedRows,
+          created: imported.created,
+          duplicates: imported.duplicates,
+          conflictFlags: imported.conflictFlags,
+          unknownTimeTypes: imported.unknownTimeTypes,
+          sorted: imported.sorted,
+          ingestionChecksum: imported.ingestionChecksum,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
     return {
       ...imported,
       protocol: parsed.protocol,
+      rawRows,
+      validRows,
       malformedRows,
     };
   }

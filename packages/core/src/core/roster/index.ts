@@ -169,12 +169,14 @@ export interface PlanVsActualCoverageResult extends PlanVsActualResult {
   slots: PlanVsActualCoverageSlotResult[];
 }
 
+type MinuteRange = { start: number; end: number };
+
 function overlapRange(
   startA: string,
   endA: string,
   startB: string,
   endB: string,
-): { start: number; end: number } | null {
+): MinuteRange | null {
   const aStart = new Date(startA).getTime();
   const aEnd = new Date(endA).getTime();
   const bStart = new Date(startB).getTime();
@@ -190,7 +192,7 @@ function overlapRange(
   };
 }
 
-function mergeMinuteRanges(ranges: Array<{ start: number; end: number }>): number {
+function mergeMinuteRanges(ranges: MinuteRange[]): number {
   if (ranges.length === 0) {
     return 0;
   }
@@ -222,11 +224,134 @@ function mergeMinuteRanges(ranges: Array<{ start: number; end: number }>): numbe
   return total / 60_000;
 }
 
+function slotDurationMinutes(slot: PlanVsActualCoverageSlot): number {
+  return (new Date(slot.endTime).getTime() - new Date(slot.startTime).getTime()) / 60_000;
+}
+
+function plannedHeadcount(slot: PlanVsActualCoverageSlot): {
+  assignedHeadcount: number;
+  plannedHeadcount: number;
+} {
+  const assignedHeadcount = new Set(slot.assignedPersonIds).size;
+  // Minimum staffing is the legal/operational floor; explicit assignments can
+  // raise the planned headcount for a concrete shift.
+  return {
+    assignedHeadcount,
+    plannedHeadcount: Math.max(slot.minStaffing, assignedHeadcount),
+  };
+}
+
+function collectBookingRangesByPerson(
+  slot: PlanVsActualCoverageSlot,
+  bookings: PlanVsActualBooking[],
+  allowedCategories: ReadonlySet<string>,
+): Map<string, MinuteRange[]> {
+  const slotStartMs = new Date(slot.startTime).getTime();
+  const bookingRangesByPerson = new Map<string, MinuteRange[]>();
+
+  for (const booking of bookings) {
+    if (!allowedCategories.has(booking.timeTypeCategory)) {
+      continue;
+    }
+
+    const coveredRange = overlapRange(
+      slot.startTime,
+      slot.endTime,
+      booking.startTime,
+      booking.endTime,
+    );
+    if (!coveredRange) {
+      continue;
+    }
+
+    const ranges = bookingRangesByPerson.get(booking.personId) ?? [];
+    ranges.push({
+      start: coveredRange.start - slotStartMs,
+      end: coveredRange.end - slotStartMs,
+    });
+    bookingRangesByPerson.set(booking.personId, ranges);
+  }
+
+  return bookingRangesByPerson;
+}
+
+function summarizeCoveredPersons(
+  bookingRangesByPerson: Map<string, MinuteRange[]>,
+  minimumCoverageMinutes: number,
+): { actualHeadcount: number; totalCoveredMinutes: number } {
+  let actualHeadcount = 0;
+  let totalCoveredMinutes = 0;
+
+  for (const ranges of bookingRangesByPerson.values()) {
+    const personCoveredMinutes = mergeMinuteRanges(ranges);
+    if (personCoveredMinutes >= minimumCoverageMinutes) {
+      actualHeadcount += 1;
+      totalCoveredMinutes += personCoveredMinutes;
+    }
+  }
+
+  return { actualHeadcount, totalCoveredMinutes };
+}
+
+function evaluateCoverageSlot(
+  slot: PlanVsActualCoverageSlot,
+  bookings: PlanVsActualBooking[],
+  coverageThreshold: number,
+  allowedCategories: ReadonlySet<string>,
+): PlanVsActualCoverageSlotResult {
+  const { assignedHeadcount, plannedHeadcount: plannedSlotHeadcount } = plannedHeadcount(slot);
+  const durationMinutes = slotDurationMinutes(slot);
+  const minimumCoverageMinutes = durationMinutes * coverageThreshold;
+  const bookingRangesByPerson = collectBookingRangesByPerson(slot, bookings, allowedCategories);
+  const { actualHeadcount, totalCoveredMinutes } = summarizeCoveredPersons(
+    bookingRangesByPerson,
+    minimumCoverageMinutes,
+  );
+  const durationCoverageRatio =
+    durationMinutes > 0 && actualHeadcount > 0
+      ? roundToTwo(totalCoveredMinutes / (durationMinutes * plannedSlotHeadcount))
+      : 0;
+
+  return {
+    shiftId: slot.shiftId,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    shiftType: slot.shiftType,
+    minStaffing: slot.minStaffing,
+    assignedHeadcount,
+    plannedHeadcount: plannedSlotHeadcount,
+    actualHeadcount,
+    delta: actualHeadcount - plannedSlotHeadcount,
+    compliant: actualHeadcount >= plannedSlotHeadcount,
+    plannedDurationMinutes: durationMinutes,
+    actualCoveredMinutes: roundToTwo(totalCoveredMinutes),
+    durationCoverageRatio,
+  };
+}
+
+function countUnderstaffedSlots(slotResults: PlanVsActualCoverageSlotResult[]): number {
+  return slotResults.filter((slot) => slot.actualHeadcount < slot.minStaffing).length;
+}
+
+function totalPlannedCoverageMinutes(slotResults: PlanVsActualCoverageSlotResult[]): number {
+  return slotResults.reduce(
+    (sum, slot) => sum + slot.plannedDurationMinutes * slot.plannedHeadcount,
+    0,
+  );
+}
+
+function totalActualCoverageMinutes(slotResults: PlanVsActualCoverageSlotResult[]): number {
+  return slotResults.reduce((sum, slot) => sum + slot.actualCoveredMinutes, 0);
+}
+
 export function evaluatePlanVsActualCoverage(
   slots: PlanVsActualCoverageSlot[],
   bookings: PlanVsActualBooking[],
   options: { coverageThreshold?: number } = {},
 ): PlanVsActualCoverageResult {
+  // A tiny overlap should not count as staffing coverage for the whole shift.
+  // Defaulting to 50% keeps the pilot metric useful until a richer attendance
+  // policy is configured per roster type.
   const coverageThreshold = options.coverageThreshold ?? 0.5;
 
   if (slots.length === 0) {
@@ -243,71 +368,9 @@ export function evaluatePlanVsActualCoverage(
 
   const allowedCategories = WORK_INTERVAL_TYPES;
 
-  const slotResults = slots.map((slot): PlanVsActualCoverageSlotResult => {
-    const assignedHeadcount = new Set(slot.assignedPersonIds).size;
-    const plannedHeadcount = Math.max(slot.minStaffing, assignedHeadcount);
-    const slotDurationMinutes =
-      (new Date(slot.endTime).getTime() - new Date(slot.startTime).getTime()) / 60_000;
-    const minimumCoverageMinutes = slotDurationMinutes * coverageThreshold;
-
-    const bookingRangesByPerson = new Map<string, Array<{ start: number; end: number }>>();
-
-    for (const booking of bookings) {
-      if (!allowedCategories.has(booking.timeTypeCategory)) {
-        continue;
-      }
-
-      const coveredRange = overlapRange(
-        slot.startTime,
-        slot.endTime,
-        booking.startTime,
-        booking.endTime,
-      );
-      if (!coveredRange) {
-        continue;
-      }
-
-      const ranges = bookingRangesByPerson.get(booking.personId) ?? [];
-      const slotStartMs = new Date(slot.startTime).getTime();
-      ranges.push({
-        start: coveredRange.start - slotStartMs,
-        end: coveredRange.end - slotStartMs,
-      });
-      bookingRangesByPerson.set(booking.personId, ranges);
-    }
-
-    const actualPersons = new Set<string>();
-    let totalCoveredMinutes = 0;
-    for (const [personId, ranges] of bookingRangesByPerson.entries()) {
-      const personCoveredMinutes = mergeMinuteRanges(ranges);
-      if (personCoveredMinutes >= minimumCoverageMinutes) {
-        actualPersons.add(personId);
-        totalCoveredMinutes += personCoveredMinutes;
-      }
-    }
-
-    const actualHeadcount = actualPersons.size;
-    const durationCoverageRatio =
-      slotDurationMinutes > 0 && actualHeadcount > 0
-        ? roundToTwo(totalCoveredMinutes / (slotDurationMinutes * plannedHeadcount))
-        : 0;
-
-    return {
-      shiftId: slot.shiftId,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      shiftType: slot.shiftType,
-      minStaffing: slot.minStaffing,
-      assignedHeadcount,
-      plannedHeadcount,
-      actualHeadcount,
-      delta: actualHeadcount - plannedHeadcount,
-      compliant: actualHeadcount >= plannedHeadcount,
-      plannedDurationMinutes: slotDurationMinutes,
-      actualCoveredMinutes: roundToTwo(totalCoveredMinutes),
-      durationCoverageRatio,
-    };
-  });
+  const slotResults = slots.map((slot) =>
+    evaluateCoverageSlot(slot, bookings, coverageThreshold, allowedCategories),
+  );
 
   const summary = comparePlanVsActual(
     slotResults.map((slot) => ({
@@ -317,15 +380,9 @@ export function evaluatePlanVsActualCoverage(
     })),
   );
 
-  const understaffedSlots = slotResults.filter(
-    (slot) => slot.actualHeadcount < slot.minStaffing,
-  ).length;
-
-  const totalPlannedMinutes = slotResults.reduce(
-    (sum, s) => sum + s.plannedDurationMinutes * s.plannedHeadcount,
-    0,
-  );
-  const totalActualMinutes = slotResults.reduce((sum, s) => sum + s.actualCoveredMinutes, 0);
+  const understaffedSlots = countUnderstaffedSlots(slotResults);
+  const totalPlannedMinutes = totalPlannedCoverageMinutes(slotResults);
+  const totalActualMinutes = totalActualCoverageMinutes(slotResults);
 
   return {
     ...summary,

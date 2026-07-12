@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -10,6 +9,7 @@ import {
   WorkflowStatus,
   WorkflowType,
 } from '@prisma/client';
+import { runSeedLayer, stableCuid } from './seed-helpers.mjs';
 
 const DEFAULT_DATABASE_URL =
   'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public';
@@ -21,7 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 function cuidFor(index) {
-  return `c${String(index).padStart(24, '0')}`;
+  return stableCuid(index);
 }
 
 const IDs = {
@@ -76,12 +76,7 @@ const MARCH_PERIOD_START = new Date('2026-03-01T00:00:00.000Z');
 const MARCH_PERIOD_END = new Date('2026-03-31T23:59:59.000Z');
 
 function runPhase3(command) {
-  execSync(`node ${resolve(__dirname, 'seed-phase3.mjs')} ${command}`, {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-    },
-  });
+  runSeedLayer(resolve(__dirname, 'seed-phase3.mjs'), command);
 }
 
 async function upsertPerson(data) {
@@ -102,7 +97,7 @@ async function upsertPerson(data) {
   });
 }
 
-async function seed() {
+async function seedDemoPeople() {
   runPhase3('seed');
 
   await prisma.organizationUnit.update({
@@ -155,7 +150,9 @@ async function seed() {
     where: { id: IDs.personItOncall },
     data: { firstName: 'Ida', lastName: 'Bereitschaft' },
   });
+}
 
+async function seedDemoSecurityPeople() {
   const securityEmploymentStart = new Date('2025-01-01T00:00:00.000Z');
   await upsertPerson({
     id: IDs.personSecurity1,
@@ -217,7 +214,9 @@ async function seed() {
     supervisorId: IDs.personLead,
     workTimeModelId: IDs.modelShift,
   });
+}
 
+async function seedDemoShifts() {
   await prisma.shift.update({
     where: { id: IDs.shiftNight },
     data: {
@@ -268,7 +267,9 @@ async function seed() {
       endTime: new Date('2026-03-10T22:00:00.000Z'),
     },
   });
+}
 
+async function seedDemoAssignments() {
   const assignments = [
     { shiftId: IDs.shiftNight, personId: IDs.personPlanner },
     { shiftId: IDs.shiftNight, personId: IDs.personSecurity1 },
@@ -288,7 +289,9 @@ async function seed() {
       update: {},
     });
   }
+}
 
+async function seedDemoSecurityBookings() {
   const securityBookings = [
     {
       id: IDs.bookingSecurityNightPlanner,
@@ -348,7 +351,9 @@ async function seed() {
       },
     });
   }
+}
 
+async function seedDemoAbsences() {
   const absences = [
     {
       id: IDs.absenceEmployeeRequested,
@@ -415,7 +420,16 @@ async function seed() {
       },
     });
   }
+}
 
+async function seedDemoScheduling() {
+  await seedDemoShifts();
+  await seedDemoAssignments();
+  await seedDemoSecurityBookings();
+  await seedDemoAbsences();
+}
+
+async function seedDemoWorkflow() {
   await prisma.workflowInstance.upsert({
     where: { id: IDs.workflowPendingLeave },
     create: {
@@ -448,7 +462,9 @@ async function seed() {
       createdAt: new Date('2026-03-18T08:30:00.000Z'),
     },
   });
+}
 
+async function seedDemoTimeAccounts() {
   const securityTimeAccounts = [
     {
       id: IDs.timeAccountPlanner,
@@ -517,7 +533,9 @@ async function seed() {
       },
     });
   }
+}
 
+async function seedDemoExportRun() {
   await prisma.exportRun.upsert({
     where: { id: IDs.exportRun },
     create: {
@@ -544,7 +562,9 @@ async function seed() {
       exportedById: IDs.personHr,
     },
   });
+}
 
+async function seedDemoAuditEntries() {
   const auditEntries = [
     {
       id: IDs.auditReportAccessA,
@@ -637,6 +657,20 @@ async function seed() {
       },
     });
   }
+}
+
+async function seedDemoClosing() {
+  await seedDemoWorkflow();
+  await seedDemoTimeAccounts();
+  await seedDemoExportRun();
+  await seedDemoAuditEntries();
+}
+
+async function seed() {
+  await seedDemoPeople();
+  await seedDemoSecurityPeople();
+  await seedDemoScheduling();
+  await seedDemoClosing();
 }
 
 async function reset() {

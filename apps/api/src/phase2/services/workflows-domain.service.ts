@@ -98,9 +98,14 @@ export class WorkflowsDomainService {
     payload: unknown,
   ): Promise<unknown> {
     assertHrLikeRole(user);
+    const actor = await this.personHelper.personForUser(user);
     const parsedType = WorkflowTypeSchema.parse(type);
     const parsedPayload = WorkflowPolicyUpsertSchema.parse(payload);
-    return this.workflowRuntimeService.upsertPolicy(parsedType as WorkflowType, parsedPayload);
+    return this.workflowRuntimeService.upsertPolicy(
+      parsedType as WorkflowType,
+      parsedPayload,
+      actor.id,
+    );
   }
 
   /* ── Workflow Delegations ────────────────────────────────────── */

@@ -1,10 +1,10 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 import { createApiRequest, type ApiRequest } from './api-client';
 
-const API_BASE_STORAGE_KEY = 'cq-api-base-url';
-const TOKEN_STORAGE_KEY = 'cq-token';
+const SESSION_ENDPOINT_SLOT = 'cq-api-base-url';
+const LEGACY_SESSION_TOKEN_SLOT = 'cq-token';
 const DEFAULT_API_BASE_URL = '/api';
 
 function readSessionValue(key: string, fallback: string): string {
@@ -30,18 +30,6 @@ function writeSessionValue(key: string, value: string) {
     } else {
       sessionStorage.removeItem(key);
     }
-  } catch {
-    // sessionStorage unavailable
-  }
-}
-
-function removeSessionValue(key: string) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    sessionStorage.removeItem(key);
   } catch {
     // sessionStorage unavailable
   }
@@ -73,29 +61,26 @@ interface ApiProviderProps {
 
 export function ApiProvider({ children }: ApiProviderProps) {
   const [apiBaseUrl, setApiBaseUrlState] = useState(() =>
-    normalizeApiBaseUrl(readSessionValue(API_BASE_STORAGE_KEY, DEFAULT_API_BASE_URL)),
+    normalizeApiBaseUrl(readSessionValue(SESSION_ENDPOINT_SLOT, DEFAULT_API_BASE_URL)),
   );
-  const [token, setTokenState] = useState('');
-
-  useEffect(() => {
-    removeSessionValue(TOKEN_STORAGE_KEY);
-  }, []);
+  const [token, setTokenState] = useState(() => {
+    writeSessionValue(LEGACY_SESSION_TOKEN_SLOT, '');
+    return '';
+  });
 
   const value = useMemo<ApiContextValue>(() => {
     const setApiBaseUrl = (nextValue: string) => {
       const normalized = normalizeApiBaseUrl(nextValue);
       setApiBaseUrlState(normalized);
-      writeSessionValue(API_BASE_STORAGE_KEY, normalized);
+      writeSessionValue(SESSION_ENDPOINT_SLOT, normalized);
 
       if (normalized !== apiBaseUrl) {
         setTokenState('');
-        removeSessionValue(TOKEN_STORAGE_KEY);
       }
     };
 
     const setToken = (nextValue: string) => {
       setTokenState(nextValue);
-      removeSessionValue(TOKEN_STORAGE_KEY);
     };
 
     return {

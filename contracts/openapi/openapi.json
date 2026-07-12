@@ -1926,7 +1926,25 @@
         "parameters": [],
         "responses": {
           "201": {
-            "description": ""
+            "description": "HR import accepted and completed successfully"
+          },
+          "400": {
+            "description": "CSV or pre-acceptance validation failed; no run created"
+          },
+          "409": {
+            "description": "Another import holds the advisory lock; retry with the same payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "statusCode": 409,
+                    "code": "HR_IMPORT_IN_PROGRESS",
+                    "message": "Another HR import is already in progress.",
+                    "retryable": true
+                  }
+                }
+              }
+            }
           }
         },
         "summary": "Run HR master data import (file/API, integration token required)",
@@ -2216,6 +2234,14 @@
           {
             "name": "from",
             "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "organizationUnitId",
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"

@@ -1,7 +1,7 @@
-import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import { FIXED_SEED_TIMESTAMP, runSeedLayer, stableCuid } from './seed-helpers.mjs';
 
 const prisma = new PrismaClient();
 
@@ -9,19 +9,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 function runPhase2(command) {
-  execSync(`node ${resolve(__dirname, 'seed-phase2.mjs')} ${command}`, {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-    },
-  });
+  runSeedLayer(resolve(__dirname, 'seed-phase2.mjs'), command);
 }
 
+const IDs = {
+  terminalDevice: stableCuid(999),
+  terminalHeartbeat: stableCuid(1_000),
+  hrImportRun: stableCuid(1_001),
+  auditSeed: stableCuid(1_002),
+};
+
 async function reset() {
-  runPhase2('reset');
   await prisma.terminalHeartbeat.deleteMany();
   await prisma.terminalDevice.deleteMany();
   await prisma.hrImportRun.deleteMany();
+  runPhase2('reset');
 }
 
 async function seed() {
@@ -30,6 +32,7 @@ async function seed() {
   const terminal = await prisma.terminalDevice.upsert({
     where: { terminalId: 'T-01' },
     create: {
+      id: IDs.terminalDevice,
       terminalId: 'T-01',
       name: 'Pforte Terminal 01',
       isActive: true,
@@ -46,6 +49,7 @@ async function seed() {
 
   await prisma.terminalHeartbeat.create({
     data: {
+      id: IDs.terminalHeartbeat,
       terminalDeviceId: terminal.id,
       observedAt: new Date('2026-03-11T07:59:00.000Z'),
       bufferedRecords: 3,
@@ -56,6 +60,7 @@ async function seed() {
 
   await prisma.hrImportRun.create({
     data: {
+      id: IDs.hrImportRun,
       source: 'FILE',
       sourceFile: 'fixtures/integrations/hr-master-phase3.csv',
       status: 'SUCCEEDED',
@@ -74,11 +79,12 @@ async function seed() {
 
   await prisma.auditEntry.create({
     data: {
+      id: IDs.auditSeed,
       actorId: 'system:phase3-seed',
       action: 'PHASE3_SEED_COMPLETED',
       entityType: 'SeedRun',
       entityId: 'phase3-default',
-      after: { seeded: true, seededAt: new Date().toISOString() },
+      after: { seeded: true, seededAt: FIXED_SEED_TIMESTAMP.toISOString() },
       reason: 'Synthetic deterministic phase-3 pilot baseline',
       ipAddress: '127.0.0.1',
     },

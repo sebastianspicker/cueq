@@ -9,3 +9,4 @@ packages/database/prisma/ @sebastianspicker
 apps/api/src/common/auth/ @sebastianspicker
 apps/api/src/common/integrations/ @sebastianspicker
 docs/SECURITY.md @sebastianspicker
+SECURITY.md @sebastianspicker

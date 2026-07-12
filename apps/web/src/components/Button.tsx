@@ -1,12 +1,24 @@
-import { type ButtonHTMLAttributes, forwardRef } from 'react';
+import { forwardRef, type MouseEventHandler, type ReactNode } from 'react';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  children: ReactNode;
+  className?: string;
+  disabled?: boolean;
+  id?: string;
+  name?: string;
+  title?: string;
+  type?: 'button' | 'submit' | 'reset';
+  value?: string | number;
+  form?: string;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
+  'aria-label'?: string;
+  'aria-describedby'?: string;
 }
 
 const variantClass: Record<ButtonVariant, string> = {
@@ -23,7 +35,23 @@ const sizeClass: Record<ButtonSize, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', loading = false, disabled, className, children, ...rest },
+  {
+    variant = 'primary',
+    size = 'md',
+    loading = false,
+    disabled,
+    className,
+    children,
+    id,
+    name,
+    title,
+    type = 'button',
+    value,
+    form,
+    onClick,
+    'aria-label': ariaLabel,
+    'aria-describedby': ariaDescribedBy,
+  },
   ref,
 ) {
   const classes = [
@@ -38,10 +66,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   return (
     <button
       ref={ref}
+      id={id}
+      name={name}
+      title={title}
+      type={type}
+      value={value}
+      form={form}
+      onClick={onClick}
       className={classes || undefined}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      {...rest}
+      aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
     >
       {children}
     </button>

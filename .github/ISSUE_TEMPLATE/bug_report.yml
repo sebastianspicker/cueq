@@ -28,6 +28,33 @@ body:
       description: Describe expected behavior and what happened instead.
     validations:
       required: true
+  - type: dropdown
+    id: affected_area
+    attributes:
+      label: Affected Area
+      description: Choose the primary area where the defect appears.
+      options:
+        - Web UI
+        - API
+        - Domain rules
+        - Database or migrations
+        - Terminal/HR/payroll integration
+        - Reporting or audit
+        - Documentation or CI
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and Verification
+      description: Include branch/commit, commands run, and relevant logs or screenshots.
+      placeholder: |
+        Commit:
+        Command:
+        Result:
+        Logs/screenshots:
+    validations:
+      required: true
   - type: checkboxes
     id: compliance
     attributes:
@@ -38,4 +65,6 @@ body:
         - label: No PII is included (or all data is synthetic/redacted).
           required: true
         - label: Security/privacy impact has been assessed.
+          required: true
+        - label: The issue does not disclose a suspected vulnerability publicly.
           required: true

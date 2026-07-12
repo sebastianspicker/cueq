@@ -45,11 +45,21 @@ export class HealthController {
     const staleTerminals = terminalDevices.filter(
       (device) => !device.lastSeenAt || device.lastSeenAt < thirtyMinutesAgo,
     ).length;
+    const degradedReasons: string[] = [];
+    if (staleTerminals > 0) {
+      degradedReasons.push('STALE_TERMINALS');
+    }
+    if (lastHrImportRun?.status === 'FAILED') {
+      degradedReasons.push('FAILED_HR_IMPORT');
+    }
+    const degraded = degradedReasons.length > 0;
 
     return {
-      status: 'ok',
+      status: degraded ? 'degraded' : 'ok',
       timestamp: generatedAt.toISOString(),
       version: process.env.npm_package_version ?? '0.0.0',
+      degraded,
+      degradedReasons,
       operations: {
         terminal: {
           total: terminalDevices.length,

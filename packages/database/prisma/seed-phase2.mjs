@@ -12,11 +12,12 @@ import {
   ClosingStatus,
   OnCallRotationType,
 } from '@prisma/client';
+import { stableCuid } from './seed-helpers.mjs';
 
 const prisma = new PrismaClient();
 
 function cuidFor(index) {
-  return `c${String(index).padStart(24, '0')}`;
+  return stableCuid(index);
 }
 
 const IDs = {
@@ -56,6 +57,7 @@ const IDs = {
   timeAccountEmployee: cuidFor(800),
   onCallDeployment: cuidFor(900),
   onCallRotation: cuidFor(901),
+  auditSeed: cuidFor(950),
 };
 
 async function reset() {
@@ -84,7 +86,7 @@ async function reset() {
   await prisma.organizationUnit.deleteMany();
 }
 
-async function seed() {
+async function seedOrganizationPeople() {
   await prisma.organizationUnit.createMany({
     data: [
       { id: IDs.ouAdmin, name: 'Verwaltung' },
@@ -123,7 +125,9 @@ async function seed() {
       },
     ],
   });
+}
 
+async function seedCorePeople() {
   await prisma.person.createMany({
     data: [
       {
@@ -183,6 +187,13 @@ async function seed() {
         organizationUnitId: IDs.ouAdmin,
         workTimeModelId: IDs.modelFlextime,
       },
+    ],
+  });
+}
+
+async function seedSupportPeople() {
+  await prisma.person.createMany({
+    data: [
       {
         id: IDs.personItOncall,
         externalId: 'oncall01',
@@ -230,7 +241,9 @@ async function seed() {
       },
     ],
   });
+}
 
+async function seedTimeTypes() {
   await prisma.timeType.createMany({
     data: [
       {
@@ -263,7 +276,9 @@ async function seed() {
       },
     ],
   });
+}
 
+async function seedRosterAndShift() {
   await prisma.roster.create({
     data: {
       id: IDs.rosterCurrent,
@@ -293,7 +308,9 @@ async function seed() {
       personId: IDs.personPlanner,
     },
   });
+}
 
+async function seedTimeOperationBookings() {
   await prisma.booking.createMany({
     data: [
       {
@@ -322,7 +339,9 @@ async function seed() {
       },
     ],
   });
+}
 
+async function seedOnCallOperations() {
   await prisma.onCallRotation.create({
     data: {
       id: IDs.onCallRotation,
@@ -348,7 +367,9 @@ async function seed() {
       description: 'Synthetic deployment for acceptance tests',
     },
   });
+}
 
+async function seedTimeOperationAbsences() {
   await prisma.absence.createMany({
     data: [
       {
@@ -373,7 +394,17 @@ async function seed() {
       },
     ],
   });
+}
 
+async function seedTimeOperations() {
+  await seedTimeTypes();
+  await seedRosterAndShift();
+  await seedTimeOperationBookings();
+  await seedOnCallOperations();
+  await seedTimeOperationAbsences();
+}
+
+async function seedWorkflowClosing() {
   await prisma.workflowPolicy.createMany({
     data: [
       {
@@ -460,6 +491,7 @@ async function seed() {
 
   await prisma.auditEntry.create({
     data: {
+      id: IDs.auditSeed,
       timestamp: new Date('2026-03-15T12:00:00.000Z'),
       actorId: IDs.personAdmin,
       action: 'PHASE2_SEED_COMPLETED',
@@ -470,6 +502,14 @@ async function seed() {
       ipAddress: '127.0.0.1',
     },
   });
+}
+
+async function seed() {
+  await seedOrganizationPeople();
+  await seedCorePeople();
+  await seedSupportPeople();
+  await seedTimeOperations();
+  await seedWorkflowClosing();
 }
 
 async function main() {

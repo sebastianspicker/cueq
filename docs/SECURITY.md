@@ -1,5 +1,9 @@
 # SECURITY.md — Security Design
 
+This document separates repository-enforced controls from deployment
+requirements. It is not a data-protection impact assessment, legal approval, or
+evidence of an institution's production configuration.
+
 ---
 
 ## 1. Security Principles
@@ -71,8 +75,6 @@ SAML adapter settings:
 **Key**: R = Read, W = Write, RW = Read+Write, — = No access
 
 `Datenschutz` has read-only access to audit/compliance summary reports and audit trail, aligned with HR/Admin visibility for those report classes.
-Team-calendar endpoints return individual absence rows even when reasons are redacted, so access must remain limited to operational team-calendar roles (`Employee`, `Team Lead`, `Shift Planner`, `HR`, `Admin`). `Payroll`, `Datenschutz`, and `Personalrat` must not receive team-calendar rows.
-Person lookup endpoints are also explicitly scoped. `HR` and `Admin` may read full person records. `Team Lead` and `Shift Planner` may read only people in their own organization unit, and the response is reduced to `id`, `firstName`, `lastName`, `role`, and `organizationUnitId`.
 
 ---
 
@@ -106,9 +108,9 @@ Person lookup endpoints are also explicitly scoped. `HR` and `Admin` may read fu
 - Audit entries are **not** deleted (legal requirement for auditability), but PII within them can be pseudonymized after the retention period.
 - Deletion is logged in the audit trail (meta-entry: "records deleted per retention policy").
 
-### DPIA (DSFA) Support
+### DPIA (DSFA) Inputs
 
-The system provides:
+The repository provides inputs that an institution can use in its own review:
 
 - Data flow documentation (which data, where, why)
 - Processing register entries
@@ -131,22 +133,22 @@ The `Personalrat` role provides:
 
 - Read access to aggregated reports (no individual data)
 - Read access to audit trail (to verify system behavior)
-- No access to individual bookings, balances, team-calendar rows, or absence reasons
+- No access to individual bookings, balances, or absence reasons
 
 ---
 
 ## 6. Threat Model (High-Level)
 
-| Threat                              | Impact                                     | Mitigation                                                                        |
-| ----------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------- |
-| Unauthorized access to absence data | Privacy violation; works council complaint | RBAC, API-level checks, UI-level filtering                                        |
-| Audit trail tampering               | Loss of legal compliance; cover-up         | Append-only design; DB-level write restrictions; integrity checks                 |
-| Terminal spoofing                   | Fraudulent bookings                        | Terminal authentication (badge/PIN); device registration; anomaly detection       |
-| Credential theft                    | Unauthorized system access                 | SSO with IdP-managed MFA; short session lifetimes                                 |
-| SQL injection                       | Data breach                                | Parameterized queries; ORM; input validation                                      |
-| XSS                                 | Session hijacking                          | CSP headers; output encoding; framework protections; bearer tokens kept in memory |
-| Insider threat (admin)              | Mass data access                           | Audit all admin actions; rotate admin credentials; principle of least privilege   |
-| Data exfiltration via export        | Unauthorized payroll data access           | Export requires explicit role; logged; review by HR                               |
+| Threat                              | Impact                                     | Mitigation                                                                      |
+| ----------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| Unauthorized access to absence data | Privacy violation; works council complaint | RBAC, API-level checks, UI-level filtering                                      |
+| Audit trail tampering               | Loss of legal compliance; cover-up         | Append-only design; DB-level write restrictions; integrity checks               |
+| Terminal spoofing                   | Fraudulent bookings                        | Terminal authentication (badge/PIN); device registration; anomaly detection     |
+| Credential theft                    | Unauthorized system access                 | SSO with IdP-managed MFA; short session lifetimes                               |
+| SQL injection                       | Data breach                                | Parameterized queries; ORM; input validation                                    |
+| XSS                                 | Session hijacking                          | CSP headers; output encoding; framework protections                             |
+| Insider threat (admin)              | Mass data access                           | Audit all admin actions; rotate admin credentials; principle of least privilege |
+| Data exfiltration via export        | Unauthorized payroll data access           | Export requires explicit role; logged; review by HR                             |
 
 ---
 
@@ -163,38 +165,19 @@ Integration tokens for terminal and HR endpoints must be rotated and delivered v
 
 ---
 
-## 8. Browser Security Headers
+## 8. Vulnerability Reporting
 
-The web frontend sets defense-in-depth headers for all routes:
+Do not open a public issue for a suspected vulnerability. Use the repository's
+GitHub private vulnerability-reporting flow when it is available. Include a
+minimal reproduction, affected commit, and impact without attaching real
+employee data, credentials, internal hostnames, or private governance records.
 
-- `Content-Security-Policy` includes `object-src 'none'` and `frame-ancestors 'none'`.
-- Script and style execution use per-request nonces generated by the web middleware.
-- Production CSP excludes `unsafe-eval`; development may allow it for Next.js tooling compatibility.
-- `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` remain enabled.
-
-Bearer tokens entered into the web UI are held in React state only. The frontend keeps the API base URL in `sessionStorage` for operator convenience, but it clears the legacy `cq-token` key and does not persist bearer tokens after refresh or tab close.
-
----
-
-## 9. Vulnerability Reporting
-
-If you discover a security vulnerability in cueq:
-
-1. **Do not** open a public issue.
-2. Email the security response team privately at `security@cueq.local`.
-3. Include: description, reproduction steps, impact assessment.
-4. We will acknowledge within 48 hours and work on a fix.
-
-### Security Ownership
-
-- Security mailbox: `security@cueq.local`
-- Primary owner: Platform Security Owner (Admin Team)
-- Backup owner: Ops On-Call Lead
-- Triage SLA owner: Platform Security Owner
+Response ownership, contact channels, and service-level agreements are defined
+by each deploying institution and are intentionally not published here.
 
 ---
 
-## 10. References
+## 9. References
 
 - [`RELIABILITY.md`](RELIABILITY.md) — Operational security (backup, monitoring, incident response)
 - [`QUALITY_SCORE.md`](QUALITY_SCORE.md) — Security-related quality gates

@@ -1,0 +1,9 @@
+---
+exclude_paths:
+  - 'pnpm-lock.yaml'
+  - 'contracts/openapi/openapi.json'
+  - 'docs/generated/**'
+  - 'packages/shared/src/generated/**'
+  - 'packages/database/prisma/migrations/20260417082000_baseline_schema/migration.sql'
+  - 'packages/database/prisma/migrations/20260419000001_workflow_policy_versioning/migration.sql'
+  - 'packages/database/prisma/migrations/20260419000002_time_threshold_policy/migration.sql'

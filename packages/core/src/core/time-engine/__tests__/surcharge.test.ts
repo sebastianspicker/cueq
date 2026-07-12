@@ -16,13 +16,13 @@ describe('parseLocalTimeToMinute', () => {
     expect(parseLocalTimeToMinute('23:59')).toBe(1439);
   });
 
-  it('returns 0 for invalid inputs', () => {
-    expect(parseLocalTimeToMinute('')).toBe(0);
-    expect(parseLocalTimeToMinute('25:00')).toBe(0);
-    expect(parseLocalTimeToMinute('12:60')).toBe(0);
-    expect(parseLocalTimeToMinute('ab:cd')).toBe(0);
-    expect(parseLocalTimeToMinute('-1:00')).toBe(0);
-    expect(parseLocalTimeToMinute('12')).toBe(0);
+  it('returns null for invalid inputs', () => {
+    expect(parseLocalTimeToMinute('')).toBeNull();
+    expect(parseLocalTimeToMinute('25:00')).toBeNull();
+    expect(parseLocalTimeToMinute('12:60')).toBeNull();
+    expect(parseLocalTimeToMinute('ab:cd')).toBeNull();
+    expect(parseLocalTimeToMinute('-1:00')).toBeNull();
+    expect(parseLocalTimeToMinute('12')).toBeNull();
   });
 });
 
@@ -108,15 +108,10 @@ describe('localMinuteInfo', () => {
     const h24Formatter = {
       formatToParts: (): Intl.DateTimeFormatPart[] => [
         { type: 'weekday', value: 'Wed' },
-        { type: 'literal', value: ', ' },
         { type: 'month', value: '03' },
-        { type: 'literal', value: '/' },
         { type: 'day', value: '04' },
-        { type: 'literal', value: '/' },
         { type: 'year', value: '2026' },
-        { type: 'literal', value: ', ' },
         { type: 'hour', value: '24' },
-        { type: 'literal', value: ':' },
         { type: 'minute', value: '30' },
       ],
     } as unknown as Intl.DateTimeFormat;

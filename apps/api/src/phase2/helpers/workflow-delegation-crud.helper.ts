@@ -16,6 +16,7 @@ export class WorkflowDelegationCrudHelper {
     delegatorId: string;
     delegateId: string;
     workflowType: WorkflowType | null;
+    organizationUnitId?: string | null;
   }) {
     if (input.delegatorId === input.delegateId) {
       throw new BadRequestException('Delegator and delegate must be different people.');
@@ -24,11 +25,11 @@ export class WorkflowDelegationCrudHelper {
     const [delegator, delegate] = await Promise.all([
       this.prisma.person.findUnique({
         where: { id: input.delegatorId },
-        select: { id: true },
+        select: { id: true, organizationUnitId: true },
       }),
       this.prisma.person.findUnique({
         where: { id: input.delegateId },
-        select: { id: true, role: true },
+        select: { id: true, role: true, organizationUnitId: true },
       }),
     ]);
 
@@ -51,6 +52,17 @@ export class WorkflowDelegationCrudHelper {
 
       throw new BadRequestException(
         'delegateId role cannot be used for delegations without a specific workflowType.',
+      );
+    }
+
+    const delegatedOrganizationUnitId = input.organizationUnitId ?? delegator.organizationUnitId;
+    if (
+      delegatedOrganizationUnitId &&
+      delegate.organizationUnitId !== delegatedOrganizationUnitId &&
+      !HR_LIKE_ROLES.has(delegate.role)
+    ) {
+      throw new BadRequestException(
+        'Non-HR/Admin delegates must belong to the delegated organization unit.',
       );
     }
   }
@@ -120,6 +132,7 @@ export class WorkflowDelegationCrudHelper {
       delegatorId: payload.delegatorId,
       delegateId: payload.delegateId,
       workflowType: payload.workflowType ?? null,
+      organizationUnitId: payload.organizationUnitId ?? null,
     });
 
     const created = await this.prisma.workflowDelegationRule.create({
@@ -183,10 +196,15 @@ export class WorkflowDelegationCrudHelper {
     const nextDelegateId = payload.delegateId ?? current.delegateId;
     const nextWorkflowType =
       payload.workflowType === undefined ? current.workflowType : payload.workflowType;
+    const nextOrganizationUnitId =
+      payload.organizationUnitId === undefined
+        ? current.organizationUnitId
+        : payload.organizationUnitId;
     await this.ensureValidDelegationTarget({
       delegatorId: current.delegatorId,
       delegateId: nextDelegateId,
       workflowType: nextWorkflowType ?? null,
+      organizationUnitId: nextOrganizationUnitId,
     });
 
     const updated = await this.prisma.workflowDelegationRule.update({

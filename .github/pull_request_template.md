@@ -4,7 +4,7 @@
 
 ## Linked Plan / Issue
 
-- Plan or issue: <!-- e.g. docs/exec-plans/active/... or #123 -->
+- Plan or issue: <!-- e.g. docs/PLANS.md or #123 -->
 
 ## Change Type
 
@@ -23,6 +23,7 @@
 - [ ] `make schemas`
 - [ ] `make openapi-check`
 - [ ] Tests added/updated for changed behavior
+- [ ] Targeted command output or reason for skipped checks documented
 
 ## Security / Privacy
 
@@ -30,6 +31,7 @@
 - [ ] No external calls added in tests
 - [ ] No PII added in fixtures or docs
 - [ ] Role-based visibility and GDPR constraints reviewed
+- [ ] Audit trail, retention, and works-council impact reviewed
 
 ## Privacy Impact (required for report changes)
 
@@ -39,10 +41,12 @@
 - [ ] Audit logging for report access
 - [ ] No individual performance/behavior metrics exposed
 - [ ] Works council compatibility confirmed
-- Reporting review artifact link (required): <!-- e.g. docs/design-docs/reporting-privacy-review-log.md#rpr-20260301-01 -->
+- Private governance evidence reference, when required: <!-- Do not paste private minutes, names, or tickets. -->
 
 ## Scope Guardrails
 
 - [ ] One concern per PR
-- [ ] <= 400 changed lines (excluding generated files)
+- [ ] Change is small enough to review as one coherent concern
 - [ ] Relevant docs updated
+- [ ] Generated artifacts refreshed or explicitly not affected
+- [ ] OpenAPI, Prisma migrations, and schema contracts reviewed when touched

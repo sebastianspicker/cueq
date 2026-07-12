@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_SURCHARGE_RULE } from '@cueq/policy';
 import { evaluateTimeRules } from '..';
 
 const BASE_INPUT = {
@@ -37,6 +38,36 @@ describe('evaluateTimeRules – edge cases', () => {
   });
 
   describe('invalid intervals', () => {
+    it('reports invalid surcharge night windows without applying all-day night surcharge', () => {
+      const result = evaluateTimeRules(
+        {
+          ...BASE_INPUT,
+          targetHours: 0,
+          intervals: [
+            {
+              start: '2026-03-03T10:00:00.000Z',
+              end: '2026-03-03T11:00:00.000Z',
+              type: 'WORK',
+            },
+          ],
+        },
+        {
+          surchargeRule: {
+            ...DEFAULT_SURCHARGE_RULE,
+            nightWindow: {
+              startLocalTime: '99:99',
+              endLocalTime: 'ab:cd',
+            },
+          },
+        },
+      );
+
+      expect(result.violations).toContainEqual(
+        expect.objectContaining({ code: 'INVALID_SURCHARGE_NIGHT_WINDOW' }),
+      );
+      expect(result.surchargeMinutes).toEqual([]);
+    });
+
     it('rejects interval where end equals start (zero duration)', () => {
       const result = evaluateTimeRules({
         ...BASE_INPUT,
@@ -1016,6 +1047,34 @@ describe('evaluateTimeRules – edge cases', () => {
       });
       // cursor at 10:00:00.000 < end at 10:00:30.000 → 1 iteration
       expect(result.actualHours).toBe(0.02); // 1 min / 60
+    });
+
+    it('counts a one-millisecond interval as one started minute', () => {
+      const result = evaluateTimeRules({
+        ...BASE_INPUT,
+        targetHours: 0,
+        intervals: [
+          {
+            start: '2026-03-03T10:00:59.999Z',
+            end: '2026-03-03T10:01:00.000Z',
+            type: 'WORK',
+          },
+        ],
+      });
+
+      expect(result.actualHours).toBe(0.02);
+    });
+  });
+
+  describe('timezone validation boundary', () => {
+    it('rejects an invalid IANA timezone before evaluating intervals', () => {
+      expect(() =>
+        evaluateTimeRules({
+          ...BASE_INPUT,
+          timezone: 'Europe/Not-A-Zone',
+          intervals: [],
+        }),
+      ).toThrow(RangeError);
     });
   });
 });

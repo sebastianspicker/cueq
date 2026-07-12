@@ -535,6 +535,15 @@ describe('Golden Cases: Surcharge Rule Constraints', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects out-of-range nightWindow local times', () => {
+    const invalid = {
+      ...DEFAULT_SURCHARGE_RULE,
+      nightWindow: { startLocalTime: '25:00', endLocalTime: '06:99' },
+    };
+    const result = SurchargeRuleSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
+
   it('rejects empty timezoneDefault', () => {
     const invalid = { ...DEFAULT_SURCHARGE_RULE, timezoneDefault: '' };
     const result = SurchargeRuleSchema.safeParse(invalid);

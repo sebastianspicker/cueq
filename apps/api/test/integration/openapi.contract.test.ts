@@ -3,6 +3,37 @@ import type { INestApplication } from '@nestjs/common';
 import { createTestApp, seedPhase2Data } from '../test-helpers';
 import { buildOpenApiDocument } from '../../src/openapi';
 
+type OpenApiDocument = ReturnType<typeof buildOpenApiDocument>;
+
+function parameterNames(document: OpenApiDocument, path: string): Set<string> {
+  const parameters = document.paths?.[path]?.get?.parameters ?? [];
+  return new Set(
+    parameters.flatMap((parameter) => {
+      if ('$ref' in parameter || !parameter.name) {
+        return [];
+      }
+      return [parameter.name];
+    }),
+  );
+}
+
+function expectQueryParameters(
+  document: OpenApiDocument,
+  path: string,
+  expectedNames: string[],
+): void {
+  const actualNames = parameterNames(document, path);
+  for (const name of expectedNames) {
+    expect(actualNames).toContain(name);
+  }
+}
+
+function expectClosingExportContract(document: OpenApiDocument): void {
+  const exportPost = document.paths?.['/v1/closing-periods/{id}/export']?.post;
+  expect(exportPost?.responses?.['201']?.content?.['application/json']).toBeDefined();
+  expect(exportPost?.requestBody).toBeDefined();
+}
+
 describe('Phase 3 integration: OpenAPI contract', () => {
   let app: INestApplication;
 
@@ -97,32 +128,18 @@ describe('Phase 3 integration: OpenAPI contract', () => {
 
   it('exposes FR-700 query parameters and response schemas', () => {
     const document = buildOpenApiDocument(app);
-    const reportPath = (path: string) => document.paths?.[path]?.get;
-
-    const teamAbsenceParams = reportPath('/v1/reports/team-absence')?.parameters ?? [];
-    expect(teamAbsenceParams.some((param: { name?: string }) => param.name === 'from')).toBe(true);
-    expect(teamAbsenceParams.some((param: { name?: string }) => param.name === 'to')).toBe(true);
-    expect(
-      teamAbsenceParams.some((param: { name?: string }) => param.name === 'organizationUnitId'),
-    ).toBe(true);
-
-    const overtimeParams = reportPath('/v1/reports/oe-overtime')?.parameters ?? [];
-    expect(overtimeParams.some((param: { name?: string }) => param.name === 'from')).toBe(true);
-    expect(overtimeParams.some((param: { name?: string }) => param.name === 'to')).toBe(true);
-    expect(
-      overtimeParams.some((param: { name?: string }) => param.name === 'organizationUnitId'),
-    ).toBe(true);
-
-    const auditParams = reportPath('/v1/reports/audit-summary')?.parameters ?? [];
-    expect(auditParams.some((param: { name?: string }) => param.name === 'from')).toBe(true);
-    expect(auditParams.some((param: { name?: string }) => param.name === 'to')).toBe(true);
-
-    const complianceParams = reportPath('/v1/reports/compliance-summary')?.parameters ?? [];
-    expect(complianceParams.some((param: { name?: string }) => param.name === 'from')).toBe(true);
-    expect(complianceParams.some((param: { name?: string }) => param.name === 'to')).toBe(true);
-
-    const exportPost = document.paths?.['/v1/closing-periods/{id}/export']?.post;
-    expect(exportPost?.responses?.['201']?.content?.['application/json']).toBeDefined();
-    expect(exportPost?.requestBody).toBeDefined();
+    expectQueryParameters(document, '/v1/reports/team-absence', [
+      'from',
+      'to',
+      'organizationUnitId',
+    ]);
+    expectQueryParameters(document, '/v1/reports/oe-overtime', [
+      'from',
+      'to',
+      'organizationUnitId',
+    ]);
+    expectQueryParameters(document, '/v1/reports/audit-summary', ['from', 'to']);
+    expectQueryParameters(document, '/v1/reports/compliance-summary', ['from', 'to']);
+    expectClosingExportContract(document);
   });
 });

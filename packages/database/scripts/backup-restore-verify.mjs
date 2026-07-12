@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { URL } from 'node:url';
+import { pathToFileURL, URL } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 
 const sourceUrl =
@@ -21,10 +21,11 @@ function sortById(rows) {
   return [...rows].sort((left, right) => String(left.id).localeCompare(String(right.id)));
 }
 
-function parseDatabaseUrl(databaseUrl) {
+export function parseDatabaseUrl(databaseUrl) {
   const url = new URL(databaseUrl);
   const schema = url.searchParams.get('schema') ?? 'public';
-  const database = url.pathname.replace(/^\//u, '') || 'postgres';
+  const pathname = url.pathname.startsWith('/') ? url.pathname.slice(1) : url.pathname;
+  const database = pathname || 'postgres';
   const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
 
   return {
@@ -89,6 +90,41 @@ function runPsql(connection, database, sql, tempDir) {
     connection,
     tempDir,
   );
+}
+
+function dumpSource(connection, tempDir, dumpPath) {
+  runPgTool(
+    [
+      'pg_dump',
+      '-h',
+      connection.host,
+      '-p',
+      connection.port,
+      '-U',
+      connection.user,
+      '-d',
+      connection.database,
+      '--schema',
+      connection.schema,
+      '--format=custom',
+      '--no-owner',
+      '--no-privileges',
+      '--file',
+      dumpPath,
+    ],
+    connection,
+    tempDir,
+  );
+}
+
+async function captureStableDump(source, connection, tempDir, dumpPath) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const before = await snapshot(source);
+    dumpSource(connection, tempDir, dumpPath);
+    const after = await snapshot(source);
+    if (before.checksum === after.checksum) return after;
+  }
+  throw new Error('SOURCE_CHANGED_DURING_BACKUP');
 }
 
 async function snapshot(prisma) {
@@ -194,28 +230,7 @@ async function main() {
   });
 
   try {
-    runPgTool(
-      [
-        'pg_dump',
-        '-h',
-        connection.host,
-        '-p',
-        connection.port,
-        '-U',
-        connection.user,
-        '-d',
-        connection.database,
-        '--schema',
-        connection.schema,
-        '--format=custom',
-        '--no-owner',
-        '--no-privileges',
-        '--file',
-        dumpPath,
-      ],
-      connection,
-      tempDir,
-    );
+    const sourceSnapshot = await captureStableDump(source, connection, tempDir, dumpPath);
 
     runPsql(connection, 'postgres', `DROP DATABASE IF EXISTS "${restoreDatabase}"`, tempDir);
     runPsql(connection, 'postgres', `CREATE DATABASE "${restoreDatabase}"`, tempDir);
@@ -241,7 +256,6 @@ async function main() {
       tempDir,
     );
 
-    const sourceSnapshot = await snapshot(source);
     const restored = new PrismaClient({
       datasources: {
         db: { url: restoreUrl },
@@ -250,8 +264,11 @@ async function main() {
 
     try {
       const restoredSnapshot = await snapshot(restored);
+      const containsKnownData =
+        sourceSnapshot.tables.persons > 0 && sourceSnapshot.tables.auditEntries > 0;
       const report = {
         ok:
+          containsKnownData &&
           sourceSnapshot.checksum === restoredSnapshot.checksum &&
           JSON.stringify(sourceSnapshot.tables) === JSON.stringify(restoredSnapshot.tables),
         method: 'pg_dump/pg_restore',
@@ -279,6 +296,18 @@ async function main() {
 
       if (!report.ok) {
         process.exitCode = 1;
+      } else {
+        await source.auditEntry.create({
+          data: {
+            id: randomUUID(),
+            actorId: 'system:backup-restore',
+            action: 'BACKUP_RESTORE_VERIFIED',
+            entityType: 'BackupRestoreReport',
+            entityId: restoreDatabase,
+            after: report,
+            reason: 'Scheduled backup/restore verification',
+          },
+        });
       }
     } finally {
       await restored.$disconnect();
@@ -290,7 +319,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error('Backup/restore verification failed:', error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error('Backup/restore verification failed:', error);
+    process.exitCode = 1;
+  });
+}

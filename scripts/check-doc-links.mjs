@@ -14,6 +14,7 @@ const gitLs = spawnSync(
     'ls-files',
     '--',
     '*.md',
+    ':!:docs/archive/**',
     ':!:docs/generated/**',
     ':!:**/node_modules/**',
     ':!:apps/web/.next/**',

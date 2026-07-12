@@ -1,19 +1,16 @@
 import { createHmac, randomBytes } from 'node:crypto';
-import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { OutboxStatus } from '@cueq/database';
 import { CreateWebhookEndpointSchema, OutboxQuerySchema, DeliveryQuerySchema } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import {
-  assertWebhookDispatchTargetUrl,
-  assertWebhookTargetUrl,
-} from '../../common/http/webhook-url';
-import { readResponseBodyWithLimit } from '../../common/http/read-response-body';
+import { assertWebhookTargetUrl } from '../../common/http/webhook-url';
+import { postWebhook } from '../../common/http/webhook-http-client';
 import { PersonHelper } from '../helpers/person.helper';
 import { AuditHelper } from '../helpers/audit.helper';
 import { HR_LIKE_ROLES } from '../helpers/role-constants';
 
-const WEBHOOK_RESPONSE_BODY_MAX_CHARS = 8_000;
+const WEBHOOK_RESPONSE_BODY_MAX_BYTES = 8_000;
 const WEBHOOK_ERROR_MAX_CHARS = 1_000;
 
 function truncateForStorage(value: string | null, maxChars: number): string | null {
@@ -25,6 +22,14 @@ function truncateForStorage(value: string | null, maxChars: number): string | nu
   }
 
   return `${value.slice(0, maxChars)}...[truncated]`;
+}
+
+function webhookDispatchError(error: unknown): string {
+  if (error instanceof Error && error.message.startsWith('Webhook ')) {
+    return error.message;
+  }
+
+  return 'Webhook delivery request failed.';
 }
 
 @Injectable()
@@ -213,7 +218,7 @@ export class WebhookDomainService {
         await this.prisma.domainEventOutbox.update({
           where: { id: event.id },
           data: {
-            status: OutboxStatus.DELIVERED,
+            status: OutboxStatus.SKIPPED,
             attempts: attempt,
             processedAt: now,
             lastError: null,
@@ -243,38 +248,6 @@ export class WebhookDomainService {
         let responseBody: string | null = null;
         let error: string | null = null;
         let deliveredAt: Date | null = null;
-        let targetUrl: string;
-
-        try {
-          targetUrl = (await assertWebhookDispatchTargetUrl(endpoint.url)).toString();
-        } catch (validationError) {
-          status = 'FAILED';
-          if (validationError instanceof BadRequestException) {
-            error = String(validationError.message);
-          } else if (validationError instanceof Error) {
-            error = validationError.message;
-          } else {
-            error = 'Invalid webhook endpoint url';
-          }
-          error = truncateForStorage(error, WEBHOOK_ERROR_MAX_CHARS);
-          eventFailed = true;
-          lastError = error;
-
-          await this.prisma.webhookDelivery.create({
-            data: {
-              outboxEventId: event.id,
-              endpointId: endpoint.id,
-              attempt,
-              status,
-              httpStatus,
-              responseBody,
-              error,
-              deliveredAt,
-            },
-          });
-          continue;
-        }
-
         const body = JSON.stringify(envelope);
         const signatureHeader: Record<string, string> = {};
         if (endpoint.secretRef) {
@@ -283,21 +256,21 @@ export class WebhookDomainService {
         }
 
         try {
-          const response = await fetch(targetUrl, {
-            method: 'POST',
-            redirect: 'manual',
+          const response = await postWebhook({
+            url: endpoint.url,
             headers: {
               'Content-Type': 'application/json',
               'X-Cueq-Event-Type': event.eventType,
               ...signatureHeader,
             },
             body,
-            signal: AbortSignal.timeout(timeoutMs),
+            timeoutMs,
+            maxResponseBytes: WEBHOOK_RESPONSE_BODY_MAX_BYTES,
           });
 
           httpStatus = response.status;
-          responseBody = await readResponseBodyWithLimit(response, WEBHOOK_RESPONSE_BODY_MAX_CHARS);
-          if (response.ok) {
+          responseBody = response.body;
+          if (response.status >= 200 && response.status < 300) {
             deliveredAt = new Date();
           } else {
             status = 'FAILED';
@@ -305,7 +278,7 @@ export class WebhookDomainService {
           }
         } catch (dispatchError) {
           status = 'FAILED';
-          error = dispatchError instanceof Error ? dispatchError.message : 'Unknown dispatch error';
+          error = webhookDispatchError(dispatchError);
         }
         error = truncateForStorage(error, WEBHOOK_ERROR_MAX_CHARS);
 

@@ -1,68 +1,41 @@
-function normalizeRow(row: string[]): string[] {
-  return row.map((cell) => cell.trim());
+import { consumeRowBreak, type CsvParserState } from './csv-parser-state';
+import { consumeDelimiter, consumeLineBreak } from './csv-token-consumers';
+
+function consumeQuote(state: CsvParserState, next: string | undefined): number {
+  if (state.inQuotes && next === '"') {
+    state.current += '"';
+    return 1;
+  }
+  state.inQuotes = !state.inQuotes;
+  return 0;
 }
 
-function pushRow(rows: string[][], row: string[]) {
-  const normalized = normalizeRow(row);
-  if (normalized.every((cell) => cell.length === 0)) {
-    return;
-  }
-  rows.push(normalized);
+function consumeCharacter(state: CsvParserState, char: string, next: string | undefined): number {
+  if (char === '"') return consumeQuote(state, next);
+  if (consumeDelimiter(state, char)) return 0;
+  const lineBreakOffset = consumeLineBreak(state, char, next);
+  if (lineBreakOffset !== null) return lineBreakOffset;
+  state.current += char;
+  return 0;
 }
 
 function parseCsvRows(csv: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let current = '';
-  let inQuotes = false;
+  const state: CsvParserState = { rows: [], row: [], current: '', inQuotes: false };
 
   for (let index = 0; index < csv.length; index += 1) {
     const char = csv[index];
-    if (!char) {
-      continue;
-    }
-
-    if (char === '"') {
-      const next = csv[index + 1];
-      if (inQuotes && next === '"') {
-        current += '"';
-        index += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === ',' && !inQuotes) {
-      row.push(current);
-      current = '';
-      continue;
-    }
-
-    if ((char === '\n' || char === '\r') && !inQuotes) {
-      row.push(current);
-      current = '';
-      pushRow(rows, row);
-      row = [];
-      if (char === '\r' && csv[index + 1] === '\n') {
-        index += 1;
-      }
-      continue;
-    }
-
-    current += char;
+    if (char) index += consumeCharacter(state, char, csv[index + 1]);
   }
 
-  if (inQuotes) {
+  if (state.inQuotes) {
     throw new Error('CSV parse error: unmatched quote in input.');
   }
 
-  if (current.length > 0 || row.length > 0) {
-    row.push(current);
-    pushRow(rows, row);
+  if (state.current.length > 0 || state.row.length > 0) {
+    consumeRowBreak(state);
   }
 
-  return rows;
+  return state.rows;
 }
 
 export function parseCsvRecords(csv: string): {

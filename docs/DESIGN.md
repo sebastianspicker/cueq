@@ -37,9 +37,13 @@ cueq uses DDD-inspired patterns without the full ceremonial weight:
          └──────────────────┘
 ```
 
-- `packages/core/src/core/` contains zero imports from frameworks, databases, or HTTP libraries.
-- All I/O happens through **port interfaces** defined in core, implemented by adapters.
-- This guarantees core logic is testable with plain unit tests — no mocking frameworks needed.
+- `packages/core/src/core/` is the pure domain boundary and does not import
+  NestJS, Prisma, HTTP, or filesystem APIs.
+- `apps/api/` coordinates transport, authorization, transactions, persistence,
+  audit, and integration side effects.
+- `apps/web/` consumes public contracts through the shared API client.
+- Pure core rules remain testable with plain unit tests; application services
+  use focused test doubles at their I/O boundaries.
 
 ### Schema-First Development
 
@@ -48,7 +52,8 @@ cueq uses DDD-inspired patterns without the full ceremonial weight:
 3. Implement logic using generated types
 4. Write tests against reference fixtures
 
-This order is mandatory. Code must never define types that contradict schemas.
+Generated contracts must not be hand-edited. When a schema is the source of
+truth, update it first and regenerate the derived artifacts.
 
 ---
 
@@ -88,19 +93,11 @@ The audit trail is an **append-only log**:
 - Each entry has: `id`, `timestamp`, `actor_id`, `action`, `entity_type`, `entity_id`, `before`, `after`, `reason`.
 - The persistence adapter enforces immutability at the database level (e.g., no update/delete permissions on the audit table).
 
-### Repository Pattern (Adapters)
+### Persistence Boundary
 
-Each domain entity has a **repository interface** defined in `packages/core/src/core/`:
-
-```typescript
-interface BookingRepository {
-  findById(id: BookingId): Promise<Booking | null>;
-  findByPersonAndDateRange(personId: PersonId, range: DateRange): Promise<Booking[]>;
-  save(booking: Booking): Promise<void>;
-}
-```
-
-The implementation in `src/adapters/persistence/` handles SQL, connection pooling, and transaction management. The core never knows about the database.
+Prisma access lives in `apps/api/src/persistence/` and application helpers and
+services. Core rules receive plain data and return decisions; they do not own a
+repository abstraction that does not exist in the current source tree.
 
 ---
 
@@ -118,8 +115,8 @@ The implementation in `src/adapters/persistence/` handles SQL, connection poolin
 | Layer                     | Type        | Speed | What it validates                             |
 | ------------------------- | ----------- | ----- | --------------------------------------------- |
 | `packages/core/src/core/` | Unit        | <10s  | Business logic, rule evaluation, calculations |
-| `src/adapters/`           | Integration | <60s  | DB queries, SSO handshake, terminal import    |
-| `src/api/`                | Contract    | <30s  | API matches OpenAPI spec                      |
+| `apps/api/src/`           | Integration | <60s  | DB queries, auth adapters, terminal import    |
+| `apps/api/test/`          | Contract    | <30s  | API matches OpenAPI spec                      |
 | End-to-end                | Acceptance  | <5min | 8 MVP scenarios from PRD                      |
 | Cross-cutting             | Compliance  | <30s  | GDPR visibility, audit immutability           |
 

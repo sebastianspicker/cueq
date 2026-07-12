@@ -525,6 +525,29 @@ describe('calculateLeaveLedger — TV-L carry-over rules', () => {
     expect(result.forfeitedDays).toBe(0);
   });
 
+  it.each([
+    ['one millisecond before', '2026-03-31T23:59:59.998Z', 0, 7],
+    ['exactly at', '2026-03-31T23:59:59.999Z', 0, 7],
+    ['one millisecond after', '2026-04-01T00:00:00.000Z', 7, 0],
+  ])(
+    'applies the carry-over deadline %s the inclusive boundary',
+    (_label, asOfDate, forfeitedDays, carriedOverRemainingDays) => {
+      const result = calculateLeaveLedger(
+        {
+          year: 2026,
+          asOfDate,
+          workTimeModelWeeklyHours: 39.83,
+          priorYearCarryOverDays: 10,
+          annualLeaveUsage: [{ date: '2026-02-01', days: 3 }],
+        },
+        DEFAULT_LEAVE_RULE,
+      );
+
+      expect(result.forfeitedDays).toBe(forfeitedDays);
+      expect(result.carriedOverRemainingDays).toBe(carriedOverRemainingDays);
+    },
+  );
+
   it('forfeits carry-over on April 1 (one day after March 31 deadline)', () => {
     const result = calculateLeaveLedger(
       {

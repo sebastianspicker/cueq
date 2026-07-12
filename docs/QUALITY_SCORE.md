@@ -6,13 +6,13 @@
 
 ## 1. Test Coverage Targets
 
-| Scope                     | Metric                             | Target               | Phase   |
-| ------------------------- | ---------------------------------- | -------------------- | ------- |
-| `packages/core/src/core/` | Line coverage                      | ≥90%                 | Phase 1 |
-| `src/adapters/`           | Line coverage                      | ≥70%                 | Phase 2 |
-| `src/api/`                | Endpoint coverage (contract tests) | 100% of OpenAPI spec | Phase 2 |
-| `src/ui/`                 | Component coverage                 | ≥60%                 | Phase 2 |
-| Overall                   | Line coverage                      | ≥80%                 | Phase 2 |
+| Scope                     | Metric                             | Target               |
+| ------------------------- | ---------------------------------- | -------------------- |
+| `packages/core/src/core/` | Line coverage                      | ≥90%                 |
+| `apps/api/src/`           | Line coverage                      | ≥70%                 |
+| `apps/api/`               | Endpoint coverage (contract tests) | 100% of OpenAPI spec |
+| `apps/web/src/`           | Component coverage                 | ≥60%                 |
+| Overall                   | Line coverage                      | ≥80%                 |
 
 ---
 
@@ -59,13 +59,13 @@
 
 ## 5. Code Quality
 
-| Metric                             | Target     | Tool                  |
-| ---------------------------------- | ---------- | --------------------- |
-| Lint errors                        | 0          | ESLint / Biome        |
-| Type errors                        | 0          | TypeScript `--noEmit` |
-| Formatting drift                   | 0          | Prettier / Biome      |
-| Cyclomatic complexity per function | ≤15        | Aspirational (review) |
-| Maximum file length                | ≤400 lines | PR policy target      |
+| Metric                             | Target | Tool                  |
+| ---------------------------------- | ------ | --------------------- |
+| Lint errors                        | 0      | ESLint                |
+| Type errors                        | 0      | TypeScript `--noEmit` |
+| Formatting drift                   | 0      | Prettier              |
+| Configured local analyzer findings | 0      | Codacy Analysis CLI   |
+| Lizard critical complexity         | 0      | Lizard                |
 
 ---
 
@@ -88,7 +88,7 @@
 | ---------------------------- | ------ | ----------------------------- | ------- |
 | axe-core critical violations | 0      | Playwright + axe-core CI gate | Phase 2 |
 | axe-core serious violations  | 0      | Playwright + axe-core CI gate | Phase 3 |
-| WCAG 2.1 AA conformance      | Full   | Manual audit                  | Phase 3 |
+| WCAG 2.1 AA conformance      | Full   | Manual and browser audit      | Phase 3 |
 
 ---
 
@@ -111,7 +111,9 @@ Quality metrics should be:
 2. **Visible** — dashboard or CI badge on README
 3. **Trended** — track over time to detect regression
 
-CI metrics are surfaced through GitHub Actions job summaries and required status checks.
+CI metrics should be surfaced through GitHub Actions job summaries and required
+status checks. The latest local results and their limitations are recorded in
+[`verification-baseline.md`](verification-baseline.md).
 
 Enforced repository gates (current):
 
