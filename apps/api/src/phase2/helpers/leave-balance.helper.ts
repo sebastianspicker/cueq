@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { AbsenceStatus, AbsenceType } from '@cueq/database';
 import { calculateLeaveLedger } from '@cueq/core';
 import { DEFAULT_LEAVE_RULE } from '@cueq/policy';
+import { parseDateOnly } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { PersonHelper } from './person.helper';
@@ -51,8 +52,10 @@ export class LeaveBalanceHelper {
       : null;
     const targetYear = year ?? new Date().getUTCFullYear();
     const resolvedAsOfDate = asOfDate ?? this.defaultAsOfDate(targetYear);
-    const asOf = new Date(`${resolvedAsOfDate}T00:00:00.000Z`);
-    if (Number.isNaN(asOf.getTime())) {
+    let asOf: Date;
+    try {
+      asOf = parseDateOnly(resolvedAsOfDate);
+    } catch {
       throw new BadRequestException('Invalid asOfDate.');
     }
     if (asOf.getUTCFullYear() !== targetYear) {

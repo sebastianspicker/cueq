@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DateTimeSchema, IdSchema } from './common';
+import { DateTimeSchema, IdSchema, isDateTimeInstantBefore } from './common';
 import { BookingSourceSchema, TimeTypeCategorySchema } from './time-type';
 
 // ---------------------------------------------------------------------------
@@ -17,7 +17,7 @@ export const CreateBookingSchema = z
     note: z.string().max(1000).optional(),
     shiftId: IdSchema.optional(),
   })
-  .refine((input) => !input.endTime || input.endTime > input.startTime, {
+  .refine((input) => !input.endTime || isDateTimeInstantBefore(input.startTime, input.endTime), {
     message: 'endTime must be after startTime',
     path: ['endTime'],
   });
@@ -33,7 +33,11 @@ export const BookingCorrectionSchema = z
     reason: z.string().min(10, 'Correction reason must be at least 10 characters'),
   })
   .superRefine((input, ctx) => {
-    if (input.startTime && input.endTime && input.endTime <= input.startTime) {
+    if (
+      input.startTime &&
+      input.endTime &&
+      !isDateTimeInstantBefore(input.startTime, input.endTime)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'endTime must be after startTime',

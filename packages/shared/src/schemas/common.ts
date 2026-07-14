@@ -10,6 +10,21 @@ export const IdSchema = z.string().cuid();
 /** ISO 8601 datetime string */
 export const DateTimeSchema = z.string().datetime();
 
+/**
+ * Compares validated ISO 8601 datetime strings by their instant, not their
+ * textual representation. ISO fractions are variable-width, so lexical order
+ * is not a safe ordering relation (for example, `...:00Z` sorts after
+ * `...:00.001Z`).
+ */
+export const compareDateTimeInstants = (left: string, right: string): number =>
+  Date.parse(left) - Date.parse(right);
+
+export const isDateTimeInstantBefore = (left: string, right: string): boolean =>
+  compareDateTimeInstants(left, right) < 0;
+
+export const isDateTimeInstantOnOrBefore = (left: string, right: string): boolean =>
+  compareDateTimeInstants(left, right) <= 0;
+
 /** ISO 8601 date string (YYYY-MM-DD) */
 export const DateSchema = z.string().date();
 
@@ -20,10 +35,15 @@ export const TimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Must 
 export const PositiveDecimalSchema = z.number().nonnegative();
 
 /** Date range */
-export const DateRangeSchema = z.object({
-  start: DateTimeSchema,
-  end: DateTimeSchema,
-});
+export const DateRangeSchema = z
+  .object({
+    start: DateTimeSchema,
+    end: DateTimeSchema,
+  })
+  .refine((value) => isDateTimeInstantBefore(value.start, value.end), {
+    message: 'start must be before end',
+    path: ['end'],
+  });
 export type DateRange = z.infer<typeof DateRangeSchema>;
 
 /** Pagination parameters */

@@ -16,6 +16,7 @@ import { EventOutboxHelper } from './event-outbox.helper';
 import { PersonHelper } from './person.helper';
 import { HR_LIKE_ROLES } from './role-constants';
 import { ClosingChecklistHelper } from './closing-checklist.helper';
+import { lockClosingPeriodWrites } from './transaction-lock.helper';
 import {
   allowManualReviewStart,
   toClosingActorRole,
@@ -45,6 +46,7 @@ export class ClosingLifecycleHelper {
     dbData: Prisma.ClosingPeriodUpdateInput;
     auditAction: string;
     auditAfter: Prisma.JsonObject;
+    tx: Prisma.TransactionClient;
   }): Promise<ClosingPeriod> {
     const transition = applyCutoffLock({
       currentStatus: toCoreClosingStatus(opts.period.status),
@@ -62,7 +64,7 @@ export class ClosingLifecycleHelper {
       });
     }
 
-    const updated = await this.prisma.closingPeriod.update({
+    const updated = await opts.tx.closingPeriod.update({
       where: { id: opts.period.id },
       data: {
         status: toPersistenceClosingStatus(transition.nextStatus),
@@ -70,14 +72,17 @@ export class ClosingLifecycleHelper {
       },
     });
 
-    await this.auditHelper.appendAudit({
-      actorId: opts.actorId,
-      action: opts.auditAction,
-      entityType: 'ClosingPeriod',
-      entityId: updated.id,
-      before: { status: opts.period.status },
-      after: opts.auditAfter,
-    });
+    await this.auditHelper.appendAudit(
+      {
+        actorId: opts.actorId,
+        action: opts.auditAction,
+        entityType: 'ClosingPeriod',
+        entityId: updated.id,
+        before: { status: opts.period.status },
+        after: opts.auditAfter,
+      },
+      opts.tx,
+    );
 
     return updated;
   }
@@ -94,24 +99,29 @@ export class ClosingLifecycleHelper {
       throw new ForbiddenException('Manual review start is restricted to ADMIN role.');
     }
 
-    const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
-    if (!period) {
-      throw new NotFoundException('Closing period not found.');
-    }
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await lockClosingPeriodWrites(tx, closingPeriodId);
+      const period = await tx.closingPeriod.findUnique({ where: { id: closingPeriodId } });
+      if (!period) {
+        throw new NotFoundException('Closing period not found.');
+      }
+      const now = new Date();
 
-    const updated = await this.applyTransitionWithAudit({
-      period,
-      action: 'ADVANCE_TO_REVIEW',
-      actorId: actor.id,
-      actorRole: toClosingActorRole(actor.role),
-      checklistHasErrors: false,
-      dbData: { lockedAt: new Date(), lockSource: ClosingLockSource.MANUAL_REVIEW_START },
-      auditAction: 'CLOSING_REVIEW_STARTED',
-      auditAfter: {
-        status: toPersistenceClosingStatus('REVIEW'),
-        lockSource: ClosingLockSource.MANUAL_REVIEW_START,
-        lockedAt: new Date().toISOString(),
-      },
+      return this.applyTransitionWithAudit({
+        period,
+        action: 'ADVANCE_TO_REVIEW',
+        actorId: actor.id,
+        actorRole: toClosingActorRole(actor.role),
+        checklistHasErrors: false,
+        dbData: { lockedAt: now, lockSource: ClosingLockSource.MANUAL_REVIEW_START },
+        auditAction: 'CLOSING_REVIEW_STARTED',
+        auditAfter: {
+          status: toPersistenceClosingStatus('REVIEW'),
+          lockSource: ClosingLockSource.MANUAL_REVIEW_START,
+          lockedAt: now.toISOString(),
+        },
+        tx,
+      });
     });
 
     return { ...updated, status: toCoreClosingStatus(updated.status) };
@@ -123,51 +133,42 @@ export class ClosingLifecycleHelper {
       throw new ForbiddenException('Only TEAM_LEAD can submit lead approval.');
     }
 
-    const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
-    if (!period) {
-      throw new NotFoundException('Closing period not found.');
-    }
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await lockClosingPeriodWrites(tx, closingPeriodId);
+      const period = await tx.closingPeriod.findUnique({ where: { id: closingPeriodId } });
+      if (!period) throw new NotFoundException('Closing period not found.');
+      if (!period.organizationUnitId) {
+        throw new BadRequestException('Global closing periods do not require team-lead approval.');
+      }
+      if (period.organizationUnitId !== actor.organizationUnitId) {
+        throw new ForbiddenException(
+          'Team leads can only approve closing periods in their own unit.',
+        );
+      }
+      if (period.status !== ClosingStatus.REVIEW) {
+        throw new BadRequestException('Lead approval is only valid while period is in REVIEW.');
+      }
+      if (period.leadApprovedAt) return period;
 
-    if (!period.organizationUnitId) {
-      throw new BadRequestException('Global closing periods do not require team-lead approval.');
-    }
-    if (period.organizationUnitId !== actor.organizationUnitId) {
-      throw new ForbiddenException(
-        'Team leads can only approve closing periods in their own unit.',
+      const approved = await tx.closingPeriod.update({
+        where: { id: period.id },
+        data: { leadApprovedAt: new Date(), leadApprovedById: actor.id },
+      });
+      await this.auditHelper.appendAudit(
+        {
+          actorId: actor.id,
+          action: 'CLOSING_LEAD_APPROVED',
+          entityType: 'ClosingPeriod',
+          entityId: approved.id,
+          before: { leadApprovedAt: null, leadApprovedById: period.leadApprovedById ?? null },
+          after: {
+            leadApprovedAt: approved.leadApprovedAt?.toISOString() ?? null,
+            leadApprovedById: approved.leadApprovedById ?? null,
+          },
+        },
+        tx,
       );
-    }
-    if (period.status !== ClosingStatus.REVIEW) {
-      throw new BadRequestException('Lead approval is only valid while period is in REVIEW.');
-    }
-
-    if (period.leadApprovedAt) {
-      return {
-        ...period,
-        status: toCoreClosingStatus(period.status),
-      };
-    }
-
-    const updated = await this.prisma.closingPeriod.update({
-      where: { id: period.id },
-      data: {
-        leadApprovedAt: new Date(),
-        leadApprovedById: actor.id,
-      },
-    });
-
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'CLOSING_LEAD_APPROVED',
-      entityType: 'ClosingPeriod',
-      entityId: updated.id,
-      before: {
-        leadApprovedAt: null,
-        leadApprovedById: period.leadApprovedById ?? null,
-      },
-      after: {
-        leadApprovedAt: updated.leadApprovedAt?.toISOString() ?? null,
-        leadApprovedById: updated.leadApprovedById ?? null,
-      },
+      return approved;
     });
 
     return {
@@ -182,27 +183,28 @@ export class ClosingLifecycleHelper {
     }
 
     const actor = await this.personHelper.personForUser(user);
-    const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
-    if (!period) {
-      throw new NotFoundException('Closing period not found.');
-    }
-
-    const updated = await this.applyTransitionWithAudit({
-      period,
-      action: 'REOPEN',
-      actorId: actor.id,
-      actorRole: toClosingActorRole(actor.role),
-      checklistHasErrors: false,
-      dbData: {
-        leadApprovedAt: null,
-        leadApprovedById: null,
-        hrApprovedAt: null,
-        hrApprovedById: null,
-        lockedAt: null,
-        lockSource: null,
-      },
-      auditAction: 'CLOSING_REOPENED',
-      auditAfter: { leadApprovedAt: null, hrApprovedAt: null, lockedAt: null, lockSource: null },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await lockClosingPeriodWrites(tx, closingPeriodId);
+      const period = await tx.closingPeriod.findUnique({ where: { id: closingPeriodId } });
+      if (!period) throw new NotFoundException('Closing period not found.');
+      return this.applyTransitionWithAudit({
+        period,
+        action: 'REOPEN',
+        actorId: actor.id,
+        actorRole: toClosingActorRole(actor.role),
+        checklistHasErrors: false,
+        dbData: {
+          leadApprovedAt: null,
+          leadApprovedById: null,
+          hrApprovedAt: null,
+          hrApprovedById: null,
+          lockedAt: null,
+          lockSource: null,
+        },
+        auditAction: 'CLOSING_REOPENED',
+        auditAfter: { leadApprovedAt: null, hrApprovedAt: null, lockedAt: null, lockSource: null },
+        tx,
+      });
     });
 
     return { ...updated, status: toCoreClosingStatus(updated.status) };
@@ -214,49 +216,57 @@ export class ClosingLifecycleHelper {
     }
 
     const actor = await this.personHelper.personForUser(user);
-    const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
-
-    if (!period) {
-      throw new NotFoundException('Closing period not found.');
-    }
-    if (period.organizationUnitId && !period.leadApprovedAt) {
-      throw new BadRequestException(
-        'Team-lead approval is required before HR can finalize this closing period.',
-      );
-    }
-
-    const checklist = await this.checklistHelper.closingChecklist(user, closingPeriodId);
+    // Preserve the durable violation event produced by a failed checklist while
+    // calculating the decisive checklist again under the closing-period lock.
+    await this.checklistHelper.closingChecklist(user, closingPeriodId);
     const now = new Date();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await lockClosingPeriodWrites(tx, closingPeriodId);
+      const period = await tx.closingPeriod.findUnique({ where: { id: closingPeriodId } });
+      if (!period) throw new NotFoundException('Closing period not found.');
+      if (period.organizationUnitId && !period.leadApprovedAt) {
+        throw new BadRequestException(
+          'Team-lead approval is required before HR can finalize this closing period.',
+        );
+      }
 
-    const updated = await this.applyTransitionWithAudit({
-      period,
-      action: 'APPROVE',
-      actorId: actor.id,
-      actorRole: toClosingActorRole(actor.role),
-      checklistHasErrors: checklist.hasErrors,
-      dbData: {
-        hrApprovedAt: now,
-        hrApprovedById: actor.id,
-        closedAt: now,
-        closedById: actor.id,
-        lockedAt: period.lockedAt ?? now,
-        lockSource: period.lockSource ?? ClosingLockSource.MANUAL_REVIEW_START,
-      },
-      auditAction: 'CLOSING_APPROVED',
-      auditAfter: {
-        hrApprovedAt: now.toISOString(),
-        hrApprovedById: actor.id,
-      },
-    });
-
-    await this.eventOutboxHelper.enqueueDomainEvent({
-      eventType: 'closing.completed',
-      aggregateType: 'ClosingPeriod',
-      aggregateId: updated.id,
-      payload: {
-        status: toCoreClosingStatus(updated.status),
-        organizationUnitId: updated.organizationUnitId,
-      },
+      const checklist = await this.checklistHelper.closingChecklist(
+        user,
+        closingPeriodId,
+        tx,
+        false,
+      );
+      const approved = await this.applyTransitionWithAudit({
+        period,
+        action: 'APPROVE',
+        actorId: actor.id,
+        actorRole: toClosingActorRole(actor.role),
+        checklistHasErrors: checklist.hasErrors,
+        dbData: {
+          hrApprovedAt: now,
+          hrApprovedById: actor.id,
+          closedAt: now,
+          closedById: actor.id,
+          lockedAt: period.lockedAt ?? now,
+          lockSource: period.lockSource ?? ClosingLockSource.MANUAL_REVIEW_START,
+        },
+        auditAction: 'CLOSING_APPROVED',
+        auditAfter: { hrApprovedAt: now.toISOString(), hrApprovedById: actor.id },
+        tx,
+      });
+      await this.eventOutboxHelper.enqueueDomainEvent(
+        {
+          eventType: 'closing.completed',
+          aggregateType: 'ClosingPeriod',
+          aggregateId: approved.id,
+          payload: {
+            status: toCoreClosingStatus(approved.status),
+            organizationUnitId: approved.organizationUnitId,
+          },
+        },
+        tx,
+      );
+      return approved;
     });
 
     return { ...updated, status: toCoreClosingStatus(updated.status) };

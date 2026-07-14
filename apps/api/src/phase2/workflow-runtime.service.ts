@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -20,6 +21,7 @@ import { HR_LIKE_ROLES } from './helpers/role-constants';
 import { WorkflowAssignmentHelper } from './helpers/workflow-assignment.helper';
 import { WorkflowDelegationCrudHelper } from './helpers/workflow-delegation-crud.helper';
 import { WorkflowSideEffectsHelper } from './helpers/workflow-side-effects.helper';
+import { lockPersonWrites } from './helpers/transaction-lock.helper';
 import type {
   WorkflowActor,
   WorkflowAssignmentInput,
@@ -195,7 +197,7 @@ export class WorkflowRuntimeService {
   async decide(
     actor: WorkflowActor,
     command: WorkflowDecisionCommand,
-    tx?: Pick<PrismaService, 'workflowInstance' | 'auditEntry'>,
+    tx?: Prisma.TransactionClient,
   ): Promise<WorkflowDecisionResult> {
     const db = tx ?? this.prisma;
     const action = this.normalizeAction(command);
@@ -246,21 +248,32 @@ export class WorkflowRuntimeService {
       if (!command.delegateToId) {
         throw new BadRequestException('delegateToId is required for DELEGATE.');
       }
-      await this.delegationCrud.validateInlineDelegation({
-        delegateToId: command.delegateToId,
-        actorId: actor.id,
-        actorRole: actor.role,
-        actorOrganizationUnitId: actor.organizationUnitId,
-        requesterId: workflow.requesterId,
-        workflowType: workflow.type,
-      });
+      if (tx) {
+        await lockPersonWrites(tx, [command.delegateToId]);
+      }
+      await this.delegationCrud.validateInlineDelegation(
+        {
+          delegateToId: command.delegateToId,
+          actorId: actor.id,
+          actorRole: actor.role,
+          actorOrganizationUnitId: actor.organizationUnitId,
+          requesterId: workflow.requesterId,
+          workflowType: workflow.type,
+        },
+        tx,
+      );
 
       nextApproverId = command.delegateToId;
       delegationTrail = appendTrail(workflow.delegationTrail, command.delegateToId);
     }
 
-    const updated = await db.workflowInstance.update({
-      where: { id: workflow.id, status: workflow.status },
+    const updatedCount = await db.workflowInstance.updateMany({
+      where: {
+        id: workflow.id,
+        status: workflow.status,
+        approverId: workflow.approverId,
+        delegationTrail: { equals: workflow.delegationTrail ?? undefined },
+      },
       data: {
         status: transition.nextStatus,
         approverId: nextApproverId,
@@ -272,6 +285,15 @@ export class WorkflowRuntimeService {
             : workflow.decidedAt,
       },
     });
+    if (updatedCount.count === 0) {
+      throw new ConflictException({
+        code: 'WORKFLOW_DECISION_IN_PROGRESS',
+        message: 'This workflow changed while the decision was being processed.',
+        retryable: true,
+      });
+    }
+
+    const updated = await db.workflowInstance.findUniqueOrThrow({ where: { id: workflow.id } });
 
     await this.auditHelper.appendAudit(
       {

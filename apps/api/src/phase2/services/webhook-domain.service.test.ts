@@ -31,15 +31,28 @@ function fixture() {
   const prisma = {
     domainEventOutbox: {
       findMany: vi.fn().mockResolvedValue([event]),
-      update: vi.fn().mockResolvedValue(undefined),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     webhookEndpoint: {
       findMany: vi.fn().mockResolvedValue([endpoint]),
+      create: vi.fn().mockResolvedValue({
+        id: 'endpoint-new',
+        name: 'Payroll receiver',
+        url: 'https://receiver.example/hook',
+        subscribedEvents: ['export.ready'],
+        isActive: true,
+        createdById: 'actor-1',
+        createdAt: new Date('2026-07-14T12:00:00.000Z'),
+        updatedAt: new Date('2026-07-14T12:00:00.000Z'),
+      }),
     },
     webhookDelivery: {
       create: vi.fn().mockResolvedValue(undefined),
+      findMany: vi.fn().mockResolvedValue([]),
     },
+    $transaction: vi.fn(),
   };
+  prisma.$transaction.mockImplementation(async (callback) => callback(prisma));
   const personHelper = {
     personForUser: vi.fn().mockResolvedValue({ id: 'actor-1' }),
   };
@@ -129,8 +142,8 @@ describe('WebhookDomainService dispatch transport', () => {
         deliveredAt: null,
       }),
     });
-    expect(prisma.domainEventOutbox.update).toHaveBeenCalledWith({
-      where: { id: 'event-1' },
+    expect(prisma.domainEventOutbox.updateMany).toHaveBeenLastCalledWith({
+      where: expect.objectContaining({ id: 'event-1', attempts: 0 }),
       data: expect.objectContaining({
         status: OutboxStatus.FAILED,
         attempts: 1,
@@ -145,5 +158,92 @@ describe('WebhookDomainService dispatch transport', () => {
         after: { processed: 1, delivered: 0, failed: 1, skipped: 0 },
       }),
     );
+  });
+
+  it('does not send when another dispatcher already claimed the event', async () => {
+    const { service, prisma, auditHelper } = fixture();
+    prisma.domainEventOutbox.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(service.dispatchWebhooks(admin as never)).resolves.toMatchObject({
+      processed: 0,
+      delivered: 0,
+      failed: 0,
+      skipped: 0,
+    });
+
+    expect(postWebhookMock).not.toHaveBeenCalled();
+    expect(prisma.webhookEndpoint.findMany).not.toHaveBeenCalled();
+    expect(auditHelper.appendAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'WEBHOOK_DISPATCH_RUN',
+        after: { processed: 0, delivered: 0, failed: 0, skipped: 0 },
+      }),
+    );
+  });
+
+  it('does not consume the final attempt until dispatch is finalized', async () => {
+    const { service, prisma, event } = fixture();
+    event.attempts = 4;
+    prisma.webhookEndpoint.findMany.mockRejectedValueOnce(new Error('simulated process stop'));
+
+    await expect(service.dispatchWebhooks(admin as never)).rejects.toThrow(
+      'simulated process stop',
+    );
+
+    expect(prisma.domainEventOutbox.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.domainEventOutbox.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: 'event-1', attempts: 4 }),
+      data: {
+        nextAttemptAt: expect.any(Date),
+      },
+    });
+  });
+
+  it('does not redeliver an event to an endpoint that succeeded on an earlier attempt', async () => {
+    const { service, prisma } = fixture();
+    prisma.webhookDelivery.findMany.mockResolvedValueOnce([{ endpointId: 'endpoint-1' }]);
+
+    await expect(service.dispatchWebhooks(admin as never)).resolves.toMatchObject({
+      processed: 1,
+      delivered: 1,
+      failed: 0,
+    });
+
+    expect(postWebhookMock).not.toHaveBeenCalled();
+    expect(prisma.webhookDelivery.create).not.toHaveBeenCalled();
+    expect(prisma.domainEventOutbox.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: OutboxStatus.DELIVERED }),
+      }),
+    );
+  });
+});
+
+describe('WebhookDomainService endpoint atomicity', () => {
+  it('creates the endpoint and its audit through the same transaction client', async () => {
+    const { service, prisma, auditHelper } = fixture();
+
+    const created = await service.createWebhookEndpoint(admin as never, {
+      name: 'Payroll receiver',
+      url: 'https://receiver.example/hook',
+      subscribedEvents: ['export.ready'],
+    });
+
+    expect(created).toMatchObject({ id: 'endpoint-new', signingSecret: expect.any(String) });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(auditHelper.appendAudit).toHaveBeenCalledWith(expect.any(Object), prisma);
+  });
+
+  it('does not report endpoint creation success when its audit participant fails', async () => {
+    const { service, auditHelper } = fixture();
+    auditHelper.appendAudit.mockRejectedValueOnce(new Error('audit unavailable'));
+
+    await expect(
+      service.createWebhookEndpoint(admin as never, {
+        name: 'Payroll receiver',
+        url: 'https://receiver.example/hook',
+        subscribedEvents: ['export.ready'],
+      }),
+    ).rejects.toThrow('audit unavailable');
   });
 });

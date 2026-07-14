@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DateSchema, DateTimeSchema, IdSchema } from './common';
+import { DateSchema, DateTimeSchema, IdSchema, isDateTimeInstantOnOrBefore } from './common';
 
 export const ReportSuppressionSchema = z.object({
   suppressed: z.boolean(),
@@ -247,16 +247,26 @@ export type CustomReportPreview = z.infer<typeof CustomReportPreviewSchema>;
 // Audit Entries — filterable browse endpoint
 // ---------------------------------------------------------------------------
 
-export const AuditEntriesQuerySchema = z.object({
-  from: DateTimeSchema.optional(),
-  to: DateTimeSchema.optional(),
-  action: z.string().max(64).optional(),
-  entityType: z.string().max(64).optional(),
-  actorId: IdSchema.optional(),
-  entityId: IdSchema.optional(),
-  skip: z.coerce.number().int().nonnegative().default(0),
-  take: z.coerce.number().int().min(1).max(200).default(50),
-});
+export const AuditEntriesQuerySchema = z
+  .object({
+    from: DateTimeSchema.optional(),
+    to: DateTimeSchema.optional(),
+    action: z.string().max(64).optional(),
+    entityType: z.string().max(64).optional(),
+    actorId: IdSchema.optional(),
+    entityId: IdSchema.optional(),
+    skip: z.coerce.number().int().nonnegative().default(0),
+    take: z.coerce.number().int().min(1).max(200).default(50),
+  })
+  .superRefine((input, ctx) => {
+    if (input.from && input.to && !isDateTimeInstantOnOrBefore(input.from, input.to)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'to must be on or after from',
+        path: ['to'],
+      });
+    }
+  });
 export type AuditEntriesQuery = z.infer<typeof AuditEntriesQuerySchema>;
 
 export const AuditEntryItemSchema = z.object({

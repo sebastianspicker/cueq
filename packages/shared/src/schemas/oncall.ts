@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { DateTimeSchema, IdSchema } from './common';
+import {
+  DateTimeSchema,
+  IdSchema,
+  isDateTimeInstantBefore,
+  isDateTimeInstantOnOrBefore,
+} from './common';
 
 // ---------------------------------------------------------------------------
 // On-Call Domain Schemas — CueQ Differentiator C
@@ -28,7 +33,7 @@ export const CreateOnCallRotationSchema = z
     rotationType: z.enum(['WEEKLY', 'DAILY', 'CUSTOM']),
     note: z.string().max(1000).optional(),
   })
-  .refine((input) => input.startTime < input.endTime, {
+  .refine((input) => isDateTimeInstantBefore(input.startTime, input.endTime), {
     message: 'startTime must be before endTime',
     path: ['endTime'],
   });
@@ -42,7 +47,11 @@ export const UpdateOnCallRotationSchema = z
     note: z.string().max(1000).nullable().optional(),
   })
   .superRefine((input, ctx) => {
-    if (input.startTime && input.endTime && input.startTime >= input.endTime) {
+    if (
+      input.startTime &&
+      input.endTime &&
+      !isDateTimeInstantBefore(input.startTime, input.endTime)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'startTime must be before endTime',
@@ -60,7 +69,7 @@ export const ListOnCallRotationsQuerySchema = z
     to: DateTimeSchema.optional(),
   })
   .superRefine((input, ctx) => {
-    if (input.from && input.to && input.to < input.from) {
+    if (input.from && input.to && !isDateTimeInstantOnOrBefore(input.from, input.to)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'from must be on or before to',
@@ -78,7 +87,7 @@ export const ListOnCallDeploymentsQuerySchema = z
     to: DateTimeSchema.optional(),
   })
   .superRefine((input, ctx) => {
-    if (input.from && input.to && input.to < input.from) {
+    if (input.from && input.to && !isDateTimeInstantOnOrBefore(input.from, input.to)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'from must be on or before to',
@@ -114,7 +123,7 @@ export const CreateOnCallDeploymentSchema = z
     eventReference: z.string().max(200).optional(),
     description: z.string().max(2000).optional(),
   })
-  .refine((input) => !input.endTime || input.startTime < input.endTime, {
+  .refine((input) => !input.endTime || isDateTimeInstantBefore(input.startTime, input.endTime), {
     message: 'endTime must be after startTime',
     path: ['endTime'],
   });

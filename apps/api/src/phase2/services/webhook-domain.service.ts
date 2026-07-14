@@ -1,5 +1,5 @@
 import { createHmac, randomBytes } from 'node:crypto';
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { OutboxStatus } from '@cueq/database';
 import { CreateWebhookEndpointSchema, OutboxQuerySchema, DeliveryQuerySchema } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service';
@@ -12,6 +12,7 @@ import { HR_LIKE_ROLES } from '../helpers/role-constants';
 
 const WEBHOOK_RESPONSE_BODY_MAX_BYTES = 8_000;
 const WEBHOOK_ERROR_MAX_CHARS = 1_000;
+const DEFAULT_WEBHOOK_CLAIM_LEASE_MS = 15 * 60_000;
 
 function truncateForStorage(value: string | null, maxChars: number): string | null {
   if (value === null) {
@@ -55,6 +56,33 @@ export class WebhookDomainService {
     return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 5000;
   }
 
+  private webhookClaimLeaseMs(timeoutMs: number): number {
+    const parsed = Number(process.env.WEBHOOK_CLAIM_LEASE_MS ?? DEFAULT_WEBHOOK_CLAIM_LEASE_MS);
+    const configured = Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
+    return Math.max(configured, DEFAULT_WEBHOOK_CLAIM_LEASE_MS, timeoutMs * 2);
+  }
+
+  private async renewWebhookClaim(
+    event: { id: string; status: OutboxStatus; attempts: number },
+    currentLease: Date,
+    claimLeaseMs: number,
+  ): Promise<Date> {
+    const nextLease = new Date(Date.now() + claimLeaseMs);
+    const renewed = await this.prisma.domainEventOutbox.updateMany({
+      where: {
+        id: event.id,
+        status: event.status,
+        attempts: event.attempts,
+        nextAttemptAt: currentLease,
+      },
+      data: { nextAttemptAt: nextLease },
+    });
+    if (renewed.count !== 1) {
+      throw new ConflictException('Webhook dispatch claim expired before it was renewed.');
+    }
+    return nextLease;
+  }
+
   async createWebhookEndpoint(user: AuthenticatedIdentity, payload: unknown) {
     if (!HR_LIKE_ROLES.has(user.role)) {
       throw new ForbiddenException('Only HR/Admin can configure webhooks.');
@@ -64,27 +92,34 @@ export class WebhookDomainService {
     const parsed = CreateWebhookEndpointSchema.parse(payload);
     const validatedUrl = assertWebhookTargetUrl(parsed.url).toString();
     const secret = randomBytes(32).toString('hex');
-    const endpoint = await this.prisma.webhookEndpoint.create({
-      data: {
-        name: parsed.name,
-        url: validatedUrl,
-        subscribedEvents: parsed.subscribedEvents,
-        secretRef: secret,
-        createdById: actor.id,
-        isActive: true,
-      },
-    });
+    const endpoint = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.webhookEndpoint.create({
+        data: {
+          name: parsed.name,
+          url: validatedUrl,
+          subscribedEvents: parsed.subscribedEvents,
+          secretRef: secret,
+          createdById: actor.id,
+          isActive: true,
+        },
+      });
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'WEBHOOK_ENDPOINT_CREATED',
-      entityType: 'WebhookEndpoint',
-      entityId: endpoint.id,
-      after: {
-        url: endpoint.url,
-        subscribedEvents: endpoint.subscribedEvents,
-        isActive: endpoint.isActive,
-      },
+      await this.auditHelper.appendAudit(
+        {
+          actorId: actor.id,
+          action: 'WEBHOOK_ENDPOINT_CREATED',
+          entityType: 'WebhookEndpoint',
+          entityId: created.id,
+          after: {
+            url: created.url,
+            subscribedEvents: created.subscribedEvents,
+            isActive: created.isActive,
+          },
+        },
+        tx,
+      );
+
+      return created;
     });
 
     return {
@@ -184,6 +219,7 @@ export class WebhookDomainService {
     const batchSize = this.webhookBatchSize();
     const maxAttempts = this.webhookMaxAttempts();
     const timeoutMs = this.webhookTimeoutMs();
+    const claimLeaseMs = this.webhookClaimLeaseMs(timeoutMs);
 
     const pendingEvents = await this.prisma.domainEventOutbox.findMany({
       where: {
@@ -201,6 +237,22 @@ export class WebhookDomainService {
     let skipped = 0;
 
     for (const event of pendingEvents) {
+      let claimUntil = new Date(Date.now() + claimLeaseMs);
+      const claim = await this.prisma.domainEventOutbox.updateMany({
+        where: {
+          id: event.id,
+          status: { in: [OutboxStatus.PENDING, OutboxStatus.FAILED] },
+          attempts: event.attempts,
+          OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
+        },
+        data: {
+          nextAttemptAt: claimUntil,
+        },
+      });
+      if (claim.count !== 1) {
+        continue;
+      }
+
       processed += 1;
       const endpoints = await this.prisma.webhookEndpoint.findMany({
         where: { isActive: true, subscribedEvents: { has: event.eventType } },
@@ -215,8 +267,13 @@ export class WebhookDomainService {
 
       if (endpoints.length === 0) {
         skipped += 1;
-        await this.prisma.domainEventOutbox.update({
-          where: { id: event.id },
+        const finalized = await this.prisma.domainEventOutbox.updateMany({
+          where: {
+            id: event.id,
+            status: event.status,
+            attempts: event.attempts,
+            nextAttemptAt: claimUntil,
+          },
           data: {
             status: OutboxStatus.SKIPPED,
             attempts: attempt,
@@ -225,8 +282,26 @@ export class WebhookDomainService {
             nextAttemptAt: null,
           },
         });
+        if (finalized.count !== 1) {
+          throw new ConflictException('Webhook dispatch claim expired before it was finalized.');
+        }
         continue;
       }
+
+      const successfulDeliveries = await this.prisma.webhookDelivery.findMany({
+        where: {
+          outboxEventId: event.id,
+          status: 'SUCCESS',
+          endpointId: { in: endpoints.map((endpoint) => endpoint.id) },
+        },
+        select: { endpointId: true },
+      });
+      const successfulEndpointIds = new Set(
+        successfulDeliveries.map((delivery) => delivery.endpointId),
+      );
+      const endpointsToDeliver = endpoints.filter(
+        (endpoint) => !successfulEndpointIds.has(endpoint.id),
+      );
 
       const envelope = {
         eventId: event.id,
@@ -241,8 +316,19 @@ export class WebhookDomainService {
 
       let eventFailed = false;
       let lastError: string | null = null;
+      const deliveryResults: Array<{
+        outboxEventId: string;
+        endpointId: string;
+        attempt: number;
+        status: 'SUCCESS' | 'FAILED';
+        httpStatus: number | null;
+        responseBody: string | null;
+        error: string | null;
+        deliveredAt: Date | null;
+      }> = [];
 
-      for (const endpoint of endpoints) {
+      for (const endpoint of endpointsToDeliver) {
+        claimUntil = await this.renewWebhookClaim(event, claimUntil, claimLeaseMs);
         let status: 'SUCCESS' | 'FAILED' = 'SUCCESS';
         let httpStatus: number | null = null;
         let responseBody: string | null = null;
@@ -287,46 +373,56 @@ export class WebhookDomainService {
           lastError = error ?? 'Webhook delivery failed';
         }
 
-        await this.prisma.webhookDelivery.create({
-          data: {
-            outboxEventId: event.id,
-            endpointId: endpoint.id,
-            attempt,
-            status,
-            httpStatus,
-            responseBody,
-            error,
-            deliveredAt,
-          },
+        deliveryResults.push({
+          outboxEventId: event.id,
+          endpointId: endpoint.id,
+          attempt,
+          status,
+          httpStatus,
+          responseBody,
+          error,
+          deliveredAt,
         });
       }
 
-      if (!eventFailed) {
-        delivered += 1;
-        await this.prisma.domainEventOutbox.update({
-          where: { id: event.id },
-          data: {
-            status: OutboxStatus.DELIVERED,
-            attempts: attempt,
-            processedAt: new Date(),
-            lastError: null,
-            nextAttemptAt: null,
+      const retryDelayMinutes = 2 ** Math.min(attempt, 6);
+      await this.prisma.$transaction(async (tx) => {
+        const finalized = await tx.domainEventOutbox.updateMany({
+          where: {
+            id: event.id,
+            status: event.status,
+            attempts: event.attempts,
+            nextAttemptAt: claimUntil,
           },
+          data: eventFailed
+            ? {
+                status: OutboxStatus.FAILED,
+                attempts: attempt,
+                processedAt: null,
+                lastError,
+                nextAttemptAt:
+                  attempt >= maxAttempts ? null : new Date(Date.now() + retryDelayMinutes * 60_000),
+              }
+            : {
+                status: OutboxStatus.DELIVERED,
+                attempts: attempt,
+                processedAt: new Date(),
+                lastError: null,
+                nextAttemptAt: null,
+              },
         });
-      } else {
+        if (finalized.count !== 1) {
+          throw new ConflictException('Webhook dispatch claim expired before it was finalized.');
+        }
+        for (const delivery of deliveryResults) {
+          await tx.webhookDelivery.create({ data: delivery });
+        }
+      });
+
+      if (eventFailed) {
         failed += 1;
-        const retryDelayMinutes = 2 ** Math.min(attempt, 6);
-        await this.prisma.domainEventOutbox.update({
-          where: { id: event.id },
-          data: {
-            status: OutboxStatus.FAILED,
-            attempts: attempt,
-            processedAt: null,
-            lastError,
-            nextAttemptAt:
-              attempt >= maxAttempts ? null : new Date(now.getTime() + retryDelayMinutes * 60_000),
-          },
-        });
+      } else {
+        delivered += 1;
       }
     }
 

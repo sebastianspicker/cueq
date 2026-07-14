@@ -236,6 +236,25 @@ describe('evaluateTimeRules – edge cases', () => {
       });
       expect(result.violations.some((v) => v.code === 'BREAK_DEFICIT')).toBe(false);
     });
+
+    it('does not double-count duplicate or overlapping pauses', () => {
+      const result = evaluateTimeRules({
+        ...BASE_INPUT,
+        targetHours: 0,
+        intervals: [
+          { start: '2026-03-03T07:00:00.000Z', end: '2026-03-03T16:00:00.000Z', type: 'WORK' },
+          { start: '2026-03-03T12:00:00.000Z', end: '2026-03-03T12:30:00.000Z', type: 'PAUSE' },
+          { start: '2026-03-03T12:00:00.000Z', end: '2026-03-03T12:30:00.000Z', type: 'PAUSE' },
+        ],
+      });
+
+      expect(result.violations).toContainEqual(
+        expect.objectContaining({
+          code: 'BREAK_DEFICIT',
+          context: expect.objectContaining({ breakMinutes: 30, requiredBreakMinutes: 45 }),
+        }),
+      );
+    });
   });
 
   describe('max daily hours boundaries', () => {

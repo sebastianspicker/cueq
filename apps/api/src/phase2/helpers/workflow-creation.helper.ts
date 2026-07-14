@@ -51,41 +51,48 @@ export class WorkflowCreationHelper {
       preferredApproverId,
     });
 
-    const workflow = await this.prisma.workflowInstance.create({
-      data: {
-        type: WorkflowType.BOOKING_CORRECTION,
-        status: assignment.status,
-        requesterId: requester.id,
-        approverId: assignment.approverId,
-        entityType: 'Booking',
-        entityId: booking.id,
-        reason: parsed.reason,
-        requestPayload: {
-          bookingId: parsed.bookingId,
-          startTime: parsed.startTime,
-          endTime: parsed.endTime,
-          timeTypeId: parsed.timeTypeId,
+    const workflow = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.workflowInstance.create({
+        data: {
+          type: WorkflowType.BOOKING_CORRECTION,
+          status: assignment.status,
+          requesterId: requester.id,
+          approverId: assignment.approverId,
+          entityType: 'Booking',
+          entityId: booking.id,
+          reason: parsed.reason,
+          requestPayload: {
+            bookingId: parsed.bookingId,
+            startTime: parsed.startTime,
+            endTime: parsed.endTime,
+            timeTypeId: parsed.timeTypeId,
+          },
+          submittedAt: assignment.submittedAt,
+          dueAt: assignment.dueAt,
+          escalationLevel: assignment.escalationLevel,
+          delegationTrail: assignment.delegationTrail,
         },
-        submittedAt: assignment.submittedAt,
-        dueAt: assignment.dueAt,
-        escalationLevel: assignment.escalationLevel,
-        delegationTrail: assignment.delegationTrail,
-      },
-    });
+      });
 
-    await this.auditHelper.appendAudit({
-      actorId: requester.id,
-      action: 'WORKFLOW_CREATED',
-      entityType: 'WorkflowInstance',
-      entityId: workflow.id,
-      after: {
-        type: workflow.type,
-        status: workflow.status,
-        approverId: workflow.approverId,
-        dueAt: workflow.dueAt?.toISOString() ?? null,
-        traversedApprovers: assignment.traversedApprovers,
-      },
-      reason: parsed.reason,
+      await this.auditHelper.appendAudit(
+        {
+          actorId: requester.id,
+          action: 'WORKFLOW_CREATED',
+          entityType: 'WorkflowInstance',
+          entityId: created.id,
+          after: {
+            type: created.type,
+            status: created.status,
+            approverId: created.approverId,
+            dueAt: created.dueAt?.toISOString() ?? null,
+            traversedApprovers: assignment.traversedApprovers,
+          },
+          reason: parsed.reason,
+        },
+        tx,
+      );
+
+      return created;
     });
 
     return {
@@ -146,38 +153,45 @@ export class WorkflowCreationHelper {
       preferredApproverId: preferredApprover?.id ?? undefined,
     });
 
-    const workflow = await this.prisma.workflowInstance.create({
-      data: {
-        type: WorkflowType.SHIFT_SWAP,
-        status: assignment.status,
-        requesterId: requester.id,
-        approverId: assignment.approverId,
-        entityType: 'Shift',
-        entityId: shift.id,
-        reason: parsed.reason,
-        requestPayload: parsed,
-        submittedAt: assignment.submittedAt,
-        dueAt: assignment.dueAt,
-        escalationLevel: assignment.escalationLevel,
-        delegationTrail: assignment.delegationTrail,
-      },
-    });
+    const workflow = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.workflowInstance.create({
+        data: {
+          type: WorkflowType.SHIFT_SWAP,
+          status: assignment.status,
+          requesterId: requester.id,
+          approverId: assignment.approverId,
+          entityType: 'Shift',
+          entityId: shift.id,
+          reason: parsed.reason,
+          requestPayload: parsed,
+          submittedAt: assignment.submittedAt,
+          dueAt: assignment.dueAt,
+          escalationLevel: assignment.escalationLevel,
+          delegationTrail: assignment.delegationTrail,
+        },
+      });
 
-    await this.auditHelper.appendAudit({
-      actorId: requester.id,
-      action: 'WORKFLOW_CREATED',
-      entityType: 'WorkflowInstance',
-      entityId: workflow.id,
-      after: {
-        type: workflow.type,
-        status: workflow.status,
-        approverId: workflow.approverId,
-        dueAt: workflow.dueAt?.toISOString() ?? null,
-        shiftId: shift.id,
-        fromPersonId: parsed.fromPersonId,
-        toPersonId: parsed.toPersonId,
-      },
-      reason: parsed.reason,
+      await this.auditHelper.appendAudit(
+        {
+          actorId: requester.id,
+          action: 'WORKFLOW_CREATED',
+          entityType: 'WorkflowInstance',
+          entityId: created.id,
+          after: {
+            type: created.type,
+            status: created.status,
+            approverId: created.approverId,
+            dueAt: created.dueAt?.toISOString() ?? null,
+            shiftId: shift.id,
+            fromPersonId: parsed.fromPersonId,
+            toPersonId: parsed.toPersonId,
+          },
+          reason: parsed.reason,
+        },
+        tx,
+      );
+
+      return created;
     });
 
     return workflow;
@@ -227,37 +241,45 @@ export class WorkflowCreationHelper {
       preferredApproverId: targetPerson.supervisorId ?? undefined,
     });
 
-    const workflow = await this.prisma.workflowInstance.create({
-      data: {
-        type: WorkflowType.OVERTIME_APPROVAL,
-        status: assignment.status,
-        requesterId: requester.id,
-        approverId: assignment.approverId,
-        entityType: 'TimeAccount',
-        entityId: targetPerson.id,
-        reason: parsed.reason,
-        requestPayload: parsed,
-        submittedAt: assignment.submittedAt,
-        dueAt: assignment.dueAt,
-        escalationLevel: assignment.escalationLevel,
-        delegationTrail: assignment.delegationTrail,
-      },
-    });
+    const workflow = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.workflowInstance.create({
+        data: {
+          type: WorkflowType.OVERTIME_APPROVAL,
+          status: assignment.status,
+          requesterId: requester.id,
+          approverId: assignment.approverId,
+          entityType: 'TimeAccount',
+          entityId: matchingAccount.id,
+          reason: parsed.reason,
+          requestPayload: parsed,
+          submittedAt: assignment.submittedAt,
+          dueAt: assignment.dueAt,
+          escalationLevel: assignment.escalationLevel,
+          delegationTrail: assignment.delegationTrail,
+        },
+      });
 
-    await this.auditHelper.appendAudit({
-      actorId: requester.id,
-      action: 'WORKFLOW_CREATED',
-      entityType: 'WorkflowInstance',
-      entityId: workflow.id,
-      after: {
-        type: workflow.type,
-        status: workflow.status,
-        approverId: workflow.approverId,
-        dueAt: workflow.dueAt?.toISOString() ?? null,
-        personId: parsed.personId,
-        overtimeHours: parsed.overtimeHours,
-      },
-      reason: parsed.reason,
+      await this.auditHelper.appendAudit(
+        {
+          actorId: requester.id,
+          action: 'WORKFLOW_CREATED',
+          entityType: 'WorkflowInstance',
+          entityId: created.id,
+          after: {
+            type: created.type,
+            status: created.status,
+            approverId: created.approverId,
+            dueAt: created.dueAt?.toISOString() ?? null,
+            personId: parsed.personId,
+            timeAccountId: matchingAccount.id,
+            overtimeHours: parsed.overtimeHours,
+          },
+          reason: parsed.reason,
+        },
+        tx,
+      );
+
+      return created;
     });
 
     return workflow;
