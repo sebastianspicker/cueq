@@ -81,6 +81,26 @@ describe('HrImportService', () => {
     });
   });
 
+  it('locks each existing person before updating HR-managed identity fields', async () => {
+    const { service, tx } = createService();
+    tx.person.findUnique.mockResolvedValue({ id: 'person-existing' });
+    tx.person.update.mockResolvedValue({ id: 'person-existing' });
+
+    await service.runImport('dev-hr-token', {
+      source: 'FILE',
+      csv: [
+        'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours',
+        'emp01,Emp,One,emp@cueq.local,EMPLOYEE,HR,Full,39.83,7.97',
+      ].join('\n'),
+    });
+
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(tx.$queryRaw.mock.calls[1]?.[1]).toBe('cueq:person-write:person-existing');
+    expect(tx.person.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'person-existing' } }),
+    );
+  });
+
   it('records a failed run when externalId and email resolve to different people', async () => {
     const { service, tx } = createService();
     tx.person.findUnique.mockResolvedValueOnce({ id: 'person-by-external-id' });

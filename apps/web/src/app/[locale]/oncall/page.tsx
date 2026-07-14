@@ -6,6 +6,7 @@ import { ConnectionPanel } from '../../../components/ConnectionPanel';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
+import { refreshAfterMutation, type RefreshResult } from '../../../lib/mutation-refresh';
 import {
   ComplianceSection,
   DeploymentsSection,
@@ -81,29 +82,37 @@ export default function OnCallPage() {
     };
   }, [apiRequest, token]);
 
-  async function loadRotations() {
+  async function loadRotations(preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
-    setError(null);
-    setMessage(null);
+    if (!preserveFeedback) {
+      setError(null);
+      setMessage(null);
+    }
     try {
       const data = await apiRequest<OnCallRotation[]>('/v1/oncall/rotations');
       setRotations(data);
+      return { ok: true };
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      if (!preserveFeedback) setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      return { ok: false, cause };
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadDeployments() {
+  async function loadDeployments(preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
-    setError(null);
-    setMessage(null);
+    if (!preserveFeedback) {
+      setError(null);
+      setMessage(null);
+    }
     try {
       const data = await apiRequest<OnCallDeployment[]>('/v1/oncall/deployments');
       setDeployments(data);
+      return { ok: true };
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      if (!preserveFeedback) setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      return { ok: false, cause };
     } finally {
       setLoading(false);
     }
@@ -137,19 +146,26 @@ export default function OnCallPage() {
     setError(null);
     setMessage(null);
     try {
-      await apiRequest('/v1/oncall/rotations', {
-        method: 'POST',
-        body: JSON.stringify({
-          personId,
-          organizationUnitId,
-          startTime,
-          endTime,
-          rotationType,
-          note: note || undefined,
-        }),
-      });
-      setMessage(t('rotationCreated'));
-      await loadRotations();
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest('/v1/oncall/rotations', {
+            method: 'POST',
+            body: JSON.stringify({
+              personId,
+              organizationUnitId,
+              startTime,
+              endTime,
+              rotationType,
+              note: note || undefined,
+            }),
+          }),
+        () => loadRotations(true),
+      );
+      if (refresh.ok) {
+        setMessage(t('rotationCreated'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -167,17 +183,19 @@ export default function OnCallPage() {
     setError(null);
     setMessage(null);
     try {
-      await apiRequest(`/v1/oncall/rotations/${updateRotationId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          startTime,
-          endTime,
-          rotationType,
-          note: note || undefined,
-        }),
-      });
-      setMessage(t('rotationUpdated'));
-      await loadRotations();
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest(`/v1/oncall/rotations/${updateRotationId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ startTime, endTime, rotationType, note: note || undefined }),
+          }),
+        () => loadRotations(true),
+      );
+      if (refresh.ok) {
+        setMessage(t('rotationUpdated'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -195,21 +213,28 @@ export default function OnCallPage() {
     setError(null);
     setMessage(null);
     try {
-      await apiRequest('/v1/oncall/deployments', {
-        method: 'POST',
-        body: JSON.stringify({
-          personId,
-          rotationId,
-          startTime,
-          endTime,
-          remote,
-          ticketReference: ticketReference || undefined,
-          eventReference: eventReference || undefined,
-          description: description || undefined,
-        }),
-      });
-      setMessage(t('deploymentCreated'));
-      await loadDeployments();
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest('/v1/oncall/deployments', {
+            method: 'POST',
+            body: JSON.stringify({
+              personId,
+              rotationId,
+              startTime,
+              endTime,
+              remote,
+              ticketReference: ticketReference || undefined,
+              eventReference: eventReference || undefined,
+              description: description || undefined,
+            }),
+          }),
+        () => loadDeployments(true),
+      );
+      if (refresh.ok) {
+        setMessage(t('deploymentCreated'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {

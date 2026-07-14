@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { useTranslations } from 'next-intl';
-import type { ApiRequest } from '../../../lib/api-client';
+import type { ApiFetch, ApiRequest } from '../../../lib/api-client';
+import { refreshAfterMutation, type RefreshResult } from '../../../lib/mutation-refresh';
 import {
   findSelectedPeriod,
   type ApplyCorrectionPayload,
@@ -53,36 +54,45 @@ export function useClosingPeriods(t: TranslationFn, apiRequest: ApiRequest) {
     [apiRequest, t],
   );
 
-  const loadPeriods = useCallback(async () => {
-    setLoading(true);
-    setMessage(null);
-    setError(null);
-    try {
-      const query = new URLSearchParams();
-      if (fromMonth) query.set('from', fromMonth);
-      if (toMonth) query.set('to', toMonth);
-      if (organizationUnitId) query.set('organizationUnitId', organizationUnitId);
-      const rows = await apiRequest<ClosingPeriod[]>(`/v1/closing-periods?${query.toString()}`);
-      setPeriods(rows);
-      const nextId = rows.some((row) => row.id === selectedPeriodId)
-        ? selectedPeriodId
-        : rows[0]?.id;
-      if (!nextId) {
-        setSelectedPeriodId(null);
-        setDetail(null);
-        setChecklist(null);
-      } else {
-        const [nextPeriod, items] = await fetchPeriodSelection(apiRequest, nextId);
-        setSelectedPeriodId(nextId);
-        setDetail(nextPeriod);
-        setChecklist(items);
+  const loadPeriods = useCallback(
+    async (preserveFeedback = false): Promise<RefreshResult> => {
+      setLoading(true);
+      if (!preserveFeedback) {
+        setMessage(null);
+        setError(null);
       }
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [apiRequest, fromMonth, organizationUnitId, selectedPeriodId, t, toMonth]);
+      try {
+        const query = new URLSearchParams();
+        if (fromMonth) query.set('from', fromMonth);
+        if (toMonth) query.set('to', toMonth);
+        if (organizationUnitId) query.set('organizationUnitId', organizationUnitId);
+        const rows = await apiRequest<ClosingPeriod[]>(`/v1/closing-periods?${query.toString()}`);
+        setPeriods(rows);
+        const nextId = rows.some((row) => row.id === selectedPeriodId)
+          ? selectedPeriodId
+          : rows[0]?.id;
+        if (!nextId) {
+          setSelectedPeriodId(null);
+          setDetail(null);
+          setChecklist(null);
+        } else {
+          const [nextPeriod, items] = await fetchPeriodSelection(apiRequest, nextId);
+          setSelectedPeriodId(nextId);
+          setDetail(nextPeriod);
+          setChecklist(items);
+        }
+        return { ok: true };
+      } catch (cause) {
+        if (!preserveFeedback) {
+          setError(cause instanceof Error ? cause.message : t('requestFailed'));
+        }
+        return { ok: false, cause };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [apiRequest, fromMonth, organizationUnitId, selectedPeriodId, t, toMonth],
+  );
 
   return {
     fromMonth,
@@ -108,7 +118,7 @@ export function useClosingActions(
   t: TranslationFn,
   apiRequest: ApiRequest,
   period: ClosingPeriod | null,
-  reload: () => Promise<void>,
+  reload: (preserveFeedback?: boolean) => Promise<RefreshResult>,
 ) {
   const [workflowId, setWorkflowId] = useState('');
   const [workflowReason, setWorkflowReason] = useState('Payroll mismatch correction');
@@ -136,10 +146,16 @@ export function useClosingActions(
     setMessage(null);
     setError(null);
     try {
-      const result = await apiRequest<unknown>(`/v1/closing-periods/${period.id}/${pathSuffix}`, {
-        method: 'POST',
-        body: body ? JSON.stringify(body) : undefined,
-      });
+      let result: unknown;
+      const refresh = await refreshAfterMutation(
+        async () => {
+          result = await apiRequest<unknown>(`/v1/closing-periods/${period.id}/${pathSuffix}`, {
+            method: 'POST',
+            body: body ? JSON.stringify(body) : undefined,
+          });
+        },
+        () => reload(true),
+      );
       const createdId =
         pathSuffix === 'post-close-corrections' && result && typeof result === 'object'
           ? (result as { id?: string }).id
@@ -149,8 +165,11 @@ export function useClosingActions(
         setWorkflowApproved(false);
         setCorrectionPayload((current) => ({ ...current, workflowId: createdId }));
       }
-      await reload();
-      setMessage(t('actionApplied'));
+      if (refresh.ok) {
+        setMessage(t('actionApplied'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -181,12 +200,19 @@ export function useClosingActions(
     setLoading(true);
     setError(null);
     try {
-      await apiRequest(`/v1/closing-periods/${period.id}/corrections/bookings`, {
-        method: 'POST',
-        body: JSON.stringify(correctionPayload),
-      });
-      await reload();
-      setMessage(t('correctionApplied'));
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest(`/v1/closing-periods/${period.id}/corrections/bookings`, {
+            method: 'POST',
+            body: JSON.stringify(correctionPayload),
+          }),
+        () => reload(true),
+      );
+      if (refresh.ok) {
+        setMessage(t('correctionApplied'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -227,8 +253,7 @@ export function useOrganizationUnitScope(
 
 export function useArtifactDownload(
   t: TranslationFn,
-  apiBaseUrl: string,
-  token: string,
+  apiFetch: ApiFetch,
   period: ClosingPeriod | null,
 ) {
   const [loading, setLoading] = useState(false);
@@ -241,10 +266,8 @@ export function useArtifactDownload(
     setError(null);
     setMessage(null);
     try {
-      const baseUrl = apiBaseUrl.replace(/\/$/u, '');
-      const response = await fetch(
-        `${baseUrl}/v1/closing-periods/${period.id}/export-runs/${runId}/artifact`,
-        { headers: { Authorization: `Bearer ${token}` } },
+      const response = await apiFetch(
+        `/v1/closing-periods/${period.id}/export-runs/${runId}/artifact`,
       );
       if (!response.ok) throw new Error(t('requestFailed'));
       const artifact = await response.text();

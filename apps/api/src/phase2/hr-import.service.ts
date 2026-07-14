@@ -11,6 +11,7 @@ import { PrismaService } from '../persistence/prisma.service';
 import { assertIntegrationToken } from '../common/integrations/integration-token';
 import { parseCsvRecords } from '../common/csv/parse-csv';
 import { AuditHelper } from './helpers/audit.helper';
+import { lockPersonWrites } from './helpers/transaction-lock.helper';
 import {
   HR_MASTER_PROVIDER,
   type HrMasterProviderPort,
@@ -343,6 +344,18 @@ export class HrImportService {
     }
   }
 
+  private async lockExistingPeopleForRows(tx: HrImportTransaction, rows: ValidatedRow[]) {
+    const existingPersonIds = new Set<string>();
+    for (const row of rows) {
+      const existing = await this.findExistingPersonForRow(tx, row);
+      if (existing) {
+        existingPersonIds.add(existing.id);
+      }
+    }
+
+    await lockPersonWrites(tx, existingPersonIds);
+  }
+
   private async resolveSupervisorId(
     tx: HrImportTransaction,
     row: ValidatedRow,
@@ -417,6 +430,7 @@ export class HrImportService {
           retryable: true,
         });
       }
+      await this.lockExistingPeopleForRows(tx, validatedRows);
       await this.preflightRows(tx, validatedRows);
       const result = await this.importValidatedRows(tx, validatedRows);
       await this.linkSupervisors(tx, validatedRows, result.importedPeople);

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DateTimeSchema, IdSchema } from './common';
+import { DateTimeSchema, IdSchema, isDateTimeInstantBefore } from './common';
 
 export const ClosingStatusSchema = z.enum(['OPEN', 'REVIEW', 'APPROVED', 'EXPORTED']);
 export type ClosingStatus = z.infer<typeof ClosingStatusSchema>;
@@ -44,7 +44,7 @@ export const ClosingBookingCorrectionSchema = z
     reason: z.string().min(10).max(1000),
     note: z.string().max(1000).optional(),
   })
-  .refine((input) => input.endTime > input.startTime, {
+  .refine((input) => isDateTimeInstantBefore(input.startTime, input.endTime), {
     message: 'endTime must be after startTime',
     path: ['endTime'],
   });

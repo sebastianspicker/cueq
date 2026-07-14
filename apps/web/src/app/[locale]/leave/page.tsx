@@ -11,6 +11,7 @@ import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
+import { refreshAfterMutation, type RefreshResult } from '../../../lib/mutation-refresh';
 
 interface LeaveBalanceResponse {
   personId: string;
@@ -76,31 +77,35 @@ export default function LeavePage() {
     return me.id;
   }
 
-  async function loadBalance() {
+  async function loadBalance(preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
-    setError(null);
+    if (!preserveFeedback) setError(null);
     try {
       const data = await apiRequest<LeaveBalanceResponse>(
         `/v1/leave-balance/me?year=${encodeURIComponent(year)}&asOfDate=${encodeURIComponent(asOfDate)}`,
       );
       setBalance(data);
-      setMessage(null);
+      if (!preserveFeedback) setMessage(null);
+      return { ok: true };
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      if (!preserveFeedback) setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      return { ok: false, cause };
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadAbsences() {
+  async function loadAbsences(preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
-    setError(null);
+    if (!preserveFeedback) setError(null);
     try {
       const data = await apiRequest<AbsenceResponse[]>('/v1/absences/me');
       setAbsences(data);
-      setMessage(null);
+      if (!preserveFeedback) setMessage(null);
+      return { ok: true };
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      if (!preserveFeedback) setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      return { ok: false, cause };
     } finally {
       setLoading(false);
     }
@@ -112,18 +117,29 @@ export default function LeavePage() {
     setMessage(null);
     try {
       const requesterId = await resolvePersonId();
-      await apiRequest<AbsenceResponse>('/v1/absences', {
-        method: 'POST',
-        body: JSON.stringify({
-          personId: requesterId,
-          type: requestType,
-          startDate,
-          endDate,
-          note: note || undefined,
-        }),
-      });
-      await Promise.all([loadAbsences(), loadBalance()]);
-      setMessage(t('requestCreated'));
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest<AbsenceResponse>('/v1/absences', {
+            method: 'POST',
+            body: JSON.stringify({
+              personId: requesterId,
+              type: requestType,
+              startDate,
+              endDate,
+              note: note || undefined,
+            }),
+          }),
+        async () => {
+          const results = await Promise.all([loadAbsences(true), loadBalance(true)]);
+          const failed = results.find((result) => !result.ok);
+          return failed ?? { ok: true };
+        },
+      );
+      if (refresh.ok) {
+        setMessage(t('requestCreated'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {

@@ -1,5 +1,6 @@
 import { BadRequestException, Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { parseDateOnly } from '@cueq/shared';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AbsenceDomainService } from '../services/absence-domain.service';
@@ -31,6 +32,13 @@ export class LeaveBalanceController {
     }
     if (asOfDate !== undefined && !DATE_PATTERN.test(asOfDate)) {
       throw new BadRequestException('asOfDate must be ISO-8601 date (YYYY-MM-DD).');
+    }
+    if (asOfDate !== undefined) {
+      try {
+        parseDateOnly(asOfDate);
+      } catch {
+        throw new BadRequestException('asOfDate must be a valid calendar date.');
+      }
     }
     const parsedYear = year ? Number(year) : undefined;
     if (parsedYear !== undefined && (parsedYear < 1970 || parsedYear > 2200)) {

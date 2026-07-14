@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AbsenceStatus, Role, WorkflowType } from '@cueq/database';
+import { AbsenceStatus, WorkflowType } from '@cueq/database';
 import { ShiftSwapRequestSchema, OvertimeApprovalRequestSchema } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service';
 import { AuditHelper } from './audit.helper';
@@ -72,6 +72,7 @@ export class WorkflowSideEffectsHelper {
       const periodEnd = new Date(requestPayload.periodEnd);
       const account = await db.timeAccount.findFirst({
         where: {
+          id: workflow.entityId,
           personId: requestPayload.personId,
           periodStart: { lte: periodStart },
           periodEnd: { gte: periodEnd },
@@ -88,28 +89,12 @@ export class WorkflowSideEffectsHelper {
   async validatePostCloseSelfApproval(
     actorId: string,
     workflow: { requesterId: string; type: string },
-    reason?: string,
+    _reason?: string,
   ) {
     if (workflow.type !== WorkflowType.POST_CLOSE_CORRECTION) return;
     if (workflow.requesterId !== actorId) return;
 
-    const alternateApprover = await this.prisma.person.findFirst({
-      where: {
-        role: { in: [Role.HR, Role.ADMIN] },
-        id: { not: actorId },
-      },
-      select: { id: true },
-    });
-    if (alternateApprover) {
-      throw new ForbiddenException(
-        'Post-close correction cannot be self-approved while another HR/Admin exists.',
-      );
-    }
-    if (!reason?.includes('[self-approval]')) {
-      throw new BadRequestException(
-        'Self-approval requires explicit reason flag: include "[self-approval]" in reason.',
-      );
-    }
+    throw new ForbiddenException('Post-close corrections cannot be self-approved.');
   }
 
   async applyDecisionSideEffects(
@@ -237,10 +222,30 @@ export class WorkflowSideEffectsHelper {
       if (shift.assignments.some((a) => a.personId === swapPayload.toPersonId)) {
         throw new BadRequestException('toPersonId assignment already exists on shift.');
       }
+      const overlappingAssignment = await db.shiftAssignment.findFirst({
+        where: {
+          personId: swapPayload.toPersonId,
+          shift: {
+            id: { not: shift.id },
+            startTime: { lt: shift.endTime },
+            endTime: { gt: shift.startTime },
+          },
+        },
+        select: { id: true },
+      });
+      if (overlappingAssignment) {
+        throw new BadRequestException('toPersonId has an overlapping assigned shift.');
+      }
       await db.shiftAssignment.delete({ where: { id: fromAssignment.id } });
       await db.shiftAssignment.create({
         data: { shiftId: shift.id, personId: swapPayload.toPersonId },
       });
+      if (shift.personId === swapPayload.fromPersonId) {
+        await db.shift.update({
+          where: { id: shift.id },
+          data: { personId: swapPayload.toPersonId },
+        });
+      }
     };
 
     const applySwapAndAudit = async (
@@ -292,6 +297,7 @@ export class WorkflowSideEffectsHelper {
 
     const account = await db.timeAccount.findFirst({
       where: {
+        id: decision.updated.entityId,
         personId: otPayload.personId,
         periodStart: { lte: periodStart },
         periodEnd: { gte: periodEnd },

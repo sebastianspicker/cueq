@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DateTimeSchema, IdSchema } from './common';
+import { DateTimeSchema, IdSchema, isDateTimeInstantBefore } from './common';
 
 // ---------------------------------------------------------------------------
 // Workflow & Approval schemas
@@ -165,7 +165,7 @@ export const CreateWorkflowDelegationRuleSchema = z
       });
     }
 
-    if (value.activeTo && value.activeTo <= value.activeFrom) {
+    if (value.activeTo && !isDateTimeInstantBefore(value.activeFrom, value.activeTo)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'activeTo must be after activeFrom',
@@ -186,7 +186,11 @@ export const UpdateWorkflowDelegationRuleSchema = z
     priority: z.number().int().nonnegative().optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.activeFrom && value.activeTo && value.activeTo <= value.activeFrom) {
+    if (
+      value.activeFrom &&
+      value.activeTo &&
+      !isDateTimeInstantBefore(value.activeFrom, value.activeTo)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'activeTo must be after activeFrom',
@@ -260,11 +264,16 @@ export const ShiftSwapRequestSchema = z
   });
 export type ShiftSwapRequest = z.infer<typeof ShiftSwapRequestSchema>;
 
-export const OvertimeApprovalRequestSchema = z.object({
-  personId: IdSchema,
-  periodStart: DateTimeSchema,
-  periodEnd: DateTimeSchema,
-  overtimeHours: z.number().positive(),
-  reason: z.string().min(10).max(1000),
-});
+export const OvertimeApprovalRequestSchema = z
+  .object({
+    personId: IdSchema,
+    periodStart: DateTimeSchema,
+    periodEnd: DateTimeSchema,
+    overtimeHours: z.number().positive(),
+    reason: z.string().min(10).max(1000),
+  })
+  .refine((value) => isDateTimeInstantBefore(value.periodStart, value.periodEnd), {
+    message: 'periodEnd must be after periodStart',
+    path: ['periodEnd'],
+  });
 export type OvertimeApprovalRequest = z.infer<typeof OvertimeApprovalRequestSchema>;

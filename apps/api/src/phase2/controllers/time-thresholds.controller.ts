@@ -29,13 +29,17 @@ export class TimeThresholdsController {
     summary: 'Upsert ArbZG time thresholds — creates a new policy version (HR/Admin)',
   })
   upsertThresholds(
-    @CurrentUser() _user: AuthenticatedIdentity,
+    @CurrentUser() user: AuthenticatedIdentity,
     @Body(new ZodValidationPipe(TimeThresholdsUpsertSchema)) payload: unknown,
   ): Promise<unknown> {
     const { dailyMaxMinutes, minRestMinutes } = payload as {
       dailyMaxMinutes: number;
       minRestMinutes: number;
     };
-    return this.timeThresholdHelper.upsertThresholds(dailyMaxMinutes, minRestMinutes);
+    return this.timeThresholdHelper.upsertThresholds(
+      dailyMaxMinutes,
+      minRestMinutes,
+      user.personId ?? user.subject,
+    );
   }
 }

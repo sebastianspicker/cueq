@@ -98,6 +98,11 @@ export function evaluateTimeRules(
       .map((interval) => ({ ...interval }))
       .sort((left, right) => left.start.localeCompare(right.start)),
   );
+  const normalizedPauseIntervals = mergeWorkIntervals(
+    [...pauseIntervals]
+      .map((interval) => ({ ...interval }))
+      .sort((left, right) => left.start.localeCompare(right.start)),
+  );
 
   const totalWorkMinutes = recordWorkMinutes(
     normalizedWorkIntervals,
@@ -109,7 +114,7 @@ export function evaluateTimeRules(
     categoryConfigByCategory,
     surchargeBuckets,
   );
-  recordPauseMinutes(pauseIntervals, formatter, daily);
+  recordPauseMinutes(normalizedPauseIntervals, formatter, daily);
   addRestViolations(normalizedWorkIntervals, restRule, violations);
   addDailyRuleOutcomes(daily, maxHoursRule, breakRule, warnings, violations);
 

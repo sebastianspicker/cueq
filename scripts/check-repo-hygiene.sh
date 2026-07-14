@@ -2,23 +2,11 @@
 set -euo pipefail
 
 violations=()
-deleted_paths=()
-
-while IFS= read -r -d '' deleted_path; do
-  deleted_paths+=("${deleted_path}")
-done < <(git ls-files --deleted -z)
 
 while IFS= read -r -d '' path; do
-  # `-e` would also skip broken symlinks. Explicitly skip only paths Git marks
-  # as deleted, so tracked broken symlinks are still reported.
-  is_deleted=false
-  for deleted_path in "${deleted_paths[@]}"; do
-    if [[ "${path}" == "${deleted_path}" ]]; then
-      is_deleted=true
-      break
-    fi
-  done
-  if [[ "${is_deleted}" == true ]]; then
+  # Skip deleted paths without asking Git to lstat the entire worktree. Keep
+  # tracked broken symlinks in scope: `-L` remains true for those entries.
+  if [[ ! -e "${path}" && ! -L "${path}" ]]; then
     continue
   fi
 

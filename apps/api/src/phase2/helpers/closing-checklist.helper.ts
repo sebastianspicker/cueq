@@ -8,6 +8,7 @@ import {
 } from '@cueq/database';
 import { evaluatePlanVsActualCoverage, generateClosingChecklist } from '@cueq/core';
 import { PrismaService } from '../../persistence/prisma.service';
+import type { Prisma } from '@cueq/database';
 import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { toCoreClosingStatus } from './closing-lock.helper';
 import { EventOutboxHelper } from './event-outbox.helper';
@@ -16,6 +17,7 @@ import { CLOSING_READ_ROLES } from './role-constants';
 import { assignedPersonIdsForShift } from './roster-utils';
 import { closingBalanceAnomalyHours, closingBookingGapMinutes } from './closing-utils';
 import { TimeThresholdPolicyHelper } from './time-threshold-policy.helper';
+import { lockClosingPeriodWrites } from './transaction-lock.helper';
 
 @Injectable()
 export class ClosingChecklistHelper {
@@ -27,22 +29,25 @@ export class ClosingChecklistHelper {
     private readonly timeThresholdPolicyHelper: TimeThresholdPolicyHelper,
   ) {}
 
-  async buildPlanVsActualForRoster(roster: {
-    id: string;
-    organizationUnitId: string;
-    periodStart: Date;
-    periodEnd: Date;
-    shifts: Array<{
+  async buildPlanVsActualForRoster(
+    roster: {
       id: string;
-      personId: string | null;
-      startTime: Date;
-      endTime: Date;
-      shiftType: string;
-      minStaffing: number;
-      assignments: Array<{ personId: string }>;
-    }>;
-  }) {
-    const bookings = await this.prisma.booking.findMany({
+      organizationUnitId: string;
+      periodStart: Date;
+      periodEnd: Date;
+      shifts: Array<{
+        id: string;
+        personId: string | null;
+        startTime: Date;
+        endTime: Date;
+        shiftType: string;
+        minStaffing: number;
+        assignments: Array<{ personId: string }>;
+      }>;
+    },
+    db: PrismaService | Prisma.TransactionClient = this.prisma,
+  ) {
+    const bookings = await db.booking.findMany({
       where: {
         person: { organizationUnitId: roster.organizationUnitId },
         timeType: {
@@ -91,13 +96,32 @@ export class ClosingChecklistHelper {
     );
   }
 
-  async closingChecklist(user: AuthenticatedIdentity, closingPeriodId: string) {
+  async closingChecklist(
+    user: AuthenticatedIdentity,
+    closingPeriodId: string,
+    db: PrismaService | Prisma.TransactionClient = this.prisma,
+    emitViolationEvent = true,
+  ): Promise<{
+    closingPeriodId: string;
+    status: 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED';
+    hasErrors: boolean;
+    items: ReturnType<typeof generateClosingChecklist>['items'];
+  }> {
     const actor = await this.personHelper.personForUser(user);
     if (!CLOSING_READ_ROLES.has(user.role)) {
       throw new ForbiddenException('Role does not permit reading closing checklist details.');
     }
 
-    const period = await this.prisma.closingPeriod.findUnique({
+    // The read endpoint may emit a violation event. Keep its observations and
+    // that write under the same period lock so it cannot race a closure.
+    if (db === this.prisma) {
+      return this.prisma.$transaction(async (tx) => {
+        await lockClosingPeriodWrites(tx, closingPeriodId);
+        return this.closingChecklist(user, closingPeriodId, tx, emitViolationEvent);
+      });
+    }
+
+    const period = await db.closingPeriod.findUnique({
       where: { id: closingPeriodId },
       include: {
         exportRuns: true,
@@ -113,7 +137,7 @@ export class ClosingChecklistHelper {
       );
     }
 
-    const personScope = await this.prisma.person.findMany({
+    const personScope = await db.person.findMany({
       where: period.organizationUnitId
         ? {
             organizationUnitId: period.organizationUnitId,
@@ -135,7 +159,7 @@ export class ClosingChecklistHelper {
     const [bookings, approvedAbsences] = await Promise.all([
       personIds.length === 0
         ? Promise.resolve([])
-        : this.prisma.booking.findMany({
+        : db.booking.findMany({
             where: {
               personId: { in: personIds },
               startTime: { lte: period.periodEnd },
@@ -150,7 +174,7 @@ export class ClosingChecklistHelper {
           }),
       personIds.length === 0
         ? Promise.resolve([])
-        : this.prisma.absence.findMany({
+        : db.absence.findMany({
             where: {
               personId: { in: personIds },
               status: AbsenceStatus.APPROVED,
@@ -223,7 +247,7 @@ export class ClosingChecklistHelper {
     const [openCorrectionRequests, openLeaveRequests] = await Promise.all([
       personIds.length === 0
         ? Promise.resolve(0)
-        : this.prisma.workflowInstance.count({
+        : db.workflowInstance.count({
             where: {
               type: WorkflowType.BOOKING_CORRECTION,
               status: { in: openStatuses },
@@ -233,7 +257,7 @@ export class ClosingChecklistHelper {
           }),
       personIds.length === 0
         ? Promise.resolve(0)
-        : this.prisma.absence.count({
+        : db.absence.count({
             where: {
               personId: { in: personIds },
               status: AbsenceStatus.REQUESTED,
@@ -243,7 +267,7 @@ export class ClosingChecklistHelper {
           }),
     ]);
 
-    const rosters = await this.prisma.roster.findMany({
+    const rosters = await db.roster.findMany({
       where: {
         periodStart: { lte: period.periodEnd },
         periodEnd: { gte: period.periodStart },
@@ -263,7 +287,7 @@ export class ClosingChecklistHelper {
     const rosterMismatches = (
       await Promise.all(
         rosters.map(async (roster) => {
-          const coverage = await this.buildPlanVsActualForRoster(roster);
+          const coverage = await this.buildPlanVsActualForRoster(roster, db);
           return coverage.mismatchedSlots;
         }),
       )
@@ -272,7 +296,7 @@ export class ClosingChecklistHelper {
     const balanceAnomalies =
       personIds.length === 0
         ? 0
-        : await this.prisma.timeAccount.count({
+        : await db.timeAccount.count({
             where: {
               personId: { in: personIds },
               periodStart: { gte: period.periodStart },
@@ -294,7 +318,7 @@ export class ClosingChecklistHelper {
       balanceAnomalies,
     });
 
-    if (checklist.hasErrors) {
+    if (emitViolationEvent && checklist.hasErrors) {
       const openErrors = checklist.items
         .filter((item) => item.severity === 'ERROR' && item.status === 'OPEN')
         .map((item) => item.code);

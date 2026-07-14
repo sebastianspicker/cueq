@@ -9,6 +9,7 @@ import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 import { ApiRequestError } from '../../../lib/api-client';
+import { refreshAfterMutation, type RefreshResult } from '../../../lib/mutation-refresh';
 import {
   DashboardSummarySection,
   OrientationSection,
@@ -22,17 +23,9 @@ interface ClosingPeriodLockedErrorPayload {
   periodEnd?: string;
 }
 
-function isClosingPeriodLockedError(
-  payload: unknown,
-): payload is ClosingPeriodLockedErrorPayload & {
+interface ClosingPeriodLockedError {
   code: 'CLOSING_PERIOD_LOCKED';
   periodEnd: string;
-} {
-  if (typeof payload !== 'object' || payload === null) {
-    return false;
-  }
-  const candidate = payload as ClosingPeriodLockedErrorPayload;
-  return candidate.code === 'CLOSING_PERIOD_LOCKED' && typeof candidate.periodEnd === 'string';
 }
 
 export default function DashboardPage() {
@@ -52,15 +45,21 @@ export default function DashboardPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadSummary() {
+  async function loadSummary(preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
-    setError(null);
-    setMessage(null);
+    if (!preserveFeedback) {
+      setError(null);
+      setMessage(null);
+    }
     try {
       const nextSummary = await apiRequest<DashboardSummary>('/v1/dashboard/me');
       setSummary(nextSummary);
+      return { ok: true };
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      if (!preserveFeedback) {
+        setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      }
+      return { ok: false, cause };
     } finally {
       setLoading(false);
     }
@@ -83,41 +82,53 @@ export default function DashboardPage() {
         note: 'Dashboard quick action clock-in',
       };
 
-      try {
-        await apiRequest('/v1/bookings', {
-          method: 'POST',
-          body: JSON.stringify({
-            ...bookingPayload,
-            startTime: new Date().toISOString(),
-          }),
-        });
-      } catch (cause) {
-        if (
-          cause instanceof ApiRequestError &&
-          cause.status === 409 &&
-          isClosingPeriodLockedError(cause.payload)
-        ) {
-          const retryStartTime = new Date(
-            new Date(cause.payload.periodEnd).getTime() + 60_000,
-          ).toISOString();
-          await apiRequest('/v1/bookings', {
-            method: 'POST',
-            body: JSON.stringify({
-              ...bookingPayload,
-              startTime: retryStartTime,
-            }),
-          });
-        } else {
-          throw cause;
-        }
+      const refresh = await refreshAfterMutation(
+        async () => {
+          await createClockInBooking(bookingPayload);
+        },
+        async () => {
+          const result = await loadSummary(true);
+          return result;
+        },
+      );
+      if (refresh.ok) {
+        setMessage(t('clockInSuccess'));
+      } else {
+        setError(t('savedRefreshFailed'));
       }
-
-      await loadSummary();
-      setMessage(t('clockInSuccess'));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function createClockInBooking(bookingPayload: {
+    personId: string;
+    timeTypeId: string;
+    source: string;
+    note: string;
+  }) {
+    try {
+      await apiRequest('/v1/bookings', {
+        method: 'POST',
+        body: JSON.stringify({ ...bookingPayload, startTime: new Date().toISOString() }),
+      });
+    } catch (cause) {
+      if (cause instanceof ApiRequestError && cause.status === 409) {
+        const candidate = Object(cause.payload) as ClosingPeriodLockedErrorPayload;
+        if (candidate.code === 'CLOSING_PERIOD_LOCKED' && typeof candidate.periodEnd === 'string') {
+          const lockedError = candidate as ClosingPeriodLockedError;
+          const retryStartTime = new Date(
+            new Date(lockedError.periodEnd).getTime() + 60_000,
+          ).toISOString();
+          return apiRequest('/v1/bookings', {
+            method: 'POST',
+            body: JSON.stringify({ ...bookingPayload, startTime: retryStartTime }),
+          });
+        }
+      }
+      throw cause;
     }
   }
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DateSchema, DateTimeSchema } from './common';
+import { DateSchema, DateTimeSchema, isDateTimeInstantBefore } from './common';
 
 export const TimeRuleIntervalTypeSchema = z.enum(['WORK', 'PAUSE', 'DEPLOYMENT']);
 export type TimeRuleIntervalType = z.infer<typeof TimeRuleIntervalTypeSchema>;
@@ -10,7 +10,7 @@ export const TimeRuleIntervalSchema = z
     end: DateTimeSchema,
     type: TimeRuleIntervalTypeSchema,
   })
-  .refine((value) => value.start < value.end, {
+  .refine((value) => isDateTimeInstantBefore(value.start, value.end), {
     message: 'start must be before end',
     path: ['end'],
   });

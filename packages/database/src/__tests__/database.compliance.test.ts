@@ -1,4 +1,6 @@
 import { Prisma } from '@prisma/client';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('@cueq/database compliance', () => {
@@ -44,5 +46,31 @@ describe('@cueq/database compliance', () => {
 
     const absenceFields = Object.keys(Prisma.AbsenceScalarFieldEnum);
     expect(absenceFields).toContain('days');
+  });
+
+  it('exposes terminal ingestion checksums as durable scalar identity', () => {
+    const fields = Object.keys(Prisma.TerminalSyncBatchScalarFieldEnum);
+
+    expect(fields).toContain('ingestionChecksum');
+  });
+
+  it('enforces one webhook delivery row per endpoint attempt', () => {
+    const model = Prisma.dmmf.datamodel.models.find((entry) => entry.name === 'WebhookDelivery');
+
+    expect(model?.uniqueFields).toContainEqual(['outboxEventId', 'endpointId', 'attempt']);
+  });
+
+  it('declares partial storage uniqueness for active policy versions', () => {
+    const migration = readFileSync(
+      resolve(
+        __dirname,
+        '../../prisma/migrations/20260714173000_enforce_policy_and_webhook_uniqueness/migration.sql',
+      ),
+      'utf8',
+    );
+
+    expect(migration).toContain('workflow_policies_one_active_type_key');
+    expect(migration).toContain('WHERE "activeTo" IS NULL');
+    expect(migration).toContain('time_threshold_policies_one_active_key');
   });
 });

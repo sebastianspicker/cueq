@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DateTimeSchema, IdSchema } from './common';
+import { DateTimeSchema, IdSchema, isDateTimeInstantBefore } from './common';
 
 export const RosterStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'CLOSED']);
 export type RosterStatus = z.infer<typeof RosterStatusSchema>;
@@ -10,7 +10,7 @@ export const CreateRosterSchema = z
     periodStart: DateTimeSchema,
     periodEnd: DateTimeSchema,
   })
-  .refine((input) => input.periodStart < input.periodEnd, {
+  .refine((input) => isDateTimeInstantBefore(input.periodStart, input.periodEnd), {
     message: 'periodStart must be before periodEnd',
     path: ['periodEnd'],
   });
@@ -23,7 +23,7 @@ export const CreateShiftSchema = z
     shiftType: z.string().min(1).max(100),
     minStaffing: z.number().int().min(1),
   })
-  .refine((input) => input.startTime < input.endTime, {
+  .refine((input) => isDateTimeInstantBefore(input.startTime, input.endTime), {
     message: 'startTime must be before endTime',
     path: ['endTime'],
   });
@@ -37,7 +37,11 @@ export const UpdateShiftSchema = z
     minStaffing: z.number().int().min(1).optional(),
   })
   .superRefine((input, ctx) => {
-    if (input.startTime && input.endTime && input.startTime >= input.endTime) {
+    if (
+      input.startTime &&
+      input.endTime &&
+      !isDateTimeInstantBefore(input.startTime, input.endTime)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'startTime must be before endTime',

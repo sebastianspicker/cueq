@@ -16,6 +16,7 @@ import { toCoreClosingStatus } from './closing-lock.helper';
 import { EventOutboxHelper } from './event-outbox.helper';
 import { PersonHelper } from './person.helper';
 import { EXPORT_DOWNLOAD_ROLES, HR_LIKE_ROLES } from './role-constants';
+import { lockClosingPeriodWrites } from './transaction-lock.helper';
 import { escapeXml, toClosingActorRole, toPersistenceClosingStatus } from './closing-utils';
 
 function xmlAttribute(name: string, value: string): string {
@@ -64,140 +65,195 @@ export class ClosingExportHelper {
     const format = parsedRequest.format ?? 'CSV_V1';
 
     const actor = await this.personHelper.personForUser(user);
-    const period = await this.prisma.closingPeriod.findUnique({ where: { id: closingPeriodId } });
 
-    if (!period) {
-      throw new NotFoundException('Closing period not found.');
-    }
+    return this.prisma.$transaction(async (tx) => {
+      await lockClosingPeriodWrites(tx, closingPeriodId);
 
-    const accounts = await this.prisma.timeAccount.findMany({
-      where: {
-        person: period.organizationUnitId
-          ? {
-              organizationUnitId: period.organizationUnitId,
-            }
-          : undefined,
-        periodStart: { gte: period.periodStart },
-        periodEnd: { lte: period.periodEnd },
-      },
-      orderBy: { personId: 'asc' },
-    });
+      const period = await tx.closingPeriod.findUnique({ where: { id: closingPeriodId } });
+      if (!period) {
+        throw new NotFoundException('Closing period not found.');
+      }
 
-    const normalizedRows = accounts.map((account) => ({
-      personId: account.personId,
-      targetHours: Number(Number(account.targetHours).toFixed(2)),
-      actualHours: Number(Number(account.actualHours).toFixed(2)),
-      balance: Number(Number(account.balance).toFixed(2)),
-    }));
-
-    const header = 'personId,targetHours,actualHours,balance';
-    const body = normalizedRows
-      .map(
-        (row) =>
-          `${row.personId},${row.targetHours.toFixed(2)},${row.actualHours.toFixed(2)},${row.balance.toFixed(2)}`,
-      )
-      .join('\n');
-    const csv = `${header}\n${body}\n`;
-    const xml = [
-      '<?xml version="1.0" encoding="UTF-8"?>',
-      payrollExportStart(format, closingPeriodId),
-      ...normalizedRows.map(payrollRow),
-      '</payrollExport>',
-      '',
-    ].join('\n');
-    const artifact = format === 'CSV_V1' ? csv : xml;
-    const contentType = format === 'CSV_V1' ? 'text/csv' : 'application/xml';
-    const checksum = createHash('sha256').update(artifact).digest('hex');
-
-    const existingRun = await this.prisma.exportRun.findFirst({
-      where: {
-        closingPeriodId,
-        format,
-        checksum,
-      },
-      orderBy: { exportedAt: 'desc' },
-    });
-
-    if (existingRun?.artifact && period.status === ClosingStatus.EXPORTED) {
-      return {
-        exportRun: existingRun,
-        checksum: existingRun.checksum,
-        csv: existingRun.format === 'CSV_V1' ? existingRun.artifact : null,
-        artifact: existingRun.artifact,
-        contentType: existingRun.contentType ?? contentType,
-        rows: normalizedRows,
-      };
-    }
-
-    if (period.status !== ClosingStatus.EXPORTED) {
-      const transition = applyCutoffLock({
-        currentStatus: toCoreClosingStatus(period.status),
-        action: 'EXPORT',
-        actorRole: toClosingActorRole(actor.role),
-        checklistHasErrors: false,
+      const accounts = await tx.timeAccount.findMany({
+        where: {
+          person: period.organizationUnitId
+            ? {
+                organizationUnitId: period.organizationUnitId,
+              }
+            : undefined,
+          periodStart: { gte: period.periodStart },
+          periodEnd: { lte: period.periodEnd },
+        },
+        orderBy: { personId: 'asc' },
       });
 
-      if (transition.violations.length > 0) {
-        throw new BadRequestException({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: transition.violations.join('; '),
-          details: transition.violations,
+      const normalizedRows = accounts.map((account) => ({
+        personId: account.personId,
+        targetHours: Number(Number(account.targetHours).toFixed(2)),
+        actualHours: Number(Number(account.actualHours).toFixed(2)),
+        balance: Number(Number(account.balance).toFixed(2)),
+      }));
+
+      const header = 'personId,targetHours,actualHours,balance';
+      const body = normalizedRows
+        .map(
+          (row) =>
+            `${row.personId},${row.targetHours.toFixed(2)},${row.actualHours.toFixed(2)},${row.balance.toFixed(2)}`,
+        )
+        .join('\n');
+      const csv = `${header}\n${body}\n`;
+      const xml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        payrollExportStart(format, closingPeriodId),
+        ...normalizedRows.map(payrollRow),
+        '</payrollExport>',
+        '',
+      ].join('\n');
+      const artifact = format === 'CSV_V1' ? csv : xml;
+      const contentType = format === 'CSV_V1' ? 'text/csv' : 'application/xml';
+      const checksum = createHash('sha256').update(artifact).digest('hex');
+
+      const existingRun = await tx.exportRun.findUnique({
+        where: {
+          closingPeriodId_format_checksum: {
+            closingPeriodId,
+            format,
+            checksum,
+          },
+        },
+      });
+
+      if (
+        existingRun?.artifact &&
+        existingRun.contentType &&
+        period.status === ClosingStatus.EXPORTED
+      ) {
+        return {
+          exportRun: existingRun,
+          checksum: existingRun.checksum,
+          csv: existingRun.format === 'CSV_V1' ? existingRun.artifact : null,
+          artifact: existingRun.artifact,
+          contentType: existingRun.contentType ?? contentType,
+          rows: normalizedRows,
+        };
+      }
+
+      const periodRequiresTransition = period.status !== ClosingStatus.EXPORTED;
+      if (period.status !== ClosingStatus.EXPORTED) {
+        const transition = applyCutoffLock({
+          currentStatus: toCoreClosingStatus(period.status),
+          action: 'EXPORT',
+          actorRole: toClosingActorRole(actor.role),
+          checklistHasErrors: false,
+        });
+
+        if (transition.violations.length > 0) {
+          throw new BadRequestException({
+            statusCode: 400,
+            error: 'Bad Request',
+            message: transition.violations.join('; '),
+            details: transition.violations,
+          });
+        }
+
+        await tx.closingPeriod.update({
+          where: { id: closingPeriodId },
+          data: {
+            status: toPersistenceClosingStatus(transition.nextStatus),
+          },
         });
       }
 
-      await this.prisma.closingPeriod.update({
-        where: { id: closingPeriodId },
-        data: {
-          status: toPersistenceClosingStatus(transition.nextStatus),
+      const exportRun = existingRun
+        ? existingRun.artifact && existingRun.contentType
+          ? existingRun
+          : await tx.exportRun.update({
+              where: { id: existingRun.id },
+              data: {
+                artifact: existingRun.artifact ?? artifact,
+                contentType: existingRun.contentType ?? contentType,
+              },
+            })
+        : await tx.exportRun.create({
+            data: {
+              closingPeriodId,
+              format,
+              recordCount: normalizedRows.length,
+              checksum,
+              artifact,
+              contentType,
+              exportedById: actor.id,
+            },
+          });
+
+      if (existingRun && !periodRequiresTransition) {
+        await this.auditHelper.appendAudit(
+          {
+            actorId: actor.id,
+            action: 'EXPORT_ARTIFACT_BACKFILLED',
+            entityType: 'ExportRun',
+            entityId: exportRun.id,
+            before: {
+              artifactAvailable: Boolean(existingRun.artifact),
+              contentType: existingRun.contentType,
+            },
+            after: {
+              artifactAvailable: Boolean(exportRun.artifact),
+              contentType: exportRun.contentType,
+            },
+          },
+          tx,
+        );
+
+        return {
+          exportRun,
+          checksum: exportRun.checksum,
+          csv: exportRun.format === 'CSV_V1' ? exportRun.artifact : null,
+          artifact: exportRun.artifact ?? artifact,
+          contentType: exportRun.contentType ?? contentType,
+          rows: normalizedRows,
+        };
+      }
+
+      await this.auditHelper.appendAudit(
+        {
+          actorId: actor.id,
+          action: 'CLOSING_EXPORTED',
+          entityType: 'ExportRun',
+          entityId: exportRun.id,
+          after: {
+            checksum,
+            recordCount: exportRun.recordCount,
+            format: exportRun.format,
+          },
         },
-      });
-    }
+        tx,
+      );
 
-    const exportRun = await this.prisma.exportRun.create({
-      data: {
-        closingPeriodId,
-        format,
-        recordCount: normalizedRows.length,
-        checksum,
-        artifact,
-        contentType,
-        exportedById: actor.id,
-      },
-    });
+      await this.eventOutboxHelper.enqueueDomainEvent(
+        {
+          eventType: 'export.ready',
+          aggregateType: 'ExportRun',
+          aggregateId: exportRun.id,
+          payload: {
+            closingPeriodId,
+            format: exportRun.format,
+            recordCount: exportRun.recordCount,
+            checksum: exportRun.checksum,
+          },
+        },
+        tx,
+      );
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'CLOSING_EXPORTED',
-      entityType: 'ExportRun',
-      entityId: exportRun.id,
-      after: {
-        checksum,
-        recordCount: exportRun.recordCount,
-        format: exportRun.format,
-      },
-    });
-
-    await this.eventOutboxHelper.enqueueDomainEvent({
-      eventType: 'export.ready',
-      aggregateType: 'ExportRun',
-      aggregateId: exportRun.id,
-      payload: {
-        closingPeriodId,
-        format: exportRun.format,
-        recordCount: exportRun.recordCount,
+      return {
+        exportRun,
         checksum: exportRun.checksum,
-      },
+        csv: exportRun.format === 'CSV_V1' ? (exportRun.artifact ?? artifact) : null,
+        artifact: exportRun.artifact ?? artifact,
+        contentType: exportRun.contentType ?? contentType,
+        rows: normalizedRows,
+      };
     });
-
-    return {
-      exportRun,
-      checksum,
-      csv: format === 'CSV_V1' ? artifact : null,
-      artifact,
-      contentType,
-      rows: normalizedRows,
-    };
   }
 
   async getExportRunCsv(user: AuthenticatedIdentity, closingPeriodId: string, runId: string) {

@@ -12,6 +12,8 @@ import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
 import { PersonHelper } from './person.helper';
 import { AuditHelper } from './audit.helper';
 import { ClosingLockHelper } from './closing-lock.helper';
+import { lockPersonWrites, lockRosterWrites } from './transaction-lock.helper';
+import { assignedPersonIdsForShift } from './roster-utils';
 
 const ROSTER_WRITE_ROLES = new Set<Role>([Role.SHIFT_PLANNER, Role.HR, Role.ADMIN]);
 const CROSS_UNIT_ROSTER_WRITE_ROLES = new Set<Role>([Role.HR, Role.ADMIN]);
@@ -58,8 +60,9 @@ export class RosterShiftHelper {
     startTime: Date,
     endTime: Date,
     excludeShiftId?: string,
+    db: Pick<PrismaService, 'shiftAssignment'> = this.prisma,
   ) {
-    const conflicting = await this.prisma.shiftAssignment.findFirst({
+    const conflicting = await db.shiftAssignment.findFirst({
       where: {
         personId,
         shift: {
@@ -114,7 +117,7 @@ export class RosterShiftHelper {
     const startTime = new Date(parsed.startTime);
     const endTime = new Date(parsed.endTime);
     this.assertShiftInsideRoster(roster, startTime, endTime);
-    await this.closingLockHelper.assertClosingPeriodUnlockedForRange({
+    const closingAttempt = {
       actorId: actor.id,
       organizationUnitId: roster.organizationUnitId,
       from: startTime,
@@ -122,39 +125,79 @@ export class RosterShiftHelper {
       attemptedAction: 'SHIFT_CREATE',
       entityType: 'Shift',
       entityId: `${roster.id}:${parsed.startTime}`,
-    });
+    };
+    await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
 
-    const shift = await this.prisma.shift.create({
-      data: {
-        rosterId: roster.id,
-        personId: null,
-        startTime,
-        endTime,
-        shiftType: parsed.shiftType,
-        minStaffing: parsed.minStaffing,
-      },
-      include: {
-        assignments: {
-          include: {
-            person: { select: { firstName: true, lastName: true } },
+    const shift = await this.prisma
+      .$transaction(async (tx) => {
+        await this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
+          {
+            organizationUnitId: roster.organizationUnitId,
+            from: startTime,
+            to: endTime,
           },
-        },
-      },
-    });
+          tx,
+        );
+        await lockRosterWrites(tx, [rosterId]);
+        const currentRoster = await tx.roster.findUnique({
+          where: { id: rosterId },
+          select: {
+            id: true,
+            organizationUnitId: true,
+            periodStart: true,
+            periodEnd: true,
+            status: true,
+          },
+        });
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'SHIFT_CREATED',
-      entityType: 'Shift',
-      entityId: shift.id,
-      after: {
-        rosterId: shift.rosterId,
-        startTime: shift.startTime.toISOString(),
-        endTime: shift.endTime.toISOString(),
-        shiftType: shift.shiftType,
-        minStaffing: shift.minStaffing,
-      },
-    });
+        if (!currentRoster) {
+          throw new NotFoundException('Roster not found.');
+        }
+
+        this.assertCanWriteRoster(user, actor.organizationUnitId, currentRoster.organizationUnitId);
+        this.assertRosterIsDraft(currentRoster.status);
+        this.assertShiftInsideRoster(currentRoster, startTime, endTime);
+
+        const created = await tx.shift.create({
+          data: {
+            rosterId: currentRoster.id,
+            personId: null,
+            startTime,
+            endTime,
+            shiftType: parsed.shiftType,
+            minStaffing: parsed.minStaffing,
+          },
+          include: {
+            assignments: {
+              include: {
+                person: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+        });
+
+        await this.auditHelper.appendAudit(
+          {
+            actorId: actor.id,
+            action: 'SHIFT_CREATED',
+            entityType: 'Shift',
+            entityId: created.id,
+            after: {
+              rosterId: created.rosterId,
+              startTime: created.startTime.toISOString(),
+              endTime: created.endTime.toISOString(),
+              shiftType: created.shiftType,
+              minStaffing: created.minStaffing,
+            },
+          },
+          tx,
+        );
+
+        return created;
+      })
+      .catch((error: unknown) =>
+        this.closingLockHelper.rethrowWithDurableClosingAudit(error, closingAttempt),
+      );
 
     return {
       id: shift.id,
@@ -208,7 +251,7 @@ export class RosterShiftHelper {
     const nextStartTime = parsed.startTime ? new Date(parsed.startTime) : shift.startTime;
     const nextEndTime = parsed.endTime ? new Date(parsed.endTime) : shift.endTime;
     this.assertShiftInsideRoster(shift.roster, nextStartTime, nextEndTime);
-    await this.closingLockHelper.assertClosingPeriodUnlockedForRange({
+    const closingAttempt = {
       actorId: actor.id,
       organizationUnitId: shift.roster.organizationUnitId,
       from: nextStartTime,
@@ -216,52 +259,106 @@ export class RosterShiftHelper {
       attemptedAction: 'SHIFT_UPDATE',
       entityType: 'Shift',
       entityId: shift.id,
-    });
+    };
+    await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
 
-    for (const assignment of shift.assignments) {
-      await this.ensureNoOverlappingAssignedShift(
-        assignment.personId,
-        nextStartTime,
-        nextEndTime,
-        shift.id,
-      );
-    }
-
-    const updated = await this.prisma.shift.update({
-      where: { id: shift.id },
-      data: {
-        startTime: parsed.startTime ? new Date(parsed.startTime) : undefined,
-        endTime: parsed.endTime ? new Date(parsed.endTime) : undefined,
-        shiftType: parsed.shiftType,
-        minStaffing: parsed.minStaffing,
-      },
-      include: {
-        assignments: {
-          include: {
-            person: { select: { firstName: true, lastName: true } },
+    const updated = await this.prisma
+      .$transaction(async (tx) => {
+        await this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
+          {
+            organizationUnitId: shift.roster.organizationUnitId,
+            from: nextStartTime,
+            to: nextEndTime,
           },
-        },
-      },
-    });
+          tx,
+        );
+        await lockRosterWrites(tx, [rosterId]);
+        const current = await tx.shift.findFirst({
+          where: { id: shiftId, rosterId },
+          include: {
+            roster: {
+              select: {
+                id: true,
+                organizationUnitId: true,
+                periodStart: true,
+                periodEnd: true,
+                status: true,
+              },
+            },
+            assignments: true,
+          },
+        });
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'SHIFT_UPDATED',
-      entityType: 'Shift',
-      entityId: updated.id,
-      before: {
-        startTime: shift.startTime.toISOString(),
-        endTime: shift.endTime.toISOString(),
-        shiftType: shift.shiftType,
-        minStaffing: shift.minStaffing,
-      },
-      after: {
-        startTime: updated.startTime.toISOString(),
-        endTime: updated.endTime.toISOString(),
-        shiftType: updated.shiftType,
-        minStaffing: updated.minStaffing,
-      },
-    });
+        if (!current) {
+          throw new NotFoundException('Shift not found.');
+        }
+
+        this.assertCanWriteRoster(
+          user,
+          actor.organizationUnitId,
+          current.roster.organizationUnitId,
+        );
+        this.assertRosterIsDraft(current.roster.status);
+        const assignedPersonIds = assignedPersonIdsForShift(current);
+        await lockPersonWrites(tx, assignedPersonIds);
+        const currentStartTime = parsed.startTime ? new Date(parsed.startTime) : current.startTime;
+        const currentEndTime = parsed.endTime ? new Date(parsed.endTime) : current.endTime;
+        this.assertShiftInsideRoster(current.roster, currentStartTime, currentEndTime);
+
+        for (const personId of assignedPersonIds) {
+          await this.ensureNoOverlappingAssignedShift(
+            personId,
+            currentStartTime,
+            currentEndTime,
+            current.id,
+            tx,
+          );
+        }
+
+        const changed = await tx.shift.update({
+          where: { id: current.id },
+          data: {
+            startTime: parsed.startTime ? new Date(parsed.startTime) : undefined,
+            endTime: parsed.endTime ? new Date(parsed.endTime) : undefined,
+            shiftType: parsed.shiftType,
+            minStaffing: parsed.minStaffing,
+          },
+          include: {
+            assignments: {
+              include: {
+                person: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+        });
+
+        await this.auditHelper.appendAudit(
+          {
+            actorId: actor.id,
+            action: 'SHIFT_UPDATED',
+            entityType: 'Shift',
+            entityId: changed.id,
+            before: {
+              startTime: current.startTime.toISOString(),
+              endTime: current.endTime.toISOString(),
+              shiftType: current.shiftType,
+              minStaffing: current.minStaffing,
+            },
+            after: {
+              startTime: changed.startTime.toISOString(),
+              endTime: changed.endTime.toISOString(),
+              shiftType: changed.shiftType,
+              minStaffing: changed.minStaffing,
+            },
+          },
+          tx,
+        );
+
+        return changed;
+      })
+      .catch((error: unknown) =>
+        this.closingLockHelper.rethrowWithDurableClosingAudit(error, closingAttempt),
+      );
 
     return {
       id: updated.id,
@@ -301,7 +398,7 @@ export class RosterShiftHelper {
 
     this.assertCanWriteRoster(user, actor.organizationUnitId, shift.roster.organizationUnitId);
     this.assertRosterIsDraft(shift.roster.status);
-    await this.closingLockHelper.assertClosingPeriodUnlockedForRange({
+    const closingAttempt = {
       actorId: actor.id,
       organizationUnitId: shift.roster.organizationUnitId,
       from: shift.startTime,
@@ -309,28 +406,61 @@ export class RosterShiftHelper {
       attemptedAction: 'SHIFT_DELETE',
       entityType: 'Shift',
       entityId: shift.id,
-    });
+    };
+    await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
 
-    if (shift._count.bookings > 0) {
-      throw new BadRequestException('Cannot delete shift with existing bookings.');
-    }
+    await this.prisma
+      .$transaction(async (tx) => {
+        await this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
+          {
+            organizationUnitId: shift.roster.organizationUnitId,
+            from: shift.startTime,
+            to: shift.endTime,
+          },
+          tx,
+        );
+        await lockRosterWrites(tx, [rosterId]);
+        const current = await tx.shift.findFirst({
+          where: { id: shiftId, rosterId },
+          include: {
+            roster: { select: { organizationUnitId: true, status: true } },
+            _count: { select: { bookings: true } },
+            assignments: { select: { personId: true } },
+          },
+        });
 
-    await this.prisma.shiftAssignment.deleteMany({
-      where: { shiftId: shift.id },
-    });
+        if (!current) {
+          throw new NotFoundException('Shift not found.');
+        }
 
-    await this.prisma.shift.delete({
-      where: { id: shift.id },
-    });
+        this.assertCanWriteRoster(
+          user,
+          actor.organizationUnitId,
+          current.roster.organizationUnitId,
+        );
+        this.assertRosterIsDraft(current.roster.status);
+        await lockPersonWrites(tx, assignedPersonIdsForShift(current));
+        if (current._count.bookings > 0) {
+          throw new BadRequestException('Cannot delete shift with existing bookings.');
+        }
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'SHIFT_DELETED',
-      entityType: 'Shift',
-      entityId: shift.id,
-      before: { rosterId },
-    });
+        await tx.shiftAssignment.deleteMany({ where: { shiftId: current.id } });
+        await tx.shift.delete({ where: { id: current.id } });
+        await this.auditHelper.appendAudit(
+          {
+            actorId: actor.id,
+            action: 'SHIFT_DELETED',
+            entityType: 'Shift',
+            entityId: current.id,
+            before: { rosterId },
+          },
+          tx,
+        );
+      })
+      .catch((error: unknown) =>
+        this.closingLockHelper.rethrowWithDurableClosingAudit(error, closingAttempt),
+      );
 
-    return { deleted: true, shiftId: shift.id };
+    return { deleted: true, shiftId };
   }
 }

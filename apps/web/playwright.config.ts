@@ -5,6 +5,7 @@ const acceptanceDatabaseUrl = new URL(
     'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public',
 );
 acceptanceDatabaseUrl.searchParams.set('schema', 'web_acceptance');
+const reuseExistingServer = process.env.PW_REUSE_EXISTING_SERVER === 'true' && !process.env.CI;
 
 export default defineConfig({
   testDir: './tests/acceptance',
@@ -18,7 +19,7 @@ export default defineConfig({
     {
       command: `WEB_DB_URL=${JSON.stringify(acceptanceDatabaseUrl.toString())}; DATABASE_URL=$WEB_DB_URL pnpm --filter @cueq/database db:push:force && DATABASE_URL=$WEB_DB_URL pnpm --filter @cueq/database db:seed:phase2 && DATABASE_URL=$WEB_DB_URL pnpm --filter @cueq/api... build && DATABASE_URL=$WEB_DB_URL AUTH_MODE=mock pnpm --filter @cueq/api start`,
       url: 'http://localhost:3001/health',
-      reuseExistingServer: true,
+      reuseExistingServer,
       timeout: 120_000,
     },
     {
@@ -29,7 +30,7 @@ export default defineConfig({
         'pnpm --filter @cueq/web exec next start --port 3000',
       ].join(' && '),
       url: 'http://localhost:3000/de/dashboard',
-      reuseExistingServer: true,
+      reuseExistingServer,
       timeout: 300_000,
     },
   ],

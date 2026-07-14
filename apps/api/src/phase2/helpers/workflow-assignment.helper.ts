@@ -5,6 +5,7 @@ import { resolveDelegation, shouldEscalate, transitionWorkflow } from '@cueq/cor
 import type { WorkflowPolicyUpsert } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service';
 import { AuditHelper } from './audit.helper';
+import { lockPolicyWrites } from './transaction-lock.helper';
 import type { WorkflowAssignmentInput, WorkflowAssignmentResult } from './workflow-utils';
 import {
   DEFAULT_POLICIES,
@@ -23,21 +24,27 @@ export class WorkflowAssignmentHelper {
   ) {}
 
   async ensurePolicy(type: WorkflowType): Promise<WorkflowPolicy> {
-    const existing = await this.prisma.workflowPolicy.findFirst({
-      where: { type, activeTo: null },
-    });
-    if (existing) {
-      return existing;
-    }
-    const defaultPolicy = DEFAULT_POLICIES[type];
-    return this.prisma.workflowPolicy.create({
-      data: {
-        type,
-        escalationDeadlineHours: defaultPolicy.escalationDeadlineHours,
-        escalationRoles: defaultPolicy.escalationRoles,
-        maxDelegationDepth: defaultPolicy.maxDelegationDepth,
-        activeFrom: new Date(),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await lockPolicyWrites(tx, `workflow:${type}`);
+
+      const existing = await tx.workflowPolicy.findFirst({
+        where: { type, activeTo: null },
+        orderBy: { activeFrom: 'desc' },
+      });
+      if (existing) {
+        return existing;
+      }
+
+      const defaultPolicy = DEFAULT_POLICIES[type];
+      return tx.workflowPolicy.create({
+        data: {
+          type,
+          escalationDeadlineHours: defaultPolicy.escalationDeadlineHours,
+          escalationRoles: defaultPolicy.escalationRoles,
+          maxDelegationDepth: defaultPolicy.maxDelegationDepth,
+          activeFrom: new Date(),
+        },
+      });
     });
   }
 
@@ -94,12 +101,7 @@ export class WorkflowAssignmentHelper {
     }
 
     if (input.type === WorkflowType.POST_CLOSE_CORRECTION) {
-      const alternate = await this.firstPersonByRoles(
-        [Role.HR, Role.ADMIN],
-        undefined,
-        input.requesterId,
-      );
-      return alternate ?? input.requesterId;
+      return this.firstPersonByRoles([Role.HR, Role.ADMIN], undefined, input.requesterId);
     }
 
     const teamLead = await this.firstPersonByRoles(
@@ -295,6 +297,8 @@ export class WorkflowAssignmentHelper {
     const now = new Date();
 
     return this.prisma.$transaction(async (tx) => {
+      await lockPolicyWrites(tx, `workflow:${type}`);
+
       const previous = await tx.workflowPolicy.findMany({
         where: { type, activeTo: null },
         orderBy: { activeFrom: 'desc' },
@@ -398,36 +402,52 @@ export class WorkflowAssignmentHelper {
       const nextApproverId = fallbackApprover ?? workflow.approverId;
       const delegationTrail = appendTrail(workflow.delegationTrail, nextApproverId);
 
-      const updated = await this.prisma.workflowInstance.update({
-        where: { id: workflow.id },
-        data: {
-          status: transition.nextStatus,
-          approverId: nextApproverId,
-          escalatedAt: now,
-          escalationLevel: workflow.escalationLevel + 1,
-          delegationTrail,
-        },
+      const didEscalate = await this.prisma.$transaction(async (tx) => {
+        const result = await tx.workflowInstance.updateMany({
+          where: {
+            id: workflow.id,
+            status: WorkflowStatus.PENDING,
+            escalationLevel: workflow.escalationLevel,
+          },
+          data: {
+            status: transition.nextStatus,
+            approverId: nextApproverId,
+            escalatedAt: now,
+            escalationLevel: workflow.escalationLevel + 1,
+            delegationTrail,
+          },
+        });
+        if (result.count === 0) {
+          return false;
+        }
+
+        await this.auditHelper.appendAudit(
+          {
+            actorId: 'system:workflow-escalation',
+            action: 'WORKFLOW_ESCALATED',
+            entityType: 'WorkflowInstance',
+            entityId: workflow.id,
+            before: {
+              status: workflow.status,
+              approverId: workflow.approverId,
+              escalationLevel: workflow.escalationLevel,
+            },
+            after: {
+              status: transition.nextStatus,
+              approverId: nextApproverId,
+              escalationLevel: workflow.escalationLevel + 1,
+            },
+            reason: 'automatic escalation',
+          },
+          tx,
+        );
+
+        return true;
       });
 
-      await this.auditHelper.appendAudit({
-        actorId: 'system:workflow-escalation',
-        action: 'WORKFLOW_ESCALATED',
-        entityType: 'WorkflowInstance',
-        entityId: workflow.id,
-        before: {
-          status: workflow.status,
-          approverId: workflow.approverId,
-          escalationLevel: workflow.escalationLevel,
-        },
-        after: {
-          status: updated.status,
-          approverId: updated.approverId,
-          escalationLevel: updated.escalationLevel,
-        },
-        reason: 'automatic escalation',
-      });
-
-      escalated += 1;
+      if (didEscalate) {
+        escalated += 1;
+      }
     }
 
     return { escalated };

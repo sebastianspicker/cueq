@@ -7,6 +7,7 @@ import { ConnectionPanel } from '../../../components/ConnectionPanel';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
+import { refreshAfterMutation, type RefreshResult } from '../../../lib/mutation-refresh';
 import {
   FiltersSection,
   InboxSection,
@@ -49,7 +50,7 @@ export default function ApprovalsPage() {
     return params.toString();
   }
 
-  async function loadInbox(preserveFeedback = false) {
+  async function loadInbox(preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
     if (!preserveFeedback) {
       setError(null);
@@ -69,16 +70,18 @@ export default function ApprovalsPage() {
           setDetail(null);
         }
       }
+      return { ok: true };
     } catch (cause) {
       if (!preserveFeedback) {
         setError(cause instanceof Error ? cause.message : t('requestFailed'));
       }
+      return { ok: false, cause };
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadDetail(workflowId: string, preserveFeedback = false) {
+  async function loadDetail(workflowId: string, preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
     if (!preserveFeedback) {
       setError(null);
@@ -91,6 +94,7 @@ export default function ApprovalsPage() {
       if (data.availableActions.length > 0) {
         setAction(data.availableActions[0] as WorkflowAction);
       }
+      return { ok: true };
     } catch (cause) {
       if (preserveFeedback) {
         setSelectedId(null);
@@ -98,6 +102,7 @@ export default function ApprovalsPage() {
       } else {
         setError(cause instanceof Error ? cause.message : t('requestFailed'));
       }
+      return { ok: false, cause };
     } finally {
       setLoading(false);
     }
@@ -113,16 +118,27 @@ export default function ApprovalsPage() {
     setError(null);
     setMessage(null);
     try {
-      await apiRequest(`/v1/workflows/${detail.id}/decision`, {
-        method: 'POST',
-        body: JSON.stringify({
-          action,
-          reason: reason || undefined,
-          delegateToId: action === 'DELEGATE' ? delegateToId : undefined,
-        }),
-      });
-      setMessage(t('actionApplied'));
-      await Promise.all([loadInbox(true), loadDetail(detail.id, true)]);
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest(`/v1/workflows/${detail.id}/decision`, {
+            method: 'POST',
+            body: JSON.stringify({
+              action,
+              reason: reason || undefined,
+              delegateToId: action === 'DELEGATE' ? delegateToId : undefined,
+            }),
+          }),
+        async () => {
+          const results = await Promise.all([loadInbox(true), loadDetail(detail.id, true)]);
+          const failed = results.find((result) => !result.ok);
+          return failed ?? { ok: true };
+        },
+      );
+      if (refresh.ok) {
+        setMessage(t('actionApplied'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {

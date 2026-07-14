@@ -1,9 +1,10 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Role, type WorkflowType } from '@cueq/database';
+import { type Prisma, Role, type WorkflowType } from '@cueq/database';
 import { PrismaService } from '../../persistence/prisma.service';
 import { AuditHelper } from './audit.helper';
 import { HR_LIKE_ROLES } from './role-constants';
 import { isRoleAllowedForAllWorkflowTypes, isRoleAllowedForType } from './workflow-utils';
+import { lockPersonWrites, lockPolicyWrites } from './transaction-lock.helper';
 
 @Injectable()
 export class WorkflowDelegationCrudHelper {
@@ -12,22 +13,25 @@ export class WorkflowDelegationCrudHelper {
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
   ) {}
 
-  private async ensureValidDelegationTarget(input: {
-    delegatorId: string;
-    delegateId: string;
-    workflowType: WorkflowType | null;
-    organizationUnitId?: string | null;
-  }) {
+  private async ensureValidDelegationTarget(
+    input: {
+      delegatorId: string;
+      delegateId: string;
+      workflowType: WorkflowType | null;
+      organizationUnitId?: string | null;
+    },
+    db: Pick<PrismaService, 'person'> = this.prisma,
+  ) {
     if (input.delegatorId === input.delegateId) {
       throw new BadRequestException('Delegator and delegate must be different people.');
     }
 
     const [delegator, delegate] = await Promise.all([
-      this.prisma.person.findUnique({
+      db.person.findUnique({
         where: { id: input.delegatorId },
         select: { id: true, organizationUnitId: true },
       }),
-      this.prisma.person.findUnique({
+      db.person.findUnique({
         where: { id: input.delegateId },
         select: { id: true, role: true, organizationUnitId: true },
       }),
@@ -67,14 +71,17 @@ export class WorkflowDelegationCrudHelper {
     }
   }
 
-  async validateInlineDelegation(input: {
-    delegateToId: string;
-    actorId: string;
-    actorRole: string;
-    actorOrganizationUnitId: string;
-    requesterId: string;
-    workflowType: WorkflowType;
-  }) {
+  async validateInlineDelegation(
+    input: {
+      delegateToId: string;
+      actorId: string;
+      actorRole: string;
+      actorOrganizationUnitId: string;
+      requesterId: string;
+      workflowType: WorkflowType;
+    },
+    db: Pick<PrismaService, 'person'> = this.prisma,
+  ) {
     if (input.delegateToId === input.actorId) {
       throw new BadRequestException('Approver cannot delegate to self.');
     }
@@ -82,7 +89,7 @@ export class WorkflowDelegationCrudHelper {
       throw new BadRequestException('Requester cannot be delegated as approver.');
     }
 
-    const delegate = await this.prisma.person.findUnique({
+    const delegate = await db.person.findUnique({
       where: { id: input.delegateToId },
       select: { id: true, role: true, organizationUnitId: true },
     });
@@ -128,14 +135,37 @@ export class WorkflowDelegationCrudHelper {
       priority?: number;
     },
   ) {
-    await this.ensureValidDelegationTarget({
-      delegatorId: payload.delegatorId,
-      delegateId: payload.delegateId,
-      workflowType: payload.workflowType ?? null,
-      organizationUnitId: payload.organizationUnitId ?? null,
-    });
+    return this.prisma.$transaction((tx) =>
+      this.createDelegationInTransaction(tx, actorId, payload),
+    );
+  }
 
-    const created = await this.prisma.workflowDelegationRule.create({
+  private async createDelegationInTransaction(
+    tx: Prisma.TransactionClient,
+    actorId: string,
+    payload: {
+      delegatorId: string;
+      delegateId: string;
+      workflowType?: WorkflowType;
+      organizationUnitId?: string;
+      activeFrom: string;
+      activeTo?: string;
+      isActive?: boolean;
+      priority?: number;
+    },
+  ) {
+    await lockPersonWrites(tx, [payload.delegatorId, payload.delegateId]);
+    await this.ensureValidDelegationTarget(
+      {
+        delegatorId: payload.delegatorId,
+        delegateId: payload.delegateId,
+        workflowType: payload.workflowType ?? null,
+        organizationUnitId: payload.organizationUnitId ?? null,
+      },
+      tx,
+    );
+
+    const created = await tx.workflowDelegationRule.create({
       data: {
         delegatorId: payload.delegatorId,
         delegateId: payload.delegateId,
@@ -149,17 +179,20 @@ export class WorkflowDelegationCrudHelper {
       },
     });
 
-    await this.auditHelper.appendAudit({
-      actorId,
-      action: 'WORKFLOW_DELEGATION_CREATED',
-      entityType: 'WorkflowDelegationRule',
-      entityId: created.id,
-      after: {
-        delegatorId: created.delegatorId,
-        delegateId: created.delegateId,
-        workflowType: created.workflowType,
+    await this.auditHelper.appendAudit(
+      {
+        actorId,
+        action: 'WORKFLOW_DELEGATION_CREATED',
+        entityType: 'WorkflowDelegationRule',
+        entityId: created.id,
+        after: {
+          delegatorId: created.delegatorId,
+          delegateId: created.delegateId,
+          workflowType: created.workflowType,
+        },
       },
-    });
+      tx,
+    );
 
     return created;
   }
@@ -177,37 +210,64 @@ export class WorkflowDelegationCrudHelper {
       priority?: number;
     },
   ) {
-    const current = await this.prisma.workflowDelegationRule.findUnique({ where: { id } });
-    if (!current) {
+    return this.prisma.$transaction((tx) =>
+      this.updateDelegationInTransaction(tx, actorId, id, payload),
+    );
+  }
+
+  private async updateDelegationInTransaction(
+    tx: Prisma.TransactionClient,
+    actorId: string,
+    id: string,
+    payload: {
+      delegateId?: string;
+      workflowType?: WorkflowType | null;
+      organizationUnitId?: string | null;
+      activeFrom?: string;
+      activeTo?: string | null;
+      isActive?: boolean;
+      priority?: number;
+    },
+  ) {
+    await lockPolicyWrites(tx, `delegation:${id}`);
+    const currentAtWrite = await tx.workflowDelegationRule.findUnique({ where: { id } });
+    if (!currentAtWrite) {
       throw new NotFoundException('Delegation rule not found.');
     }
 
-    const nextActiveFrom = payload.activeFrom ? new Date(payload.activeFrom) : current.activeFrom;
+    const nextDelegateId = payload.delegateId ?? currentAtWrite.delegateId;
+    await lockPersonWrites(tx, [currentAtWrite.delegatorId, nextDelegateId]);
+
+    const nextActiveFrom = payload.activeFrom
+      ? new Date(payload.activeFrom)
+      : currentAtWrite.activeFrom;
     const nextActiveTo =
       payload.activeTo === null
         ? null
         : payload.activeTo
           ? new Date(payload.activeTo)
-          : current.activeTo;
+          : currentAtWrite.activeTo;
     if (nextActiveTo && nextActiveTo <= nextActiveFrom) {
       throw new BadRequestException('activeTo must be after activeFrom.');
     }
 
-    const nextDelegateId = payload.delegateId ?? current.delegateId;
     const nextWorkflowType =
-      payload.workflowType === undefined ? current.workflowType : payload.workflowType;
+      payload.workflowType === undefined ? currentAtWrite.workflowType : payload.workflowType;
     const nextOrganizationUnitId =
       payload.organizationUnitId === undefined
-        ? current.organizationUnitId
+        ? currentAtWrite.organizationUnitId
         : payload.organizationUnitId;
-    await this.ensureValidDelegationTarget({
-      delegatorId: current.delegatorId,
-      delegateId: nextDelegateId,
-      workflowType: nextWorkflowType ?? null,
-      organizationUnitId: nextOrganizationUnitId,
-    });
+    await this.ensureValidDelegationTarget(
+      {
+        delegatorId: currentAtWrite.delegatorId,
+        delegateId: nextDelegateId,
+        workflowType: nextWorkflowType ?? null,
+        organizationUnitId: nextOrganizationUnitId,
+      },
+      tx,
+    );
 
-    const updated = await this.prisma.workflowDelegationRule.update({
+    const updated = await tx.workflowDelegationRule.update({
       where: { id },
       data: {
         delegateId: payload.delegateId,
@@ -225,22 +285,25 @@ export class WorkflowDelegationCrudHelper {
       },
     });
 
-    await this.auditHelper.appendAudit({
-      actorId,
-      action: 'WORKFLOW_DELEGATION_UPDATED',
-      entityType: 'WorkflowDelegationRule',
-      entityId: updated.id,
-      before: {
-        delegateId: current.delegateId,
-        workflowType: current.workflowType,
-        organizationUnitId: current.organizationUnitId,
+    await this.auditHelper.appendAudit(
+      {
+        actorId,
+        action: 'WORKFLOW_DELEGATION_UPDATED',
+        entityType: 'WorkflowDelegationRule',
+        entityId: updated.id,
+        before: {
+          delegateId: currentAtWrite.delegateId,
+          workflowType: currentAtWrite.workflowType,
+          organizationUnitId: currentAtWrite.organizationUnitId,
+        },
+        after: {
+          delegateId: updated.delegateId,
+          workflowType: updated.workflowType,
+          organizationUnitId: updated.organizationUnitId,
+        },
       },
-      after: {
-        delegateId: updated.delegateId,
-        workflowType: updated.workflowType,
-        organizationUnitId: updated.organizationUnitId,
-      },
-    });
+      tx,
+    );
 
     return updated;
   }
@@ -251,16 +314,27 @@ export class WorkflowDelegationCrudHelper {
       throw new NotFoundException('Delegation rule not found.');
     }
 
-    await this.prisma.workflowDelegationRule.delete({ where: { id } });
-    await this.auditHelper.appendAudit({
-      actorId,
-      action: 'WORKFLOW_DELEGATION_DELETED',
-      entityType: 'WorkflowDelegationRule',
-      entityId: id,
-      before: {
-        delegatorId: current.delegatorId,
-        delegateId: current.delegateId,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await lockPolicyWrites(tx, `delegation:${id}`);
+      const currentAtWrite = await tx.workflowDelegationRule.findUnique({ where: { id } });
+      if (!currentAtWrite) {
+        throw new NotFoundException('Delegation rule not found.');
+      }
+
+      await tx.workflowDelegationRule.delete({ where: { id } });
+      await this.auditHelper.appendAudit(
+        {
+          actorId,
+          action: 'WORKFLOW_DELEGATION_DELETED',
+          entityType: 'WorkflowDelegationRule',
+          entityId: id,
+          before: {
+            delegatorId: currentAtWrite.delegatorId,
+            delegateId: currentAtWrite.delegateId,
+          },
+        },
+        tx,
+      );
     });
   }
 }

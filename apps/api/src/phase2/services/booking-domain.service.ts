@@ -15,6 +15,7 @@ import { ClosingLockHelper } from '../helpers/closing-lock.helper';
 import { EventOutboxHelper } from '../helpers/event-outbox.helper';
 import { assertCanActForPerson } from '../helpers/role-constants';
 import { bookingOverlapWhere } from '../helpers/booking-overlap.helper';
+import { lockPersonWrites } from '../helpers/transaction-lock.helper';
 
 @Injectable()
 export class BookingDomainService {
@@ -79,7 +80,7 @@ export class BookingDomainService {
     const from = endTime && startTime > endTime ? endTime : startTime;
     const to = endTime && startTime > endTime ? startTime : (endTime ?? startTime);
 
-    await this.closingLockHelper.assertClosingPeriodUnlockedForRange({
+    const closingAttempt = {
       actorId: actor.id,
       organizationUnitId: targetPerson.organizationUnitId,
       from,
@@ -87,60 +88,97 @@ export class BookingDomainService {
       attemptedAction: 'BOOKING_CREATE',
       entityType: 'Booking',
       entityId: `${parsed.personId}:${parsed.startTime}`,
-    });
+    };
+    await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
 
-    const booking = await this.prisma.$transaction(async (tx) => {
-      const overlap = await tx.booking.findFirst({
-        where: bookingOverlapWhere({
-          personId: parsed.personId,
-          startTime: from,
-          endTime,
-        }),
-      });
-      if (overlap) {
-        throw new ConflictException('Booking overlaps with existing booking.');
-      }
+    const booking = await this.prisma
+      .$transaction(async (tx) => {
+        await this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
+          {
+            organizationUnitId: targetPerson.organizationUnitId,
+            from,
+            to,
+          },
+          tx,
+        );
+        await lockPersonWrites(tx, [parsed.personId]);
+        const currentTargetPerson = await tx.person.findUnique({
+          where: { id: parsed.personId },
+          select: { organizationUnitId: true },
+        });
+        if (!currentTargetPerson) {
+          throw new NotFoundException('Person not found.');
+        }
+        if (currentTargetPerson.organizationUnitId !== targetPerson.organizationUnitId) {
+          throw new ConflictException({
+            code: 'PERSON_IDENTITY_CHANGED',
+            message: 'Person organization assignment changed; retry the booking request.',
+            retryable: true,
+          });
+        }
 
-      return tx.booking.create({
-        data: {
-          personId: parsed.personId,
-          timeTypeId: parsed.timeTypeId,
-          startTime,
-          endTime,
-          source: parsed.source as BookingSource,
-          note: parsed.note,
-          shiftId: parsed.shiftId,
-        },
-        include: {
-          timeType: true,
-        },
-      });
-    });
+        const overlap = await tx.booking.findFirst({
+          where: bookingOverlapWhere({
+            personId: parsed.personId,
+            startTime: from,
+            endTime,
+          }),
+        });
+        if (overlap) {
+          throw new ConflictException('Booking overlaps with existing booking.');
+        }
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'BOOKING_CREATED',
-      entityType: 'Booking',
-      entityId: booking.id,
-      after: {
-        personId: booking.personId,
-        timeTypeId: booking.timeTypeId,
-        startTime: booking.startTime.toISOString(),
-        endTime: booking.endTime?.toISOString() ?? null,
-        source: booking.source,
-      },
-    });
+        const booking = await tx.booking.create({
+          data: {
+            personId: parsed.personId,
+            timeTypeId: parsed.timeTypeId,
+            startTime,
+            endTime,
+            source: parsed.source as BookingSource,
+            note: parsed.note,
+            shiftId: parsed.shiftId,
+          },
+          include: {
+            timeType: true,
+          },
+        });
 
-    await this.eventOutboxHelper.enqueueDomainEvent({
-      eventType: 'booking.created',
-      aggregateType: 'Booking',
-      aggregateId: booking.id,
-      payload: {
-        personId: booking.personId,
-        timeTypeCode: booking.timeType.code,
-        source: booking.source,
-      },
-    });
+        await this.auditHelper.appendAudit(
+          {
+            actorId: actor.id,
+            action: 'BOOKING_CREATED',
+            entityType: 'Booking',
+            entityId: booking.id,
+            after: {
+              personId: booking.personId,
+              timeTypeId: booking.timeTypeId,
+              startTime: booking.startTime.toISOString(),
+              endTime: booking.endTime?.toISOString() ?? null,
+              source: booking.source,
+            },
+          },
+          tx,
+        );
+
+        await this.eventOutboxHelper.enqueueDomainEvent(
+          {
+            eventType: 'booking.created',
+            aggregateType: 'Booking',
+            aggregateId: booking.id,
+            payload: {
+              personId: booking.personId,
+              timeTypeCode: booking.timeType.code,
+              source: booking.source,
+            },
+          },
+          tx,
+        );
+
+        return booking;
+      })
+      .catch((error: unknown) =>
+        this.closingLockHelper.rethrowWithDurableClosingAudit(error, closingAttempt),
+      );
 
     return this.toBookingDto(booking);
   }

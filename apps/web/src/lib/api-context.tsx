@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useMemo, useState } from 'react';
-import { createApiRequest, type ApiRequest } from './api-client';
+import { createApiFetch, createApiRequest, type ApiFetch, type ApiRequest } from './api-client';
 
 const SESSION_ENDPOINT_SLOT = 'cq-api-base-url';
 const LEGACY_SESSION_TOKEN_SLOT = 'cq-token';
@@ -50,6 +50,7 @@ interface ApiContextValue {
   token: string;
   setToken: (value: string) => void;
   connectionKey: string;
+  apiFetch: ApiFetch;
   apiRequest: ApiRequest;
 }
 
@@ -89,6 +90,7 @@ export function ApiProvider({ children }: ApiProviderProps) {
       token,
       setToken,
       connectionKey: `${apiBaseUrl}|${token}`,
+      apiFetch: createApiFetch(apiBaseUrl, token),
       apiRequest: createApiRequest(apiBaseUrl, token, 'Request failed.'),
     };
   }, [apiBaseUrl, token]);
