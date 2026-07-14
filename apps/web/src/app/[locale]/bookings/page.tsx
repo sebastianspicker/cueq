@@ -8,6 +8,7 @@ import { LoadingSpinner } from '../../../components/LoadingSpinner';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
+import { refreshAfterMutation, type RefreshResult } from '../../../lib/mutation-refresh';
 import { BookingCorrectionSection, BookingsTableSection, type Booking } from './bookings-sections';
 
 export default function BookingsPage() {
@@ -28,15 +29,21 @@ export default function BookingsPage() {
   const [reason, setReason] = useState('Please correct this booking due to timestamp mismatch.');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  async function loadBookings() {
+  async function loadBookings(preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
-    setError(null);
-    setMessage(null);
+    if (!preserveFeedback) {
+      setError(null);
+      setMessage(null);
+    }
     try {
       const data = await apiRequest<Booking[]>('/v1/bookings/me');
       setBookings(data);
+      return { ok: true };
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      if (!preserveFeedback) {
+        setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      }
+      return { ok: false, cause };
     } finally {
       setLoading(false);
     }
@@ -60,18 +67,25 @@ export default function BookingsPage() {
     setError(null);
     setMessage(null);
     try {
-      await apiRequest('/v1/workflows/booking-corrections', {
-        method: 'POST',
-        body: JSON.stringify({
-          bookingId,
-          startTime: startTime || undefined,
-          endTime: endTime || undefined,
-          timeTypeId: timeTypeId || undefined,
-          reason,
-        }),
-      });
-      await loadBookings();
-      setMessage(t('correctionCreated'));
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest('/v1/workflows/booking-corrections', {
+            method: 'POST',
+            body: JSON.stringify({
+              bookingId,
+              startTime: startTime || undefined,
+              endTime: endTime || undefined,
+              timeTypeId: timeTypeId || undefined,
+              reason,
+            }),
+          }),
+        () => loadBookings(true),
+      );
+      if (refresh.ok) {
+        setMessage(t('correctionCreated'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {

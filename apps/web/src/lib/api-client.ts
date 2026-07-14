@@ -23,6 +23,7 @@ function parseJson(text: string): unknown {
 }
 
 export type ApiRequest = <T>(path: string, init?: RequestInit) => Promise<T>;
+export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
 
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/u;
 const SAFE_RELATIVE_URL_PATTERN = /^\/(?!\/)[^\\\u0000-\u001f\u007f]*$/u;
@@ -81,17 +82,10 @@ export function createApiRequest(
   token: string,
   defaultMessage: string,
 ): ApiRequest {
-  const normalizedBaseUrl = (baseUrl || '/api').replace(/\/$/, '');
+  const apiFetch = createApiFetch(baseUrl, token);
 
   return async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
-    ApiRequestBoundary.assertBaseUrl(normalizedBaseUrl);
-    ApiRequestBoundary.assertPath(path);
-
-    const response = await fetch(`${normalizedBaseUrl}${path}`, {
-      ...init,
-      headers: ApiRequestBoundary.buildHeaders(token, init),
-    });
-
+    const response = await apiFetch(path, init);
     const text = await response.text();
     const payload = parseJson(text);
 
@@ -105,5 +99,19 @@ export function createApiRequest(
     }
 
     return (payload as T) ?? (null as T);
+  };
+}
+
+export function createApiFetch(baseUrl: string, token: string): ApiFetch {
+  const normalizedBaseUrl = (baseUrl || '/api').replace(/\/$/, '');
+
+  return async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+    ApiRequestBoundary.assertBaseUrl(normalizedBaseUrl);
+    ApiRequestBoundary.assertPath(path);
+
+    return fetch(`${normalizedBaseUrl}${path}`, {
+      ...init,
+      headers: ApiRequestBoundary.buildHeaders(token, init),
+    });
   };
 }

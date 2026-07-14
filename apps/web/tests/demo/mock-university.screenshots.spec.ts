@@ -52,20 +52,16 @@ const TOKENS = {
   }),
 };
 
-async function setTokenIfPresent(page: Page, token: string) {
-  const tokenField = page.locator('input[type="password"]').first();
-  if ((await tokenField.count()) > 0) {
-    await tokenField.fill(token);
-  }
-}
-
 async function captureRouteScreenshot(
   page: Page,
-  options: { route: string; token: string; fileName: string },
+  options: { targetName: string; roleName: string; token: string; fileName: string },
 ) {
-  await page.goto(options.route, { waitUntil: 'domcontentloaded' });
+  await page.goto('/de/settings', { waitUntil: 'domcontentloaded' });
+  await page.getByLabel('Token').fill(options.token);
+  await page.getByRole('link', { name: options.targetName, exact: true }).click();
   await expect(page.locator('main')).toBeVisible();
-  await setTokenIfPresent(page, options.token);
+  await expect(page.locator('.cq-session-state')).toHaveAttribute('data-phase', 'ready');
+  await expect(page.getByText(options.roleName, { exact: true }).first()).toBeVisible();
   // Let transitions and hydration settle before capture.
   await page.waitForTimeout(350);
   await page.screenshot({
@@ -82,37 +78,43 @@ test.describe('Mock University NRW demo screenshots', () => {
 
   test('captures six deterministic German demo screenshots', async ({ page }) => {
     await captureRouteScreenshot(page, {
-      route: '/de/dashboard',
+      targetName: 'Dashboard',
+      roleName: 'Mitarbeitende',
       token: TOKENS.employee,
       fileName: FILES.dashboard,
     });
 
     await captureRouteScreenshot(page, {
-      route: '/de/leave',
+      targetName: 'Abwesenheiten',
+      roleName: 'Mitarbeitende',
       token: TOKENS.employee,
       fileName: FILES.leave,
     });
 
     await captureRouteScreenshot(page, {
-      route: '/de/roster',
+      targetName: 'Dienstplan',
+      roleName: 'Dienstplanung',
       token: TOKENS.planner,
       fileName: FILES.roster,
     });
 
     await captureRouteScreenshot(page, {
-      route: '/de/approvals',
+      targetName: 'Freigaben',
+      roleName: 'Teamleitung',
       token: TOKENS.lead,
       fileName: FILES.approvals,
     });
 
     await captureRouteScreenshot(page, {
-      route: '/de/closing',
+      targetName: 'Monatsabschluss',
+      roleName: 'Personalstelle',
       token: TOKENS.hr,
       fileName: FILES.closing,
     });
 
     await captureRouteScreenshot(page, {
-      route: '/de/reports',
+      targetName: 'Berichte',
+      roleName: 'Personalstelle',
       token: TOKENS.hr,
       fileName: FILES.reports,
     });

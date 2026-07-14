@@ -219,11 +219,40 @@ function sessionLabelFor(phase: SessionPhase, messages: WorkspaceMessages): stri
   return labels[phase];
 }
 
+interface CurrentProfileRequest {
+  apiRequest: ReturnType<typeof useApiContext>['apiRequest'];
+  signal: AbortSignal;
+  isCurrent: () => boolean;
+  onReady: (profile: MeProfile) => void;
+  onFailure: () => void;
+}
+
+async function requestCurrentProfile({
+  apiRequest,
+  signal,
+  isCurrent,
+  onReady,
+  onFailure,
+}: CurrentProfileRequest): Promise<void> {
+  try {
+    const nextProfile = await apiRequest<MeProfile>('/v1/me', { signal });
+    if (isCurrent()) {
+      onReady(nextProfile);
+    }
+  } catch (cause) {
+    const aborted = cause instanceof DOMException && cause.name === 'AbortError';
+    if (isCurrent() && !aborted) {
+      onFailure();
+    }
+  }
+}
+
 function useCurrentSession(
   apiRequest: ReturnType<typeof useApiContext>['apiRequest'],
   key: string,
 ) {
   const [profile, setProfile] = useState<MeProfile | null>(null);
+  const [profileConnectionKey, setProfileConnectionKey] = useState<string | null>(null);
   const [phase, setPhase] = useState<SessionPhase>('loading');
   const [lastSuccessfulAt, setLastSuccessfulAt] = useState<number | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -231,25 +260,44 @@ function useCurrentSession(
 
   useEffect(() => {
     const controller = new AbortController();
+    let requestIsCurrent = true;
+
+    // A profile is only valid for the exact API endpoint and credentials that
+    // produced it. Clear it before a replacement request can expose prior
+    // privileged navigation or identity details.
+    setProfile(null);
+    setProfileConnectionKey(null);
+    setLastSuccessfulAt(null);
     if (failurePhase() === 'offline') {
       setPhase('offline');
-      return () => controller.abort();
+      return () => {
+        requestIsCurrent = false;
+        controller.abort();
+      };
     }
 
     setPhase('loading');
-    apiRequest<MeProfile>('/v1/me', { signal: controller.signal })
-      .then((nextProfile) => {
+    void requestCurrentProfile({
+      apiRequest,
+      signal: controller.signal,
+      isCurrent: () => requestIsCurrent,
+      onReady: (nextProfile) => {
         setProfile(nextProfile);
+        setProfileConnectionKey(key);
         setLastSuccessfulAt(Date.now());
         setPhase('ready');
-      })
-      .catch((cause: unknown) => {
-        const aborted = cause instanceof DOMException && cause.name === 'AbortError';
-        if (!aborted) {
-          setPhase(failurePhase());
-        }
-      });
-    return () => controller.abort();
+      },
+      onFailure: () => {
+        setProfile(null);
+        setProfileConnectionKey(null);
+        setLastSuccessfulAt(null);
+        setPhase(failurePhase());
+      },
+    });
+    return () => {
+      requestIsCurrent = false;
+      controller.abort();
+    };
   }, [apiRequest, key, refreshNonce]);
 
   useEffect(() => {
@@ -263,7 +311,13 @@ function useCurrentSession(
     };
   }, [refresh]);
 
-  return { profile, phase, lastSuccessfulAt, refresh };
+  const identityIsCurrent = profileConnectionKey === key;
+  return {
+    profile: identityIsCurrent ? profile : null,
+    phase,
+    lastSuccessfulAt: identityIsCurrent ? lastSuccessfulAt : null,
+    refresh,
+  };
 }
 
 export function AppWorkspace({ children, locale, altLocale, messages }: AppWorkspaceProps) {

@@ -27,11 +27,11 @@ export default function ClosingPage() {
   const t = useTranslations('pages.closing');
   const params = useParams<{ locale: string }>();
   const locale = typeof params?.locale === 'string' ? params.locale : 'de';
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiFetch, apiRequest } = useApiContext();
   const { profile } = useSessionContext();
   const periods = useClosingPeriods(t, apiRequest);
   const actions = useClosingActions(t, apiRequest, periods.period, periods.loadPeriods);
-  const download = useArtifactDownload(t, apiBaseUrl, token, periods.period);
+  const download = useArtifactDownload(t, apiFetch, periods.period);
   useOrganizationUnitScope(
     profile?.role,
     profile?.organizationUnitId,
