@@ -1,5 +1,7 @@
 'use client';
 
+/** Booking correction form and booking-table sections for the employee workspace. */
+
 import type { useTranslations } from 'next-intl';
 import { FormField } from '../../../components/FormField';
 import { SectionCard } from '../../../components/SectionCard';
@@ -20,22 +22,7 @@ export interface Booking {
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-export function BookingCorrectionSection({
-  t,
-  loading,
-  bookingId,
-  timeTypeId,
-  startTime,
-  endTime,
-  reason,
-  fieldErrors,
-  onBookingIdChange,
-  onTimeTypeIdChange,
-  onStartTimeChange,
-  onEndTimeChange,
-  onReasonChange,
-  onRequestCorrection,
-}: {
+interface BookingCorrectionSectionProps {
   t: TranslationFn;
   loading: boolean;
   bookingId: string;
@@ -50,7 +37,26 @@ export function BookingCorrectionSection({
   onEndTimeChange: (value: string) => void;
   onReasonChange: (value: string) => void;
   onRequestCorrection: () => void;
-}) {
+}
+
+/** Renders the booking-correction request fields and local validation feedback. */
+export function BookingCorrectionSection(props: BookingCorrectionSectionProps) {
+  const {
+    t,
+    loading,
+    bookingId,
+    timeTypeId,
+    startTime,
+    endTime,
+    reason,
+    fieldErrors,
+    onBookingIdChange,
+    onTimeTypeIdChange,
+    onStartTimeChange,
+    onEndTimeChange,
+    onReasonChange,
+    onRequestCorrection,
+  } = props;
   return (
     <SectionCard>
       <h2>{t('correctionTitle')}</h2>
@@ -84,6 +90,7 @@ export function BookingCorrectionSection({
   );
 }
 
+/** Renders the current user's API-filtered booking list. */
 export function BookingsTableSection({ t, bookings }: { t: TranslationFn; bookings: Booking[] }) {
   return (
     <SectionCard>
@@ -91,14 +98,14 @@ export function BookingsTableSection({ t, bookings }: { t: TranslationFn; bookin
       {bookings.length === 0 ? (
         <p>{t('noBookings')}</p>
       ) : (
-        <table className="cq-data-table">
+        <table className="cq-data-table" tabIndex={0}>
           <caption className="cq-sr-only">{t('title')}</caption>
           <thead>
             <tr>
-              <th>{t('bookingIdLabel')}</th>
-              <th>{t('timeTypeIdLabel')}</th>
-              <th>{t('startTimeLabel')}</th>
-              <th>{t('endTimeLabel')}</th>
+              <th scope="col">{t('bookingIdLabel')}</th>
+              <th scope="col">{t('timeTypeIdLabel')}</th>
+              <th scope="col">{t('startTimeLabel')}</th>
+              <th scope="col">{t('endTimeLabel')}</th>
             </tr>
           </thead>
           <tbody>
@@ -113,7 +120,7 @@ export function BookingsTableSection({ t, bookings }: { t: TranslationFn; bookin
                   />
                 </td>
                 <td>{booking.startTime}</td>
-                <td>{booking.endTime ?? '—'}</td>
+                <td>{booking.endTime ?? '-'}</td>
               </tr>
             ))}
           </tbody>

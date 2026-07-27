@@ -1,3 +1,4 @@
+/** Declares OpenAPI DTOs for privacy-aware operational and compliance reports. */
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ReportSuppressionDto {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ZodExceptionFilter } from './zod-exception.filter';
+import { ZodExceptionFilter } from './zod-exception.filter.js';
 
 function buildMockHost(statusFn: ReturnType<typeof vi.fn>, jsonFn: ReturnType<typeof vi.fn>) {
   return {

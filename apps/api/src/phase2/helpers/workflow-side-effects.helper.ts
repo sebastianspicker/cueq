@@ -1,3 +1,4 @@
+/** Revalidates and applies domain effects when workflow decisions become final. */
 import {
   BadRequestException,
   ForbiddenException,
@@ -5,12 +6,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AbsenceStatus, Role, WorkflowType } from '@cueq/database';
-import { ShiftSwapRequestSchema, OvertimeApprovalRequestSchema } from '@cueq/shared';
-import { PrismaService } from '../../persistence/prisma.service';
-import { AuditHelper } from './audit.helper';
-import type { WorkflowDecisionResult } from './workflow-utils';
+import { AbsenceStatus, WorkflowType } from '@cueq/database';
+import {
+  BookingCorrectionSchema,
+  ShiftSwapRequestSchema,
+  OvertimeApprovalRequestSchema,
+} from '@cueq/shared';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import { AuditHelper } from './audit.helper.js';
+import { bookingOverlapWhere } from './booking-overlap.helper.js';
+import type { WorkflowDecisionResult } from './workflow-utils.js';
 
+/**
+ * Revalidates and applies workflow-specific effects at decision time.
+ * Approval side effects remain transaction-bound so stale requests cannot silently violate current constraints.
+ */
 @Injectable()
 export class WorkflowSideEffectsHelper {
   constructor(
@@ -32,84 +42,75 @@ export class WorkflowSideEffectsHelper {
     }
 
     if (workflow.type === WorkflowType.SHIFT_SWAP && workflow.entityType === 'Shift') {
-      const requestPayload = ShiftSwapRequestSchema.parse(workflow.requestPayload ?? {});
-      const shiftId = requestPayload.shiftId || workflow.entityId;
-      const shift = await db.shift.findUnique({
-        where: { id: shiftId },
-        include: {
-          assignments: true,
-          roster: { select: { organizationUnitId: true } },
-        },
-      });
-      if (!shift) {
-        throw new NotFoundException('Shift not found for approved swap.');
-      }
-
-      const toPerson = await db.person.findUnique({
-        where: { id: requestPayload.toPersonId },
-        select: { id: true, organizationUnitId: true },
-      });
-      if (!toPerson) {
-        throw new NotFoundException('toPersonId person no longer exists.');
-      }
-      if (toPerson.organizationUnitId !== shift.roster.organizationUnitId) {
-        throw new BadRequestException(
-          'toPersonId must belong to the shift roster organization unit.',
-        );
-      }
-
-      if (!shift.assignments.some((a) => a.personId === requestPayload.fromPersonId)) {
-        throw new BadRequestException('fromPersonId assignment no longer exists on shift.');
-      }
-      if (shift.assignments.some((a) => a.personId === requestPayload.toPersonId)) {
-        throw new BadRequestException('toPersonId assignment already exists on shift.');
-      }
+      await this.validateShiftSwapApproval(db, workflow.entityId, workflow.requestPayload);
     }
-
     if (workflow.type === WorkflowType.OVERTIME_APPROVAL && workflow.entityType === 'TimeAccount') {
-      const requestPayload = OvertimeApprovalRequestSchema.parse(workflow.requestPayload ?? {});
-      const periodStart = new Date(requestPayload.periodStart);
-      const periodEnd = new Date(requestPayload.periodEnd);
-      const account = await db.timeAccount.findFirst({
-        where: {
-          personId: requestPayload.personId,
-          periodStart: { lte: periodStart },
-          periodEnd: { gte: periodEnd },
-        },
-        select: { id: true },
-        orderBy: { periodStart: 'desc' },
-      });
-      if (!account) {
-        throw new BadRequestException('No matching time account found for overtime approval.');
-      }
+      await this.validateOvertimeApproval(db, workflow.entityId, workflow.requestPayload);
+    }
+  }
+
+  private async validateShiftSwapApproval(
+    db: Pick<PrismaService, 'shift' | 'person'>,
+    entityId: string,
+    requestPayload: unknown,
+  ) {
+    const request = ShiftSwapRequestSchema.parse(requestPayload ?? {});
+    const shift = await db.shift.findUnique({
+      where: { id: request.shiftId || entityId },
+      include: {
+        assignments: true,
+        roster: { select: { organizationUnitId: true } },
+      },
+    });
+    if (!shift) throw new NotFoundException('Shift not found for approved swap.');
+    const toPerson = await db.person.findUnique({
+      where: { id: request.toPersonId },
+      select: { id: true, organizationUnitId: true },
+    });
+    if (!toPerson) throw new NotFoundException('toPersonId person no longer exists.');
+    if (toPerson.organizationUnitId !== shift.roster.organizationUnitId) {
+      throw new BadRequestException(
+        'toPersonId must belong to the shift roster organization unit.',
+      );
+    }
+    if (!shift.assignments.some((assignment) => assignment.personId === request.fromPersonId)) {
+      throw new BadRequestException('fromPersonId assignment no longer exists on shift.');
+    }
+    if (shift.assignments.some((assignment) => assignment.personId === request.toPersonId)) {
+      throw new BadRequestException('toPersonId assignment already exists on shift.');
+    }
+  }
+
+  private async validateOvertimeApproval(
+    db: Pick<PrismaService, 'timeAccount'>,
+    entityId: string,
+    requestPayload: unknown,
+  ) {
+    const request = OvertimeApprovalRequestSchema.parse(requestPayload ?? {});
+    const account = await db.timeAccount.findFirst({
+      where: {
+        id: entityId,
+        personId: request.personId,
+        periodStart: { lte: new Date(request.periodStart) },
+        periodEnd: { gte: new Date(request.periodEnd) },
+      },
+      select: { id: true },
+      orderBy: { periodStart: 'desc' },
+    });
+    if (!account) {
+      throw new BadRequestException('No matching time account found for overtime approval.');
     }
   }
 
   async validatePostCloseSelfApproval(
     actorId: string,
     workflow: { requesterId: string; type: string },
-    reason?: string,
+    _reason?: string,
   ) {
     if (workflow.type !== WorkflowType.POST_CLOSE_CORRECTION) return;
     if (workflow.requesterId !== actorId) return;
 
-    const alternateApprover = await this.prisma.person.findFirst({
-      where: {
-        role: { in: [Role.HR, Role.ADMIN] },
-        id: { not: actorId },
-      },
-      select: { id: true },
-    });
-    if (alternateApprover) {
-      throw new ForbiddenException(
-        'Post-close correction cannot be self-approved while another HR/Admin exists.',
-      );
-    }
-    if (!reason?.includes('[self-approval]')) {
-      throw new BadRequestException(
-        'Self-approval requires explicit reason flag: include "[self-approval]" in reason.',
-      );
-    }
+    throw new ForbiddenException('Post-close corrections cannot be self-approved.');
   }
 
   async applyDecisionSideEffects(
@@ -118,12 +119,108 @@ export class WorkflowSideEffectsHelper {
     reason?: string,
     tx?: Pick<
       PrismaService,
-      'absence' | 'shift' | 'shiftAssignment' | 'person' | 'timeAccount' | 'auditEntry'
+      'absence' | 'booking' | 'shift' | 'shiftAssignment' | 'person' | 'timeAccount' | 'auditEntry'
     >,
   ) {
     await this.applyLeaveRequestEffect(actorId, decision, reason, tx);
+    await this.applyBookingCorrectionEffect(actorId, decision, reason, tx);
     await this.applyShiftSwapEffect(actorId, decision, reason, tx);
     await this.applyOvertimeEffect(actorId, decision, reason, tx);
+  }
+
+  private async applyBookingCorrectionEffect(
+    actorId: string,
+    decision: WorkflowDecisionResult,
+    reason?: string,
+    tx?: Pick<PrismaService, 'booking' | 'auditEntry'>,
+  ) {
+    const db = tx ?? this.prisma;
+    if (!this.isApprovedBookingCorrection(decision)) return;
+
+    const correction = BookingCorrectionSchema.parse(decision.updated.requestPayload ?? {});
+    if (correction.bookingId !== decision.updated.entityId) {
+      throw new BadRequestException(
+        'Booking correction payload does not match its workflow target.',
+      );
+    }
+
+    const booking = await db.booking.findUnique({
+      where: { id: decision.updated.entityId },
+      select: { id: true, personId: true, timeTypeId: true, startTime: true, endTime: true },
+    });
+    if (!booking) {
+      throw new NotFoundException('Booking not found for approved correction.');
+    }
+
+    const { startTime, endTime } = this.resolveCorrectionInterval(booking, correction);
+    await this.assertNoCorrectionOverlap(db, booking.id, booking.personId, startTime, endTime);
+
+    const updated = await db.booking.update({
+      where: { id: booking.id },
+      data: {
+        startTime,
+        endTime,
+        timeTypeId: correction.timeTypeId ?? booking.timeTypeId,
+      },
+    });
+    await this.auditHelper.appendAudit(
+      {
+        actorId,
+        action: 'BOOKING_UPDATED',
+        entityType: 'Booking',
+        entityId: updated.id,
+        before: {
+          timeTypeId: booking.timeTypeId,
+          startTime: booking.startTime.toISOString(),
+          endTime: booking.endTime?.toISOString() ?? null,
+        },
+        after: {
+          timeTypeId: updated.timeTypeId,
+          startTime: updated.startTime.toISOString(),
+          endTime: updated.endTime?.toISOString() ?? null,
+          workflowId: decision.updated.id,
+        },
+        reason,
+      },
+      db,
+    );
+  }
+
+  private isApprovedBookingCorrection(decision: WorkflowDecisionResult) {
+    return (
+      decision.updated.type === WorkflowType.BOOKING_CORRECTION &&
+      decision.updated.entityType === 'Booking' &&
+      decision.action === 'APPROVE'
+    );
+  }
+
+  private resolveCorrectionInterval(
+    booking: { startTime: Date; endTime: Date | null },
+    correction: { startTime?: string; endTime?: string },
+  ) {
+    const startTime = correction.startTime ? new Date(correction.startTime) : booking.startTime;
+    const endTime = correction.endTime ? new Date(correction.endTime) : booking.endTime;
+    if (endTime && startTime >= endTime) {
+      throw new BadRequestException('Corrected booking endTime must be after startTime.');
+    }
+    return { startTime, endTime };
+  }
+
+  private async assertNoCorrectionOverlap(
+    db: Pick<PrismaService, 'booking'>,
+    bookingId: string,
+    personId: string,
+    startTime: Date,
+    endTime: Date | null,
+  ) {
+    const overlap = await db.booking.findFirst({
+      where: {
+        AND: [bookingOverlapWhere({ personId, startTime, endTime }), { id: { not: bookingId } }],
+      },
+      select: { id: true },
+    });
+    if (overlap)
+      throw new BadRequestException('Corrected booking overlaps with an existing booking.');
   }
 
   private async applyLeaveRequestEffect(
@@ -237,10 +334,30 @@ export class WorkflowSideEffectsHelper {
       if (shift.assignments.some((a) => a.personId === swapPayload.toPersonId)) {
         throw new BadRequestException('toPersonId assignment already exists on shift.');
       }
+      const overlappingAssignment = await db.shiftAssignment.findFirst({
+        where: {
+          personId: swapPayload.toPersonId,
+          shift: {
+            id: { not: shift.id },
+            startTime: { lt: shift.endTime },
+            endTime: { gt: shift.startTime },
+          },
+        },
+        select: { id: true },
+      });
+      if (overlappingAssignment) {
+        throw new BadRequestException('toPersonId has an overlapping assigned shift.');
+      }
       await db.shiftAssignment.delete({ where: { id: fromAssignment.id } });
       await db.shiftAssignment.create({
         data: { shiftId: shift.id, personId: swapPayload.toPersonId },
       });
+      if (shift.personId === swapPayload.fromPersonId) {
+        await db.shift.update({
+          where: { id: shift.id },
+          data: { personId: swapPayload.toPersonId },
+        });
+      }
     };
 
     const applySwapAndAudit = async (
@@ -292,6 +409,7 @@ export class WorkflowSideEffectsHelper {
 
     const account = await db.timeAccount.findFirst({
       where: {
+        id: decision.updated.entityId,
         personId: otPayload.personId,
         periodStart: { lte: periodStart },
         periodEnd: { gte: periodEnd },

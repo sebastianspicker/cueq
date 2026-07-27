@@ -1,7 +1,8 @@
+/** Calculates monthly target hours across employment segments, workdays, and NRW holidays. */
 import { parseDateOnly, toHolidaySet } from '@cueq/shared';
 import type { CoreProratedTargetContract } from '@cueq/shared';
-import { WEEKDAYS_PER_WEEK } from '../constants';
-import { roundToTwo } from '../utils';
+import { WEEKDAYS_PER_WEEK } from '../constants.js';
+import { roundToTwo } from '../utils.js';
 
 export interface WorkSegment {
   from: string;
@@ -29,6 +30,7 @@ function monthBounds(month: string): { start: Date; end: Date } {
   return { start, end };
 }
 
+/** Sum each covered workday once across overlapping employment segments. */
 export function calculateProratedMonthlyTarget(input: ProratedTargetInput): ProratedTargetResult {
   const violations: Array<{ code: string; message: string }> = [];
   const holidayDates = toHolidaySet(input.holidayDates);

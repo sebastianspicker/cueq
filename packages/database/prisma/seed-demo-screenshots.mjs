@@ -1,3 +1,4 @@
+/** Builds the synthetic, deterministic mock-university dataset used to capture product screenshots locally. */
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -216,7 +217,7 @@ async function seedDemoSecurityPeople() {
   });
 }
 
-async function seedDemoScheduling() {
+async function seedDemoShifts() {
   await prisma.shift.update({
     where: { id: IDs.shiftNight },
     data: {
@@ -267,7 +268,9 @@ async function seedDemoScheduling() {
       endTime: new Date('2026-03-10T22:00:00.000Z'),
     },
   });
+}
 
+async function seedDemoAssignments() {
   const assignments = [
     { shiftId: IDs.shiftNight, personId: IDs.personPlanner },
     { shiftId: IDs.shiftNight, personId: IDs.personSecurity1 },
@@ -287,7 +290,9 @@ async function seedDemoScheduling() {
       update: {},
     });
   }
+}
 
+async function seedDemoSecurityBookings() {
   const securityBookings = [
     {
       id: IDs.bookingSecurityNightPlanner,
@@ -347,7 +352,9 @@ async function seedDemoScheduling() {
       },
     });
   }
+}
 
+async function seedDemoAbsences() {
   const absences = [
     {
       id: IDs.absenceEmployeeRequested,
@@ -416,7 +423,14 @@ async function seedDemoScheduling() {
   }
 }
 
-async function seedDemoClosing() {
+async function seedDemoScheduling() {
+  await seedDemoShifts();
+  await seedDemoAssignments();
+  await seedDemoSecurityBookings();
+  await seedDemoAbsences();
+}
+
+async function seedDemoWorkflow() {
   await prisma.workflowInstance.upsert({
     where: { id: IDs.workflowPendingLeave },
     create: {
@@ -449,7 +463,9 @@ async function seedDemoClosing() {
       createdAt: new Date('2026-03-18T08:30:00.000Z'),
     },
   });
+}
 
+async function seedDemoTimeAccounts() {
   const securityTimeAccounts = [
     {
       id: IDs.timeAccountPlanner,
@@ -518,7 +534,9 @@ async function seedDemoClosing() {
       },
     });
   }
+}
 
+async function seedDemoExportRun() {
   await prisma.exportRun.upsert({
     where: { id: IDs.exportRun },
     create: {
@@ -545,7 +563,9 @@ async function seedDemoClosing() {
       exportedById: IDs.personHr,
     },
   });
+}
 
+async function seedDemoAuditEntries() {
   const auditEntries = [
     {
       id: IDs.auditReportAccessA,
@@ -612,34 +632,30 @@ async function seedDemoClosing() {
       },
     },
   ];
-  for (const entry of auditEntries) {
-    await prisma.auditEntry.upsert({
-      where: { id: entry.id },
-      create: {
-        id: entry.id,
-        timestamp: new Date(entry.timestamp),
-        actorId: IDs.personHr,
-        action: entry.action,
-        entityType: 'DemoRun',
-        entityId: entry.entityId,
-        after: entry.after,
-        reason: 'Synthetic deterministic mock-university screenshot baseline',
-        ipAddress: '127.0.0.1',
-      },
-      update: {
-        timestamp: new Date(entry.timestamp),
-        actorId: IDs.personHr,
-        action: entry.action,
-        entityType: 'DemoRun',
-        entityId: entry.entityId,
-        after: entry.after,
-        reason: 'Synthetic deterministic mock-university screenshot baseline',
-        ipAddress: '127.0.0.1',
-      },
-    });
-  }
+  await prisma.auditEntry.createMany({
+    data: auditEntries.map((entry) => ({
+      id: entry.id,
+      timestamp: new Date(entry.timestamp),
+      actorId: IDs.personHr,
+      action: entry.action,
+      entityType: 'DemoRun',
+      entityId: entry.entityId,
+      after: entry.after,
+      reason: 'Synthetic deterministic mock-university screenshot baseline',
+      ipAddress: '127.0.0.1',
+    })),
+    skipDuplicates: true,
+  });
 }
 
+async function seedDemoClosing() {
+  await seedDemoWorkflow();
+  await seedDemoTimeAccounts();
+  await seedDemoExportRun();
+  await seedDemoAuditEntries();
+}
+
+/** Applies screenshot-specific fixtures after the Phase 3 baseline; stable IDs and upserts keep reruns reproducible. */
 async function seed() {
   await seedDemoPeople();
   await seedDemoSecurityPeople();
@@ -647,6 +663,7 @@ async function seed() {
   await seedDemoClosing();
 }
 
+/** Delegates cleanup to the Phase 3 reset, which also clears the lower seed layers. */
 async function reset() {
   runPhase3('reset');
 }

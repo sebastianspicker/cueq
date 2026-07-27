@@ -1,3 +1,4 @@
+/** Exposes workflow inbox, decision, delegation, and policy endpoints. */
 import {
   Body,
   Controller,
@@ -24,13 +25,15 @@ import {
   CreateWorkflowDelegationRuleSchema,
   UpdateWorkflowDelegationRuleSchema,
 } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { WorkflowsDomainService } from '../services/workflows-domain.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { Authenticated } from '../../common/decorators/authenticated.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { WorkflowsDomainService } from '../services/workflows-domain.service.js';
 
+/** Workflow inbox and decision boundary; runtime services serialize the resulting state transitions. */
 @ApiTags('workflows')
 @ApiBearerAuth()
 @Controller('v1/workflows')
@@ -41,6 +44,7 @@ export class WorkflowsController {
   ) {}
 
   @Post('booking-corrections')
+  @Authenticated()
   @ApiOperation({ summary: 'Create booking correction workflow request' })
   createCorrection(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -50,6 +54,7 @@ export class WorkflowsController {
   }
 
   @Post('shift-swaps')
+  @Authenticated()
   @ApiOperation({ summary: 'Create shift swap workflow request' })
   createShiftSwap(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -59,6 +64,7 @@ export class WorkflowsController {
   }
 
   @Post('overtime-approvals')
+  @Authenticated()
   @ApiOperation({ summary: 'Create overtime approval workflow request' })
   createOvertimeApproval(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -68,6 +74,7 @@ export class WorkflowsController {
   }
 
   @Get('inbox')
+  @Authenticated()
   @ApiOperation({ summary: 'List workflow inbox for authenticated approver/requester' })
   inbox(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -158,6 +165,7 @@ export class WorkflowsController {
   }
 
   @Get(':id')
+  @Authenticated()
   @ApiOperation({ summary: 'Get workflow detail' })
   detail(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -167,6 +175,7 @@ export class WorkflowsController {
   }
 
   @Post(':id/decision')
+  @Authenticated()
   @ApiOperation({ summary: 'Apply workflow action (approve/reject/delegate/cancel)' })
   decide(
     @CurrentUser() user: AuthenticatedIdentity,

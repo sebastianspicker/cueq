@@ -1,104 +1,32 @@
 'use client';
 
+/** Reporting workspace that renders permitted operational summaries and export results. */
+
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import {
+  AuditSummaryReportSchema,
+  ClosingCompletionReportSchema,
+  ComplianceSummaryReportSchema,
+  CustomReportOptionsSchema,
+  CustomReportPreviewSchema,
+  OeOvertimeReportSchema,
+  TeamAbsenceReportSchema,
+} from '@cueq/shared';
+import { useSessionContext } from '../../../components/AppWorkspace';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
-
-interface ReportSuppression {
-  suppressed: boolean;
-  minGroupSize: number;
-  population: number;
-}
-
-interface TeamAbsenceBucket {
-  type: string;
-  requests: number;
-  days: number;
-}
-
-interface TeamAbsenceReport {
-  organizationUnitId: string;
-  from: string;
-  to: string;
-  suppression: ReportSuppression;
-  totals: {
-    requests: number;
-    days: number;
-  };
-  buckets: TeamAbsenceBucket[];
-}
-
-interface OeOvertimeReport {
-  organizationUnitId: string;
-  from: string;
-  to: string;
-  suppression: ReportSuppression;
-  totals: {
-    people: number;
-    totalBalanceHours: number;
-    totalOvertimeHours: number;
-    avgBalanceHours: number;
-  };
-}
-
-interface ClosingCompletionReport {
-  from: string;
-  to: string;
-  organizationUnitId?: string | null;
-  totals: {
-    periods: number;
-    exported: number;
-    closed: number;
-    review: number;
-    open: number;
-    completionRate: number;
-  };
-}
-
-interface AuditSummaryReport {
-  from: string;
-  to: string;
-  totals: {
-    entries: number;
-    uniqueActors: number;
-    reportAccesses: number;
-    exportsTriggered: number;
-    lockBlocks: number;
-  };
-  byAction: Array<{ action: string; count: number }>;
-  byEntityType: Array<{ entityType: string; count: number }>;
-}
-
-interface ComplianceSummaryReport {
-  from: string;
-  to: string;
-  privacy: {
-    minGroupSize: number;
-    reportAccesses: number;
-    suppressedReportAccesses: number;
-    suppressionRate: number;
-  };
-  closing: {
-    periods: number;
-    exported: number;
-    completionRate: number;
-    lockBlocks: number;
-    postCloseCorrections: number;
-  };
-  payrollExport: {
-    runs: number;
-    uniqueChecksums: number;
-    duplicateChecksums: number;
-    lastRunAt: string | null;
-  };
-  operations: {
-    lastBackupRestoreVerifiedAt: string | null;
-  };
-}
+import { canLoadSensitiveReportSummaries } from './report-access';
+import {
+  ReportResults,
+  type AuditSummaryReport,
+  type ClosingCompletionReport,
+  type ComplianceSummaryReport,
+  type OeOvertimeReport,
+  type TeamAbsenceReport,
+} from './report-results';
 
 interface CustomReportOptions {
   reportTypes: string[];
@@ -119,9 +47,11 @@ interface CustomReportPreview {
   rows: CustomReportPreviewRow[];
 }
 
+/** Hosts report selection, request, and privacy-aware result state. */
 export default function ReportsPage() {
   const t = useTranslations('pages.reports');
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiBaseUrl, token, apiRequest } = useApiContext();
+  const { profile } = useSessionContext();
   const [from, setFrom] = useState('2026-03-01');
   const [to, setTo] = useState('2026-03-31');
   const [organizationUnitId, setOrganizationUnitId] = useState('');
@@ -170,12 +100,23 @@ export default function ReportsPage() {
     setError(null);
     resetReportState();
     try {
+      const includeSensitiveSummaries = canLoadSensitiveReportSummaries(profile?.role);
       const [team, overtime, closing, audit, compliance] = await Promise.all([
-        apiRequest<TeamAbsenceReport>(`/v1/reports/team-absence?${buildQuery(true)}`),
-        apiRequest<OeOvertimeReport>(`/v1/reports/oe-overtime?${buildQuery(true)}`),
-        apiRequest<ClosingCompletionReport>(`/v1/reports/closing-completion?${buildQuery(false)}`),
-        apiRequest<AuditSummaryReport>(`/v1/reports/audit-summary?${buildQuery(false)}`),
-        apiRequest<ComplianceSummaryReport>(`/v1/reports/compliance-summary?${buildQuery(false)}`),
+        apiRequest(`/v1/reports/team-absence?${buildQuery(true)}`, TeamAbsenceReportSchema),
+        apiRequest(`/v1/reports/oe-overtime?${buildQuery(true)}`, OeOvertimeReportSchema),
+        apiRequest(
+          `/v1/reports/closing-completion?${buildQuery(false)}`,
+          ClosingCompletionReportSchema,
+        ),
+        includeSensitiveSummaries
+          ? apiRequest(`/v1/reports/audit-summary?${buildQuery(false)}`, AuditSummaryReportSchema)
+          : Promise.resolve(null),
+        includeSensitiveSummaries
+          ? apiRequest(
+              `/v1/reports/compliance-summary?${buildQuery(false)}`,
+              ComplianceSummaryReportSchema,
+            )
+          : Promise.resolve(null),
       ]);
 
       setTeamAbsence(team);
@@ -197,7 +138,7 @@ export default function ReportsPage() {
     setError(null);
     setCustomOptions(null);
     try {
-      const options = await apiRequest<CustomReportOptions>('/v1/reports/custom/options');
+      const options = await apiRequest('/v1/reports/custom/options', CustomReportOptionsSchema);
       setCustomOptions(options);
       if (options.reportTypes[0]) {
         setCustomType(options.reportTypes[0]);
@@ -234,7 +175,10 @@ export default function ReportsPage() {
         params.append('metrics', metric);
       }
 
-      const preview = await apiRequest<CustomReportPreview>(`/v1/reports/custom/preview?${params}`);
+      const preview = await apiRequest(
+        `/v1/reports/custom/preview?${params}`,
+        CustomReportPreviewSchema,
+      );
       setCustomPreview(preview);
     } catch (cause) {
       setCustomPreview(null);
@@ -247,15 +191,6 @@ export default function ReportsPage() {
   return (
     <PageShell title={t('title')} description={t('description')}>
       <p className="cq-privacy-notice">{t('privacyNotice')}</p>
-
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
 
       <SectionCard>
         <div className="cq-grid-3">
@@ -284,70 +219,15 @@ export default function ReportsPage() {
 
       <StatusBanner error={error} />
 
-      {loaded && teamAbsence ? (
-        <SectionCard>
-          <h2>{t('teamAbsenceHeading')}</h2>
-          <p>
-            {t('totalsLabel')}: {teamAbsence.totals.requests} / {teamAbsence.totals.days}
-          </p>
-          <p>
-            {t('suppressionLabel')}: {String(teamAbsence.suppression.suppressed)} (
-            {teamAbsence.suppression.population})
-          </p>
-        </SectionCard>
-      ) : null}
-
-      {loaded && oeOvertime ? (
-        <SectionCard>
-          <h2>{t('oeOvertimeHeading')}</h2>
-          <p>
-            {t('totalsLabel')}: {oeOvertime.totals.people} / {oeOvertime.totals.totalOvertimeHours}
-          </p>
-          <p>
-            {t('suppressionLabel')}: {String(oeOvertime.suppression.suppressed)} (
-            {oeOvertime.suppression.population})
-          </p>
-        </SectionCard>
-      ) : null}
-
-      {loaded && closingCompletion ? (
-        <SectionCard>
-          <h2>{t('closingCompletionHeading')}</h2>
-          <p>
-            {t('totalsLabel')}: {closingCompletion.totals.periods} /{' '}
-            {closingCompletion.totals.exported}
-          </p>
-        </SectionCard>
-      ) : null}
-
-      {loaded && auditSummary ? (
-        <SectionCard>
-          <h2>{t('auditSummaryHeading')}</h2>
-          <p>
-            {t('totalsLabel')}: {auditSummary.totals.entries} / {auditSummary.totals.uniqueActors}
-          </p>
-          <p>
-            {t('byActionLabel')}: {auditSummary.byAction.length}
-          </p>
-          <p>
-            {t('byEntityTypeLabel')}: {auditSummary.byEntityType.length}
-          </p>
-        </SectionCard>
-      ) : null}
-
-      {loaded && complianceSummary ? (
-        <SectionCard>
-          <h2>{t('complianceSummaryHeading')}</h2>
-          <p>
-            {t('totalsLabel')}: {complianceSummary.privacy.reportAccesses} /{' '}
-            {complianceSummary.closing.periods}
-          </p>
-          <p>
-            {t('lastBackupLabel')}:{' '}
-            {complianceSummary.operations.lastBackupRestoreVerifiedAt ?? '—'}
-          </p>
-        </SectionCard>
-      ) : null}
+      <ReportResults
+        t={t}
+        loaded={loaded}
+        teamAbsence={teamAbsence}
+        oeOvertime={oeOvertime}
+        closingCompletion={closingCompletion}
+        auditSummary={auditSummary}
+        complianceSummary={complianceSummary}
+      />
 
       <SectionCard>
         <h2>{t('customBuilderHeading')}</h2>

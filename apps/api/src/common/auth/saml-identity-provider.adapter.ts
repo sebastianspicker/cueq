@@ -1,10 +1,12 @@
+/** SAML bridge adapter that verifies shared-secret JWTs carrying mapped identity claims. */
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { jwtVerify } from 'jose';
 import { Role } from '@cueq/database';
-import type { IdentityProviderPort } from './identity-provider.port';
-import type { AuthenticatedIdentity } from './auth.types';
-import { parseRoleClaim } from './role-mapping';
+import type { IdentityProviderPort } from './identity-provider.port.js';
+import type { AuthenticatedIdentity } from './auth.types.js';
+import { parseRoleClaim } from './role-mapping.js';
 
+/** Converts verified bridge-JWT claims into the shared identity contract. */
 @Injectable()
 export class SamlIdentityProviderAdapter implements IdentityProviderPort {
   private readonly issuer = process.env.SAML_ISSUER;

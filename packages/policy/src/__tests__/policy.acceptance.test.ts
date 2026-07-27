@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_REST_RULE } from '../rules/rest-rules';
-import { DEFAULT_BREAK_RULE } from '../rules/break-rules';
-import { DEFAULT_LEAVE_RULE } from '../rules/leave-rules';
-import { DEFAULT_MAX_HOURS_RULE } from '../rules/max-hours-rules';
-import { DEFAULT_SURCHARGE_RULE } from '../rules/surcharge-rules';
-import { getActivePolicyBundle } from '../catalog';
+import { DEFAULT_REST_RULE } from '../rules/rest-rules.js';
+import { DEFAULT_BREAK_RULE } from '../rules/break-rules.js';
+import { DEFAULT_LEAVE_RULE } from '../rules/leave-rules.js';
+import { DEFAULT_MAX_HOURS_RULE } from '../rules/max-hours-rules.js';
+import { DEFAULT_SURCHARGE_RULE } from '../rules/surcharge-rules.js';
+import { getActivePolicyBundle } from '../catalog.js';
 
 describe('@cueq/policy acceptance', () => {
   it('defines rest reduction settings for on-call scenarios', () => {
@@ -13,14 +13,14 @@ describe('@cueq/policy acceptance', () => {
   });
 
   describe('reference profile: flextime (flextime.json)', () => {
-    // Fixture: flextime-basic-week — 5-day week with one overtime day
+    // Fixture: flextime-basic-week: 5-day week with one overtime day
     // Expected: 40.3h actual vs 39.83h target → +0.47h delta, no violations
     it('supports weekly target of 39.83h (TV-L full-time)', () => {
       expect(DEFAULT_LEAVE_RULE.fullTimeWeeklyHours).toBe(39.83);
     });
 
     it('max daily hours allows 8.5h without violation (under 10h extended)', () => {
-      // Fixture has one day at 8.5h — must be within extended daily max
+      // Fixture has one day at 8.5h: must be within extended daily max
       expect(DEFAULT_MAX_HOURS_RULE.maxDailyHoursExtended).toBeGreaterThanOrEqual(8.5);
     });
 
@@ -30,7 +30,7 @@ describe('@cueq/policy acceptance', () => {
   });
 
   describe('reference profile: shift/Pforte (pforte-shift.json)', () => {
-    // Fixture: pforte-shift-night — 22:00–06:00 night shift, 45min break recorded
+    // Fixture: pforte-shift-night: 22:00–06:00 night shift, 45min break recorded
     // Expected: 7.25h worked (8h - 0.75h break), 45min required break, no violations
     it('night shift 22:00–06:00 is 8h total; 45min break leaves 7.25h worked', () => {
       const totalShiftHours = 8;
@@ -56,7 +56,7 @@ describe('@cueq/policy acceptance', () => {
   });
 
   describe('reference profile: part-time change (part-time-change.json)', () => {
-    // Fixture: part-time-model-change — 39.83h/wk → 30h/wk mid-month (Apr 15)
+    // Fixture: part-time-model-change: 39.83h/wk → 30h/wk mid-month (Apr 15)
     // Expected: prorated target 151.33h, actual 149h → -2.33h delta
     it('leave rule supports pro-rata on entry (contract transition)', () => {
       expect(DEFAULT_LEAVE_RULE.proRataOnEntry).toBe(true);
@@ -77,7 +77,7 @@ describe('@cueq/policy acceptance', () => {
   });
 
   describe('reference profile: on-call/IT (it-oncall.json)', () => {
-    // Fixture: it-oncall-deployment-rest — deployment 01:10–02:20, next shift 14:00
+    // Fixture: it-oncall-deployment-rest: deployment 01:10–02:20, next shift 14:00
     // Expected: 11.67h rest after deployment (>= 11h minimum), compliant
     it('on-call rest reduction requires 11h minimum after deployment', () => {
       expect(DEFAULT_REST_RULE.onCallRestReduction?.minRestHoursAfterDeployment).toBe(11);
@@ -95,7 +95,7 @@ describe('@cueq/policy acceptance', () => {
     });
   });
 
-  describe('reference profile: surcharge — weekend/night overlap', () => {
+  describe('reference profile: surcharge: weekend/night overlap', () => {
     // Fixture: time-engine-surcharge-weekend-night
     // Saturday 21:00–22:00 UTC (22:00–23:00 Berlin) → both WEEKEND and NIGHT match
     // HIGHEST_ONLY strategy → WEEKEND wins (priority 200 > NIGHT 100)
@@ -108,7 +108,7 @@ describe('@cueq/policy acceptance', () => {
     });
   });
 
-  describe('reference profile: surcharge — holiday overlap', () => {
+  describe('reference profile: surcharge: holiday overlap', () => {
     // Fixture: time-engine-surcharge-holiday-overlap
     // Holiday on Sunday at 20:00–21:00 UTC → HOLIDAY + WEEKEND + NIGHT all match
     // HIGHEST_ONLY → HOLIDAY wins (priority 300)

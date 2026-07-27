@@ -1,5 +1,6 @@
+/** Runtime contracts for workflow policy, delegation, actions, state, and audit trails. */
 import { z } from 'zod';
-import { DateTimeSchema, IdSchema } from './common';
+import { DateTimeSchema, IdSchema, isDateTimeInstantBefore } from './common.js';
 
 // ---------------------------------------------------------------------------
 // Workflow & Approval schemas
@@ -116,10 +117,18 @@ export const WorkflowPolicySchema = z.object({
   escalationRoles: z.array(WorkflowApproverRoleSchema).min(1).max(5),
   maxDelegationDepth: z.number().int().min(1).max(10),
   activeFrom: DateTimeSchema,
+  activeTo: DateTimeSchema.nullable(),
   createdAt: DateTimeSchema,
   updatedAt: DateTimeSchema,
 });
 export type WorkflowPolicy = z.infer<typeof WorkflowPolicySchema>;
+export const NullableWorkflowPolicySchema = WorkflowPolicySchema.nullable();
+
+export const WorkflowPolicyHistorySchema = z.object({
+  entries: z.array(WorkflowPolicySchema),
+  total: z.number().int().nonnegative(),
+});
+export type WorkflowPolicyHistory = z.infer<typeof WorkflowPolicyHistorySchema>;
 
 export const WorkflowPolicyUpsertSchema = z.object({
   escalationDeadlineHours: z.number().int().positive(),
@@ -165,7 +174,7 @@ export const CreateWorkflowDelegationRuleSchema = z
       });
     }
 
-    if (value.activeTo && value.activeTo <= value.activeFrom) {
+    if (value.activeTo && !isDateTimeInstantBefore(value.activeFrom, value.activeTo)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'activeTo must be after activeFrom',
@@ -186,7 +195,11 @@ export const UpdateWorkflowDelegationRuleSchema = z
     priority: z.number().int().nonnegative().optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.activeFrom && value.activeTo && value.activeTo <= value.activeFrom) {
+    if (
+      value.activeFrom &&
+      value.activeTo &&
+      !isDateTimeInstantBefore(value.activeFrom, value.activeTo)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'activeTo must be after activeFrom',
@@ -196,7 +209,7 @@ export const UpdateWorkflowDelegationRuleSchema = z
   });
 export type UpdateWorkflowDelegationRule = z.infer<typeof UpdateWorkflowDelegationRuleSchema>;
 
-/** Backward-compat alias for legacy call sites */
+/** @alias Backward-compatible name for legacy call sites. */
 export const WorkflowDecisionSchema = WorkflowDecisionCommandSchema;
 export type WorkflowDecision = WorkflowDecisionCommand;
 
@@ -260,11 +273,16 @@ export const ShiftSwapRequestSchema = z
   });
 export type ShiftSwapRequest = z.infer<typeof ShiftSwapRequestSchema>;
 
-export const OvertimeApprovalRequestSchema = z.object({
-  personId: IdSchema,
-  periodStart: DateTimeSchema,
-  periodEnd: DateTimeSchema,
-  overtimeHours: z.number().positive(),
-  reason: z.string().min(10).max(1000),
-});
+export const OvertimeApprovalRequestSchema = z
+  .object({
+    personId: IdSchema,
+    periodStart: DateTimeSchema,
+    periodEnd: DateTimeSchema,
+    overtimeHours: z.number().positive(),
+    reason: z.string().min(10).max(1000),
+  })
+  .refine((value) => isDateTimeInstantBefore(value.periodStart, value.periodEnd), {
+    message: 'periodEnd must be after periodStart',
+    path: ['periodEnd'],
+  });
 export type OvertimeApprovalRequest = z.infer<typeof OvertimeApprovalRequestSchema>;

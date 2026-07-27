@@ -1,4 +1,4 @@
-import { buildAuditEntry } from './index';
+import { buildAuditEntry } from './index.js';
 
 const immutableEntry = buildAuditEntry({
   actorId: 'system',

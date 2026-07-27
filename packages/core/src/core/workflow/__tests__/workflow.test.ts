@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolveDelegation, shouldEscalate, transitionWorkflow } from '..';
+import { resolveDelegation, shouldEscalate, transitionWorkflow } from '../index.js';
 
 describe('transitionWorkflow', () => {
   it('advances DRAFT to SUBMITTED', () => {
@@ -229,7 +229,7 @@ describe('resolveDelegation', () => {
   });
 });
 
-describe('transitionWorkflow — exhaustive FSM transitions', () => {
+describe('transitionWorkflow: exhaustive FSM transitions', () => {
   const at = '2026-03-01T10:00:00.000Z';
   const base = { workflowId: 'wf-fsm', actorId: 'actor-1', at };
 
@@ -298,7 +298,7 @@ describe('transitionWorkflow — exhaustive FSM transitions', () => {
   });
 });
 
-describe('transitionWorkflow — concurrent approval (idempotency)', () => {
+describe('transitionWorkflow: concurrent approval (idempotency)', () => {
   const at = '2026-03-01T10:00:00.000Z';
 
   it('first approval succeeds from PENDING', () => {
@@ -353,7 +353,7 @@ describe('transitionWorkflow — concurrent approval (idempotency)', () => {
   });
 });
 
-describe('resolveDelegation — chain traversal A→B→C', () => {
+describe('resolveDelegation: chain traversal A→B→C', () => {
   it('resolves through a 3-level delegation chain', () => {
     const result = resolveDelegation({
       requesterId: 'employee-1',
@@ -408,7 +408,7 @@ describe('resolveDelegation — chain traversal A→B→C', () => {
   });
 });
 
-describe('resolveDelegation — circular delegation', () => {
+describe('resolveDelegation: circular delegation', () => {
   it('detects cycle when candidate appears twice in chain', () => {
     const result = resolveDelegation({
       requesterId: 'employee-1',
@@ -459,7 +459,7 @@ describe('resolveDelegation — circular delegation', () => {
   });
 });
 
-describe('resolveDelegation — maxDelegationDepth enforcement', () => {
+describe('resolveDelegation: maxDelegationDepth enforcement', () => {
   it('enforces maxDepth=1 (only primary, no fallback)', () => {
     const result = resolveDelegation({
       requesterId: 'employee-1',
@@ -626,7 +626,7 @@ describe('shouldEscalate', () => {
   });
 });
 
-describe('workflow — escalation + FSM integration', () => {
+describe('workflow: escalation + FSM integration', () => {
   it('escalation followed by approval is a valid path', () => {
     // Step 1: Escalate from PENDING
     const escalation = transitionWorkflow({

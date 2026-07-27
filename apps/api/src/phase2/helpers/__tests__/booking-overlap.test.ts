@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingOverlapWhere } from '../booking-overlap.helper';
+import { bookingOverlapWhere } from '../booking-overlap.helper.js';
 
 describe('bookingOverlapWhere', () => {
   const personId = 'person-1';

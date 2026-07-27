@@ -1,6 +1,7 @@
+/** Internal contracts shared by time-engine classification, accounting, and outcome stages. */
 import type { BreakRule, MaxHoursRule, RestRule, SurchargeRule } from '@cueq/policy';
 import type { CoreTimeRuleEvaluationContract } from '@cueq/shared';
-import type { DomainWarning, RuleViolation } from '../types';
+import type { DomainWarning, RuleViolation } from '../types.js';
 
 export interface TimeEnginePolicy {
   breakRule?: BreakRule;

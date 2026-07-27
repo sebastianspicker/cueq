@@ -1,10 +1,33 @@
+/** Operational health endpoints that expose service readiness without employee data. */
 import { Controller, Get, Inject } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
-import { Public } from '../common/decorators/public.decorator';
-import { Roles } from '../common/decorators/roles.decorator';
-import { PrismaService } from '../persistence/prisma.service';
+import { Public } from '../common/decorators/public.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
+import { PrismaService } from '../persistence/prisma.service.js';
 
+type TerminalHealth = { lastSeenAt: Date | null };
+
+function latestTerminalSeenAt(devices: TerminalHealth[]): string | null {
+  return (
+    devices
+      .reduce<Date | null>(
+        (latest, device) =>
+          device.lastSeenAt && (!latest || device.lastSeenAt > latest) ? device.lastSeenAt : latest,
+        null,
+      )
+      ?.toISOString() ?? null
+  );
+}
+
+function readinessReasons(staleTerminals: number, hrImportStatus: string | null): string[] {
+  return [
+    ...(staleTerminals > 0 ? ['STALE_TERMINALS'] : []),
+    ...(hrImportStatus === 'FAILED' ? ['FAILED_HR_IMPORT'] : []),
+  ];
+}
+
+/** Serves public liveness and authorized operational health summaries. */
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
@@ -45,13 +68,7 @@ export class HealthController {
     const staleTerminals = terminalDevices.filter(
       (device) => !device.lastSeenAt || device.lastSeenAt < thirtyMinutesAgo,
     ).length;
-    const degradedReasons: string[] = [];
-    if (staleTerminals > 0) {
-      degradedReasons.push('STALE_TERMINALS');
-    }
-    if (lastHrImportRun?.status === 'FAILED') {
-      degradedReasons.push('FAILED_HR_IMPORT');
-    }
+    const degradedReasons = readinessReasons(staleTerminals, lastHrImportRun?.status ?? null);
     const degraded = degradedReasons.length > 0;
 
     return {
@@ -64,12 +81,7 @@ export class HealthController {
         terminal: {
           total: terminalDevices.length,
           stale: staleTerminals,
-          lastSeenAt:
-            terminalDevices
-              .map((device) => device.lastSeenAt)
-              .filter((value): value is Date => Boolean(value))
-              .sort((left, right) => right.getTime() - left.getTime())[0]
-              ?.toISOString() ?? null,
+          lastSeenAt: latestTerminalSeenAt(terminalDevices),
         },
         hrImport: {
           lastRunAt: lastHrImportRun?.importedAt.toISOString() ?? null,

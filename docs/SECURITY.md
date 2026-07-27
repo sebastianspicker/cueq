@@ -1,185 +1,197 @@
-# SECURITY.md — Security Design
+# Security design
 
-This document separates repository-enforced controls from deployment
-requirements. It is not a data-protection impact assessment, legal approval, or
-evidence of an institution's production configuration.
+cueq handles workforce and absence data, including health-related information.
+This document describes repository controls and known gaps. It is not a
+data-protection impact assessment, legal approval, or production security
+certification.
 
----
+## Trust boundaries
 
-## 1. Security Principles
+The main boundaries are:
 
-1. **Defense in depth.** Multiple layers: network (TLS), authentication (SSO), authorization (RBAC), data (encryption at rest), audit (append-only log).
-2. **Least privilege.** Every role has the minimum access required. Default is deny.
-3. **No secrets in the repo.** `.env.example` for templates; real credentials via secure injection only.
-4. **No telemetry.** No analytics, tracking pixels, third-party scripts, or phone-home behavior.
-5. **Assume breach.** Audit trail enables forensic reconstruction; immutable logs cannot be tampered with.
+- the browser and Next.js application;
+- the NestJS API;
+- PostgreSQL;
+- the identity provider or SAML bridge;
+- terminal and HR clients using integration tokens;
+- webhook destinations; and
+- payroll export consumers.
 
----
+The API is the authorization boundary. Role-conditioned navigation and hidden
+UI fields do not grant or deny access.
 
-## 2. Authentication
+TLS termination, network policy, database administration, disk encryption,
+secret storage, backups, monitoring, and incident response are deployment
+boundaries.
 
-| Aspect             | Design                                                                                   |
-| ------------------ | ---------------------------------------------------------------------------------------- |
-| Protocol           | SAML 2.0 or OIDC (configurable)                                                          |
-| Identity provider  | University IdM (AD / Azure AD / Keycloak)                                                |
-| Session management | Signed tokens (JWT) with short expiry + refresh; or server-side sessions                 |
-| Multi-factor       | Deferred to IdP configuration (university controls MFA policy)                           |
-| Service accounts   | Separate credentials for terminal gateway and HR import; scoped to minimal permissions   |
-| Integration tokens | `TERMINAL_GATEWAY_TOKEN` and `HR_IMPORT_TOKEN` required for machine-to-machine endpoints |
+## Authentication
 
-Runtime selector:
+The API authenticates bearer tokens with one selected provider:
 
-- `AUTH_PROVIDER=mock|oidc|saml` (preferred)
-- `AUTH_MODE` remains supported as backward-compatible fallback
+| Provider | Current behavior                                                                                                          |
+| -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `mock`   | Accepts named or encoded local test tokens. Rejected when `NODE_ENV=production`.                                          |
+| `oidc`   | Verifies issuer, audience, signature, and registered JWT claims through the issuer JWKS. Maps Keycloak-style realm roles. |
+| `saml`   | Verifies an HMAC-signed JWT from an external SAML bridge. The API does not implement SAML.                                |
 
-SAML adapter settings:
+OIDC tokens must contain `sub` and `email`. The SAML bridge token must contain
+`sub` and `email` and may contain a supported role. After token verification,
+the API resolves the identity to a local person record and uses persisted role
+and organization-unit data for application authorization.
 
-- `SAML_ISSUER`
-- `SAML_AUDIENCE`
-- `SAML_JWT_SECRET`
+The browser stores the current token in React memory. It does not implement a
+login redirect, refresh token, server-side session, logout protocol, or
+application revocation process.
 
----
+Terminal and HR routes use `TERMINAL_GATEWAY_TOKEN` and `HR_IMPORT_TOKEN`.
+Development and test mode have local fallbacks. Production mode requires
+explicit values.
 
-## 3. Authorization (Role-Based Access Control)
+See [CONFIGURATION.md](CONFIGURATION.md) for provider settings.
 
-### Roles
+## Authorization
 
-| Role                            | Access Level                                                                       |
-| ------------------------------- | ---------------------------------------------------------------------------------- |
-| `Mitarbeitende` (Employee)      | Own bookings, own balance, own leave, team absence view ("absent" only)            |
-| `Teamleitung` (Team Lead)       | Team bookings (read), approvals, team absence (with reason), team reports          |
-| `Dienstplaner` (Shift Planner)  | Roster planning for assigned OEs, shift swap approvals                             |
-| `HR` (Personalstelle)           | All bookings (read/correct), rule configuration, monthly closing, cross-OE reports |
-| `Payroll` (Bezügestelle)        | Export artifacts (read/download); no export trigger rights                         |
-| `Admin`                         | System configuration, role management, terminal management, monitoring             |
-| `Datenschutz` (Data Protection) | Audit trail (read), GDPR reports                                                   |
-| `Personalrat` (Works Council)   | Aggregated reports only (no individual data); configurable read access             |
+Normal API routes pass through global authentication and role guards. Each
+registered route must be:
 
-### Permission Matrix
+- explicitly public;
+- restricted by a non-empty role allowlist; or
+- marked as authenticated when ownership or organization-unit checks occur in
+  the service.
 
-| Resource                         | Employee | Lead     | Planner         | HR                  | Payroll | Admin | PR        |
-| -------------------------------- | -------- | -------- | --------------- | ------------------- | ------- | ----- | --------- |
-| Own bookings                     | RW       | R        | —               | RW                  | —       | —     | —         |
-| Team bookings                    | —        | R        | R               | RW                  | —       | —     | —         |
-| Absence reason                   | —        | R (team) | —               | R (all)             | —       | —     | —         |
-| Absence status                   | R (team) | R (team) | R (assigned)    | R (all)             | —       | —     | —         |
-| Roster                           | R        | R        | RW              | R                   | —       | —     | —         |
-| Approvals                        | Submit   | Decide   | Decide (shifts) | Decide (post-close) | —       | —     | —         |
-| Reports (individual)             | Own      | Team     | —               | All                 | —       | —     | —         |
-| Reports (aggregate)              | —        | Team     | —               | All                 | —       | —     | Agg. only |
-| Audit/compliance summary reports | —        | —        | —               | R                   | —       | R     | R         |
-| Payroll CSV download             | —        | —        | —               | R                   | R       | R     | —         |
-| Audit trail                      | —        | —        | —               | R                   | —       | R     | R         |
-| System config                    | —        | —        | —               | —                   | —       | RW    | —         |
+A metadata census test checks that registered handlers declare one of these
+policies. Public machine routes still validate their integration token inside
+the service.
 
-**Key**: R = Read, W = Write, RW = Read+Write, — = No access
+The Prisma `Role` enum contains employee, team lead, planner, HR, payroll,
+administrator, data-protection, and works-council roles. Access varies by
+resource and action. Controllers declare coarse role access; services enforce
+ownership, organization-unit, workflow, and closing-state constraints.
 
-`Datenschutz` has read-only access to audit/compliance summary reports and audit trail, aligned with HR/Admin visibility for those report classes.
+Changes to bookings, absence reasons, rosters, reports, audit data, exports,
+policy administration, or closing flows require review of both controller and
+service checks.
 
----
+## Input and transport controls
 
-## 4. Data Protection (GDPR / DSGVO)
+- Zod schemas validate shared request and response shapes.
+- DTO parsing and route-specific validation reject invalid identifiers and
+  ranges.
+- Prisma parameterizes database operations.
+- API responses use Helmet headers.
+- The web application sets content-type, frame, referrer, permissions, and
+  legacy XSS headers.
+- The web application does not currently set a Content Security Policy.
+- Production CORS defaults to an empty browser-origin allowlist.
+- `CORS_ORIGINS=*` cannot be combined with credentialed CORS.
 
-### Data Classification
+## Sensitive data
 
-| Category             | Examples                            | Sensitivity        | Retention                                               |
-| -------------------- | ----------------------------------- | ------------------ | ------------------------------------------------------- |
-| Time bookings        | Clock in/out, pauses                | Personal           | Configurable (default: 3 years per labor law)           |
-| Absence records      | Leave dates, sick dates             | Sensitive (health) | Configurable (default: deletion after retention period) |
-| Absence reasons      | "Sick", "Special leave for wedding" | Highly sensitive   | Visible only to authorized roles; deleted with record   |
-| Salary-relevant data | Surcharges, overtime hours          | Personal           | Per payroll retention requirements                      |
-| Audit trail          | Who changed what                    | System/personal    | Configurable (minimum: legal retention period)          |
-| Aggregated reports   | Team absence %, shift coverage      | Low                | No deletion needed (anonymized)                         |
+Data classes include:
 
-### Data Minimization
+| Data                                 | Repository handling                                                              | Missing lifecycle control                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Time bookings                        | PostgreSQL storage and role-scoped API access                                    | Automated retention                                                                         |
+| Absence records and reasons          | Role and organization-unit checks                                                | Automated retention, erasure, and pseudonymization                                          |
+| Salary-relevant balances and exports | Role checks, export records, and audit events                                    | Provider acceptance and operator retention                                                  |
+| Audit records                        | Append-only application writes and database rejection of row updates and deletes | Hash chaining, signatures, external witnessing, `TRUNCATE` protection, and pseudonymization |
+| Aggregate reports                    | Minimum-group checks and role restrictions                                       | Institutional review of every report purpose and re-identification risk                     |
 
-- Collect only what is needed for the documented business purpose.
-- Absence reasons: captured only if needed for processing (e.g., special leave type); never displayed beyond authorized roles.
-- Reports: default to aggregated views; individual views require explicit role permission.
+The current OpenAPI contract has no self-service personal-data export endpoint.
+There is no automated erasure or retention workflow. The audit immutability
+control also prevents in-place audit pseudonymization, so a future lifecycle
+design must reconcile both requirements.
 
-### Right to Access / Portability
+Only synthetic data belongs in fixtures, screenshots, logs, examples, issues,
+and repository verification.
 
-- Employees can export their own data (bookings, balances, leave history) via self-service.
-- Data export format: JSON or CSV, machine-readable.
+## Works-council and reporting constraints
 
-### Right to Erasure
+Repository reporting is intended to avoid individual performance monitoring.
+Aggregate reports enforce a minimum group size of five; a larger value can be
+configured, but values below five fall back to five.
 
-- Deletion follows configurable retention policies per data category.
-- Audit entries are **not** deleted (legal requirement for auditability), but PII within them can be pseudonymized after the retention period.
-- Deletion is logged in the audit trail (meta-entry: "records deleted per retention policy").
+New or changed reports must be reviewed for:
 
-### DPIA (DSFA) Inputs
+- purpose and lawful basis;
+- exposed fields and grouping dimensions;
+- small-group and cross-filter re-identification;
+- role and organization-unit visibility;
+- audit coverage; and
+- export retention.
 
-The repository provides inputs that an institution can use in its own review:
+Passing tests does not establish works-council or data-protection approval.
 
-- Data flow documentation (which data, where, why)
-- Processing register entries
-- Technical and organizational measures (TOMs) documentation
+## Audit records
 
----
+Application code appends audit entries for selected state changes and sensitive
+reads. The migration
+`packages/database/prisma/migrations/20260715090000_enforce_audit_entry_immutability/`
+adds database triggers that reject row updates and deletes.
 
-## 5. Works Council (Personalrat) Compliance
+This boundary assumes the migration is applied and the database administrator
+is trusted. It does not protect against:
 
-### Constraints
+- `TRUNCATE`;
+- trigger removal;
+- privileged database replacement;
+- changes to backups;
+- incomplete audit coverage; or
+- edits outside the reviewed deployment.
 
-- **No individual performance monitoring.** Reports must not enable tracking individual work speed, break patterns, or compliance scores.
-- **Aggregation thresholds.** Reports showing absence or overtime patterns must have a minimum group size (e.g., ≥5 people) to prevent re-identification.
-- **Configurable report access.** The works council can review and approve which reports are available to which roles.
-- **Transparent rules.** Employees can see which rules affect them and how their balance is calculated.
+Do not describe the audit table as cryptographically tamper-evident.
 
-### Works Council Access
+## Webhook secrets and outbound requests
 
-The `Personalrat` role provides:
+Webhook signing secrets are returned when an endpoint is created and stored as
+AES-256-GCM envelopes. The key comes from
+`WEBHOOK_SECRET_ENCRYPTION_KEY`. The endpoint ID is authenticated as additional
+data.
 
-- Read access to aggregated reports (no individual data)
-- Read access to audit trail (to verify system behavior)
-- No access to individual bookings, balances, or absence reasons
+The API fails startup when the key is missing or invalid. Decryption and
+configuration failures stop delivery rather than sending an unsigned request.
+Key rotation uses the maintenance procedure in
+[OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md).
 
----
+Webhook target validation rejects unsupported protocols, embedded credentials,
+and local or private targets by default. `WEBHOOK_ALLOW_PRIVATE_TARGETS=true`
+exists for isolated testing and should not be enabled on a deployment without a
+separate outbound-network review.
 
-## 6. Threat Model (High-Level)
+## Threat summary
 
-| Threat                              | Impact                                     | Mitigation                                                                      |
-| ----------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
-| Unauthorized access to absence data | Privacy violation; works council complaint | RBAC, API-level checks, UI-level filtering                                      |
-| Audit trail tampering               | Loss of legal compliance; cover-up         | Append-only design; DB-level write restrictions; integrity checks               |
-| Terminal spoofing                   | Fraudulent bookings                        | Terminal authentication (badge/PIN); device registration; anomaly detection     |
-| Credential theft                    | Unauthorized system access                 | SSO with IdP-managed MFA; short session lifetimes                               |
-| SQL injection                       | Data breach                                | Parameterized queries; ORM; input validation                                    |
-| XSS                                 | Session hijacking                          | CSP headers; output encoding; framework protections                             |
-| Insider threat (admin)              | Mass data access                           | Audit all admin actions; rotate admin credentials; principle of least privilege |
-| Data exfiltration via export        | Unauthorized payroll data access           | Export requires explicit role; logged; review by HR                             |
+| Threat                                       | Repository control                                                | Remaining boundary                                                     |
+| -------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Unauthorized absence access                  | Token verification, role guard, ownership and organization checks | Identity administration and complete deployed-path verification        |
+| Audit modification                           | Database trigger rejecting row updates and deletes                | Privileged database actions and non-cryptographic evidence             |
+| Terminal spoofing                            | Shared token and ingestion validation                             | Device identity, physical security, badge controls, and token rotation |
+| Credential theft                             | JWT verification and memory-only browser token                    | Login, refresh, revocation, MFA, and browser hardening                 |
+| SQL injection                                | Prisma operations and input validation                            | Raw query review and database privileges                               |
+| Cross-site scripting                         | React escaping and security headers                               | No Content Security Policy; browser-token exposure remains possible    |
+| Export exfiltration                          | Role checks and export audit records                              | Operator storage, delivery, access review, and retention               |
+| Server-side request forgery through webhooks | URL validation and private-target rejection                       | DNS and outbound network policy at delivery time                       |
 
----
+## Deployment requirements
 
-## 7. Encryption
+A deployment assessment must cover:
 
-| Layer        | Standard                                              |
-| ------------ | ----------------------------------------------------- |
-| In transit   | TLS 1.2+ (enforce HTTPS everywhere)                   |
-| At rest      | AES-256 for database volumes (managed DB default)     |
-| Backups      | Encrypted at rest; access restricted to ops role      |
-| Tokens (JWT) | Signed with RS256 or EdDSA; secrets rotated regularly |
+- trusted HTTPS for the web application, API, identity provider, and HR
+  provider;
+- explicit CORS origins;
+- least-privilege database accounts;
+- encryption for database volumes and backups;
+- secret storage and rotation;
+- network egress restrictions;
+- protected logs and export storage;
+- backup restore testing;
+- identity role mapping and deprovisioning;
+- retention, access, erasure, and incident procedures; and
+- independent authorization and privacy testing.
 
-Integration tokens for terminal and HR endpoints must be rotated and delivered via secure secret injection (never committed to repo).
+The repository does not provide or verify those controls.
 
----
+## Vulnerability reporting
 
-## 8. Vulnerability Reporting
-
-Do not open a public issue for a suspected vulnerability. Use the repository's
-GitHub private vulnerability-reporting flow when it is available. Include a
-minimal reproduction, affected commit, and impact without attaching real
-employee data, credentials, internal hostnames, or private governance records.
-
-Response ownership, contact channels, and service-level agreements are defined
-by each deploying institution and are intentionally not published here.
-
----
-
-## 9. References
-
-- [`RELIABILITY.md`](RELIABILITY.md) — Operational security (backup, monitoring, incident response)
-- [`QUALITY_SCORE.md`](QUALITY_SCORE.md) — Security-related quality gates
-- [`design-docs/core-beliefs.md`](design-docs/core-beliefs.md) — Privacy-by-design principles
-- [`ARCHITECTURE.md`](../ARCHITECTURE.md) — System architecture and integration points
+Do not open a public issue for a suspected vulnerability. Follow the private
+reporting process in [../SECURITY.md](../SECURITY.md). Do not include
+credentials, real personal data, private hostnames, or production logs.

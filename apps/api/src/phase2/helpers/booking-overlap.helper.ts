@@ -1,5 +1,7 @@
+/** Builds shared persistence predicates for detecting overlapping bookings. */
 import type { Prisma } from '@cueq/database';
 
+/** Matches open or completed bookings whose half-open interval intersects the candidate booking. */
 export function bookingOverlapWhere(input: {
   personId: string;
   startTime: Date;

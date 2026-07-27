@@ -1,9 +1,12 @@
+/** Exposes the authenticated caller's operational dashboard summary. */
 import { Controller, Get, Inject } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { DashboardBookingsService } from '../services/dashboard-bookings.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { Authenticated } from '../../common/decorators/authenticated.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { DashboardBookingsService } from '../services/dashboard-bookings.service.js';
 
+/** Authenticated dashboard read boundary for the caller's permitted operational summary. */
 @ApiTags('dashboard')
 @ApiBearerAuth()
 @Controller('v1/dashboard')
@@ -14,6 +17,7 @@ export class DashboardController {
   ) {}
 
   @Get('me')
+  @Authenticated()
   @ApiOperation({ summary: 'Get dashboard summary for the authenticated employee' })
   getDashboard(@CurrentUser() user: AuthenticatedIdentity) {
     return this.dashboardBookingsService.dashboard(user);

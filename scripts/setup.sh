@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Prepares a disposable local development environment: dependencies, PostgreSQL,
+# Prisma generation, migrations/schema setup, and the documented synthetic baseline.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,27 +11,27 @@ export DATABASE_URL="${DATABASE_URL:-postgresql://cueq:cueq_dev_password@localho
 COMPOSE_CMD="$(docker_compose_cmd)"
 STARTED_DOCKER=0
 
-echo "📦 Installing dependencies..."
-run_pnpm install
+echo "Installing dependencies from pnpm-lock.yaml..."
+run_pnpm install --frozen-lockfile
 
 if [[ "${SKIP_DOCKER:-0}" != "1" ]]; then
-  echo "🐳 Starting Docker services..."
+  echo "Starting Docker services..."
   if ${COMPOSE_CMD} up -d; then
     STARTED_DOCKER=1
-    echo "⏳ Waiting for PostgreSQL..."
+    echo "Waiting for PostgreSQL..."
     sleep 3
   else
-    echo "⚠️ Docker services could not be started. Continuing with the existing DATABASE_URL target."
+    echo "Warning: Docker services could not be started. Continuing with the existing DATABASE_URL target."
   fi
 fi
 
-echo "🔧 Generating Prisma client..."
+echo "Generating Prisma client..."
 run_pnpm db:generate
 
-echo "🗄️  Applying migrations to database..."
+echo "Applying migrations to database..."
 if ! run_pnpm --filter @cueq/database db:migrate:deploy; then
   if [[ "${STARTED_DOCKER}" == "1" ]]; then
-    echo "⚠️ Database migration failed. Recreating local postgres volume and retrying once..."
+    echo "Warning: Database migration failed. Recreating the local PostgreSQL volume and retrying once..."
     ${COMPOSE_CMD} down -v
     ${COMPOSE_CMD} up -d
     sleep 3
@@ -39,4 +41,4 @@ if ! run_pnpm --filter @cueq/database db:migrate:deploy; then
   fi
 fi
 
-echo "✅ Setup complete. Run 'make dev' to start development."
+echo "Setup complete. Run 'make dev' to start development."

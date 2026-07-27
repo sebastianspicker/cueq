@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { AuthService } from './auth.service';
-import { OidcIdentityProviderAdapter } from './oidc-identity-provider.adapter';
-import { SamlIdentityProviderAdapter } from './saml-identity-provider.adapter';
+import { AuthService } from './auth.service.js';
+import { OidcIdentityProviderAdapter } from './oidc-identity-provider.adapter.js';
+import { SamlIdentityProviderAdapter } from './saml-identity-provider.adapter.js';
 
 const ORIGINAL_ENV = {
   NODE_ENV: process.env.NODE_ENV,
@@ -38,14 +38,14 @@ describe('AuthService provider selection', () => {
     ).toThrow(/mock auth provider is disabled in production/iu);
   });
 
-  it('allows explicit insecure mock override in production only when flag is enabled', () => {
+  it('rejects an explicit mock provider in production even when the legacy override is enabled', () => {
     process.env.NODE_ENV = 'production';
     process.env.AUTH_PROVIDER = 'mock';
     process.env.AUTH_ALLOW_INSECURE_MOCK = 'true';
 
     expect(
       () => new AuthService(new OidcIdentityProviderAdapter(), new SamlIdentityProviderAdapter()),
-    ).not.toThrow();
+    ).toThrow(/mock auth provider is disabled in production/iu);
   });
 
   it('fails closed when AUTH_PROVIDER has an unsupported value', () => {

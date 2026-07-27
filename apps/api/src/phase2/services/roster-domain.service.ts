@@ -1,3 +1,4 @@
+/** Coordinates roster lifecycle operations and delegates guarded shift work. */
 import {
   BadRequestException,
   ForbiddenException,
@@ -5,18 +6,22 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { type Prisma } from '@cueq/database';
+import { Role, RosterStatus, type Prisma } from '@cueq/database';
 import { CreateRosterSchema } from '@cueq/shared';
-import { PrismaService } from '../../persistence/prisma.service';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { PersonHelper } from '../helpers/person.helper';
-import { AuditHelper } from '../helpers/audit.helper';
-import { ClosingLockHelper } from '../helpers/closing-lock.helper';
-import { HR_LIKE_ROLES } from '../helpers/role-constants';
-import { assignedPersonIdsForShift } from '../helpers/roster-utils';
-import { RosterShiftHelper } from '../helpers/roster-shift.helper';
-import { RosterAssignmentHelper } from '../helpers/roster-assignment.helper';
-import { RosterQueryHelper } from '../helpers/roster-query.helper';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { PersonHelper } from '../helpers/person.helper.js';
+import { AuditHelper } from '../helpers/audit.helper.js';
+import { ClosingLockHelper } from '../helpers/closing-lock.helper.js';
+import { HR_LIKE_ROLES } from '../helpers/role-constants.js';
+import { assignedPersonIdsForShift } from '../helpers/roster-utils.js';
+import { RosterShiftHelper } from '../helpers/roster-shift.helper.js';
+import { RosterAssignmentHelper } from '../helpers/roster-assignment.helper.js';
+import { RosterQueryHelper } from '../helpers/roster-query.helper.js';
+import {
+  lockOrganizationRosterWrites,
+  lockRosterWrites,
+} from '../helpers/transaction-lock.helper.js';
 
 const ROSTER_DETAIL_INCLUDE = {
   shifts: {
@@ -33,6 +38,10 @@ const ROSTER_DETAIL_INCLUDE = {
   },
 } satisfies Prisma.RosterInclude;
 
+/**
+ * Coordinates roster lifecycle operations and delegates shift writes to lock-aware helpers.
+ * Roster changes remain constrained by organization visibility and closed-period protections.
+ */
 @Injectable()
 export class RosterDomainService {
   constructor(
@@ -47,12 +56,20 @@ export class RosterDomainService {
 
   /* ── Private helpers ────────────────────────────────────────── */
 
-  private assertCanReadRoster(user: AuthenticatedIdentity, actorOuId: string, rosterOuId: string) {
+  private assertCanReadRoster(
+    user: AuthenticatedIdentity,
+    actorOuId: string,
+    rosterOuId: string,
+    rosterStatus: RosterStatus,
+  ) {
     if (HR_LIKE_ROLES.has(user.role)) {
       return;
     }
     if (actorOuId !== rosterOuId) {
       throw new ForbiddenException('Roster access is limited to the same organization unit.');
+    }
+    if (user.role === Role.TEAM_LEAD && rosterStatus !== RosterStatus.PUBLISHED) {
+      throw new ForbiddenException('Team leads may only read published rosters.');
     }
   }
 
@@ -68,7 +85,7 @@ export class RosterDomainService {
       parsed.organizationUnitId,
     );
 
-    await this.closingLockHelper.assertClosingPeriodUnlockedForRange({
+    const closingAttempt = {
       actorId: actor.id,
       organizationUnitId: parsed.organizationUnitId,
       from: new Date(parsed.periodStart),
@@ -76,46 +93,70 @@ export class RosterDomainService {
       attemptedAction: 'ROSTER_CREATE',
       entityType: 'Roster',
       entityId: `${parsed.organizationUnitId}:${parsed.periodStart}`,
-    });
+    };
+    await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
 
     const periodStart = new Date(parsed.periodStart);
     const periodEnd = new Date(parsed.periodEnd);
-    const overlap = await this.prisma.roster.findFirst({
-      where: {
-        organizationUnitId: parsed.organizationUnitId,
-        periodStart: { lt: periodEnd },
-        periodEnd: { gt: periodStart },
-        status: { in: ['DRAFT', 'PUBLISHED'] },
-      },
-      select: { id: true },
-    });
+    const roster = await this.prisma
+      .$transaction(async (tx) => {
+        await this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
+          {
+            organizationUnitId: parsed.organizationUnitId,
+            from: periodStart,
+            to: periodEnd,
+          },
+          tx,
+        );
+        await lockOrganizationRosterWrites(tx, parsed.organizationUnitId);
 
-    if (overlap) {
-      throw new BadRequestException('A roster already exists for the given overlapping period.');
-    }
+        const overlap = await tx.roster.findFirst({
+          where: {
+            organizationUnitId: parsed.organizationUnitId,
+            periodStart: { lt: periodEnd },
+            periodEnd: { gt: periodStart },
+            status: { in: ['DRAFT', 'PUBLISHED'] },
+          },
+          select: { id: true },
+        });
 
-    const roster = await this.prisma.roster.create({
-      data: {
-        organizationUnitId: parsed.organizationUnitId,
-        periodStart,
-        periodEnd,
-        status: 'DRAFT',
-      },
-      include: ROSTER_DETAIL_INCLUDE,
-    });
+        if (overlap) {
+          throw new BadRequestException(
+            'A roster already exists for the given overlapping period.',
+          );
+        }
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'ROSTER_CREATED',
-      entityType: 'Roster',
-      entityId: roster.id,
-      after: {
-        organizationUnitId: roster.organizationUnitId,
-        periodStart: roster.periodStart.toISOString(),
-        periodEnd: roster.periodEnd.toISOString(),
-        status: roster.status,
-      },
-    });
+        const created = await tx.roster.create({
+          data: {
+            organizationUnitId: parsed.organizationUnitId,
+            periodStart,
+            periodEnd,
+            status: 'DRAFT',
+          },
+          include: ROSTER_DETAIL_INCLUDE,
+        });
+
+        await this.auditHelper.appendAudit(
+          {
+            actorId: actor.id,
+            action: 'ROSTER_CREATED',
+            entityType: 'Roster',
+            entityId: created.id,
+            after: {
+              organizationUnitId: created.organizationUnitId,
+              periodStart: created.periodStart.toISOString(),
+              periodEnd: created.periodEnd.toISOString(),
+              status: created.status,
+            },
+          },
+          tx,
+        );
+
+        return created;
+      })
+      .catch((error: unknown) =>
+        this.closingLockHelper.rethrowWithDurableClosingAudit(error, closingAttempt),
+      );
 
     return this.queryHelper.toRosterDetail(roster);
   }
@@ -131,7 +172,12 @@ export class RosterDomainService {
       throw new NotFoundException('Roster not found.');
     }
 
-    this.assertCanReadRoster(user, actor.organizationUnitId, roster.organizationUnitId);
+    this.assertCanReadRoster(
+      user,
+      actor.organizationUnitId,
+      roster.organizationUnitId,
+      roster.status,
+    );
     return this.queryHelper.toRosterDetail(roster);
   }
 
@@ -156,7 +202,7 @@ export class RosterDomainService {
       roster.organizationUnitId,
     );
     this.shiftHelper.assertRosterIsDraft(roster.status);
-    await this.closingLockHelper.assertClosingPeriodUnlockedForRange({
+    const closingAttempt = {
       actorId: actor.id,
       organizationUnitId: roster.organizationUnitId,
       from: roster.periodStart,
@@ -164,39 +210,80 @@ export class RosterDomainService {
       attemptedAction: 'ROSTER_PUBLISH',
       entityType: 'Roster',
       entityId: roster.id,
-    });
+    };
+    await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
 
-    const shortfalls = roster.shifts
-      .map((shift) => {
-        const assigned = assignedPersonIdsForShift(shift).length;
-        const shortfall = Math.max(shift.minStaffing - assigned, 0);
-        return { shiftId: shift.id, required: shift.minStaffing, assigned, shortfall };
+    const updated = await this.prisma
+      .$transaction(async (tx) => {
+        await this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
+          {
+            organizationUnitId: roster.organizationUnitId,
+            from: roster.periodStart,
+            to: roster.periodEnd,
+          },
+          tx,
+        );
+        await lockRosterWrites(tx, [rosterId]);
+        const current = await tx.roster.findUnique({
+          where: { id: rosterId },
+          include: {
+            shifts: {
+              include: { assignments: { select: { personId: true } } },
+            },
+          },
+        });
+
+        if (!current) {
+          throw new NotFoundException('Roster not found.');
+        }
+
+        this.shiftHelper.assertCanWriteRoster(
+          user,
+          actor.organizationUnitId,
+          current.organizationUnitId,
+        );
+        this.shiftHelper.assertRosterIsDraft(current.status);
+
+        const currentShortfalls = current.shifts
+          .map((shift) => {
+            const assigned = assignedPersonIdsForShift(shift).length;
+            const shortfall = Math.max(shift.minStaffing - assigned, 0);
+            return { shiftId: shift.id, required: shift.minStaffing, assigned, shortfall };
+          })
+          .filter((entry) => entry.shortfall > 0);
+
+        if (currentShortfalls.length > 0) {
+          throw new BadRequestException({
+            message: 'Cannot publish roster due to staffing shortfalls.',
+            shortfalls: currentShortfalls,
+          });
+        }
+
+        const published = await tx.roster.update({
+          where: { id: current.id },
+          data: { status: 'PUBLISHED', publishedAt: new Date() },
+        });
+
+        await this.auditHelper.appendAudit(
+          {
+            actorId: actor.id,
+            action: 'ROSTER_PUBLISHED',
+            entityType: 'Roster',
+            entityId: published.id,
+            before: { status: current.status },
+            after: {
+              status: published.status,
+              publishedAt: published.publishedAt?.toISOString() ?? null,
+            },
+          },
+          tx,
+        );
+
+        return published;
       })
-      .filter((entry) => entry.shortfall > 0);
-
-    if (shortfalls.length > 0) {
-      throw new BadRequestException({
-        message: 'Cannot publish roster due to staffing shortfalls.',
-        shortfalls,
-      });
-    }
-
-    const updated = await this.prisma.roster.update({
-      where: { id: roster.id },
-      data: { status: 'PUBLISHED', publishedAt: new Date() },
-    });
-
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'ROSTER_PUBLISHED',
-      entityType: 'Roster',
-      entityId: updated.id,
-      before: { status: roster.status },
-      after: {
-        status: updated.status,
-        publishedAt: updated.publishedAt?.toISOString() ?? null,
-      },
-    });
+      .catch((error: unknown) =>
+        this.closingLockHelper.rethrowWithDurableClosingAudit(error, closingAttempt),
+      );
 
     return {
       id: updated.id,
@@ -242,7 +329,12 @@ export class RosterDomainService {
       throw new NotFoundException('Roster not found.');
     }
 
-    this.assertCanReadRoster(user, actor.organizationUnitId, roster.organizationUnitId);
+    this.assertCanReadRoster(
+      user,
+      actor.organizationUnitId,
+      roster.organizationUnitId,
+      roster.status,
+    );
     const result = await this.queryHelper.buildPlanVsActualForRoster(roster);
 
     return {

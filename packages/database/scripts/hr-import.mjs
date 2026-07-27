@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** Imports validated HR master CSV data transactionally, preserving a success or failure record and audit evidence. */
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -98,6 +99,7 @@ function parsedRowFromRecord(row) {
   };
 }
 
+/** Parses RFC-style quoted CSV while rejecting ambiguous headers before import validation. */
 export function parseCsvRecords(csv) {
   const parsedRows = parseCsvRows(csv);
   if (parsedRows.length < 2) {
@@ -359,6 +361,7 @@ async function linkSupervisors(tx, rows, importedPeople) {
   }
 }
 
+/** Serializes a validated batch, writes related records atomically, and emits success evidence in the same transaction. */
 async function importRowsInTransaction(prisma, rows, baseSummary) {
   return prisma.$transaction(async (tx) => {
     const [lock] = await tx.$queryRaw`
@@ -404,6 +407,7 @@ async function importRowsInTransaction(prisma, rows, baseSummary) {
   });
 }
 
+/** Persists a failed import record and matching audit entry after a non-lock import failure. */
 async function recordFailedRun(prisma, baseSummary, error) {
   const summary = {
     ...baseSummary,

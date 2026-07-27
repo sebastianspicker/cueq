@@ -5,8 +5,13 @@
 .github/ @sebastianspicker
 .env.example @sebastianspicker
 docker-compose.yml @sebastianspicker
+pnpm-lock.yaml @sebastianspicker
+pnpm-workspace.yaml @sebastianspicker
 packages/database/prisma/ @sebastianspicker
 apps/api/src/common/auth/ @sebastianspicker
 apps/api/src/common/integrations/ @sebastianspicker
+docs/assets/screenshots/ @sebastianspicker
+docs/RELEASING.md @sebastianspicker
+RELEASE_STATUS.md @sebastianspicker
 docs/SECURITY.md @sebastianspicker
 SECURITY.md @sebastianspicker

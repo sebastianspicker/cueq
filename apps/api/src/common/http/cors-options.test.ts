@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCorsOptions } from './cors-options';
+import { buildCorsOptions } from './cors-options.js';
 
 function allowOrigin(options: ReturnType<typeof buildCorsOptions>, origin: string | undefined) {
   return new Promise<boolean>((resolve, reject) => {

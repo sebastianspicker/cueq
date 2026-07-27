@@ -4,7 +4,7 @@ import {
   calculateLeaveLedger,
   calculateLeaveQuota,
   calculateProratedMonthlyTarget,
-} from '..';
+} from '../index.js';
 import { DEFAULT_LEAVE_RULE } from '@cueq/policy';
 
 describe('calculateProratedMonthlyTarget', () => {
@@ -178,9 +178,9 @@ describe('calculateLeaveQuota', () => {
   });
 });
 
-describe('calculateProratedMonthlyTarget — mid-year start/end', () => {
+describe('calculateProratedMonthlyTarget: mid-year start/end', () => {
   it('pro-rates a single segment for an employee starting mid-month', () => {
-    // Employee starts July 15 — only works the second half of July 2026
+    // Employee starts July 15: only works the second half of July 2026
     // July 15-31: 13 calendar days. Weekdays: 13 (Jul 15 Wed to Jul 31 Fri)
     // Actually let's count: Jul 15(Wed),16(Thu),17(Fri),20(Mon),21(Tue),22(Wed),23(Thu),24(Fri),27(Mon),28(Tue),29(Wed),30(Thu),31(Fri) = 13 weekdays
     const result = calculateProratedMonthlyTarget({
@@ -196,7 +196,7 @@ describe('calculateProratedMonthlyTarget — mid-year start/end', () => {
   });
 
   it('pro-rates for an employee leaving mid-month', () => {
-    // Employee leaves March 15, 2026 — works only first half of March
+    // Employee leaves March 15, 2026: works only first half of March
     // Mar 2-13 weekdays (Mar 1 is Sunday): Mar 2(Mon)..Mar 13(Fri) = 10 weekdays
     // Plus Mar 16 is Monday, but employee leaves on 15th (Sunday)
     // Mar 1(Sun skip), 2(Mon),3(Tue),4(Wed),5(Thu),6(Fri),9(Mon),10(Tue),11(Wed),12(Thu),13(Fri) = 10 weekdays
@@ -232,7 +232,7 @@ describe('calculateProratedMonthlyTarget — mid-year start/end', () => {
   });
 });
 
-describe('calculateLeaveQuota — mid-year pro-rata', () => {
+describe('calculateLeaveQuota: mid-year pro-rata', () => {
   it('pro-rates for employee starting July 1 (6 months coverage)', () => {
     const result = calculateLeaveQuota({
       year: 2026,
@@ -274,7 +274,7 @@ describe('calculateLeaveQuota — mid-year pro-rata', () => {
   });
 });
 
-describe('calculateLeaveLedger — mid-year pro-rata', () => {
+describe('calculateLeaveLedger: mid-year pro-rata', () => {
   it('pro-rates entitlement for mid-year start (July)', () => {
     const result = calculateLeaveLedger(
       {
@@ -468,7 +468,7 @@ describe('calculateLeaveLedger', () => {
   });
 });
 
-describe('calculateLeaveLedger — TV-L carry-over rules', () => {
+describe('calculateLeaveLedger: TV-L carry-over rules', () => {
   it('caps carry-over at rule maxDays', () => {
     const result = calculateLeaveLedger(
       {
@@ -519,7 +519,7 @@ describe('calculateLeaveLedger — TV-L carry-over rules', () => {
 
     // Deadline is March 31 23:59:59.999. asOf equals deadline, so asOf > deadline is false.
     // No usage after deadline, so forfeiture is triggered by "asOf > deadline" check at end.
-    // Actually asOf is exactly equal to deadline — not strictly greater — so no forfeiture
+    // Actually asOf is exactly equal to deadline: not strictly greater: so no forfeiture
     expect(result.carriedOverUsedDays).toBe(3);
     expect(result.carriedOverRemainingDays).toBe(7);
     expect(result.forfeitedDays).toBe(0);
@@ -643,7 +643,7 @@ describe('calculateLeaveLedger — TV-L carry-over rules', () => {
   });
 });
 
-describe('calculateLeaveQuota — carry-over rules', () => {
+describe('calculateLeaveQuota: carry-over rules', () => {
   it('does not forfeit when asOfDate is before the deadline', () => {
     const result = calculateLeaveQuota({
       year: 2026,
@@ -684,7 +684,7 @@ describe('calculateLeaveQuota — carry-over rules', () => {
   });
 });
 
-describe('calculateLeaveLedger — part-time employees', () => {
+describe('calculateLeaveLedger: part-time employees', () => {
   it('proportionally reduces entitlement for 30h/week part-time (≈75.3%)', () => {
     const result = calculateLeaveLedger(
       {
@@ -760,7 +760,7 @@ describe('calculateLeaveLedger — part-time employees', () => {
   });
 });
 
-describe('calculateAbsenceWorkingDays — edge cases', () => {
+describe('calculateAbsenceWorkingDays: edge cases', () => {
   it('returns 0 when employee starts on a holiday (single-day range)', () => {
     // 2026-01-01 is Neujahr (NRW holiday)
     const days = calculateAbsenceWorkingDays({
@@ -818,7 +818,7 @@ describe('calculateAbsenceWorkingDays — edge cases', () => {
   });
 });
 
-describe('calculateProratedMonthlyTarget — holiday edge cases', () => {
+describe('calculateProratedMonthlyTarget: holiday edge cases', () => {
   it('handles segment starting on a holiday', () => {
     // Jan 1 2026 is Neujahr (Thursday). Employee starts Jan 1.
     const result = calculateProratedMonthlyTarget({
@@ -834,7 +834,7 @@ describe('calculateProratedMonthlyTarget — holiday edge cases', () => {
   });
 });
 
-describe('calculateLeaveLedger — holiday/termination edge cases', () => {
+describe('calculateLeaveLedger: holiday/termination edge cases', () => {
   it('correctly pro-rates when employment starts on a holiday month', () => {
     // Employee starts Jan 1 (Neujahr). Pro-rata uses month, not individual days.
     const result = calculateLeaveLedger(
@@ -867,7 +867,7 @@ describe('calculateLeaveLedger — holiday/termination edge cases', () => {
   });
 });
 
-describe('calculateLeaveLedger — empty booking periods', () => {
+describe('calculateLeaveLedger: empty booking periods', () => {
   it('returns full entitlement with no usage', () => {
     const result = calculateLeaveLedger(
       {
@@ -953,7 +953,7 @@ describe('calculateLeaveLedger — empty booking periods', () => {
   });
 });
 
-describe('calculateProratedMonthlyTarget — empty segments', () => {
+describe('calculateProratedMonthlyTarget: empty segments', () => {
   it('returns zero target hours for empty segments array', () => {
     const result = calculateProratedMonthlyTarget({
       month: '2026-04',
@@ -979,7 +979,7 @@ describe('calculateProratedMonthlyTarget — empty segments', () => {
   });
 });
 
-describe('calculateLeaveQuota — part-time', () => {
+describe('calculateLeaveQuota: part-time', () => {
   it('applies employment fraction to full entitlement', () => {
     const result = calculateLeaveQuota({
       year: 2026,

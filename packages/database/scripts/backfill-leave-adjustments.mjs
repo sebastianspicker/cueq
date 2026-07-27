@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** Backfills missing leave-adjustment records for a year; --dry-run reports proposed changes without writing them. */
 import { PrismaClient, Role } from '@prisma/client';
 import { runLeaveAdjustmentBackfill } from '../../../scripts/lib/leave-adjustment-backfill-runner.mjs';
 import { parseArgsMap } from '../../../scripts/lib/parse-args.mjs';

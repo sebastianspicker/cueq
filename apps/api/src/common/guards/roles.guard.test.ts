@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { RolesGuard } from './roles.guard';
+import { RolesGuard } from './roles.guard.js';
 
 function createMockContext(user?: { role?: string }) {
   return {
@@ -14,21 +14,46 @@ function createMockContext(user?: { role?: string }) {
 }
 
 describe('RolesGuard', () => {
-  describe('when no roles are required', () => {
-    it('allows access when no @Roles decorator is set', () => {
+  describe('route policy classification', () => {
+    it('allows public routes', () => {
       const reflector = new Reflector();
-      reflector.getAllAndOverride = (() => undefined) as never;
+      reflector.getAllAndOverride = ((metadataKey: string) =>
+        metadataKey === 'isPublicRoute' ? true : undefined) as never;
       const guard = new RolesGuard(reflector);
 
       expect(guard.canActivate(createMockContext({ role: 'EMPLOYEE' }))).toBe(true);
     });
 
-    it('allows access when roles array is empty', () => {
+    it('allows authenticated routes with service-layer authorization', () => {
       const reflector = new Reflector();
       reflector.getAllAndOverride = (() => []) as never;
+      reflector.get = ((metadataKey: string) =>
+        metadataKey === 'isAuthenticatedRoute' ? true : undefined) as never;
       const guard = new RolesGuard(reflector);
 
       expect(guard.canActivate(createMockContext({ role: 'EMPLOYEE' }))).toBe(true);
+    });
+
+    it('fails closed for routes without an authorization policy', () => {
+      const reflector = new Reflector();
+      reflector.getAllAndOverride = (() => undefined) as never;
+      reflector.get = (() => undefined) as never;
+      const guard = new RolesGuard(reflector);
+
+      expect(() => guard.canActivate(createMockContext({ role: 'EMPLOYEE' }))).toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('fails closed for empty @Roles metadata', () => {
+      const reflector = new Reflector();
+      reflector.getAllAndOverride = (() => []) as never;
+      reflector.get = (() => undefined) as never;
+      const guard = new RolesGuard(reflector);
+
+      expect(() => guard.canActivate(createMockContext({ role: 'EMPLOYEE' }))).toThrow(
+        ForbiddenException,
+      );
     });
   });
 

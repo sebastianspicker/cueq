@@ -1,3 +1,4 @@
+/** Request-validation adapter that translates Zod failures into stable API 400 responses. */
 import type { PipeTransform } from '@nestjs/common';
 import { BadRequestException } from '@nestjs/common';
 import type { ZodType, ZodTypeDef, ZodError } from 'zod';

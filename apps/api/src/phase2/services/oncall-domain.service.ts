@@ -1,3 +1,4 @@
+/** Owns authorized on-call planning reads and closing-aware mutations. */
 import {
   BadRequestException,
   ConflictException,
@@ -15,12 +16,14 @@ import {
   ListOnCallDeploymentsQuerySchema,
   UpdateOnCallRotationSchema,
 } from '@cueq/shared';
-import { PrismaService } from '../../persistence/prisma.service';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { PersonHelper } from '../helpers/person.helper';
-import { AuditHelper } from '../helpers/audit.helper';
-import { APPROVAL_ROLES, assertCanActForPerson } from '../helpers/role-constants';
-import { bookingOverlapWhere } from '../helpers/booking-overlap.helper';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { PersonHelper } from '../helpers/person.helper.js';
+import { AuditHelper } from '../helpers/audit.helper.js';
+import { ClosingLockHelper } from '../helpers/closing-lock.helper.js';
+import { APPROVAL_ROLES, assertCanActForPerson } from '../helpers/role-constants.js';
+import { bookingOverlapWhere } from '../helpers/booking-overlap.helper.js';
+import { lockPersonWrites } from '../helpers/transaction-lock.helper.js';
 
 type OnCallDateWindowQuery = {
   from?: string;
@@ -33,12 +36,16 @@ type OnCallDateWindowWhere = {
   endTime?: { gte: Date };
 };
 
+/**
+ * Provides on-call planning operations while enforcing organization scope, closing barriers, and audit history.
+ */
 @Injectable()
 export class OncallDomainService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
+    @Inject(ClosingLockHelper) private readonly closingLockHelper: ClosingLockHelper,
   ) {}
 
   private onCallDateWindowWhere(query: OnCallDateWindowQuery): OnCallDateWindowWhere {
@@ -81,45 +88,51 @@ export class OncallDomainService {
       );
     }
 
-    const person = await this.prisma.person.findUnique({
-      where: { id: parsed.personId },
-      select: { id: true, organizationUnitId: true },
-    });
-    if (!person) {
-      throw new NotFoundException('Person for on-call rotation was not found.');
-    }
-    if (person.organizationUnitId !== parsed.organizationUnitId) {
-      throw new BadRequestException(
-        'On-call rotation organizationUnitId must match the person organization unit.',
+    return this.prisma.$transaction(async (tx) => {
+      await lockPersonWrites(tx, [parsed.personId]);
+      const person = await tx.person.findUnique({
+        where: { id: parsed.personId },
+        select: { id: true, organizationUnitId: true },
+      });
+      if (!person) {
+        throw new NotFoundException('Person for on-call rotation was not found.');
+      }
+      if (person.organizationUnitId !== parsed.organizationUnitId) {
+        throw new BadRequestException(
+          'On-call rotation organizationUnitId must match the person organization unit.',
+        );
+      }
+
+      const rotation = await tx.onCallRotation.create({
+        data: {
+          personId: parsed.personId,
+          organizationUnitId: parsed.organizationUnitId,
+          startTime: new Date(parsed.startTime),
+          endTime: new Date(parsed.endTime),
+          rotationType: parsed.rotationType,
+          note: parsed.note,
+        },
+      });
+
+      await this.auditHelper.appendAudit(
+        {
+          actorId: actor.id,
+          action: 'ONCALL_ROTATION_CREATED',
+          entityType: 'OnCallRotation',
+          entityId: rotation.id,
+          after: {
+            personId: rotation.personId,
+            organizationUnitId: rotation.organizationUnitId,
+            startTime: rotation.startTime.toISOString(),
+            endTime: rotation.endTime.toISOString(),
+            rotationType: rotation.rotationType,
+          },
+        },
+        tx,
       );
-    }
 
-    const rotation = await this.prisma.onCallRotation.create({
-      data: {
-        personId: parsed.personId,
-        organizationUnitId: parsed.organizationUnitId,
-        startTime: new Date(parsed.startTime),
-        endTime: new Date(parsed.endTime),
-        rotationType: parsed.rotationType,
-        note: parsed.note,
-      },
+      return rotation;
     });
-
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'ONCALL_ROTATION_CREATED',
-      entityType: 'OnCallRotation',
-      entityId: rotation.id,
-      after: {
-        personId: rotation.personId,
-        organizationUnitId: rotation.organizationUnitId,
-        startTime: rotation.startTime.toISOString(),
-        endTime: rotation.endTime.toISOString(),
-        rotationType: rotation.rotationType,
-      },
-    });
-
-    return rotation;
   }
 
   async listOnCallRotations(user: AuthenticatedIdentity, query: unknown): Promise<unknown> {
@@ -201,50 +214,74 @@ export class OncallDomainService {
       throw new NotFoundException('On-call rotation not found.');
     }
 
-    if (
-      (user.role === Role.TEAM_LEAD || user.role === Role.SHIFT_PLANNER) &&
-      existing.organizationUnitId !== actor.organizationUnitId
-    ) {
-      throw new ForbiddenException(
-        'Team leads and shift planners can only update rotations in their own unit.',
-      );
-    }
-
     const parsed = UpdateOnCallRotationSchema.parse(payload);
-    const nextStartTime = parsed.startTime ? new Date(parsed.startTime) : existing.startTime;
-    const nextEndTime = parsed.endTime ? new Date(parsed.endTime) : existing.endTime;
-    if (nextStartTime >= nextEndTime) {
-      throw new BadRequestException('startTime must be before endTime.');
-    }
+    return this.prisma.$transaction(async (tx) => {
+      await lockPersonWrites(tx, [existing.personId]);
+      const current = await tx.onCallRotation.findUnique({ where: { id: rotationId } });
+      if (!current) {
+        throw new NotFoundException('On-call rotation not found.');
+      }
 
-    const updated = await this.prisma.onCallRotation.update({
-      where: { id: existing.id },
-      data: {
-        startTime: parsed.startTime ? new Date(parsed.startTime) : undefined,
-        endTime: parsed.endTime ? new Date(parsed.endTime) : undefined,
-        rotationType: parsed.rotationType,
-        note: parsed.note,
-      },
+      if (
+        (user.role === Role.TEAM_LEAD || user.role === Role.SHIFT_PLANNER) &&
+        current.organizationUnitId !== actor.organizationUnitId
+      ) {
+        throw new ForbiddenException(
+          'Team leads and shift planners can only update rotations in their own unit.',
+        );
+      }
+
+      const nextStartTime = parsed.startTime ? new Date(parsed.startTime) : current.startTime;
+      const nextEndTime = parsed.endTime ? new Date(parsed.endTime) : current.endTime;
+      if (nextStartTime >= nextEndTime) {
+        throw new BadRequestException('startTime must be before endTime.');
+      }
+
+      const excludedDeployment = await tx.onCallDeployment.findFirst({
+        where: {
+          rotationId: current.id,
+          OR: [{ startTime: { lt: nextStartTime } }, { endTime: { gt: nextEndTime } }],
+        },
+        select: { id: true },
+      });
+      if (excludedDeployment) {
+        throw new BadRequestException(
+          'Rotation window cannot exclude an existing on-call deployment.',
+        );
+      }
+
+      const updated = await tx.onCallRotation.update({
+        where: { id: current.id },
+        data: {
+          startTime: parsed.startTime ? new Date(parsed.startTime) : undefined,
+          endTime: parsed.endTime ? new Date(parsed.endTime) : undefined,
+          rotationType: parsed.rotationType,
+          note: parsed.note,
+        },
+      });
+
+      await this.auditHelper.appendAudit(
+        {
+          actorId: actor.id,
+          action: 'ONCALL_ROTATION_UPDATED',
+          entityType: 'OnCallRotation',
+          entityId: updated.id,
+          before: {
+            startTime: current.startTime.toISOString(),
+            endTime: current.endTime.toISOString(),
+            rotationType: current.rotationType,
+          },
+          after: {
+            startTime: updated.startTime.toISOString(),
+            endTime: updated.endTime.toISOString(),
+            rotationType: updated.rotationType,
+          },
+        },
+        tx,
+      );
+
+      return updated;
     });
-
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'ONCALL_ROTATION_UPDATED',
-      entityType: 'OnCallRotation',
-      entityId: updated.id,
-      before: {
-        startTime: existing.startTime.toISOString(),
-        endTime: existing.endTime.toISOString(),
-        rotationType: existing.rotationType,
-      },
-      after: {
-        startTime: updated.startTime.toISOString(),
-        endTime: updated.endTime.toISOString(),
-        rotationType: updated.rotationType,
-      },
-    });
-
-    return updated;
   }
 
   async createOnCallDeployment(user: AuthenticatedIdentity, payload: unknown): Promise<unknown> {
@@ -285,80 +322,125 @@ export class OncallDomainService {
       throw new BadRequestException('Deployment end time must be within rotation window.');
     }
 
-    const duplicate = await this.prisma.onCallDeployment.findFirst({
-      where: {
-        personId: parsed.personId,
-        rotationId: parsed.rotationId,
-        startTime: deploymentStart,
-        endTime,
-      },
-      select: { id: true },
-    });
-    if (duplicate) {
-      throw new ConflictException('An identical on-call deployment already exists.');
-    }
+    const closingAttempt = {
+      actorId: actor.id,
+      organizationUnitId: rotation.organizationUnitId,
+      from: deploymentStart,
+      to: endTime,
+      attemptedAction: 'ONCALL_DEPLOYMENT_CREATE',
+      entityType: 'OnCallDeployment',
+      entityId: `${parsed.rotationId}:${parsed.personId}:${parsed.startTime}`,
+    };
+    await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
 
-    const deployment = await this.prisma.$transaction(async (tx) => {
-      const deploymentTimeType = await tx.timeType.findFirst({
-        where: { code: 'DEPLOYMENT' },
-        select: { id: true },
-      });
+    return this.prisma
+      .$transaction(async (tx) => {
+        await this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
+          {
+            organizationUnitId: rotation.organizationUnitId,
+            from: deploymentStart,
+            to: endTime,
+          },
+          tx,
+        );
+        await lockPersonWrites(tx, [parsed.personId]);
 
-      if (deploymentTimeType) {
-        const bookingOverlap = await tx.booking.findFirst({
-          where: bookingOverlapWhere({
+        const currentRotation = await tx.onCallRotation.findUnique({
+          where: { id: parsed.rotationId },
+        });
+        if (!currentRotation) {
+          throw new BadRequestException('Referenced on-call rotation does not exist.');
+        }
+        if (currentRotation.personId !== parsed.personId) {
+          throw new BadRequestException('Rotation personId does not match deployment personId.');
+        }
+        if (
+          deploymentStart < currentRotation.startTime ||
+          deploymentStart > currentRotation.endTime
+        ) {
+          throw new BadRequestException('Deployment start time must be within rotation window.');
+        }
+        if (endTime > currentRotation.endTime) {
+          throw new BadRequestException('Deployment end time must be within rotation window.');
+        }
+
+        const duplicate = await tx.onCallDeployment.findFirst({
+          where: {
             personId: parsed.personId,
+            rotationId: parsed.rotationId,
             startTime: deploymentStart,
             endTime,
-          }),
+          },
+          select: { id: true },
         });
-        if (bookingOverlap) {
-          throw new ConflictException('Deployment booking overlaps with an existing booking.');
+        if (duplicate) {
+          throw new ConflictException('An identical on-call deployment already exists.');
         }
-      }
 
-      const created = await tx.onCallDeployment.create({
-        data: {
-          personId: parsed.personId,
-          rotationId: parsed.rotationId,
-          startTime: new Date(parsed.startTime),
-          endTime,
-          remote: parsed.remote,
-          ticketReference: parsed.ticketReference,
-          eventReference: parsed.eventReference,
-          description: parsed.description,
-        },
-      });
+        const deploymentTimeType = await tx.timeType.findFirst({
+          where: { code: 'DEPLOYMENT' },
+          select: { id: true },
+        });
 
-      if (deploymentTimeType) {
-        await tx.booking.create({
+        if (deploymentTimeType) {
+          const bookingOverlap = await tx.booking.findFirst({
+            where: bookingOverlapWhere({
+              personId: parsed.personId,
+              startTime: deploymentStart,
+              endTime,
+            }),
+          });
+          if (bookingOverlap) {
+            throw new ConflictException('Deployment booking overlaps with an existing booking.');
+          }
+        }
+
+        const created = await tx.onCallDeployment.create({
           data: {
             personId: parsed.personId,
-            timeTypeId: deploymentTimeType.id,
+            rotationId: parsed.rotationId,
             startTime: new Date(parsed.startTime),
             endTime,
-            source: BookingSource.MANUAL,
-            note: parsed.description,
+            remote: parsed.remote,
+            ticketReference: parsed.ticketReference,
+            eventReference: parsed.eventReference,
+            description: parsed.description,
           },
         });
-      }
 
-      return created;
-    });
+        if (deploymentTimeType) {
+          await tx.booking.create({
+            data: {
+              personId: parsed.personId,
+              timeTypeId: deploymentTimeType.id,
+              startTime: new Date(parsed.startTime),
+              endTime,
+              source: BookingSource.MANUAL,
+              note: parsed.description,
+            },
+          });
+        }
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'ONCALL_DEPLOYMENT_CREATED',
-      entityType: 'OnCallDeployment',
-      entityId: deployment.id,
-      after: {
-        personId: deployment.personId,
-        startTime: deployment.startTime.toISOString(),
-        endTime: deployment.endTime.toISOString(),
-      },
-    });
+        await this.auditHelper.appendAudit(
+          {
+            actorId: actor.id,
+            action: 'ONCALL_DEPLOYMENT_CREATED',
+            entityType: 'OnCallDeployment',
+            entityId: created.id,
+            after: {
+              personId: created.personId,
+              startTime: created.startTime.toISOString(),
+              endTime: created.endTime.toISOString(),
+            },
+          },
+          tx,
+        );
 
-    return deployment;
+        return created;
+      })
+      .catch((error: unknown) =>
+        this.closingLockHelper.rethrowWithDurableClosingAudit(error, closingAttempt),
+      );
   }
 
   async onCallCompliance(
@@ -383,6 +465,7 @@ export class OncallDomainService {
     const deployments = await this.prisma.onCallDeployment.findMany({
       where: {
         personId: targetPersonId,
+        startTime: { lt: shiftStart },
       },
       orderBy: { endTime: 'desc' },
       take: 20,

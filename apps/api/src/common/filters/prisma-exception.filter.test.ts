@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@cueq/database';
-import { PrismaExceptionFilter } from './prisma-exception.filter';
+import { PrismaExceptionFilter } from './prisma-exception.filter.js';
 
 function buildMockHost(statusFn: ReturnType<typeof vi.fn>, jsonFn: ReturnType<typeof vi.fn>) {
   return {

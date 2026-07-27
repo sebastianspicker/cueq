@@ -1,24 +1,47 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+/** Orchestrates monthly closing lifecycle, correction, cutoff, and export operations. */
+import {
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ClosingLockSource, ClosingStatus, Role } from '@cueq/database';
 import { ClosingPeriodMonthQuerySchema } from '@cueq/shared';
-import { PrismaService } from '../../persistence/prisma.service';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { AuditHelper } from '../helpers/audit.helper';
-import { PersonHelper } from '../helpers/person.helper';
-import { CLOSING_READ_ROLES } from '../helpers/role-constants';
-import { ClosingChecklistHelper } from '../helpers/closing-checklist.helper';
-import { ClosingCorrectionHelper } from '../helpers/closing-correction.helper';
-import { ClosingExportHelper } from '../helpers/closing-export.helper';
-import { ClosingLifecycleHelper } from '../helpers/closing-lifecycle.helper';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { AuditHelper } from '../helpers/audit.helper.js';
+import { PersonHelper } from '../helpers/person.helper.js';
+import { CLOSING_READ_ROLES } from '../helpers/role-constants.js';
+import { ClosingChecklistHelper } from '../helpers/closing-checklist.helper.js';
+import { ClosingCorrectionHelper } from '../helpers/closing-correction.helper.js';
+import { ClosingExportHelper } from '../helpers/closing-export.helper.js';
+import { ClosingLifecycleHelper } from '../helpers/closing-lifecycle.helper.js';
 import {
   closingAutoCutoffEnabled,
   cutoffAtForPeriod,
   mapClosingPeriodResponse,
   parseMonthToRange,
-} from '../helpers/closing-utils';
+} from '../helpers/closing-utils.js';
+import { lockClosingPeriodWrites } from '../helpers/transaction-lock.helper.js';
+
+function isBusyClosingPeriod(error: unknown): boolean {
+  if (!(error instanceof ConflictException)) return false;
+  const response = error.getResponse();
+  return (
+    typeof response === 'object' &&
+    response !== null &&
+    Reflect.get(response, 'code') === 'CLOSING_PERIOD_WRITE_IN_PROGRESS'
+  );
+}
 
 /* ── Service ─────────────────────────────────────────────── */
 
+/**
+ * Orchestrates monthly-closing lifecycle transitions, safeguards, corrections, and payroll exports.
+ * Closing status is a write barrier for operational data and every transition is audit-backed.
+ */
 @Injectable()
 export class ClosingDomainService {
   constructor(
@@ -39,6 +62,7 @@ export class ClosingDomainService {
         enabled: false,
         evaluated: 0,
         transitioned: 0,
+        busy: 0,
       };
     }
 
@@ -48,47 +72,66 @@ export class ClosingDomainService {
       orderBy: { periodStart: 'asc' },
     });
 
+    const duePeriods = periods
+      .map((period) => ({ period, cutoff: cutoffAtForPeriod(period) }))
+      .filter(({ cutoff }) => now >= cutoff);
+    if (duePeriods.length === 0) {
+      return {
+        enabled: true,
+        evaluated: periods.length,
+        transitioned: 0,
+        busy: 0,
+      };
+    }
+
     const actorId = await this.auditHelper.resolveSystemActorId();
-    let transitioned = 0;
-
-    for (const period of periods) {
-      const cutoff = cutoffAtForPeriod(period);
-      if (now < cutoff) {
-        continue;
-      }
-
-      const updated = await this.prisma.closingPeriod.updateMany({
-        where: {
-          id: period.id,
-          status: ClosingStatus.OPEN,
-        },
-        data: {
-          status: ClosingStatus.REVIEW,
-          lockedAt: now,
-          lockSource: ClosingLockSource.AUTO_CUTOFF,
-        },
+    if (!actorId) {
+      throw new ServiceUnavailableException({
+        code: 'CLOSING_SYSTEM_ACTOR_UNAVAILABLE',
+        message: 'Automatic closing cutoff requires an ADMIN or HR audit actor.',
       });
+    }
+    let transitioned = 0;
+    let busy = 0;
 
-      if (updated.count === 0) {
-        continue;
-      }
+    for (const { period, cutoff } of duePeriods) {
+      try {
+        const didTransition = await this.prisma.$transaction(async (tx) => {
+          await lockClosingPeriodWrites(tx, period.id);
+          const current = await tx.closingPeriod.findUnique({ where: { id: period.id } });
+          if (!current || current.status !== ClosingStatus.OPEN) return false;
 
-      transitioned += 1;
-
-      if (actorId) {
-        await this.auditHelper.appendAudit({
-          actorId,
-          action: 'CLOSING_CUTOFF_APPLIED',
-          entityType: 'ClosingPeriod',
-          entityId: period.id,
-          before: { status: 'OPEN' },
-          after: {
-            status: 'REVIEW',
-            lockedAt: now.toISOString(),
-            lockSource: 'AUTO_CUTOFF',
-            cutoffAt: cutoff.toISOString(),
-          },
+          await tx.closingPeriod.update({
+            where: { id: current.id },
+            data: {
+              status: ClosingStatus.REVIEW,
+              lockedAt: now,
+              lockSource: ClosingLockSource.AUTO_CUTOFF,
+            },
+          });
+          await this.auditHelper.appendAudit(
+            {
+              actorId,
+              action: 'CLOSING_CUTOFF_APPLIED',
+              entityType: 'ClosingPeriod',
+              entityId: current.id,
+              before: { status: 'OPEN' },
+              after: {
+                status: 'REVIEW',
+                lockedAt: now.toISOString(),
+                lockSource: 'AUTO_CUTOFF',
+                cutoffAt: cutoff.toISOString(),
+              },
+            },
+            tx,
+          );
+          return true;
         });
+
+        if (didTransition) transitioned += 1;
+      } catch (error) {
+        if (!isBusyClosingPeriod(error)) throw error;
+        busy += 1;
       }
     }
 
@@ -96,6 +139,7 @@ export class ClosingDomainService {
       enabled: true,
       evaluated: periods.length,
       transitioned,
+      busy,
     };
   }
 

@@ -1,7 +1,11 @@
+/** Structural card primitive for grouping related workspace content. */
 interface SectionCardProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function SectionCard({ children }: SectionCardProps) {
-  return <article className="cq-section-card">{children}</article>;
+/** Uses an article element so grouped workspace content keeps sectioning semantics. */
+export function SectionCard({ children, className }: SectionCardProps) {
+  const classes = ['cq-section-card', className].filter(Boolean).join(' ');
+  return <article className={classes}>{children}</article>;
 }

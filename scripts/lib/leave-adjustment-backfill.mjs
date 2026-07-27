@@ -1,5 +1,7 @@
+/** Implements the transaction, advisory lock, mutation, and audit for one person-year backfill. */
 export const ZERO_DELTA_MARKER = 'LEAVE_ADJUSTMENT_BACKFILL_ZERO_DELTA';
 
+/** Create at most one zero-delta adjustment and matching audit entry for a person-year. */
 export async function backfillPersonYear(db, input) {
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`

@@ -1,6 +1,17 @@
+/** Shared roster mutation orchestration that refreshes local state after API-authorized operations. */
 import type { Dispatch, SetStateAction } from 'react';
 import type { useTranslations } from 'next-intl';
 import type { ApiRequest } from '../../../lib/api-client';
+import {
+  PlanVsActualResponseSchema,
+  RosterDetailSchema,
+  RosterPublishResponseSchema,
+  RosterShiftDetailSchema,
+  RosterUnassignResponseSchema,
+  ShiftAssignmentSchema,
+  WorkflowInstanceSchema,
+} from '@cueq/shared';
+import { localDateTimeInputToIsoInstant } from '../../../lib/datetime-local';
 import type { PlanVsActual, RosterDetail } from './roster-sections';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
@@ -31,9 +42,12 @@ export interface RosterOperationContext {
 
 async function refreshRoster(context: RosterOperationContext, targetRosterId?: string) {
   const path = targetRosterId ? `/v1/rosters/${targetRosterId}` : '/v1/rosters/current';
-  const detail = await context.apiRequest<RosterDetail>(path);
+  const detail = await context.apiRequest(path, RosterDetailSchema);
   context.setRoster(detail);
-  const plan = await context.apiRequest<PlanVsActual>(`/v1/rosters/${detail.id}/plan-vs-actual`);
+  const plan = await context.apiRequest(
+    `/v1/rosters/${detail.id}/plan-vs-actual`,
+    PlanVsActualResponseSchema,
+  );
   context.setPlanVsActual(plan);
   return detail;
 }
@@ -51,6 +65,7 @@ async function runRosterOperation(context: RosterOperationContext, operation: ()
   }
 }
 
+/** Loads the currently selected roster and replaces stale detail state. */
 export function loadCurrentRoster(context: RosterOperationContext) {
   return runRosterOperation(context, async () => {
     const detail = await refreshRoster(context);
@@ -61,19 +76,26 @@ export function loadCurrentRoster(context: RosterOperationContext) {
   });
 }
 
+/** Creates a draft roster, then refreshes the local workspace from the API. */
 export function createDraftRoster(context: RosterOperationContext) {
   const organizationUnitId = context.draftOrganizationUnitId || context.roster?.organizationUnitId;
   if (!organizationUnitId) {
     context.setError(context.t('missingOu'));
     return Promise.resolve();
   }
+  const periodStart = localDateTimeInputToIsoInstant(context.draftPeriodStart);
+  const periodEnd = localDateTimeInputToIsoInstant(context.draftPeriodEnd);
+  if (!periodStart || !periodEnd) {
+    context.setError(context.t('invalidDateTime'));
+    return Promise.resolve();
+  }
   return runRosterOperation(context, async () => {
-    const created = await context.apiRequest<RosterDetail>('/v1/rosters', {
+    const created = await context.apiRequest('/v1/rosters', RosterDetailSchema, {
       method: 'POST',
       body: JSON.stringify({
         organizationUnitId,
-        periodStart: new Date(context.draftPeriodStart).toISOString(),
-        periodEnd: new Date(context.draftPeriodEnd).toISOString(),
+        periodStart,
+        periodEnd,
       }),
     });
     await refreshRoster(context, created.id);
@@ -81,14 +103,21 @@ export function createDraftRoster(context: RosterOperationContext) {
   });
 }
 
+/** Creates a shift for the selected draft through the server-authorized roster workflow. */
 export function createShift(context: RosterOperationContext) {
   if (!context.roster) return Promise.resolve();
+  const startTime = localDateTimeInputToIsoInstant(context.shiftStart);
+  const endTime = localDateTimeInputToIsoInstant(context.shiftEnd);
+  if (!startTime || !endTime) {
+    context.setError(context.t('invalidDateTime'));
+    return Promise.resolve();
+  }
   return runRosterOperation(context, async () => {
-    await context.apiRequest(`/v1/rosters/${context.roster?.id}/shifts`, {
+    await context.apiRequest(`/v1/rosters/${context.roster?.id}/shifts`, RosterShiftDetailSchema, {
       method: 'POST',
       body: JSON.stringify({
-        startTime: new Date(context.shiftStart).toISOString(),
-        endTime: new Date(context.shiftEnd).toISOString(),
+        startTime,
+        endTime,
         shiftType: context.shiftType,
         minStaffing: context.minStaffing,
       }),
@@ -98,19 +127,25 @@ export function createShift(context: RosterOperationContext) {
   });
 }
 
+/** Assigns the entered person to a shift and refreshes the affected roster state. */
 export function assignShift(context: RosterOperationContext, shiftId: string) {
   const personId = context.assignSelection[shiftId] ?? context.roster?.members[0]?.id;
   if (!context.roster || !personId) return Promise.resolve();
   return runRosterOperation(context, async () => {
-    await context.apiRequest(`/v1/rosters/${context.roster?.id}/shifts/${shiftId}/assignments`, {
-      method: 'POST',
-      body: JSON.stringify({ personId }),
-    });
+    await context.apiRequest(
+      `/v1/rosters/${context.roster?.id}/shifts/${shiftId}/assignments`,
+      ShiftAssignmentSchema,
+      {
+        method: 'POST',
+        body: JSON.stringify({ personId }),
+      },
+    );
     await refreshRoster(context, context.roster?.id);
     context.setMessage(context.t('assignmentCreated'));
   });
 }
 
+/** Removes an assignment through the API before refreshing the workspace state. */
 export function unassignShift(
   context: RosterOperationContext,
   shiftId: string,
@@ -120,6 +155,7 @@ export function unassignShift(
   return runRosterOperation(context, async () => {
     await context.apiRequest(
       `/v1/rosters/${context.roster?.id}/shifts/${shiftId}/assignments/${assignmentId}`,
+      RosterUnassignResponseSchema,
       { method: 'DELETE' },
     );
     await refreshRoster(context, context.roster?.id);
@@ -127,15 +163,23 @@ export function unassignShift(
   });
 }
 
+/** Requests publication of the selected roster; server policy decides whether it can proceed. */
 export function publishRoster(context: RosterOperationContext) {
   if (!context.roster) return Promise.resolve();
   return runRosterOperation(context, async () => {
-    await context.apiRequest(`/v1/rosters/${context.roster?.id}/publish`, { method: 'POST' });
+    await context.apiRequest(
+      `/v1/rosters/${context.roster?.id}/publish`,
+      RosterPublishResponseSchema,
+      {
+        method: 'POST',
+      },
+    );
     await refreshRoster(context, context.roster?.id);
     context.setMessage(context.t('published'));
   });
 }
 
+/** Submits a shift-swap workflow request and refreshes the selected roster afterward. */
 export function requestShiftSwap(context: RosterOperationContext) {
   const complete =
     context.roster && context.swapShiftId && context.swapFromPersonId && context.swapToPersonId;
@@ -144,7 +188,7 @@ export function requestShiftSwap(context: RosterOperationContext) {
     return Promise.resolve();
   }
   return runRosterOperation(context, async () => {
-    await context.apiRequest('/v1/workflows/shift-swaps', {
+    await context.apiRequest('/v1/workflows/shift-swaps', WorkflowInstanceSchema, {
       method: 'POST',
       body: JSON.stringify({
         shiftId: context.swapShiftId,

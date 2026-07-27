@@ -1,3 +1,4 @@
+/** Exposes authorized roster and shift-planning endpoints. */
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
@@ -7,13 +8,14 @@ import {
   UpdateShiftSchema,
   AssignShiftSchema,
 } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { RosterDomainService } from '../services/roster-domain.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { RosterDomainService } from '../services/roster-domain.service.js';
 
+/** HTTP boundary for draft roster editing, assignment, publication, and closing-aware reads. */
 @ApiTags('roster')
 @ApiBearerAuth()
 @Controller('v1/rosters')
@@ -31,12 +33,14 @@ export class RostersController {
   }
 
   @Get('current')
+  @Roles(Role.EMPLOYEE, Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Get currently active roster for authenticated user organization unit' })
   current(@CurrentUser() user: AuthenticatedIdentity) {
     return this.rosterService.currentRoster(user);
   }
 
   @Get(':id')
+  @Roles(Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Get roster detail with shifts and assignments' })
   byId(@CurrentUser() user: AuthenticatedIdentity, @Param('id', ParseCuidPipe) rosterId: string) {
     return this.rosterService.rosterById(user, rosterId);
@@ -111,6 +115,7 @@ export class RostersController {
   }
 
   @Get(':id/plan-vs-actual')
+  @Roles(Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Compute plan-vs-actual compliance for roster' })
   planVsActual(
     @CurrentUser() user: AuthenticatedIdentity,

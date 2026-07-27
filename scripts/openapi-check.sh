@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Builds a fresh OpenAPI document and byte-compares it with the committed public
+# snapshot, leaving the generated candidate available only for diagnosis.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,8 +15,9 @@ if [[ ! -f "${SNAPSHOT_FILE}" ]]; then
   exit 1
 fi
 
-run_pnpm --filter @cueq/api exec tsc --project tsconfig.json --incremental false
-run_pnpm --filter @cueq/api exec node ../../scripts/export-openapi.mjs "${GENERATED_FILE}"
+run_pnpm db:generate
+run_pnpm --filter @cueq/api... build
+run_pnpm --filter @cueq/api exec node dist/commands/export-openapi.js "${GENERATED_FILE}"
 
 if ! diff -u "${SNAPSHOT_FILE}" "${GENERATED_FILE}"; then
   echo ""

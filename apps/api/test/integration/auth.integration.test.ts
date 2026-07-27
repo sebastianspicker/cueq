@@ -2,7 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { SignJWT } from 'jose';
-import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
+import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers.js';
 
 interface SamlTokenInput {
   sub: string;

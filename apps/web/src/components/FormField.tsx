@@ -1,3 +1,4 @@
+/** Form-field wrapper that links labels, hints, and validation feedback to its control. */
 import { cloneElement, isValidElement, useId, type ReactElement, type ReactNode } from 'react';
 
 interface FormFieldProps {
@@ -8,6 +9,7 @@ interface FormFieldProps {
   required?: boolean;
 }
 
+/** Provides stable accessibility identifiers for a labeled field and its feedback. */
 export function FormField({ label, children, error, hint, required }: FormFieldProps) {
   const autoId = useId();
   const errorId = error ? `${autoId}-error` : undefined;

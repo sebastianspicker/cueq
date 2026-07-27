@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PrismaClient } from '../index';
+import { PrismaClient } from '../index.js';
 
 describe('@cueq/database smoke test', () => {
   it('exports PrismaClient', () => {

@@ -1,20 +1,28 @@
 'use client';
 
+/** Booking workspace for personal entries and correction requests; API policy remains authoritative. */
+
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { BookingSchema, WorkflowInstanceSchema } from '@cueq/shared';
 import { LoadingSpinner } from '../../../components/LoadingSpinner';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
+import {
+  loadAndApply,
+  refreshAfterMutation,
+  type RefreshResult,
+} from '../../../lib/mutation-refresh';
 import { BookingCorrectionSection, BookingsTableSection, type Booking } from './bookings-sections';
 
+/** Hosts booking retrieval and correction-request mutation state. */
 export default function BookingsPage() {
   const t = useTranslations('pages.bookings');
   const params = useParams<{ locale: string }>();
   const locale = typeof params?.locale === 'string' ? params.locale : 'de';
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiRequest } = useApiContext();
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -28,15 +36,21 @@ export default function BookingsPage() {
   const [reason, setReason] = useState('Please correct this booking due to timestamp mismatch.');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  async function loadBookings() {
+  async function loadBookings(preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
-    setError(null);
-    setMessage(null);
+    if (!preserveFeedback) {
+      setError(null);
+      setMessage(null);
+    }
     try {
-      const data = await apiRequest<Booking[]>('/v1/bookings/me');
-      setBookings(data);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      const result = await loadAndApply(
+        () => apiRequest('/v1/bookings/me', BookingSchema.array()),
+        setBookings,
+      );
+      if (!result.ok && !preserveFeedback) {
+        setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
+      }
+      return result;
     } finally {
       setLoading(false);
     }
@@ -60,18 +74,25 @@ export default function BookingsPage() {
     setError(null);
     setMessage(null);
     try {
-      await apiRequest('/v1/workflows/booking-corrections', {
-        method: 'POST',
-        body: JSON.stringify({
-          bookingId,
-          startTime: startTime || undefined,
-          endTime: endTime || undefined,
-          timeTypeId: timeTypeId || undefined,
-          reason,
-        }),
-      });
-      await loadBookings();
-      setMessage(t('correctionCreated'));
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest('/v1/workflows/booking-corrections', WorkflowInstanceSchema, {
+            method: 'POST',
+            body: JSON.stringify({
+              bookingId,
+              startTime: startTime || undefined,
+              endTime: endTime || undefined,
+              timeTypeId: timeTypeId || undefined,
+              reason,
+            }),
+          }),
+        () => loadBookings(true),
+      );
+      if (refresh.ok) {
+        setMessage(t('correctionCreated'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -85,15 +106,6 @@ export default function BookingsPage() {
       description={t('description')}
       breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}
     >
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
-
       <div>
         <button type="button" disabled={loading} onClick={() => void loadBookings()}>
           {loading ? t('loading') : t('load')}

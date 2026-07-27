@@ -1,11 +1,13 @@
-import type { PlausibilityIssue } from '../types';
-import { diffHours, overlapExists } from '../utils';
+/** Detects malformed, overlapping, or implausibly long time intervals before policy evaluation. */
+import type { PlausibilityIssue } from '../types.js';
+import { diffHours, overlapExists } from '../utils.js';
 
 export interface PlausibilityInterval {
   start: string;
   end?: string;
 }
 
+/** Return all missing-end, non-positive-duration, and overlap findings without throwing. */
 export function evaluatePlausibility(intervals: PlausibilityInterval[]): PlausibilityIssue[] {
   const issues: PlausibilityIssue[] = [];
   const completeIntervals: Array<{ start: string; end: string }> = [];

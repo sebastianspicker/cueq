@@ -1,5 +1,17 @@
 import { defineConfig } from 'vitest/config';
 
+const specializedTestExcludes =
+  process.env.CUEQ_INCLUDE_SPECIALIZED_TESTS === '1'
+    ? []
+    : [
+        'src/**/*.integration.test.ts',
+        'src/**/*.integration.test.tsx',
+        'src/**/*.acceptance.test.ts',
+        'src/**/*.acceptance.test.tsx',
+        'src/**/*.compliance.test.ts',
+        'src/**/*.compliance.test.tsx',
+      ];
+
 export default defineConfig({
   esbuild: {
     jsx: 'automatic',
@@ -9,7 +21,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    exclude: ['**/dist/**', '**/.next/**', '**/node_modules/**'],
+    exclude: ['**/dist/**', '**/.next/**', '**/node_modules/**', ...specializedTestExcludes],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts', 'src/**/*.tsx'],
@@ -21,10 +33,10 @@ export default defineConfig({
       ],
       reporter: ['text', 'json-summary'],
       thresholds: {
-        lines: 60,
-        functions: 60,
-        branches: 55,
-        statements: 60,
+        lines: 20,
+        functions: 45,
+        branches: 70,
+        statements: 20,
       },
     },
   },

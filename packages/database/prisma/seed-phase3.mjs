@@ -1,3 +1,4 @@
+/** Extends the deterministic Phase 2 baseline with synthetic terminal and HR-import pilot data. */
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
@@ -19,6 +20,7 @@ const IDs = {
   auditSeed: stableCuid(1_002),
 };
 
+/** Deletes Phase 3 additions before delegating to the destructive Phase 2 reset. */
 async function reset() {
   await prisma.terminalHeartbeat.deleteMany();
   await prisma.terminalDevice.deleteMany();
@@ -26,6 +28,7 @@ async function reset() {
   runPhase2('reset');
 }
 
+/** Rebuilds the Phase 2 dependency layer, then upserts Phase 3 fixtures and appends idempotent seed evidence. */
 async function seed() {
   runPhase2('seed');
 
@@ -77,17 +80,20 @@ async function seed() {
     },
   });
 
-  await prisma.auditEntry.create({
-    data: {
-      id: IDs.auditSeed,
-      actorId: 'system:phase3-seed',
-      action: 'PHASE3_SEED_COMPLETED',
-      entityType: 'SeedRun',
-      entityId: 'phase3-default',
-      after: { seeded: true, seededAt: FIXED_SEED_TIMESTAMP.toISOString() },
-      reason: 'Synthetic deterministic phase-3 pilot baseline',
-      ipAddress: '127.0.0.1',
-    },
+  await prisma.auditEntry.createMany({
+    data: [
+      {
+        id: IDs.auditSeed,
+        actorId: 'system:phase3-seed',
+        action: 'PHASE3_SEED_COMPLETED',
+        entityType: 'SeedRun',
+        entityId: 'phase3-default',
+        after: { seeded: true, seededAt: FIXED_SEED_TIMESTAMP.toISOString() },
+        reason: 'Synthetic deterministic phase-3 pilot baseline',
+        ipAddress: '127.0.0.1',
+      },
+    ],
+    skipDuplicates: true,
   });
 }
 

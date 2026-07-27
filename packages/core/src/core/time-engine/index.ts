@@ -1,3 +1,4 @@
+/** Orchestrates the pure time-rule engine and returns normalized violations, warnings, and totals. */
 import {
   DEFAULT_BREAK_RULE,
   DEFAULT_MAX_HOURS_RULE,
@@ -6,36 +7,40 @@ import {
 } from '@cueq/policy';
 import type { SurchargeCategory } from '@cueq/policy';
 import { toHolidaySet } from '@cueq/shared';
-import type { DomainWarning, RuleViolation } from '../types';
-import { roundToTwo, toViolation } from '../utils';
+import type { DomainWarning, RuleViolation } from '../types.js';
+import { compareIsoInstants, roundToTwo, toViolation } from '../utils.js';
 import {
   addOverlapViolations,
   classifyIntervals,
   mergeWorkIntervals,
-} from './interval-classification';
-import { recordPauseMinutes, recordWorkMinutes } from './minute-accounting';
-import type { DailyTotals } from './minute-accounting';
+} from './interval-classification.js';
+import { recordPauseMinutes, recordWorkMinutes } from './minute-accounting.js';
+import type { DailyTotals } from './minute-accounting.js';
 import {
   addDailyRuleOutcomes,
   addRestViolations,
   addWeeklyMaxHoursViolation,
   buildSurchargeMinutes,
-} from './rule-outcomes';
-import { parseLocalTimeToMinute } from './surcharge';
-import type { TimeEnginePolicy, TimeRuleEvaluationInput, TimeRuleEvaluationResult } from './types';
+} from './rule-outcomes.js';
+import { parseLocalTimeToMinute } from './surcharge.js';
+import type {
+  TimeEnginePolicy,
+  TimeRuleEvaluationInput,
+  TimeRuleEvaluationResult,
+} from './types.js';
 
 export type {
   TimeEnginePolicy,
   TimeRuleEvaluationInput,
   TimeRuleEvaluationResult,
   TimeRuleInterval,
-} from './types';
-export type { PlausibilityInterval } from './plausibility';
-export { evaluatePlausibility } from './plausibility';
-export type { FlextimeWeekBooking, FlextimeWeekInput, FlextimeWeekResult } from './flextime';
-export { calculateFlextimeWeek } from './flextime';
-export type { OnCallDeployment, OnCallRestInput, OnCallRestResult } from './oncall-rest';
-export { evaluateOnCallRestCompliance } from './oncall-rest';
+} from './types.js';
+export type { PlausibilityInterval } from './plausibility.js';
+export { evaluatePlausibility } from './plausibility.js';
+export type { FlextimeWeekBooking, FlextimeWeekInput, FlextimeWeekResult } from './flextime.js';
+export { calculateFlextimeWeek } from './flextime.js';
+export type { OnCallDeployment, OnCallRestInput, OnCallRestResult } from './oncall-rest.js';
+export { evaluateOnCallRestCompliance } from './oncall-rest.js';
 
 /**
  * Evaluate ArbZG / TV-L time-tracking rules for a set of work intervals.
@@ -96,7 +101,12 @@ export function evaluateTimeRules(
   const normalizedWorkIntervals = mergeWorkIntervals(
     [...workIntervals]
       .map((interval) => ({ ...interval }))
-      .sort((left, right) => left.start.localeCompare(right.start)),
+      .sort((left, right) => compareIsoInstants(left.start, right.start)),
+  );
+  const normalizedPauseIntervals = mergeWorkIntervals(
+    [...pauseIntervals]
+      .map((interval) => ({ ...interval }))
+      .sort((left, right) => compareIsoInstants(left.start, right.start)),
   );
 
   const totalWorkMinutes = recordWorkMinutes(
@@ -109,8 +119,8 @@ export function evaluateTimeRules(
     categoryConfigByCategory,
     surchargeBuckets,
   );
-  recordPauseMinutes(pauseIntervals, formatter, daily);
-  addRestViolations(normalizedWorkIntervals, restRule, violations);
+  recordPauseMinutes(normalizedPauseIntervals, formatter, daily);
+  addRestViolations(normalizedWorkIntervals, restRule, violations, timezone);
   addDailyRuleOutcomes(daily, maxHoursRule, breakRule, warnings, violations);
 
   const actualHours = roundToTwo(totalWorkMinutes / 60);

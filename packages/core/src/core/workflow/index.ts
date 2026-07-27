@@ -1,6 +1,7 @@
-import type { RuleViolation } from '../types';
+/** Implements the pure workflow state machine and validates allowed approval transitions. */
+import type { RuleViolation } from '../types.js';
 import type { CoreWorkflowTransitionContract } from '@cueq/shared';
-import { toIso, toViolation } from '../utils';
+import { toIso, toViolation } from '../utils.js';
 
 export type WorkflowStatus =
   | 'DRAFT'
@@ -19,13 +20,17 @@ export type TransitionWorkflowInput = CoreWorkflowTransitionContract['input'] & 
   at?: string;
 };
 
-export type TransitionWorkflowResult = Omit<
+type TransitionWorkflowResultBase = Omit<
   CoreWorkflowTransitionContract['output'],
-  'violations'
+  'ok' | 'violations'
 > & {
   nextStatus: WorkflowStatus;
   violations: RuleViolation[];
 };
+
+export type TransitionWorkflowResult =
+  | (TransitionWorkflowResultBase & { ok: true })
+  | (TransitionWorkflowResultBase & { ok: false });
 
 const ALLOWED_DECISIONS: Record<WorkflowStatus, WorkflowDecision[]> = {
   DRAFT: ['SUBMIT', 'CANCEL'],

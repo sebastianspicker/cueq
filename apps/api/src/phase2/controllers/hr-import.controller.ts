@@ -1,3 +1,4 @@
+/** Exposes integration-authenticated HR import-run endpoints. */
 import {
   Body,
   Controller,
@@ -13,11 +14,12 @@ import {
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiOperation,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { Public } from '../../common/decorators/public.decorator';
-import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
-import { HrImportService } from '../hr-import.service';
+import { Public } from '../../common/decorators/public.decorator.js';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe.js';
+import { HrImportService } from '../hr-import.service.js';
 
 function isFailedHrImportRun(result: unknown): result is { status: 'FAILED' } {
   return (
@@ -28,7 +30,9 @@ function isFailedHrImportRun(result: unknown): result is { status: 'FAILED' } {
   );
 }
 
+/** Integration-authenticated boundary for auditable HR master-data import runs. */
 @ApiTags('hr-import')
+@ApiSecurity('integration-token')
 @Controller('v1/hr/import-runs')
 export class HrImportController {
   constructor(@Inject(HrImportService) private readonly hrImportService: HrImportService) {}

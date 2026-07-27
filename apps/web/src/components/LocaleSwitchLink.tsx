@@ -1,5 +1,7 @@
 'use client';
 
+/** Locale switcher that preserves the current route and query string when possible. */
+
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 
@@ -9,6 +11,7 @@ interface LocaleSwitchLinkProps {
   label: string;
 }
 
+/** Links to the equivalent route in another supported locale. */
 export function LocaleSwitchLink({ locale, targetLocale, label }: LocaleSwitchLinkProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();

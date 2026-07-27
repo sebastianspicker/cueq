@@ -1,9 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { StatusBadge } from '../StatusBadge';
 import { StatusBanner } from '../StatusBanner';
-import { Button } from '../Button';
 import { LoadingSpinner } from '../LoadingSpinner';
 import { FormField } from '../FormField';
 
@@ -85,61 +83,6 @@ describe('StatusBanner', () => {
     render(<StatusBanner message="Done." error="But also an error." />);
     expect(screen.getByRole('status')).toHaveTextContent('Done.');
     expect(screen.getByRole('alert')).toHaveTextContent('But also an error.');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Button
-// ---------------------------------------------------------------------------
-describe('Button', () => {
-  it('renders children', () => {
-    render(<Button>Save</Button>);
-    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-  });
-
-  it('is disabled when disabled prop is true', () => {
-    render(<Button disabled>Save</Button>);
-    expect(screen.getByRole('button')).toBeDisabled();
-  });
-
-  it('is disabled and aria-busy when loading=true', () => {
-    render(<Button loading>Save</Button>);
-    const btn = screen.getByRole('button');
-    expect(btn).toBeDisabled();
-    expect(btn).toHaveAttribute('aria-busy', 'true');
-  });
-
-  it('applies danger variant class', () => {
-    render(<Button variant="danger">Delete</Button>);
-    expect(screen.getByRole('button').className).toContain('cq-btn-danger');
-  });
-
-  it('applies ghost variant class', () => {
-    render(<Button variant="ghost">Cancel</Button>);
-    expect(screen.getByRole('button').className).toContain('cq-btn-ghost');
-  });
-
-  it('applies sm size class', () => {
-    render(<Button size="sm">Tiny</Button>);
-    expect(screen.getByRole('button').className).toContain('cq-btn-sm');
-  });
-
-  it('fires onClick handler when clicked', async () => {
-    const handler = vi.fn();
-    render(<Button onClick={handler}>Click me</Button>);
-    await userEvent.click(screen.getByRole('button'));
-    expect(handler).toHaveBeenCalledOnce();
-  });
-
-  it('does not fire onClick when disabled', async () => {
-    const handler = vi.fn();
-    render(
-      <Button disabled onClick={handler}>
-        Nope
-      </Button>,
-    );
-    await userEvent.click(screen.getByRole('button'));
-    expect(handler).not.toHaveBeenCalled();
   });
 });
 

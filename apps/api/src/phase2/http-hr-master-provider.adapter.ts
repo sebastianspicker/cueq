@@ -1,6 +1,7 @@
+/** Fetches and validates HR master data from the configured HTTP provider. */
 import { BadGatewayException, ServiceUnavailableException } from '@nestjs/common';
 import { z } from 'zod';
-import type { HrMasterProviderPort, HrMasterRecord } from './hr-master-provider.port';
+import type { HrMasterProviderPort, HrMasterRecord } from './hr-master-provider.port.js';
 
 const HrMasterApiRecordSchema = z.object({
   externalId: z.string().min(1),
@@ -22,6 +23,44 @@ const HrMasterApiResponseSchema = z.union([
   }),
 ]);
 
+const DEFAULT_TIMEOUT_MS = 10_000;
+const MIN_TIMEOUT_MS = 100;
+const MAX_TIMEOUT_MS = 60_000;
+
+function configuredUrl(rawUrl: string): URL {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new ServiceUnavailableException('HR_MASTER_API_URL is invalid.');
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new ServiceUnavailableException('HR_MASTER_API_URL must use HTTP or HTTPS.');
+  }
+  if (parsed.username || parsed.password) {
+    throw new ServiceUnavailableException('HR_MASTER_API_URL must not include credentials.');
+  }
+  if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') {
+    throw new ServiceUnavailableException('HR_MASTER_API_URL must use HTTPS in production.');
+  }
+
+  return parsed;
+}
+
+function configuredTimeoutMs(rawTimeout: string | undefined): number {
+  const parsed = Number(rawTimeout ?? DEFAULT_TIMEOUT_MS);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_TIMEOUT_MS;
+  }
+
+  return Math.min(Math.max(Math.trunc(parsed), MIN_TIMEOUT_MS), MAX_TIMEOUT_MS);
+}
+
+/**
+ * HTTP adapter for the optional HR master-data source.
+ * It validates configuration and response shape before data enters the import pipeline.
+ */
 export class HttpHrMasterProvider implements HrMasterProviderPort {
   async fetchMasterRecords(): Promise<HrMasterRecord[]> {
     const url = process.env.HR_MASTER_API_URL;
@@ -29,18 +68,17 @@ export class HttpHrMasterProvider implements HrMasterProviderPort {
       throw new ServiceUnavailableException('HR_MASTER_API_URL is not configured.');
     }
 
-    const timeoutMs = Number(process.env.HR_MASTER_API_TIMEOUT_MS ?? '10000');
+    const target = configuredUrl(url);
+    const timeoutMs = configuredTimeoutMs(process.env.HR_MASTER_API_TIMEOUT_MS);
     const token = process.env.HR_MASTER_API_TOKEN;
 
     const controller = new AbortController();
-    const timer = setTimeout(
-      () => controller.abort(),
-      Number.isFinite(timeoutMs) ? timeoutMs : 10000,
-    );
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(target, {
         method: 'GET',
+        redirect: 'error',
         headers: {
           Accept: 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -76,9 +114,7 @@ export class HttpHrMasterProvider implements HrMasterProviderPort {
         throw error;
       }
 
-      throw new BadGatewayException(
-        `Failed to fetch HR master records: ${error instanceof Error ? error.message : 'unknown error'}`,
-      );
+      throw new BadGatewayException('Failed to fetch HR master records.');
     } finally {
       clearTimeout(timer);
     }

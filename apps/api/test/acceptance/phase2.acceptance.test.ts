@@ -1,10 +1,13 @@
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
-import { SEED_IDS } from '../../src/test-utils/seed-ids';
+import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers.js';
+import { SEED_IDS } from '../../src/test-utils/seed-ids.js';
+
+const moduleDirectory = fileURLToPath(new URL('.', import.meta.url));
 
 interface ExportRunBody {
   checksum: string;
@@ -349,7 +352,7 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
       .get('/v1/oncall/compliance')
       .query({
         personId: SEED_IDS.personItOncall,
-        // Next shift immediately after on-call — no rest window
+        // Next shift immediately after on-call: no rest window
         nextShiftStart: '2026-03-14T06:00:00.000Z',
       })
       .set('Authorization', `Bearer ${TOKENS.hr}`);
@@ -415,7 +418,7 @@ describe('Phase 3 acceptance scenarios (AT-01..AT-08)', () => {
   });
 
   it('AT-08 backup and restore verification', async () => {
-    const cwd = join(__dirname, '..', '..', '..', '..');
+    const cwd = join(moduleDirectory, '..', '..', '..', '..');
     const output = execSync('node scripts/backup-restore-verify.mjs --json', {
       cwd,
       env: {

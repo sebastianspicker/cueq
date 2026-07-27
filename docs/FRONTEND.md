@@ -1,114 +1,124 @@
-# FRONTEND.md — Frontend Architecture & Conventions
+# Frontend
 
-> For overall system architecture, see [`ARCHITECTURE.md`](../ARCHITECTURE.md). For cross-cutting design principles, see [`DESIGN.md`](DESIGN.md).
+The cueq web application is a Next.js 15 App Router application using React 19,
+`next-intl`, shared CSS, Vitest, Playwright, and axe.
 
----
+## Routes
 
-## 1. Overview
+The root route redirects into the locale segment. German is the default locale
+and English is also available.
 
-The CueQ frontend is a Next.js App Router application that provides:
+Current localized routes under `apps/web/src/app/[locale]/`:
 
-- employee self-service (dashboard, bookings, leave)
-- planner and lead workflows (team calendar, roster, approvals)
-- HR/admin operations (closing, reports, policy administration)
-- DE/EN localization with externalized messages
+| Route                     | Surface                                |
+| ------------------------- | -------------------------------------- |
+| `/[locale]`               | Localized entry page                   |
+| `/[locale]/dashboard`     | Employee status and daily ledger       |
+| `/[locale]/bookings`      | Time bookings                          |
+| `/[locale]/team-calendar` | Team absence calendar                  |
+| `/[locale]/leave`         | Leave balances and requests            |
+| `/[locale]/roster`        | Roster and shift planning              |
+| `/[locale]/approvals`     | Workflow inbox                         |
+| `/[locale]/time-engine`   | Rule evaluation                        |
+| `/[locale]/closing`       | Monthly closing workspace              |
+| `/[locale]/reports`       | Aggregate and compliance reports       |
+| `/[locale]/oncall`        | On-call rotations and deployments      |
+| `/[locale]/policy-admin`  | Policy administration                  |
+| `/[locale]/audit`         | Audit records                          |
+| `/[locale]/settings`      | API connection and display preferences |
 
-## 2. Runtime Stack
+Navigation is conditioned on the role returned by `/v1/me`. The API remains the
+authorization boundary.
 
-| Concern   | Current Choice                          | Notes                                                                |
-| --------- | --------------------------------------- | -------------------------------------------------------------------- |
-| Framework | Next.js App Router + React              | Route-driven UI under `apps/web/src/app`                             |
-| i18n      | `next-intl`                             | Locale segment routing (`/[locale]`) with `de` default, `en` support |
-| API       | Browser `fetch` + shared API client     | Bearer-token based calls to API (`http://localhost:3001` in dev)     |
-| Styling   | Shared global CSS + reusable components | Trusted Operations Desk tokens and responsive workspace patterns     |
-| Testing   | Vitest + Playwright + axe               | Unit/integration/compliance/acceptance coverage                      |
+## Source layout
 
-## 3. Route Surface
-
-Primary route tree in `apps/web/src/app/[locale]/`:
-
-- `/dashboard`
-- `/bookings`
-- `/team-calendar`
-- `/leave`
-- `/roster`
-- `/approvals`
-- `/time-engine`
-- `/closing`
-- `/reports`
-- `/oncall`
-- `/policy-admin`
-- `/audit`
-- `/settings`
-
-## 4. Shared Frontend Structure
-
-```
+```text
 apps/web/src/
-├── app/
-│   ├── layout.tsx
-│   ├── globals.css
-│   └── [locale]/
-│       ├── layout.tsx
-│       └── */page.tsx
-├── components/
-│   ├── AppWorkspace.tsx
-│   ├── PageShell.tsx
-│   ├── SectionCard.tsx
-│   ├── StatusBanner.tsx
-│   ├── StatusBadge.tsx
-│   └── FormField.tsx
-├── i18n/
-├── lib/
-│   ├── api-client.ts
-│   └── api-context.tsx
-└── messages/
-    ├── de.json
-    └── en.json
+  app/
+    (redirect)/
+    [locale]/
+    globals.css
+  components/
+    workspace/
+  i18n/
+  lib/
+  messages/
+    de.json
+    en.json
 ```
 
-## 5. Conventions
+`AppWorkspace` owns the shared application shell and API connection. Reusable
+status, form, page, and workspace components live under `components/`.
+Feature-specific sections remain next to their route when they are not shared.
 
-### API Calls
+## API access
 
-- Page components must use the shared API context/client.
-- Duplicate per-page `apiBaseUrl` and `apiRequest` implementations are disallowed.
-- `AppWorkspace` loads `/v1/me` and derives navigation from the persisted role.
-- The API token is held in React memory only; it is not persisted to browser storage.
-- Request headers include `Authorization: Bearer <token>` only when a token is configured.
+Page code uses the shared API context and client in `apps/web/src/lib/`.
 
-### Internationalization
+- The browser token is held in React memory and is not persisted to local or
+  session storage.
+- The client adds `Authorization: Bearer <token>` only when a token is set.
+- `AppWorkspace` requests `/v1/me` to resolve the current identity and role.
+- During local development, the Next.js rewrite forwards `/api/:path*` to
+  `http://localhost:3001/:path*`.
+- Direct browser access to the API must use an origin allowed by
+  `CORS_ORIGINS`.
 
-- All user-facing text is stored in `messages/de.json` and `messages/en.json`.
-- No hardcoded UI labels in page components.
-- Domain terms should align with [`docs/design-docs/core-beliefs.md`](design-docs/core-beliefs.md).
+The current browser connection is suitable for local evaluation, not a complete
+SSO or session implementation.
 
-### Accessibility
+## Localization
 
-- Semantic labels for inputs and actions are required.
-- Keyboard navigation must work for core workflows.
-- Playwright + axe checks are part of acceptance coverage.
+User-visible copy belongs in `apps/web/src/messages/de.json` and
+`apps/web/src/messages/en.json`. Keep message keys aligned between the two
+files. German terminology is the primary product vocabulary.
 
-### Privacy and Visibility
+Dates and times must use explicit locale and time-zone handling. Operational
+closing defaults use `Europe/Berlin`; do not rely on the browser's implicit
+zone for domain calculations.
 
-- UI should only display data permitted by the authenticated role.
-- API is the source of truth for access control; UI must avoid leaking restricted fields.
-- Team calendar and reporting views must preserve privacy guardrails.
+## Styling
 
-## 6. Current Implementation Status
+`apps/web/src/app/globals.css` is the shared token and layout authority.
+Feature-local classes should represent a feature state, interaction, or
+responsive requirement rather than duplicate global tokens.
 
-- The current route surface uses a global role-aware workspace and session state.
-- Approvals and closing use queue/detail layouts; secondary connection controls
-  live in settings rather than repeated page panels.
-- The light and dark themes share the Trusted Operations Desk tokens from
-  [`../DESIGN.md`](../DESIGN.md).
-- Unit, lint, typecheck, and production-build checks passed in the latest local
-  snapshot. Database-backed Playwright verification remains environment-bound;
-  see [`verification-baseline.md`](verification-baseline.md).
+The reusable component set includes page shells, cards, form fields, status
+banners, status badges, loading indicators, icons, and workspace navigation.
+Use an existing component when it represents the same behavior and semantics.
 
-## 7. References
+The visual terminology is documented in [BRAND.md](BRAND.md). The implemented
+tokens are defined in `apps/web/src/app/globals.css`.
 
-- [`docs/QUALITY_SCORE.md`](QUALITY_SCORE.md) — quality and accessibility targets
-- [`docs/product-specs/new-user-onboarding.md`](product-specs/new-user-onboarding.md) — onboarding flow
-- [`docs/product-specs/oncall-domain.md`](product-specs/oncall-domain.md) — on-call domain
-- [`docs/product-specs/workflows-approvals.md`](product-specs/workflows-approvals.md) — approvals and workflows
+## Accessibility and privacy
+
+- Use semantic labels and programmatic names for controls.
+- Preserve keyboard access and visible focus states.
+- Represent loading, empty, error, disabled, and success states explicitly.
+- Keep restricted values out of rendered markup, not only out of visible
+  layout.
+- Preserve role visibility rules in navigation and page content.
+- Treat axe checks as one gate, not complete accessibility evidence.
+
+Changes to reports, absence details, audit records, or team data require review
+against [SECURITY.md](SECURITY.md).
+
+## Tests
+
+```bash
+pnpm --filter @cueq/web test:unit
+pnpm --filter @cueq/web test:e2e
+pnpm --filter @cueq/web test:acceptance
+pnpm --filter @cueq/web test:coverage
+```
+
+`test:e2e` and `test:acceptance` are aliases for the same Playwright acceptance
+suite. The separate names support repository-wide end-to-end and acceptance
+commands without duplicating test source.
+
+The Playwright acceptance configuration starts an isolated database schema,
+builds the API and web application, seeds synthetic data, and serves the
+production web build. It requires PostgreSQL and Chromium.
+
+The screenshot fixture lane is intentionally narrower and is documented in
+[ALPHA.md](ALPHA.md) and [assets/screenshots/README.md](assets/screenshots/README.md).

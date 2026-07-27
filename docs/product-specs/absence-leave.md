@@ -1,6 +1,8 @@
 # Product Spec: Absence & Leave (FR-400)
 
-> **Status:** ✅ Implemented | **Scope:** Core + API + Web
+> Evidence: Source and contract surfaces are present across Core, API, and
+> Web; the named focused tests cover selected behaviour. Not service-backed or
+> deployment evidence.
 
 ---
 
@@ -68,8 +70,11 @@ FR-400 delivers absence and leave management with:
 
 ### Team Calendar
 
-- Employee view: `APPROVED` absences only, redacted type/note.
-- Team lead/HR/Admin: `REQUESTED` + `APPROVED`, with reason fields visible.
+- Employee and shift-planner view: `APPROVED` absences in the caller's
+  organization unit, with type and note redacted.
+- Team lead and HR view: `REQUESTED` + `APPROVED` absences in the caller's
+  organization unit, with type and note visible.
+- Admin has no team-calendar route access.
 - Response includes:
   - `status` (workflow-relevant state)
   - `visibilityStatus = "ABSENT"` (privacy-safe display hint)

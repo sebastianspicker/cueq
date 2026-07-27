@@ -1,12 +1,12 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
-import { SEED_IDS } from '../../src/test-utils/seed-ids';
-import { PrismaService } from '../../src/persistence/prisma.service';
+import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers.js';
+import { SEED_IDS } from '../../src/test-utils/seed-ids.js';
+import { PrismaService } from '../../src/persistence/prisma.service.js';
 
 /**
- * P6.2 edge-case integration tests — covers:
+ * P6.2 edge-case integration tests: covers:
  *  - Happy-path tests for previously untested endpoints
  *  - Additional role-gate and boundary scenarios
  */
@@ -27,7 +27,7 @@ describe('Edge-case integration tests (P6.2)', () => {
     }
   });
 
-  /* ── GET /v1/rosters/current — missing happy-path test ───────── */
+  /* ── GET /v1/rosters/current: missing happy-path test ───────── */
 
   describe('GET /v1/rosters/current', () => {
     it('returns 404 when no published roster covers the current date', async () => {
@@ -35,7 +35,7 @@ describe('Edge-case integration tests (P6.2)', () => {
         .get('/v1/rosters/current')
         .set('Authorization', `Bearer ${TOKENS.planner}`);
 
-      // Seeded roster may not be PUBLISHED — expect 404 when none active
+      // Seeded roster may not be PUBLISHED: expect 404 when none active
       expect([200, 404]).toContain(response.status);
       if (response.status === 404) {
         expect(response.body.message).toContain('No current roster found');
@@ -76,7 +76,7 @@ describe('Edge-case integration tests (P6.2)', () => {
     });
   });
 
-  /* ── POST /v1/closing-periods/{id}/start-review — missing happy-path ── */
+  /* ── POST /v1/closing-periods/{id}/start-review: missing happy-path ── */
 
   describe('POST /v1/closing-periods/{id}/start-review', () => {
     it('transitions OPEN period to REVIEW when manual review is enabled (admin-only)', async () => {
@@ -169,7 +169,7 @@ describe('Edge-case integration tests (P6.2)', () => {
     });
   });
 
-  /* ── GET /v1/integrations/webhooks/endpoints — missing happy-path ── */
+  /* ── GET /v1/integrations/webhooks/endpoints: missing happy-path ── */
 
   describe('GET /v1/integrations/webhooks/endpoints', () => {
     it('returns webhook endpoint list for HR users', async () => {

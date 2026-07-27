@@ -1,24 +1,27 @@
 'use client';
 
+/** Presentational roster planning sections for commands, shifts, assignments, and plan-versus-actual data. */
+
 import type { useTranslations } from 'next-intl';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
+import { isoInstantToLocalDateTimeInput } from '../../../lib/datetime-local';
 
-export interface RosterMember {
+interface RosterMember {
   id: string;
   firstName: string;
   lastName: string;
   role: string;
 }
 
-export interface RosterAssignment {
+interface RosterAssignment {
   id: string;
   personId: string;
   firstName: string;
   lastName: string;
 }
 
-export interface RosterShift {
+interface RosterShift {
   id: string;
   rosterId: string;
   personId: string | null;
@@ -40,7 +43,7 @@ export interface RosterDetail {
   members: RosterMember[];
 }
 
-export interface PlanVsActualSlot {
+interface PlanVsActualSlot {
   shiftId: string;
   minStaffing: number;
   assignedHeadcount: number;
@@ -62,10 +65,7 @@ export interface PlanVsActual {
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-function toLocalDateTimeInput(isoDate: string): string {
-  return isoDate.slice(0, 16);
-}
-
+/** Renders roster lifecycle controls without acting as an authorization boundary. */
 export function RosterCommandBar({
   t,
   loading,
@@ -113,6 +113,7 @@ export function RosterCommandBar({
   );
 }
 
+/** Renders summary data for the currently selected roster. */
 export function RosterDetailSection({
   t,
   roster,
@@ -141,6 +142,7 @@ export function RosterDetailSection({
   );
 }
 
+/** Renders form controls for beginning a draft roster. */
 export function DraftRosterSection({
   t,
   draftOrganizationUnitId,
@@ -197,21 +199,7 @@ export function DraftRosterSection({
   );
 }
 
-export function CreateShiftSection({
-  t,
-  loading,
-  roster,
-  shiftStart,
-  shiftEnd,
-  shiftType,
-  minStaffing,
-  onShiftStartChange,
-  onShiftEndChange,
-  onShiftTypeChange,
-  onMinStaffingChange,
-  onCreateShift,
-  canEdit,
-}: {
+interface CreateShiftSectionProps {
   t: TranslationFn;
   loading: boolean;
   roster: RosterDetail | null;
@@ -225,7 +213,25 @@ export function CreateShiftSection({
   onMinStaffingChange: (value: number) => void;
   onCreateShift: () => void;
   canEdit: boolean;
-}) {
+}
+
+/** Renders fields used to create a shift in the selected roster. */
+export function CreateShiftSection(props: CreateShiftSectionProps) {
+  const {
+    t,
+    loading,
+    roster,
+    shiftStart,
+    shiftEnd,
+    shiftType,
+    minStaffing,
+    onShiftStartChange,
+    onShiftEndChange,
+    onShiftTypeChange,
+    onMinStaffingChange,
+    onCreateShift,
+    canEdit,
+  } = props;
   if (!canEdit) {
     return null;
   }
@@ -276,6 +282,7 @@ export function CreateShiftSection({
   );
 }
 
+/** Renders shifts and assignment controls for the selected roster. */
 export function ShiftsSection({
   t,
   loading,
@@ -343,7 +350,8 @@ function ShiftRow(props: ShiftRowProps) {
         <div className="cq-list-item-meta">
           <StatusBadge status={shift.shiftType} variant="info" />
           <span>
-            {toLocalDateTimeInput(shift.startTime)} &ndash; {toLocalDateTimeInput(shift.endTime)}
+            {isoInstantToLocalDateTimeInput(shift.startTime)} &ndash;{' '}
+            {isoInstantToLocalDateTimeInput(shift.endTime)}
           </span>
         </div>
         <div className="cq-list-item-meta">
@@ -415,20 +423,7 @@ function AssignmentList({ row }: { row: ShiftRowProps }) {
   );
 }
 
-export function ShiftSwapSection({
-  t,
-  loading,
-  roster,
-  swapShiftId,
-  swapFromPersonId,
-  swapToPersonId,
-  swapReason,
-  onSwapShiftIdChange,
-  onSwapFromPersonIdChange,
-  onSwapToPersonIdChange,
-  onSwapReasonChange,
-  onRequestShiftSwap,
-}: {
+interface ShiftSwapSectionProps {
   t: TranslationFn;
   loading: boolean;
   roster: RosterDetail | null;
@@ -441,7 +436,24 @@ export function ShiftSwapSection({
   onSwapToPersonIdChange: (value: string) => void;
   onSwapReasonChange: (value: string) => void;
   onRequestShiftSwap: () => void;
-}) {
+}
+
+/** Renders a shift-swap workflow request form. */
+export function ShiftSwapSection(props: ShiftSwapSectionProps) {
+  const {
+    t,
+    loading,
+    roster,
+    swapShiftId,
+    swapFromPersonId,
+    swapToPersonId,
+    swapReason,
+    onSwapShiftIdChange,
+    onSwapFromPersonIdChange,
+    onSwapToPersonIdChange,
+    onSwapReasonChange,
+    onRequestShiftSwap,
+  } = props;
   return (
     <SectionCard>
       <h2>{t('swapTitle')}</h2>
@@ -481,6 +493,7 @@ export function ShiftSwapSection({
   );
 }
 
+/** Renders plan-versus-actual comparison data returned by the API. */
 export function PlanVsActualSection({
   t,
   planVsActual,
@@ -527,15 +540,15 @@ export function PlanVsActualSection({
             </div>
           </div>
 
-          <table className="cq-data-table">
+          <table className="cq-data-table" tabIndex={0}>
             <caption className="cq-sr-only">{t('planVsActualCaption')}</caption>
             <thead>
               <tr>
-                <th>{t('shift')}</th>
-                <th>{t('planned')}</th>
-                <th>{t('actual')}</th>
-                <th>{t('delta')}</th>
-                <th>{t('compliant')}</th>
+                <th scope="col">{t('shift')}</th>
+                <th scope="col">{t('planned')}</th>
+                <th scope="col">{t('actual')}</th>
+                <th scope="col">{t('delta')}</th>
+                <th scope="col">{t('compliant')}</th>
               </tr>
             </thead>
             <tbody>

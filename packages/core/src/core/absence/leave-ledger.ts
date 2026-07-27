@@ -1,16 +1,17 @@
+/** Reconciles entitlement, carry-over, usage, forfeiture, and HR adjustments into one balance. */
 import { DEFAULT_LEAVE_RULE } from '@cueq/policy';
 import type { LeaveRule } from '@cueq/policy';
 import { parseDateOrDateTime } from '@cueq/shared';
-import { roundToTwo } from '../utils';
-import { adjustmentDaysForYear, sumUsageDays } from './leave-adjustment';
-import { allocateCarryOverUsage } from './leave-allocation';
+import { roundToTwo } from '../utils.js';
+import { adjustmentDaysForYear, sumUsageDays } from './leave-adjustment.js';
+import { allocateCarryOverUsage } from './leave-allocation.js';
 import {
   deadlineForYear,
   coveredMonthFactor,
   parseMonthDay,
   usageEntriesForLedger,
-} from './leave-date';
-import { calculateEntitlementDays, cappedCarryOverDays } from './leave-entitlement';
+} from './leave-date.js';
+import { calculateEntitlementDays, cappedCarryOverDays } from './leave-entitlement.js';
 
 export interface LeaveQuotaInput {
   year: number;

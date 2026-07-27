@@ -1,3 +1,4 @@
+/** Compiles every domain and fixture schema so invalid references fail before fixture checks. */
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import Ajv2020 from 'ajv/dist/2020.js';

@@ -1,8 +1,12 @@
+/** Builds the authenticated caller's booking-focused dashboard data. */
 import { Inject, Injectable } from '@nestjs/common';
-import { PrismaService } from '../../persistence/prisma.service';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { PersonHelper } from '../helpers/person.helper';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { PersonHelper } from '../helpers/person.helper.js';
 
+/**
+ * Builds the caller-scoped booking summary used by the operational dashboard.
+ */
 @Injectable()
 export class DashboardBookingsService {
   constructor(

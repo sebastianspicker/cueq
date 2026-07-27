@@ -1,3 +1,4 @@
+/** Exposes authenticated absence request and approval endpoints. */
 import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -9,15 +10,17 @@ import {
 } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
 import { CreateAbsenceSchema, ProratedTargetRequestSchema } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { AbsenceDomainService } from '../services/absence-domain.service';
-import { TimeEngineDomainService } from '../services/time-engine-domain.service';
-import { AbsenceDto, CreateAbsenceDto } from '../dto/absence.dto';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { Authenticated } from '../../common/decorators/authenticated.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { AbsenceDomainService } from '../services/absence-domain.service.js';
+import { TimeEngineDomainService } from '../services/time-engine-domain.service.js';
+import { AbsenceDto, CreateAbsenceDto } from '../dto/absence.dto.js';
 
+/** HTTP boundary for absence requests; domain services enforce actor scope and approval rules. */
 @ApiTags('absences')
 @ApiBearerAuth()
 @Controller('v1/absences')
@@ -29,6 +32,7 @@ export class AbsencesController {
   ) {}
 
   @Post()
+  @Authenticated()
   @ApiOperation({ summary: 'Create absence request' })
   @ApiBody({ type: CreateAbsenceDto })
   @ApiCreatedResponse({ type: AbsenceDto })
@@ -49,6 +53,7 @@ export class AbsencesController {
   }
 
   @Get('me')
+  @Authenticated()
   @ApiOperation({ summary: 'List authenticated user absences' })
   @ApiOkResponse({ type: AbsenceDto, isArray: true })
   listMine(@CurrentUser() user: AuthenticatedIdentity): Promise<unknown> {
@@ -67,6 +72,7 @@ export class AbsencesController {
   }
 
   @Post(':id/cancel')
+  @Authenticated()
   @ApiOperation({ summary: 'Cancel an existing absence request' })
   @ApiCreatedResponse({ type: AbsenceDto })
   cancel(

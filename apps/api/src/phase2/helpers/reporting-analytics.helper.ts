@@ -1,3 +1,4 @@
+/** Builds role-scoped aggregates; team-absence and overtime reports apply group suppression. */
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { ClosingStatus, Role } from '@cueq/database';
 import {
@@ -5,13 +6,17 @@ import {
   OeOvertimeQuerySchema,
   TeamAbsenceQuerySchema,
 } from '@cueq/shared';
-import { PrismaService } from '../../persistence/prisma.service';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { AuditHelper } from './audit.helper';
-import { PersonHelper } from './person.helper';
-import { ReportingComplianceHelper } from './reporting-compliance.helper';
-import { HR_LIKE_ROLES, REPORT_ALLOWED_ROLES } from './role-constants';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { AuditHelper } from './audit.helper.js';
+import { PersonHelper } from './person.helper.js';
+import { ReportingComplianceHelper } from './reporting-compliance.helper.js';
+import { HR_LIKE_ROLES, REPORT_ALLOWED_ROLES } from './role-constants.js';
 
+/**
+ * Assembles operational reports under organization scope and applies minimum-group
+ * suppression to team-absence and overtime results.
+ */
 @Injectable()
 export class ReportingAnalyticsHelper {
   constructor(

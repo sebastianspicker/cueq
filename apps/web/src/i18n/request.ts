@@ -1,3 +1,4 @@
+/** Server-side next-intl configuration with a safe German fallback for unknown locales. */
 import { getRequestConfig } from 'next-intl/server';
 
 const supportedLocales = ['de', 'en'] as const;

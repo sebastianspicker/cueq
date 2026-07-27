@@ -1,3 +1,4 @@
+/** Shared constants used by otherwise independent core-domain calculations. */
 /** Interval types that count as productive work for compliance purposes. */
 export const WORK_INTERVAL_TYPES: ReadonlySet<string> = new Set(['WORK', 'DEPLOYMENT']);
 

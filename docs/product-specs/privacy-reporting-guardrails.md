@@ -1,13 +1,17 @@
-# Product Spec: Privacy-by-Design Reporting Guardrails
+# Product Spec: Privacy Reporting Guardrails
 
-> **CueQ Differentiator E** — Default to aggregation; prevent accidental surveillance.
-> **Status:** Implemented in the reference scope; deployment review required
+> Repository source and contract guardrails are described here.
+> They are not proof of GDPR/DSGVO compliance, works-council approval,
+> service-backed enforcement, or deployment review.
 
 ---
 
 ## 1. Summary
 
-In a works-council (Personalrat) environment, reporting that enables individual performance or behavior monitoring creates legal and political problems — it requires works-council co-determination and can block rollout entirely. CueQ's reporting system treats privacy guardrails as a first-class design constraint, not a filter bolted on after the fact.
+Individual performance or behavior reporting can require works-council
+co-determination and additional data-protection review. cueq therefore treats
+report scope, role authorization, group-size suppression, and access logging as
+explicit reporting constraints.
 
 ## 2. Design Principles
 
@@ -19,18 +23,17 @@ In a works-council (Personalrat) environment, reporting that enables individual 
 
 ### Review Gate for New Reports
 
-Any PR that adds a new report or modifies report visibility must include:
+Changes that add a report or modify report visibility must address:
 
-- [ ] **Privacy Impact Assessment**: What data is shown? To whom? Can it identify individuals?
-- [ ] **Aggregation check**: Does the report enforce minimum group size?
-- [ ] **Role check**: Is the report restricted to appropriate roles?
-- [ ] **Audit logging**: Is access to the report logged?
-- [ ] **Works council review**: Has the report been reviewed against the Dienstvereinbarung?
-- [ ] **Private evidence referenced**: Does the change reference the approved
-      private governance record without copying it into Git?
+- what data is shown and whether it identifies individuals;
+- whether the report enforces the configured minimum group size;
+- which roles and organization scopes can request it;
+- whether report access appends an audit record; and
+- whether an institution-specific works-council or data-protection review is
+  required.
 
-This checklist should be part of the PR template for any change touching `reporting/` paths.
-Checklist completion is not proof of institutional approval.
+The repository pull request template records these review points. Completing
+that checklist is not proof of institutional approval.
 
 ### Governance Evidence Boundary
 
@@ -63,39 +66,28 @@ The following report types are prohibited unless explicitly approved by the work
 
 ## 3. Technical Guardrails
 
-### Query-Level Enforcement
+### Query-level enforcement
 
-- Reporting queries should enforce `GROUP BY` at the OE level by default
-- A `HAVING COUNT(*) >= :minGroupSize` clause should be standard
-- Individual breakdowns require a separate code path with explicit role check
+- The current team-absence and overtime helpers calculate organization-scoped
+  aggregates and suppress results below the configured group size.
+- Individual breakdowns require a separate code path with explicit role checks.
 
-### API-Level Enforcement
+### API-level enforcement
 
-- Report endpoints check `role` before returning data
-- Individual-level drill-down endpoints require `HR` or `ADMIN` role
-- All report access is logged to the audit trail
+- Report helpers check role and organization scope before returning data.
+- Sensitive compliance reports require `HR`, `ADMIN`, or the specifically
+  permitted oversight role.
+- Current report helper paths append `REPORT_ACCESSED` audit entries.
 
-### UI-Level Enforcement
+### UI-level enforcement
 
-- Reports show a privacy notice banner explaining what data is visible and why
-- Individual data views show a warning: "This view shows individual data and is logged"
+- The reports page exposes only the report types permitted by its role hint.
+  API authorization remains authoritative.
+- Aggregate results include the API-provided suppression state and population.
 
-## 4. Review Gate Implementation
+## 4. References
 
-Add to `.github/PULL_REQUEST_TEMPLATE.md` (or report-specific template):
-
-```markdown
-## Privacy Impact (required for report changes)
-
-- [ ] Report defaults to aggregated view
-- [ ] Minimum group size enforced (≥5)
-- [ ] Role-based access check implemented
-- [ ] Audit logging for report access
-- [ ] No individual performance/behavior metrics exposed
-- [ ] Works council compatibility confirmed
-```
-
-## 5. References
-
-- [`docs/SECURITY.md`](../SECURITY.md) §5 — Works council compliance
-- [`docs/design-docs/core-beliefs.md`](../design-docs/core-beliefs.md) — "Privacy by Default" principle
+- [`docs/SECURITY.md`](../SECURITY.md) §5: Works council compliance
+- [`docs/design-docs/core-beliefs.md`](../design-docs/core-beliefs.md): "Privacy by Default" principle
+- [`apps/api/src/phase2/helpers/reporting-analytics.helper.ts`](../../apps/api/src/phase2/helpers/reporting-analytics.helper.ts): Aggregate and suppression logic
+- [`.github/pull_request_template.md`](../../.github/pull_request_template.md): Review checklist

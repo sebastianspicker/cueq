@@ -1,5 +1,7 @@
+/** Coordinates workflow compatibility-field backfills and reports the number of durable updates. */
 import { backfillWorkflow, workflowBackfillPatch } from './workflow-backfill.mjs';
 
+/** Apply idempotent workflow patches in creation order using policy-specific deadlines. */
 export async function runWorkflowBackfill(db, input) {
   const policies = await db.workflowPolicy.findMany({
     select: { type: true, escalationDeadlineHours: true },

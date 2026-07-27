@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { prisma } from '../index';
+import { prisma } from '../index.js';
 
 describe('@cueq/database acceptance', () => {
   it('exposes phase-2 persistence delegates', () => {

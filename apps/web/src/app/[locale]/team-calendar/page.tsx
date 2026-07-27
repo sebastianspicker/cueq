@@ -1,29 +1,20 @@
 'use client';
 
+/** Team absence calendar with API-filtered data; the UI does not determine visibility policy. */
+
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { TeamCalendarEntrySchema, type TeamCalendarEntry } from '@cueq/shared';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 
-interface TeamCalendarEntry {
-  id: string;
-  personId: string;
-  personName: string;
-  startDate: string;
-  endDate: string;
-  status: 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-  visibilityStatus: 'ABSENT';
-  type?: string;
-  note?: string | null;
-}
-
+/** Loads and renders the team calendar data authorized for the current session. */
 export default function TeamCalendarPage() {
   const t = useTranslations('pages.teamCalendar');
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiRequest } = useApiContext();
   const [start, setStart] = useState('2026-04-01');
   const [end, setEnd] = useState('2026-04-30');
   const [loading, setLoading] = useState(false);
@@ -35,7 +26,10 @@ export default function TeamCalendarPage() {
     setError(null);
     try {
       const query = new URLSearchParams({ start, end });
-      const data = await apiRequest<TeamCalendarEntry[]>(`/v1/calendar/team?${query.toString()}`);
+      const data = await apiRequest(
+        `/v1/calendar/team?${query.toString()}`,
+        TeamCalendarEntrySchema.array(),
+      );
       setEntries(data);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
@@ -46,15 +40,6 @@ export default function TeamCalendarPage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
-
       <SectionCard>
         <div className="cq-grid-2">
           <label className="cq-form-field">

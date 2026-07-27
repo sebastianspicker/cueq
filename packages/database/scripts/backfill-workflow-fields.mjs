@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** Backfills workflow defaults and deadlines; --dry-run reports the planned changes without persisting them. */
 import { PrismaClient, WorkflowType } from '@prisma/client';
 import { runWorkflowBackfill } from '../../../scripts/lib/workflow-backfill-runner.mjs';
 import { parseArgsMap } from '../../../scripts/lib/parse-args.mjs';

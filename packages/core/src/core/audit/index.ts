@@ -1,7 +1,8 @@
+/** Builds deeply immutable audit entries so downstream code cannot rewrite recorded facts. */
 import { randomUUID } from 'node:crypto';
 import type { CoreAuditEntryDraftContract } from '@cueq/shared';
-import type { AuditEntryDraft, DeepReadonly } from '../types';
-import { deepFreeze, toIso } from '../utils';
+import type { AuditEntryDraft, DeepReadonly } from '../types.js';
+import { deepFreeze, toIso } from '../utils.js';
 
 export type BuildAuditEntryInput = CoreAuditEntryDraftContract['input'] & {
   id?: string;
@@ -9,6 +10,7 @@ export type BuildAuditEntryInput = CoreAuditEntryDraftContract['input'] & {
   metadata?: Record<string, unknown>;
 };
 
+/** Create an identified, timestamped, deeply frozen audit draft without mutating caller payloads. */
 export function buildAuditEntry(input: BuildAuditEntryInput): DeepReadonly<AuditEntryDraft> {
   const entry: AuditEntryDraft = {
     id: input.id ?? randomUUID(),

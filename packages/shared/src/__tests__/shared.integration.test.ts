@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CreateBookingSchema } from '../schemas/booking';
+import { CreateBookingSchema } from '../schemas/booking.js';
 import {
   AuditSummaryQuerySchema,
   AuditSummaryReportSchema,
   ComplianceSummaryReportSchema,
-} from '../schemas/reporting';
-import { CreateWebhookEndpointSchema } from '../schemas/events';
-import { CreateRosterSchema } from '../schemas/roster';
-import { TimeRuleEvaluationRequestSchema } from '../schemas/time-engine';
+} from '../schemas/reporting.js';
+import { CreateWebhookEndpointSchema } from '../schemas/events.js';
+import { CreateRosterSchema } from '../schemas/roster.js';
+import { TimeRuleEvaluationRequestSchema } from '../schemas/time-engine.js';
 
 describe('@cueq/shared integration', () => {
   it('validates create booking payloads', () => {

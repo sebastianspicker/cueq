@@ -1,8 +1,7 @@
-# Design Documents — Index
+# Design documents
 
-> Design documents capture the _why_ behind cueq's architecture and implementation choices. For the overall architecture, see [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
-
----
+These documents record cross-cutting engineering constraints. For the runtime
+structure, see [ARCHITECTURE.md](../../ARCHITECTURE.md).
 
 ## Core Documents
 

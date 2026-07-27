@@ -1,11 +1,13 @@
+/** Exposes the policy catalog that governs operational decisions. */
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
 import { PolicyBundleQuerySchema, PolicyHistoryQuerySchema } from '@cueq/shared';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { PolicyQueryService } from '../services/policy-query.service';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { PolicyQueryService } from '../services/policy-query.service.js';
 
+/** Policy catalog read boundary for rules that govern Phase 2 operations. */
 @ApiTags('policy')
 @ApiBearerAuth()
 @Controller('v1/policies')

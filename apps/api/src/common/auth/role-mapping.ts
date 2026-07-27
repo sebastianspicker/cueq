@@ -1,3 +1,4 @@
+/** Normalizes external identity-provider role claims to the finite database role vocabulary. */
 import { Role } from '@cueq/database';
 
 const ROLE_MAP = new Map<string, Role>([
@@ -29,11 +30,13 @@ function normalizeRoleClaim(input: unknown): string {
     .replace(/[\s-]+/g, '_');
 }
 
+/** Returns a recognized role claim or null so callers can reject untrusted input deliberately. */
 export function parseRoleClaim(input: unknown): Role | null {
   const normalized = normalizeRoleClaim(input);
   return ROLE_MAP.get(normalized) ?? null;
 }
 
+/** Selects the most privileged recognized role from multi-valued external claims. */
 export function selectHighestRoleClaim(inputs: unknown[]): Role | null {
   let selected: Role | null = null;
   let bestPriority = Number.NEGATIVE_INFINITY;

@@ -3,6 +3,9 @@ contact_links:
   - name: Security vulnerability
     url: https://github.com/sebastianspicker/cueq/security/advisories/new
     about: Do not open public issues for suspected vulnerabilities.
+  - name: Request a private reporting channel
+    url: https://github.com/sebastianspicker
+    about: Use a maintainer profile contact link without disclosing sensitive details.
   - name: Security and privacy model
     url: https://github.com/sebastianspicker/cueq/blob/main/docs/SECURITY.md
     about: Read the current RBAC, GDPR, audit, and disclosure guidance.

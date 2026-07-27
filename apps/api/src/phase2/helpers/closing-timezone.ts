@@ -1,8 +1,10 @@
+/** Parses the short time-zone offsets used by closing-period calculations. */
 const OFFSET_SIGNS = new Map<string, number>([
   ['+', 1],
   ['-', -1],
 ]);
 
+/** Converts `GMT`/`UTC` short offsets to minutes and falls back to zero for malformed input. */
 export function parseShortOffsetToMinutes(offset: string): number {
   if (['GMT', 'UTC'].includes(offset)) return 0;
   const body = ['GMT', 'UTC'].includes(offset.slice(0, 3)) ? offset.slice(3) : '';

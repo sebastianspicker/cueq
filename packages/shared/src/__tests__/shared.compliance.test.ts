@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiErrorSchema } from '../schemas/common';
+import { ApiErrorSchema } from '../schemas/common.js';
 
 describe('@cueq/shared compliance', () => {
   it('supports correlation IDs in API error envelopes', () => {

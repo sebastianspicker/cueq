@@ -1,5 +1,7 @@
+/** Counts absence-relevant weekdays while excluding configured public holidays. */
 import { parseDateOnly, toHolidaySet } from '@cueq/shared';
 
+/** Count inclusive Monday-Friday dates that are not present in the holiday set. */
 export function countWeekdaysInclusive(
   from: string,
   to: string,
@@ -26,6 +28,7 @@ export interface AbsenceWorkingDaysInput {
   holidayDates?: string[];
 }
 
+/** Convert optional holiday input and calculate the working-day duration of an absence. */
 export function calculateAbsenceWorkingDays(input: AbsenceWorkingDaysInput): number {
   return countWeekdaysInclusive(input.startDate, input.endDate, toHolidaySet(input.holidayDates));
 }

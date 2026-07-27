@@ -1,21 +1,25 @@
+/** Small deterministic helpers shared across core-domain calculations. */
 import { parseIsoDateTime } from '@cueq/shared';
-import type { PlausibilityIssue, RuleViolation } from './types';
+import type { PlausibilityIssue, RuleViolation } from './types.js';
 
-export const HOURS_PER_DAY = 24;
-
+/** Round hour/day outputs to the precision used by public domain contracts. */
 export function roundToTwo(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-/** @deprecated Use `parseIsoDateTime` from `@cueq/shared` directly. */
-export const safeDate = parseIsoDateTime;
-
+/** Calculate elapsed hours between two validated ISO instants. */
 export function diffHours(startIso: string, endIso: string): number {
   const start = parseIsoDateTime(startIso);
   const end = parseIsoDateTime(endIso);
   return (end.getTime() - start.getTime()) / 3_600_000;
 }
 
+/** Compare validated ISO datetime strings by instant rather than their textual precision. */
+export function compareIsoInstants(leftIso: string, rightIso: string): number {
+  return parseIsoDateTime(leftIso).getTime() - parseIsoDateTime(rightIso).getTime();
+}
+
+/** Apply the default error severity while preserving an explicitly supplied severity. */
 export function toViolation(
   partial: Omit<RuleViolation, 'severity'> & { severity?: RuleViolation['severity'] },
 ): RuleViolation {
@@ -42,8 +46,8 @@ export function overlapExists(
     .map((interval, index) => ({
       ...interval,
       index,
-      startDate: safeDate(interval.start),
-      endDate: safeDate(interval.end),
+      startDate: parseIsoDateTime(interval.start),
+      endDate: parseIsoDateTime(interval.end),
     }))
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
@@ -75,6 +79,7 @@ export function overlapExists(
   return issues;
 }
 
+/** Recursively freeze nested objects so audit and rule results remain immutable. */
 export function deepFreeze<T>(value: T): T {
   if (value && typeof value === 'object') {
     Object.freeze(value);
@@ -90,6 +95,7 @@ export function deepFreeze<T>(value: T): T {
   return value;
 }
 
+/** Serialize a date to the canonical ISO instant used by domain outputs. */
 export function toIso(date = new Date()): string {
   return date.toISOString();
 }

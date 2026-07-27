@@ -1,5 +1,7 @@
 'use client';
 
+/** Presentational workflow inbox sections; actionable choices remain enforced by the API. */
+
 import type { useTranslations } from 'next-intl';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
@@ -41,21 +43,64 @@ export const TYPE_FILTERS = [
 ] as const;
 
 type TranslationFn = ReturnType<typeof useTranslations>;
-const EMPTY_VALUE = '—';
+const EMPTY_VALUE = '-';
 
 function displayOptional(value: string | number | null | undefined): string | number {
   return value ?? EMPTY_VALUE;
 }
 
-function AvailableActions({ actions }: { actions: WorkflowAction[] }) {
+function statusLabel(t: TranslationFn, status: string): string {
+  const labels: Record<string, string> = {
+    ALL: t('valueAll'),
+    DRAFT: t('statusDraft'),
+    SUBMITTED: t('statusSubmitted'),
+    PENDING: t('statusPending'),
+    ESCALATED: t('statusEscalated'),
+    APPROVED: t('statusApproved'),
+    REJECTED: t('statusRejected'),
+    CANCELLED: t('statusCancelled'),
+  };
+  return labels[status] ?? status;
+}
+
+function typeLabel(t: TranslationFn, type: string): string {
+  const labels: Record<string, string> = {
+    ALL: t('valueAll'),
+    LEAVE_REQUEST: t('typeLeaveRequest'),
+    BOOKING_CORRECTION: t('typeBookingCorrection'),
+    POST_CLOSE_CORRECTION: t('typePostCloseCorrection'),
+    SHIFT_SWAP: t('typeShiftSwap'),
+    OVERTIME_APPROVAL: t('typeOvertimeApproval'),
+  };
+  return labels[type] ?? type;
+}
+
+function actionLabel(t: TranslationFn, action: WorkflowAction): string {
+  const labels: Record<WorkflowAction, string> = {
+    SUBMIT: t('actionSubmit'),
+    APPROVE: t('actionApprove'),
+    REJECT: t('actionReject'),
+    DELEGATE: t('actionDelegate'),
+    CANCEL: t('actionCancel'),
+  };
+  return labels[action];
+}
+
+function AvailableActions({ t, actions }: { t: TranslationFn; actions: WorkflowAction[] }) {
   if (actions.length === 0) {
     return EMPTY_VALUE;
   }
   return actions.map((available) => (
-    <StatusBadge key={available} status={available} variant="muted" />
+    <StatusBadge
+      key={available}
+      status={available}
+      variant="muted"
+      label={actionLabel(t, available)}
+    />
   ));
 }
 
+/** Renders inbox filters and their load action. */
 export function FiltersSection({
   t,
   loading,
@@ -91,7 +136,7 @@ export function FiltersSection({
           >
             {STATUS_FILTERS.map((value) => (
               <option key={value} value={value}>
-                {value}
+                {statusLabel(t, value)}
               </option>
             ))}
           </select>
@@ -107,7 +152,7 @@ export function FiltersSection({
           >
             {TYPE_FILTERS.map((value) => (
               <option key={value} value={value}>
-                {value}
+                {typeLabel(t, value)}
               </option>
             ))}
           </select>
@@ -131,6 +176,7 @@ export function FiltersSection({
   );
 }
 
+/** Renders the filtered workflow inbox and selection controls. */
 export function InboxSection({
   t,
   items,
@@ -153,8 +199,8 @@ export function InboxSection({
             <li key={item.id} className="cq-list-item">
               <div className="cq-list-item-header">
                 <div className="cq-list-item-meta">
-                  <StatusBadge status={item.type} variant="info" label={item.type} />
-                  <StatusBadge status={item.status} />
+                  <StatusBadge status={item.type} variant="info" label={typeLabel(t, item.type)} />
+                  <StatusBadge status={item.status} label={statusLabel(t, item.status)} />
                   {item.isOverdue ? <span className="cq-overdue">{t('isOverdue')}</span> : null}
                 </div>
                 <button
@@ -174,6 +220,7 @@ export function InboxSection({
   );
 }
 
+/** Renders the selected workflow and its API-provided available actions. */
 export function WorkflowDetailSection({
   t,
   loading,
@@ -231,12 +278,12 @@ export function WorkflowDetailSection({
 
 function WorkflowFacts({ t, detail }: { t: TranslationFn; detail: WorkflowInboxItem }) {
   return (
-    <dl className="cq-kv-grid">
+    <dl className="cq-kv-grid cq-workflow-facts">
       <dt>{t('workflowId')}</dt>
       <dd className="cq-mono">{detail.id}</dd>
       <dt>{t('statusLabel')}</dt>
       <dd>
-        <StatusBadge status={detail.status} />
+        <StatusBadge status={detail.status} label={statusLabel(t, detail.status)} />
       </dd>
       <dt>{t('requesterId')}</dt>
       <dd>{detail.requesterId}</dd>
@@ -252,7 +299,7 @@ function WorkflowFacts({ t, detail }: { t: TranslationFn; detail: WorkflowInboxI
       <dd>{displayOptional(detail.decisionReason)}</dd>
       <dt>{t('availableActions')}</dt>
       <dd>
-        <AvailableActions actions={detail.availableActions} />
+        <AvailableActions t={t} actions={detail.availableActions} />
       </dd>
     </dl>
   );
@@ -295,7 +342,7 @@ function WorkflowActionForm({
             {hasActions ? (
               detail.availableActions.map((available) => (
                 <option key={available} value={available}>
-                  {available}
+                  {actionLabel(t, available)}
                 </option>
               ))
             ) : (
@@ -317,7 +364,7 @@ function WorkflowActionForm({
         <input value={reason} onChange={(event) => onReasonChange(event.target.value)} />
       </label>
       <button type="button" disabled={loading || !hasActions} onClick={onApplyAction}>
-        {loading ? t('loading') : t('applyAction')}
+        {loading ? t('loading') : actionLabel(t, action)}
       </button>
       {!hasActions ? <p className="cq-form-hint">{t('noAvailableAction')}</p> : null}
     </>

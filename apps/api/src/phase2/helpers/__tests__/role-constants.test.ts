@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ForbiddenException } from '@nestjs/common';
 import { Role } from '@cueq/database';
-import { assertCanActForPerson, assertHrLikeRole } from '../role-constants';
-import type { AuthenticatedIdentity } from '../../../common/auth/auth.types';
+import { assertCanActForPerson, assertHrLikeRole } from '../role-constants.js';
+import type { AuthenticatedIdentity } from '../../../common/auth/auth.types.js';
 
 function makeUser(role: Role, id = 'user-1'): AuthenticatedIdentity {
   return {

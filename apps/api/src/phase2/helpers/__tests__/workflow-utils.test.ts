@@ -9,7 +9,7 @@ import {
   isRoleAllowedForType,
   isWorkflowFinal,
   toIso,
-} from '../workflow-utils';
+} from '../workflow-utils.js';
 
 describe('toIso', () => {
   it('formats a Date as ISO 8601', () => {

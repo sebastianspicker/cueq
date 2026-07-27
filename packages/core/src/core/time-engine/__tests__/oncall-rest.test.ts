@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateOnCallRestCompliance } from '..';
+import { evaluateOnCallRestCompliance } from '../index.js';
 import type { RestRule } from '@cueq/policy';
 import { DEFAULT_REST_RULE } from '@cueq/policy';
 
@@ -85,6 +85,25 @@ describe('evaluateOnCallRestCompliance – edge cases', () => {
       // Last deployment ends at 04:00, next shift at 14:00 = 10h
       expect(result.restHoursAfterDeployment).toBe(10);
       expect(result.compliant).toBe(false);
+    });
+
+    it('orders deployment ends by instant across different fractional precision', () => {
+      const laterEnd = '2026-03-14T04:00:00.001Z';
+      const result = evaluateOnCallRestCompliance({
+        ...BASE_INPUT,
+        deployments: [
+          { start: '2026-03-14T02:00:00Z', end: '2026-03-14T04:00:00Z' },
+          { start: '2026-03-14T03:00:00Z', end: laterEnd },
+        ],
+        nextShiftStart: '2026-03-14T14:00:00Z',
+      });
+
+      expect(result.violations[0]).toEqual(
+        expect.objectContaining({
+          code: 'ONCALL_REST_DEFICIT',
+          context: expect.objectContaining({ deploymentEnd: laterEnd }),
+        }),
+      );
     });
 
     it('compliant when last deployment has sufficient gap', () => {

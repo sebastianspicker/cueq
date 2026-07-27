@@ -1,5 +1,7 @@
+/** Coordinates the leave-adjustment backfill across eligible people and summarizes mutations. */
 import { backfillPersonYear } from './leave-adjustment-backfill.mjs';
 
+/** Run dry-run inventory or idempotent per-person backfills for the selected year. */
 export async function runLeaveAdjustmentBackfill(db, input, roles) {
   const people = await db.person.findMany({
     where: { role: { in: roles } },

@@ -7,7 +7,7 @@ import {
   evaluateTimeRules,
   evaluateOnCallRestCompliance,
   evaluateShiftCompliance,
-} from '../..';
+} from '../../index.js';
 
 const fixturesDir = resolve(process.cwd(), '../../fixtures/reference-calculations');
 

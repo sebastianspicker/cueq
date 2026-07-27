@@ -1,5 +1,6 @@
+/** Defines versioned break-policy contracts and the current reference default. */
 import { z } from 'zod';
-import { PolicyRuleMetaSchema } from '../types';
+import { PolicyRuleMetaSchema } from '../types.js';
 
 /**
  * Break/pause enforcement rules (ArbZG §4).

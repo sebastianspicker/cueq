@@ -1,3 +1,4 @@
+/** Global fallback filter that normalizes uncaught Zod-shaped validation errors to HTTP 400. */
 import type { ArgumentsHost } from '@nestjs/common';
 import { Catch } from '@nestjs/common';
 import type { HttpAdapterHost } from '@nestjs/core';
@@ -17,6 +18,7 @@ function isZodLikeError(exception: unknown): exception is { issues: ZodLikeIssue
   return Array.isArray(candidate.issues);
 }
 
+/** Preserves ordinary Nest exception handling while sanitizing validation error details. */
 @Catch()
 export class ZodExceptionFilter extends BaseExceptionFilter {
   constructor(adapterHost: HttpAdapterHost) {

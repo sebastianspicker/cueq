@@ -1,3 +1,4 @@
+/** Seeds the deterministic synthetic Phase 2 baseline used by local acceptance and integration workflows. */
 import {
   PrismaClient,
   Role,
@@ -60,11 +61,11 @@ const IDs = {
   auditSeed: cuidFor(950),
 };
 
+/** Removes dependent Phase 2 seed data in foreign-key-safe order; this is destructive for the connected database. */
 async function reset() {
   await prisma.webhookDelivery.deleteMany();
   await prisma.webhookEndpoint.deleteMany();
   await prisma.domainEventOutbox.deleteMany();
-  await prisma.auditEntry.deleteMany();
   await prisma.workflowDelegationRule.deleteMany();
   await prisma.workflowPolicy.deleteMany();
   await prisma.terminalSyncBatch.deleteMany();
@@ -243,7 +244,7 @@ async function seedSupportPeople() {
   });
 }
 
-async function seedTimeOperations() {
+async function seedTimeTypes() {
   await prisma.timeType.createMany({
     data: [
       {
@@ -276,7 +277,9 @@ async function seedTimeOperations() {
       },
     ],
   });
+}
 
+async function seedRosterAndShift() {
   await prisma.roster.create({
     data: {
       id: IDs.rosterCurrent,
@@ -306,7 +309,9 @@ async function seedTimeOperations() {
       personId: IDs.personPlanner,
     },
   });
+}
 
+async function seedTimeOperationBookings() {
   await prisma.booking.createMany({
     data: [
       {
@@ -335,7 +340,9 @@ async function seedTimeOperations() {
       },
     ],
   });
+}
 
+async function seedOnCallOperations() {
   await prisma.onCallRotation.create({
     data: {
       id: IDs.onCallRotation,
@@ -361,7 +368,9 @@ async function seedTimeOperations() {
       description: 'Synthetic deployment for acceptance tests',
     },
   });
+}
 
+async function seedTimeOperationAbsences() {
   await prisma.absence.createMany({
     data: [
       {
@@ -386,6 +395,14 @@ async function seedTimeOperations() {
       },
     ],
   });
+}
+
+async function seedTimeOperations() {
+  await seedTimeTypes();
+  await seedRosterAndShift();
+  await seedTimeOperationBookings();
+  await seedOnCallOperations();
+  await seedTimeOperationAbsences();
 }
 
 async function seedWorkflowClosing() {
@@ -473,21 +490,25 @@ async function seedWorkflowClosing() {
     },
   });
 
-  await prisma.auditEntry.create({
-    data: {
-      id: IDs.auditSeed,
-      timestamp: new Date('2026-03-15T12:00:00.000Z'),
-      actorId: IDs.personAdmin,
-      action: 'PHASE2_SEED_COMPLETED',
-      entityType: 'SeedRun',
-      entityId: 'phase2-default',
-      after: { seeded: true, seededAt: '2026-03-15T12:00:00.000Z' },
-      reason: 'Synthetic deterministic acceptance baseline',
-      ipAddress: '127.0.0.1',
-    },
+  await prisma.auditEntry.createMany({
+    data: [
+      {
+        id: IDs.auditSeed,
+        timestamp: new Date('2026-03-15T12:00:00.000Z'),
+        actorId: IDs.personAdmin,
+        action: 'PHASE2_SEED_COMPLETED',
+        entityType: 'SeedRun',
+        entityId: 'phase2-default',
+        after: { seeded: true, seededAt: '2026-03-15T12:00:00.000Z' },
+        reason: 'Synthetic deterministic acceptance baseline',
+        ipAddress: '127.0.0.1',
+      },
+    ],
+    skipDuplicates: true,
   });
 }
 
+/** Creates the complete Phase 2 baseline after reset; fixed identifiers make repeated runs reproducible. */
 async function seed() {
   await seedOrganizationPeople();
   await seedCorePeople();

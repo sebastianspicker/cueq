@@ -10,8 +10,8 @@ import {
   WorkflowType,
   prisma,
 } from '@cueq/database';
-import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
-import { SEED_IDS } from '../../src/test-utils/seed-ids';
+import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers.js';
+import { SEED_IDS } from '../../src/test-utils/seed-ids.js';
 
 describe('Phase 2 compliance', () => {
   let app: INestApplication;
@@ -360,7 +360,7 @@ describe('Phase 2 compliance', () => {
     });
 
     it('suppresses team-absence report when group is below REPORT_MIN_GROUP_SIZE', async () => {
-      // ouSecurity has 1 person (SHIFT_PLANNER) — always below the default threshold of 5
+      // ouSecurity has 1 person (SHIFT_PLANNER): always below the default threshold of 5
       const response = await request(app.getHttpServer())
         .get('/v1/reports/team-absence')
         .set('Authorization', `Bearer ${TOKENS.worksCouncil}`)
@@ -407,7 +407,7 @@ describe('Phase 2 compliance', () => {
       expect(response.body.suppression).toHaveProperty('minGroupSize');
       expect(response.body.suppression).toHaveProperty('population');
       expect(typeof response.body.suppression.minGroupSize).toBe('number');
-      expect(response.body.suppression.minGroupSize).toBeGreaterThanOrEqual(1);
+      expect(response.body.suppression.minGroupSize).toBeGreaterThanOrEqual(5);
     });
 
     it('grants works council access to compliance summary with aggregate-only output', async () => {
@@ -434,7 +434,7 @@ describe('Phase 2 compliance', () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('totals');
-      // uniqueActors is a count — not an array of IDs
+      // uniqueActors is a count: not an array of IDs
       expect(typeof response.body.totals.uniqueActors).toBe('number');
       expect(response.body).not.toHaveProperty('actorIds');
       expect(response.body).not.toHaveProperty('actors');

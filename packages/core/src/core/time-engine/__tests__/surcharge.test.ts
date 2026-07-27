@@ -5,7 +5,7 @@ import {
   localMinuteInfo,
   parseLocalTimeToMinute,
   selectSurchargeCategory,
-} from '../surcharge';
+} from '../surcharge.js';
 import type { SurchargeCategory } from '@cueq/policy';
 
 describe('parseLocalTimeToMinute', () => {
@@ -27,7 +27,7 @@ describe('parseLocalTimeToMinute', () => {
 });
 
 describe('isWithinWindow', () => {
-  // Night window: 20:00 (1200) -> 06:00 (360) — crosses midnight
+  // Night window: 20:00 (1200) -> 06:00 (360): crosses midnight
   const nightStart = 1200; // 20:00
   const nightEnd = 360; // 06:00
 
@@ -102,6 +102,25 @@ describe('localMinuteInfo', () => {
     const info = localMinuteInfo(ts, berlinFormatter);
     expect(info.isoDate).toBe('2026-03-04');
     expect(info.localMinuteOfDay).toBe(30); // 00:30
+  });
+
+  it('normalizes hour 24 without advancing the already-local date', () => {
+    const h24Formatter = {
+      formatToParts: (): Intl.DateTimeFormatPart[] => [
+        { type: 'weekday', value: 'Wed' },
+        { type: 'month', value: '03' },
+        { type: 'day', value: '04' },
+        { type: 'year', value: '2026' },
+        { type: 'hour', value: '24' },
+        { type: 'minute', value: '30' },
+      ],
+    } as unknown as Intl.DateTimeFormat;
+
+    const info = localMinuteInfo(new Date('2026-03-03T23:30:00.000Z').getTime(), h24Formatter);
+
+    expect(info.isoDate).toBe('2026-03-04');
+    expect(info.weekday).toBe(3);
+    expect(info.localMinuteOfDay).toBe(30);
   });
 
   it('handles DST spring forward (CET->CEST)', () => {

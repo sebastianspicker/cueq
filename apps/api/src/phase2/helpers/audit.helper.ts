@@ -1,11 +1,16 @@
+/** Provides transaction-coupled immutable audit-entry persistence. */
 import { Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '@cueq/database';
 import { Role } from '@cueq/database';
 import { buildAuditEntry } from '@cueq/core';
-import { PrismaService } from '../../persistence/prisma.service';
+import { PrismaService } from '../../persistence/prisma.service.js';
 
 type AuditWriteClient = Pick<PrismaService, 'auditEntry'>;
 
+/**
+ * Appends immutable audit entries through the current transaction when supplied.
+ * Callers use it alongside the business write so the record and its evidence commit or roll back together.
+ */
 @Injectable()
 export class AuditHelper {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}

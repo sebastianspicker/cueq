@@ -1,4 +1,4 @@
-// cueq — Prisma Schema
+// cueq: Prisma Schema
 // ======================
 // Persistence model for the domain described in ARCHITECTURE.md and
 // docs/product-specs/. JSON Schema and OpenAPI define external contracts;
@@ -21,30 +21,30 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model Person {
-  id                String   @id @default(cuid())
-  externalId        String?  @unique /// HR/IdM external identifier
-  firstName         String
-  lastName          String
-  email             String   @unique
-  role              Role     @default(EMPLOYEE)
+  id                  String             @id @default(cuid())
+  externalId          String?            @unique /// HR/IdM external identifier
+  firstName           String
+  lastName            String
+  email               String             @unique
+  role                Role               @default(EMPLOYEE)
   employmentStartDate DateTime?
   employmentEndDate   DateTime?
-  organizationUnitId String
-  organizationUnit  OrganizationUnit @relation(fields: [organizationUnitId], references: [id])
-  supervisorId      String?
-  supervisor        Person?  @relation("SupervisorRelation", fields: [supervisorId], references: [id])
-  subordinates      Person[] @relation("SupervisorRelation")
-  workTimeModelId   String?
-  workTimeModel     WorkTimeModel? @relation(fields: [workTimeModelId], references: [id])
-  bookings          Booking[]
-  absences          Absence[]
-  timeAccounts      TimeAccount[]
-  shiftAssignments  ShiftAssignment[]
-  onCallRotations   OnCallRotation[]
-  onCallDeployments OnCallDeployment[]
-  leaveAdjustments  LeaveAdjustment[]
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  organizationUnitId  String
+  organizationUnit    OrganizationUnit   @relation(fields: [organizationUnitId], references: [id])
+  supervisorId        String?
+  supervisor          Person?            @relation("SupervisorRelation", fields: [supervisorId], references: [id])
+  subordinates        Person[]           @relation("SupervisorRelation")
+  workTimeModelId     String?
+  workTimeModel       WorkTimeModel?     @relation(fields: [workTimeModelId], references: [id])
+  bookings            Booking[]
+  absences            Absence[]
+  timeAccounts        TimeAccount[]
+  shiftAssignments    ShiftAssignment[]
+  onCallRotations     OnCallRotation[]
+  onCallDeployments   OnCallDeployment[]
+  leaveAdjustments    LeaveAdjustment[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([organizationUnitId])
   @@index([supervisorId])
@@ -52,27 +52,27 @@ model Person {
 }
 
 enum Role {
-  EMPLOYEE      /// Mitarbeitende
-  TEAM_LEAD     /// Teamleitung / Vorgesetzte
+  EMPLOYEE /// Mitarbeitende
+  TEAM_LEAD /// Teamleitung / Vorgesetzte
   SHIFT_PLANNER /// Dienstplaner*in
-  HR            /// Personalstelle
-  PAYROLL       /// Bezügestelle
-  ADMIN         /// IT/Administration
+  HR /// Personalstelle
+  PAYROLL /// Bezügestelle
+  ADMIN /// IT/Administration
   DATA_PROTECTION /// Datenschutz
   WORKS_COUNCIL /// Personalrat
 }
 
 model OrganizationUnit {
-  id        String   @id @default(cuid())
-  name      String
-  parentId  String?
-  parent    OrganizationUnit?  @relation("OUHierarchy", fields: [parentId], references: [id])
-  children  OrganizationUnit[] @relation("OUHierarchy")
-  persons   Person[]
-  rosters   Roster[]
+  id              String             @id @default(cuid())
+  name            String
+  parentId        String?
+  parent          OrganizationUnit?  @relation("OUHierarchy", fields: [parentId], references: [id])
+  children        OrganizationUnit[] @relation("OUHierarchy")
+  persons         Person[]
+  rosters         Roster[]
   onCallRotations OnCallRotation[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   @@map("organization_units")
 }
@@ -82,26 +82,26 @@ model OrganizationUnit {
 // ---------------------------------------------------------------------------
 
 model WorkTimeModel {
-  id              String   @id @default(cuid())
-  name            String   /// e.g. "Gleitzeit Vollzeit", "Schicht Pforte 3x8"
-  type            WorkTimeModelType
-  weeklyHours     Decimal  @db.Decimal(10, 2) /// e.g. 39.83 for TV-L full-time
-  dailyTargetHours Decimal? @db.Decimal(10, 2) /// e.g. 7.97 for 5-day week
-  coreTimeStart   String?  /// e.g. "09:00" (Gleitzeit only)
-  coreTimeEnd     String?  /// e.g. "15:00" (Gleitzeit only)
-  effectiveFrom   DateTime
-  effectiveTo     DateTime?
-  persons         Person[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String            @id @default(cuid())
+  name             String /// e.g. "Gleitzeit Vollzeit", "Schicht Pforte 3x8"
+  type             WorkTimeModelType
+  weeklyHours      Decimal           @db.Decimal(10, 2) /// e.g. 39.83 for TV-L full-time
+  dailyTargetHours Decimal?          @db.Decimal(10, 2) /// e.g. 7.97 for 5-day week
+  coreTimeStart    String? /// e.g. "09:00" (Gleitzeit only)
+  coreTimeEnd      String? /// e.g. "15:00" (Gleitzeit only)
+  effectiveFrom    DateTime
+  effectiveTo      DateTime?
+  persons          Person[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@map("work_time_models")
 }
 
 enum WorkTimeModelType {
-  FLEXTIME   /// Gleitzeit
-  FIXED      /// Fixzeit
-  SHIFT      /// Schichtmodell
+  FLEXTIME /// Gleitzeit
+  FIXED /// Fixzeit
+  SHIFT /// Schichtmodell
 }
 
 // ---------------------------------------------------------------------------
@@ -109,19 +109,19 @@ enum WorkTimeModelType {
 // ---------------------------------------------------------------------------
 
 model Booking {
-  id          String      @id @default(cuid())
-  personId    String
-  person      Person      @relation(fields: [personId], references: [id])
-  timeTypeId  String
-  timeType    TimeType    @relation(fields: [timeTypeId], references: [id])
-  startTime   DateTime
-  endTime     DateTime?
-  source      BookingSource
-  note        String?     /// Required for corrections/manual entries
-  shiftId     String?
-  shift       Shift?      @relation(fields: [shiftId], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id         String        @id @default(cuid())
+  personId   String
+  person     Person        @relation(fields: [personId], references: [id])
+  timeTypeId String
+  timeType   TimeType      @relation(fields: [timeTypeId], references: [id])
+  startTime  DateTime
+  endTime    DateTime?
+  source     BookingSource
+  note       String? /// Required for corrections/manual entries
+  shiftId    String?
+  shift      Shift?        @relation(fields: [shiftId], references: [id])
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
   @@index([personId, startTime])
   @@index([timeTypeId])
@@ -129,37 +129,37 @@ model Booking {
 }
 
 enum BookingSource {
-  TERMINAL   /// Honeywell terminal
-  WEB        /// Web self-service
-  MOBILE     /// Mobile app (future)
-  IMPORT     /// Batch import
-  MANUAL     /// Emergency/manual entry
+  TERMINAL /// Honeywell terminal
+  WEB /// Web self-service
+  MOBILE /// Mobile app (future)
+  IMPORT /// Batch import
+  MANUAL /// Emergency/manual entry
   CORRECTION /// Post-close HR correction
 }
 
 model TimeType {
-  id          String    @id @default(cuid())
-  code        String    @unique /// e.g. "WORK", "PAUSE", "ON_CALL", "DEPLOYMENT"
-  name        String    /// Display name (German)
-  nameEn      String?   /// Display name (English)
-  category    TimeTypeCategory
-  isActive    Boolean   @default(true)
-  bookings    Booking[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String           @id @default(cuid())
+  code      String           @unique /// e.g. "WORK", "PAUSE", "ON_CALL", "DEPLOYMENT"
+  name      String /// Display name (German)
+  nameEn    String? /// Display name (English)
+  category  TimeTypeCategory
+  isActive  Boolean          @default(true)
+  bookings  Booking[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@map("time_types")
 }
 
 enum TimeTypeCategory {
-  WORK          /// Regular working time
-  PAUSE         /// Break
-  ON_CALL       /// Rufbereitschaft
-  DEPLOYMENT    /// Einsatz aus Rufbereitschaft
-  ERRAND        /// Dienstgang
-  HOME_OFFICE   /// Homeoffice
-  TRAINING      /// Fortbildung
-  TRAVEL        /// Dienstreise
+  WORK /// Regular working time
+  PAUSE /// Break
+  ON_CALL /// Rufbereitschaft
+  DEPLOYMENT /// Einsatz aus Rufbereitschaft
+  ERRAND /// Dienstgang
+  HOME_OFFICE /// Homeoffice
+  TRAINING /// Fortbildung
+  TRAVEL /// Dienstreise
 }
 
 // ---------------------------------------------------------------------------
@@ -167,17 +167,17 @@ enum TimeTypeCategory {
 // ---------------------------------------------------------------------------
 
 model TimeAccount {
-  id          String   @id @default(cuid())
-  personId    String
-  person      Person   @relation(fields: [personId], references: [id])
-  periodStart DateTime /// Start of accounting period (e.g. month start)
-  periodEnd   DateTime /// End of accounting period
-  targetHours Decimal  @db.Decimal(10, 2) /// Sollzeit for the period
-  actualHours Decimal  @db.Decimal(10, 2) /// Istzeit for the period
-  balance     Decimal  @db.Decimal(10, 2) /// actualHours - targetHours
-  overtimeHours Decimal @db.Decimal(10, 2) @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  personId      String
+  person        Person   @relation(fields: [personId], references: [id])
+  periodStart   DateTime /// Start of accounting period (e.g. month start)
+  periodEnd     DateTime /// End of accounting period
+  targetHours   Decimal  @db.Decimal(10, 2) /// Sollzeit for the period
+  actualHours   Decimal  @db.Decimal(10, 2) /// Istzeit for the period
+  balance       Decimal  @db.Decimal(10, 2) /// actualHours - targetHours
+  overtimeHours Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([personId, periodStart])
   @@map("time_accounts")
@@ -188,16 +188,16 @@ model TimeAccount {
 // ---------------------------------------------------------------------------
 
 model Roster {
-  id                  String   @id @default(cuid())
-  organizationUnitId  String
-  organizationUnit    OrganizationUnit @relation(fields: [organizationUnitId], references: [id])
-  periodStart         DateTime
-  periodEnd           DateTime
-  status              RosterStatus @default(DRAFT)
-  publishedAt         DateTime?
-  shifts              Shift[]
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 String           @id @default(cuid())
+  organizationUnitId String
+  organizationUnit   OrganizationUnit @relation(fields: [organizationUnitId], references: [id])
+  periodStart        DateTime
+  periodEnd          DateTime
+  status             RosterStatus     @default(DRAFT)
+  publishedAt        DateTime?
+  shifts             Shift[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   @@index([organizationUnitId, periodStart])
   @@map("rosters")
@@ -210,18 +210,18 @@ enum RosterStatus {
 }
 
 model Shift {
-  id          String   @id @default(cuid())
+  id          String            @id @default(cuid())
   rosterId    String
-  roster      Roster   @relation(fields: [rosterId], references: [id])
-  personId    String?  /// Deprecated compatibility field (single assignee)
+  roster      Roster            @relation(fields: [rosterId], references: [id])
+  personId    String? /// Deprecated compatibility field (single assignee)
   startTime   DateTime
   endTime     DateTime
-  shiftType   String   /// e.g. "EARLY", "LATE", "NIGHT"
-  minStaffing Int      @default(1)
+  shiftType   String /// e.g. "EARLY", "LATE", "NIGHT"
+  minStaffing Int               @default(1)
   bookings    Booking[]
   assignments ShiftAssignment[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([rosterId])
   @@map("shifts")
@@ -246,17 +246,17 @@ model ShiftAssignment {
 // ---------------------------------------------------------------------------
 
 model Absence {
-  id            String        @id @default(cuid())
-  personId      String
-  person        Person        @relation(fields: [personId], references: [id])
-  type          AbsenceType
-  startDate     DateTime
-  endDate       DateTime
-  days          Decimal       @db.Decimal(10, 2) /// Number of working days
-  status        AbsenceStatus @default(REQUESTED)
-  note          String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id        String        @id @default(cuid())
+  personId  String
+  person    Person        @relation(fields: [personId], references: [id])
+  type      AbsenceType
+  startDate DateTime
+  endDate   DateTime
+  days      Decimal       @db.Decimal(10, 2) /// Number of working days
+  status    AbsenceStatus @default(REQUESTED)
+  note      String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@index([personId, startDate])
   @@index([personId, status])
@@ -279,18 +279,18 @@ model LeaveAdjustment {
 }
 
 model OnCallRotation {
-  id                 String   @id @default(cuid())
+  id                 String             @id @default(cuid())
   personId           String
-  person             Person   @relation(fields: [personId], references: [id])
+  person             Person             @relation(fields: [personId], references: [id])
   organizationUnitId String
-  organizationUnit   OrganizationUnit @relation(fields: [organizationUnitId], references: [id])
+  organizationUnit   OrganizationUnit   @relation(fields: [organizationUnitId], references: [id])
   startTime          DateTime
   endTime            DateTime
   rotationType       OnCallRotationType
   note               String?
   deployments        OnCallDeployment[]
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@index([personId, startTime])
   @@index([organizationUnitId, startTime])
@@ -304,19 +304,19 @@ enum OnCallRotationType {
 }
 
 model OnCallDeployment {
-  id              String   @id @default(cuid())
+  id              String         @id @default(cuid())
   personId        String
-  person          Person   @relation(fields: [personId], references: [id])
+  person          Person         @relation(fields: [personId], references: [id])
   rotationId      String
   rotation        OnCallRotation @relation(fields: [rotationId], references: [id])
   startTime       DateTime
   endTime         DateTime
-  remote          Boolean  @default(true)
+  remote          Boolean        @default(true)
   ticketReference String?
   eventReference  String?
   description     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([personId, startTime])
   @@index([rotationId])
@@ -324,15 +324,15 @@ model OnCallDeployment {
 }
 
 enum AbsenceType {
-  ANNUAL_LEAVE    /// Erholungsurlaub
-  SICK            /// Krankheit
-  SPECIAL_LEAVE   /// Sonderurlaub
-  TRAINING        /// Fortbildung
-  TRAVEL          /// Dienstreise
-  COMP_TIME       /// Freizeitausgleich
-  FLEX_DAY        /// Gleittag
-  UNPAID          /// Unbezahlter Urlaub
-  PARENTAL        /// Elternzeit
+  ANNUAL_LEAVE /// Erholungsurlaub
+  SICK /// Krankheit
+  SPECIAL_LEAVE /// Sonderurlaub
+  TRAINING /// Fortbildung
+  TRAVEL /// Dienstreise
+  COMP_TIME /// Freizeitausgleich
+  FLEX_DAY /// Gleittag
+  UNPAID /// Unbezahlter Urlaub
+  PARENTAL /// Elternzeit
 }
 
 enum AbsenceStatus {
@@ -350,10 +350,10 @@ model WorkflowInstance {
   id              String         @id @default(cuid())
   type            WorkflowType
   status          WorkflowStatus @default(PENDING)
-  requesterId     String         /// Person who initiated the request
-  approverId      String?        /// Current/final approver
-  entityType      String         /// e.g. "Absence", "Booking"
-  entityId        String         /// ID of the related entity
+  requesterId     String /// Person who initiated the request
+  approverId      String? /// Current/final approver
+  entityType      String /// e.g. "Absence", "Booking"
+  entityId        String /// ID of the related entity
   reason          String?
   decisionReason  String?
   requestPayload  Json?
@@ -395,10 +395,10 @@ model WorkflowPolicy {
   id                      String       @id @default(cuid())
   type                    WorkflowType
   escalationDeadlineHours Int
-  escalationRoles         Json         /// ordered role chain, e.g. ["HR","ADMIN"]
+  escalationRoles         Json /// ordered role chain, e.g. ["HR","ADMIN"]
   maxDelegationDepth      Int          @default(5)
   activeFrom              DateTime     @default(now())
-  activeTo                DateTime?    /// null means this is the currently active policy version
+  activeTo                DateTime? /// null means this is the currently active policy version
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 
@@ -408,18 +408,18 @@ model WorkflowPolicy {
 }
 
 model WorkflowDelegationRule {
-  id                 String       @id @default(cuid())
+  id                 String        @id @default(cuid())
   delegatorId        String
   delegateId         String
   workflowType       WorkflowType?
   organizationUnitId String?
   activeFrom         DateTime
   activeTo           DateTime?
-  isActive           Boolean      @default(true)
-  priority           Int          @default(0)
+  isActive           Boolean       @default(true)
+  priority           Int           @default(0)
   createdById        String?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   @@index([delegatorId, isActive, activeFrom, activeTo])
   @@index([workflowType, organizationUnitId, priority])
@@ -431,22 +431,22 @@ model WorkflowDelegationRule {
 // ---------------------------------------------------------------------------
 
 model ClosingPeriod {
-  id                  String        @id @default(cuid())
-  organizationUnitId  String?       /// null = global
-  periodStart         DateTime
-  periodEnd           DateTime
-  status              ClosingStatus @default(OPEN)
-  leadApprovedAt      DateTime?
-  leadApprovedById    String?
-  hrApprovedAt        DateTime?
-  hrApprovedById      String?
-  lockedAt            DateTime?
-  lockSource          ClosingLockSource?
-  closedAt            DateTime?
-  closedById          String?
-  exportRuns          ExportRun[]
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                 String             @id @default(cuid())
+  organizationUnitId String? /// null = global
+  periodStart        DateTime
+  periodEnd          DateTime
+  status             ClosingStatus      @default(OPEN)
+  leadApprovedAt     DateTime?
+  leadApprovedById   String?
+  hrApprovedAt       DateTime?
+  hrApprovedById     String?
+  lockedAt           DateTime?
+  lockSource         ClosingLockSource?
+  closedAt           DateTime?
+  closedById         String?
+  exportRuns         ExportRun[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@unique([organizationUnitId, periodStart])
   @@map("closing_periods")
@@ -466,33 +466,34 @@ enum ClosingLockSource {
 }
 
 model ExportRun {
-  id              String   @id @default(cuid())
+  id              String        @id @default(cuid())
   closingPeriodId String
   closingPeriod   ClosingPeriod @relation(fields: [closingPeriodId], references: [id])
-  format          String   /// e.g. "CSV", "XML"
+  format          String /// e.g. "CSV", "XML"
   recordCount     Int
-  checksum        String   /// SHA-256 of export content
-  artifact        String?  /// Export payload artifact (e.g. canonical CSV body)
-  contentType     String?  /// e.g. "text/csv"
-  exportedAt      DateTime @default(now())
+  checksum        String /// SHA-256 of export content
+  artifact        String? /// Export payload artifact (e.g. canonical CSV body)
+  contentType     String? /// e.g. "text/csv"
+  exportedAt      DateTime      @default(now())
   exportedById    String
 
+  @@unique([closingPeriodId, format, checksum])
   @@index([closingPeriodId])
   @@map("export_runs")
 }
 
 model DomainEventOutbox {
-  id            String   @id @default(cuid())
+  id            String            @id @default(cuid())
   eventType     String
   aggregateType String
   aggregateId   String
   payload       Json
-  status        OutboxStatus @default(PENDING)
-  attempts      Int      @default(0)
+  status        OutboxStatus      @default(PENDING)
+  attempts      Int               @default(0)
   nextAttemptAt DateTime?
   lastError     String?
   processedAt   DateTime?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime          @default(now())
   deliveries    WebhookDelivery[]
 
   @@index([status, nextAttemptAt, createdAt])
@@ -507,15 +508,15 @@ enum OutboxStatus {
 }
 
 model WebhookEndpoint {
-  id               String   @id @default(cuid())
+  id               String            @id @default(cuid())
   name             String
   url              String
   secretRef        String?
-  isActive         Boolean  @default(true)
+  isActive         Boolean           @default(true)
   subscribedEvents String[]
   createdById      String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   deliveries       WebhookDelivery[]
 
   @@index([isActive])
@@ -523,20 +524,20 @@ model WebhookEndpoint {
 }
 
 model WebhookDelivery {
-  id           String   @id @default(cuid())
+  id            String                @id @default(cuid())
   outboxEventId String
-  outboxEvent  DomainEventOutbox @relation(fields: [outboxEventId], references: [id])
-  endpointId   String
-  endpoint     WebhookEndpoint @relation(fields: [endpointId], references: [id])
-  attempt      Int      @default(1)
-  status       WebhookDeliveryStatus @default(PENDING)
-  httpStatus   Int?
-  responseBody String?
-  error        String?
-  deliveredAt  DateTime?
-  createdAt    DateTime @default(now())
+  outboxEvent   DomainEventOutbox     @relation(fields: [outboxEventId], references: [id])
+  endpointId    String
+  endpoint      WebhookEndpoint       @relation(fields: [endpointId], references: [id])
+  attempt       Int                   @default(1)
+  status        WebhookDeliveryStatus @default(PENDING)
+  httpStatus    Int?
+  responseBody  String?
+  error         String?
+  deliveredAt   DateTime?
+  createdAt     DateTime              @default(now())
 
-  @@index([outboxEventId, endpointId, attempt])
+  @@unique([outboxEventId, endpointId, attempt])
   @@map("webhook_deliveries")
 }
 
@@ -547,63 +548,65 @@ enum WebhookDeliveryStatus {
 }
 
 model TerminalDevice {
-  id             String   @id @default(cuid())
-  terminalId     String   @unique
+  id             String              @id @default(cuid())
+  terminalId     String              @unique
   name           String?
-  isActive       Boolean  @default(true)
+  isActive       Boolean             @default(true)
   lastSeenAt     DateTime?
-  lastErrorCount Int      @default(0)
+  lastErrorCount Int                 @default(0)
   heartbeats     TerminalHeartbeat[]
   syncBatches    TerminalSyncBatch[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   @@map("terminal_devices")
 }
 
 model TerminalHeartbeat {
-  id               String   @id @default(cuid())
+  id               String         @id @default(cuid())
   terminalDeviceId String
   terminalDevice   TerminalDevice @relation(fields: [terminalDeviceId], references: [id])
   observedAt       DateTime
-  bufferedRecords  Int      @default(0)
-  errorCount       Int      @default(0)
+  bufferedRecords  Int            @default(0)
+  errorCount       Int            @default(0)
   details          Json?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime       @default(now())
 
   @@index([terminalDeviceId, observedAt])
   @@map("terminal_heartbeats")
 }
 
 model TerminalSyncBatch {
-  id            String   @id @default(cuid())
-  terminalId    String
-  terminalDeviceId String?
-  terminalDevice TerminalDevice? @relation(fields: [terminalDeviceId], references: [id])
-  sourceFile    String?
-  importedAt    DateTime @default(now())
-  importedById  String?
-  rawPayload    Json
-  resultPayload Json
+  id                String          @id @default(cuid())
+  terminalId        String
+  terminalDeviceId  String?
+  terminalDevice    TerminalDevice? @relation(fields: [terminalDeviceId], references: [id])
+  sourceFile        String?
+  importedAt        DateTime        @default(now())
+  importedById      String?
+  rawPayload        Json
+  resultPayload     Json
+  ingestionChecksum String?
 
+  @@unique([terminalId, ingestionChecksum])
   @@index([terminalId, importedAt])
   @@index([terminalDeviceId])
   @@map("terminal_sync_batches")
 }
 
 model HrImportRun {
-  id            String   @id @default(cuid())
-  source        String   /// FILE|API
-  sourceFile    String?
-  status        String   /// SUCCEEDED|FAILED
-  totalRows     Int      @default(0)
-  createdRows   Int      @default(0)
-  updatedRows   Int      @default(0)
-  skippedRows   Int      @default(0)
-  errorCount    Int      @default(0)
-  summary       Json
-  importedById  String?
-  importedAt    DateTime @default(now())
+  id           String   @id @default(cuid())
+  source       String /// FILE|API
+  sourceFile   String?
+  status       String /// SUCCEEDED|FAILED
+  totalRows    Int      @default(0)
+  createdRows  Int      @default(0)
+  updatedRows  Int      @default(0)
+  skippedRows  Int      @default(0)
+  errorCount   Int      @default(0)
+  summary      Json
+  importedById String?
+  importedAt   DateTime @default(now())
 
   @@index([importedAt])
   @@map("hr_import_runs")
@@ -616,35 +619,34 @@ model HrImportRun {
 /// Labour-law working-time thresholds (ArbZG §3/§5 defaults).
 /// activeTo IS NULL means currently active; keep history by closing before inserting new.
 model TimeThresholdPolicy {
-  id               String    @id @default(cuid())
+  id              String    @id @default(cuid())
   /// Maximum permitted shift duration in minutes (ArbZG §3 default: 600 = 10 h)
-  dailyMaxMinutes  Int       @default(600)
+  dailyMaxMinutes Int       @default(600)
   /// Minimum rest period between shifts in minutes (ArbZG §5 default: 660 = 11 h)
-  minRestMinutes   Int       @default(660)
-  activeFrom       DateTime  @default(now())
-  activeTo         DateTime? /// null = currently active version
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  minRestMinutes  Int       @default(660)
+  activeFrom      DateTime  @default(now())
+  activeTo        DateTime? /// null = currently active version
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([activeTo])
   @@map("time_threshold_policies")
 }
 
 model AuditEntry {
-  id          String   @id @default(cuid())
-  timestamp   DateTime @default(now())
-  actorId     String   /// Person who performed the action
-  action      String   /// e.g. "BOOKING_CREATED", "LEAVE_APPROVED"
-  entityType  String   /// e.g. "Booking", "Absence"
-  entityId    String
-  before      Json?    /// State before change
-  after       Json?    /// State after change
-  reason      String?  /// Human-readable justification
-  ipAddress   String?
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  actorId    String /// Person who performed the action
+  action     String /// e.g. "BOOKING_CREATED", "LEAVE_APPROVED"
+  entityType String /// e.g. "Booking", "Absence"
+  entityId   String
+  before     Json? /// State before change
+  after      Json? /// State after change
+  reason     String? /// Human-readable justification
+  ipAddress  String?
 
-  // NOTE: No updatedAt — audit entries are immutable.
-  // The DB role for the application should NOT have UPDATE or DELETE
-  // permissions on this table.
+  // NOTE: No updatedAt: audit entries are immutable.
+  // The PostgreSQL immutability migration rejects UPDATE and DELETE operations.
 
   @@index([entityType, entityId])
   @@index([actorId, timestamp])

@@ -1,3 +1,4 @@
+/** Runtime contracts for policy bundles, history, and administrative updates. */
 import { z } from 'zod';
 
 export const PolicyRuleTypeSchema = z.enum([

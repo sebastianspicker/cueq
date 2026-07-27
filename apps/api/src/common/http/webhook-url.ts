@@ -1,3 +1,4 @@
+/** Webhook URL validation and DNS resolution boundary that blocks private-network and rebinding targets. */
 import { BadRequestException } from '@nestjs/common';
 import { lookup } from 'node:dns/promises';
 import { BlockList, isIP } from 'node:net';
@@ -41,6 +42,7 @@ for (const [address, prefix] of [
   NON_PUBLIC_ADDRESSES.addSubnet(address, prefix, 'ipv6');
 }
 
+/** A validated public address bound to the requested webhook URL for one dispatch attempt. */
 export interface ResolvedWebhookTarget {
   url: URL;
   address: string;
@@ -84,6 +86,7 @@ function mappedIpv4(address: string): string | null {
   return /^::ffff:(\d+\.\d+\.\d+\.\d+)$/iu.exec(address)?.[1] ?? null;
 }
 
+/** @internal Identifies addresses eligible for outbound webhook delivery. */
 export function isPublicWebhookAddress(address: string): boolean {
   const normalized = normalizeHostname(address);
   const family = isIP(normalized);
@@ -118,6 +121,7 @@ function assertUrlShape(url: string): URL {
   return parsed;
 }
 
+/** Parses and restricts a configured webhook URL before any network request is created. */
 export function assertWebhookTargetUrl(url: string, env: NodeJS.ProcessEnv = process.env): URL {
   const parsed = assertUrlShape(url);
   const privateTarget =
@@ -157,6 +161,7 @@ async function lookupAllAddresses(hostname: string) {
   }
 }
 
+/** Resolves a validated hostname and rejects DNS answers that cross the public-network boundary. */
 export async function resolveWebhookDispatchTarget(
   url: string,
   env: NodeJS.ProcessEnv = process.env,
@@ -178,6 +183,7 @@ export async function resolveWebhookDispatchTarget(
   return { url: parsed, address: selected.address, family: selected.family };
 }
 
+/** @internal Validates and resolves a webhook URL immediately before transport. */
 export async function assertWebhookDispatchTargetUrl(
   url: string,
   env: NodeJS.ProcessEnv = process.env,

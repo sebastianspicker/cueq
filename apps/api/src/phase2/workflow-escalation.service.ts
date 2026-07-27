@@ -1,7 +1,12 @@
+/** Schedules resilient escalation of overdue workflow instances. */
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { WorkflowRuntimeService } from './workflow-runtime.service';
+import { WorkflowRuntimeService } from './workflow-runtime.service.js';
 
+/**
+ * Best-effort hourly trigger for overdue workflow escalation.
+ * Failures are logged so scheduler retries do not conceal the underlying workflow state.
+ */
 @Injectable()
 export class WorkflowEscalationService {
   private readonly logger = new Logger(WorkflowEscalationService.name);

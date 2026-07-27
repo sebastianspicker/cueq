@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { HrImportService } from './hr-import.service';
-import type { HrMasterProviderPort } from './hr-master-provider.port';
+import { HrImportService } from './hr-import.service.js';
+import type { HrMasterProviderPort } from './hr-master-provider.port.js';
 
 function createRun(overrides: Record<string, unknown> = {}) {
   return {
@@ -79,6 +79,45 @@ describe('HrImportService', () => {
       updatedRows: 0,
       errorCount: 0,
     });
+  });
+
+  it('clears an existing supervisor when the authoritative row has a blank supervisorExternalId', async () => {
+    const { service, tx } = createService();
+    tx.person.findUnique.mockResolvedValue({ id: 'person-employee' });
+    tx.person.update.mockResolvedValue({ id: 'person-employee' });
+
+    await service.runImport('dev-hr-token', {
+      source: 'FILE',
+      csv: [
+        'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours,supervisorExternalId',
+        'emp01,Emp,One,emp@cueq.local,EMPLOYEE,HR,Full,39.83,7.97,',
+      ].join('\n'),
+    });
+
+    expect(tx.person.update).toHaveBeenLastCalledWith({
+      where: { id: 'person-employee' },
+      data: { supervisorId: null },
+    });
+  });
+
+  it('locks each existing person before updating HR-managed identity fields', async () => {
+    const { service, tx } = createService();
+    tx.person.findUnique.mockResolvedValue({ id: 'person-existing' });
+    tx.person.update.mockResolvedValue({ id: 'person-existing' });
+
+    await service.runImport('dev-hr-token', {
+      source: 'FILE',
+      csv: [
+        'externalId,firstName,lastName,email,role,organizationUnit,workTimeModel,weeklyHours,dailyTargetHours',
+        'emp01,Emp,One,emp@cueq.local,EMPLOYEE,HR,Full,39.83,7.97',
+      ].join('\n'),
+    });
+
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(tx.$queryRaw.mock.calls[1]?.[1]).toBe('cueq:person-write:person-existing');
+    expect(tx.person.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'person-existing' } }),
+    );
   });
 
   it('records a failed run when externalId and email resolve to different people', async () => {

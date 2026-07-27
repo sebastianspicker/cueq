@@ -1,12 +1,19 @@
+/** Supplies the group threshold and builds role-gated audit and compliance summaries. */
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { ClosingStatus } from '@cueq/database';
 import { AuditSummaryQuerySchema, ComplianceSummaryQuerySchema } from '@cueq/shared';
-import { PrismaService } from '../../persistence/prisma.service';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { AuditHelper } from './audit.helper';
-import { PersonHelper } from './person.helper';
-import { SENSITIVE_REPORT_ALLOWED_ROLES } from './role-constants';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { AuditHelper } from './audit.helper.js';
+import { PersonHelper } from './person.helper.js';
+import { SENSITIVE_REPORT_ALLOWED_ROLES } from './role-constants.js';
 
+const GOVERNANCE_MIN_GROUP_SIZE = 5;
+
+/**
+ * Provides the minimum-group threshold used by operational analytics and builds
+ * sensitive audit/compliance summaries under explicit role checks.
+ */
 @Injectable()
 export class ReportingComplianceHelper {
   constructor(
@@ -16,8 +23,12 @@ export class ReportingComplianceHelper {
   ) {}
 
   minGroupSize(): number {
-    const parsed = Number(process.env.REPORT_MIN_GROUP_SIZE ?? '5');
-    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 5;
+    const parsed = Math.trunc(
+      Number(process.env.REPORT_MIN_GROUP_SIZE ?? GOVERNANCE_MIN_GROUP_SIZE),
+    );
+    return Number.isFinite(parsed) && parsed >= GOVERNANCE_MIN_GROUP_SIZE
+      ? parsed
+      : GOVERNANCE_MIN_GROUP_SIZE;
   }
 
   private assertCanReadSensitiveReports(user: AuthenticatedIdentity) {

@@ -1,8 +1,10 @@
 'use client';
 
+/** Time-engine simulation workspace for inspecting rule outcomes without granting policy authority. */
+
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { TimeRuleEvaluationResponseSchema } from '@cueq/shared';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
@@ -45,9 +47,10 @@ interface TimeEngineResponse {
   surchargeMinutes: SurchargeLine[];
 }
 
+/** Hosts time-engine evaluation inputs and their API-calculated results. */
 export default function TimeEnginePage() {
   const t = useTranslations('pages.timeEngine');
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiRequest } = useApiContext();
   const [payload, setPayload] = useState(DEFAULT_PAYLOAD);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +70,7 @@ export default function TimeEnginePage() {
     }
 
     try {
-      const data = await apiRequest<TimeEngineResponse>('/v1/time-engine/evaluate', {
+      const data = await apiRequest('/v1/time-engine/evaluate', TimeRuleEvaluationResponseSchema, {
         method: 'POST',
         body: JSON.stringify(parsedPayload),
       });
@@ -82,15 +85,6 @@ export default function TimeEnginePage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
-
       <SectionCard>
         <label className="cq-form-field">
           <span>{t('payloadLabel')}</span>
@@ -176,13 +170,13 @@ export default function TimeEnginePage() {
             {result.surchargeMinutes.length > 0 ? (
               <article>
                 <h3>{t('surcharge')}</h3>
-                <table className="cq-data-table">
+                <table className="cq-data-table" tabIndex={0}>
                   <caption className="cq-sr-only">{t('surcharge')}</caption>
                   <thead>
                     <tr>
-                      <th>{t('surchargeCategory')}</th>
-                      <th>{t('surchargeMinutes')}</th>
-                      <th>{t('surchargeRate')}</th>
+                      <th scope="col">{t('surchargeCategory')}</th>
+                      <th scope="col">{t('surchargeMinutes')}</th>
+                      <th scope="col">{t('surchargeRate')}</th>
                     </tr>
                   </thead>
                   <tbody>

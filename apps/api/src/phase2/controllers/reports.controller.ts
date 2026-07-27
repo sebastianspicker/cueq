@@ -1,3 +1,4 @@
+/** Exposes role-gated reports with report-specific scope and privacy handling. */
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
@@ -9,19 +10,20 @@ import {
   ComplianceSummaryQuerySchema,
   CustomReportPreviewQueryParamsSchema,
 } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { ReportingService } from '../services/reporting.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { ReportingService } from '../services/reporting.service.js';
 import {
   AuditSummaryReportDto,
   ClosingCompletionReportDto,
   ComplianceSummaryReportDto,
   OeOvertimeReportDto,
   TeamAbsenceReportDto,
-} from '../dto/reporting.dto';
+} from '../dto/reporting.dto.js';
 
+/** Reporting boundary whose services apply each report's scope and suppression rules. */
 @ApiTags('reports')
 @ApiBearerAuth()
 @Controller('v1/reports')

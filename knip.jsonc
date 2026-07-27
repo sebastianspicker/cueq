@@ -1,0 +1,112 @@
+{
+  "$schema": "https://unpkg.com/knip/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/dev.mjs!",
+        "scripts/generate-core-schema-types.mjs",
+        "scripts/generate-db-schema-doc.mjs",
+        "scripts/hr-import.mjs!",
+        "scripts/validate-fixtures.mjs",
+        "scripts/validate-schemas.mjs",
+        "scripts/**/*.test.mjs",
+        "scripts/**/*.sh",
+        "scripts/shims/*",
+      ],
+      "project": ["scripts/**/*.{mjs,cjs,js,ts}", "*.{mjs,cjs,js,ts}"],
+    },
+    "apps/api": {
+      "entry": [
+        "src/main.ts!",
+        "src/commands/*.ts!",
+        "src/**/*.test.ts",
+        "test/**/*.ts",
+        "vitest*.config.ts",
+      ],
+      "project": [
+        "src/**/*.ts!",
+        "!src/**/*.test.ts!",
+        "!src/**/__tests__/**!",
+        "!src/test-utils/**!",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**/*.ts",
+        "test/**/*.ts",
+        "vitest*.config.ts",
+      ],
+    },
+    "apps/web": {
+      "entry": [
+        "src/app/**/{page,layout,loading,error,not-found,route}.{ts,tsx}!",
+        "src/**/*.{test,spec}.{ts,tsx}",
+        "tests/**/*.{test,spec}.ts",
+        "vitest*.config.ts",
+        "playwright*.config.ts",
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}!",
+        "!src/**/*.{test,spec}.{ts,tsx}!",
+        "src/**/*.{test,spec}.{ts,tsx}",
+        "tests/**/*.ts",
+        "*.{ts,tsx}",
+      ],
+    },
+    "packages/core": {
+      "entry": [
+        "src/index.ts!",
+        "src/**/*.test.ts",
+        "src/core/audit/build-audit-entry.typecheck.ts",
+      ],
+      "project": [
+        "src/**/*.ts!",
+        "!src/**/*.test.ts!",
+        "!src/**/__tests__/**!",
+        "!src/**/*.typecheck.ts!",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**/*.ts",
+        "src/**/*.typecheck.ts",
+      ],
+    },
+    "packages/database": {
+      "entry": [
+        "src/index.ts!",
+        "prisma/seed-*.mjs!",
+        "scripts/*.mjs!",
+        "src/**/*.test.ts",
+        "prisma/*.test.mjs",
+        "scripts/*.test.mjs",
+        "vitest*.config.ts",
+      ],
+      "project": [
+        "src/**/*.ts!",
+        "!src/**/*.test.ts!",
+        "!src/**/__tests__/**!",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**/*.ts",
+        "prisma/*.mjs",
+        "scripts/*.mjs",
+        "vitest*.config.ts",
+      ],
+    },
+    "packages/policy": {
+      "entry": ["src/index.ts!", "src/**/*.test.ts", "vitest*.config.ts"],
+      "project": [
+        "src/**/*.ts!",
+        "!src/**/*.test.ts!",
+        "!src/**/__tests__/**!",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**/*.ts",
+        "vitest*.config.ts",
+      ],
+    },
+    "packages/shared": {
+      "entry": ["src/index.ts!", "src/**/*.test.ts"],
+      "project": [
+        "src/**/*.ts!",
+        "!src/**/*.test.ts!",
+        "!src/**/__tests__/**!",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**/*.ts",
+      ],
+    },
+  },
+}

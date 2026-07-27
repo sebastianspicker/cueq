@@ -1,8 +1,9 @@
+/** Evaluates whether on-call deployments preserve the configured minimum rest period. */
 import { DEFAULT_REST_RULE } from '@cueq/policy';
 import type { RestRule } from '@cueq/policy';
 import type { CoreOnCallRestContract } from '@cueq/shared';
-import type { RuleViolation } from '../types';
-import { diffHours, roundToTwo, toViolation } from '../utils';
+import type { RuleViolation } from '../types.js';
+import { compareIsoInstants, diffHours, roundToTwo, toViolation } from '../utils.js';
 
 export interface OnCallDeployment {
   start: string;
@@ -18,6 +19,7 @@ export type OnCallRestResult = Omit<CoreOnCallRestContract['output'], 'violation
   violations: RuleViolation[];
 };
 
+/** Compare the latest deployment end with the next shift under any allowed on-call reduction. */
 export function evaluateOnCallRestCompliance(
   input: OnCallRestInput,
   policy: { restRule?: RestRule } = {},
@@ -30,7 +32,7 @@ export function evaluateOnCallRestCompliance(
       : restRule.minRestHours;
 
   const lastDeployment = [...input.deployments].sort((left, right) =>
-    right.end.localeCompare(left.end),
+    compareIsoInstants(right.end, left.end),
   )[0];
 
   if (!lastDeployment) {

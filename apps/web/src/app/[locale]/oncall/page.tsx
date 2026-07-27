@@ -1,11 +1,23 @@
 'use client';
 
+/** On-call planning workspace with client-side UX guards backed by API authorization. */
+
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import {
+  OnCallComplianceCheckSchema,
+  OnCallDeploymentSchema,
+  OnCallRotationSchema,
+  UserProfileSchema,
+} from '@cueq/shared';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
+import {
+  loadAndApply,
+  refreshAfterMutation,
+  type RefreshResult,
+} from '../../../lib/mutation-refresh';
 import {
   ComplianceSection,
   DeploymentsSection,
@@ -20,9 +32,10 @@ import {
 
 const APPROVAL_ROLES = new Set(['TEAM_LEAD', 'SHIFT_PLANNER', 'HR', 'ADMIN']);
 
+/** Hosts on-call planning data, mutations, and local feedback. */
 export default function OnCallPage() {
   const t = useTranslations('pages.oncall');
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { token, apiRequest } = useApiContext();
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,7 +65,7 @@ export default function OnCallPage() {
       return me;
     }
 
-    const next = await apiRequest<MeResponse>('/v1/me');
+    const next = await apiRequest('/v1/me', UserProfileSchema);
     setMe(next);
     return next;
   }
@@ -64,7 +77,7 @@ export default function OnCallPage() {
     }
 
     let active = true;
-    void apiRequest<MeResponse>('/v1/me')
+    void apiRequest('/v1/me', UserProfileSchema)
       .then((next) => {
         if (active) {
           setMe(next);
@@ -81,32 +94,41 @@ export default function OnCallPage() {
     };
   }, [apiRequest, token]);
 
-  async function loadRotations() {
+  async function loadOnCallData<T>(
+    request: () => Promise<T>,
+    apply: (data: T) => void,
+    preserveFeedback = false,
+  ): Promise<RefreshResult> {
     setLoading(true);
-    setError(null);
-    setMessage(null);
+    if (!preserveFeedback) {
+      setError(null);
+      setMessage(null);
+    }
     try {
-      const data = await apiRequest<OnCallRotation[]>('/v1/oncall/rotations');
-      setRotations(data);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      const result = await loadAndApply(request, apply);
+      if (!result.ok && !preserveFeedback) {
+        setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
+      }
+      return result;
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadDeployments() {
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const data = await apiRequest<OnCallDeployment[]>('/v1/oncall/deployments');
-      setDeployments(data);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    } finally {
-      setLoading(false);
-    }
+  async function loadRotations(preserveFeedback = false): Promise<RefreshResult> {
+    return loadOnCallData(
+      () => apiRequest('/v1/oncall/rotations', OnCallRotationSchema.array()),
+      setRotations,
+      preserveFeedback,
+    );
+  }
+
+  async function loadDeployments(preserveFeedback = false): Promise<RefreshResult> {
+    return loadOnCallData(
+      () => apiRequest('/v1/oncall/deployments', OnCallDeploymentSchema.array()),
+      setDeployments,
+      preserveFeedback,
+    );
   }
 
   async function runCompliance() {
@@ -116,10 +138,33 @@ export default function OnCallPage() {
     try {
       const current = await resolveMe();
       const targetPersonId = personId || current.id;
-      const data = await apiRequest<ComplianceResult>(
+      const data = await apiRequest(
         `/v1/oncall/compliance?personId=${encodeURIComponent(targetPersonId)}&nextShiftStart=${encodeURIComponent(nextShiftStart)}`,
+        OnCallComplianceCheckSchema,
       );
       setCompliance(data);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runSavedAction(
+    mutate: () => Promise<unknown>,
+    refresh: () => Promise<RefreshResult>,
+    successMessage: string,
+  ) {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await refreshAfterMutation(mutate, refresh);
+      if (result.ok) {
+        setMessage(successMessage);
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -133,28 +178,22 @@ export default function OnCallPage() {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      await apiRequest('/v1/oncall/rotations', {
-        method: 'POST',
-        body: JSON.stringify({
-          personId,
-          organizationUnitId,
-          startTime,
-          endTime,
-          rotationType,
-          note: note || undefined,
+    await runSavedAction(
+      () =>
+        apiRequest('/v1/oncall/rotations', OnCallRotationSchema, {
+          method: 'POST',
+          body: JSON.stringify({
+            personId,
+            organizationUnitId,
+            startTime,
+            endTime,
+            rotationType,
+            note: note || undefined,
+          }),
         }),
-      });
-      setMessage(t('rotationCreated'));
-      await loadRotations();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    } finally {
-      setLoading(false);
-    }
+      () => loadRotations(true),
+      t('rotationCreated'),
+    );
   }
 
   async function updateRotation() {
@@ -163,26 +202,15 @@ export default function OnCallPage() {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      await apiRequest(`/v1/oncall/rotations/${updateRotationId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          startTime,
-          endTime,
-          rotationType,
-          note: note || undefined,
+    await runSavedAction(
+      () =>
+        apiRequest(`/v1/oncall/rotations/${updateRotationId}`, OnCallRotationSchema, {
+          method: 'PATCH',
+          body: JSON.stringify({ startTime, endTime, rotationType, note: note || undefined }),
         }),
-      });
-      setMessage(t('rotationUpdated'));
-      await loadRotations();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    } finally {
-      setLoading(false);
-    }
+      () => loadRotations(true),
+      t('rotationUpdated'),
+    );
   }
 
   async function createDeployment() {
@@ -191,45 +219,30 @@ export default function OnCallPage() {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      await apiRequest('/v1/oncall/deployments', {
-        method: 'POST',
-        body: JSON.stringify({
-          personId,
-          rotationId,
-          startTime,
-          endTime,
-          remote,
-          ticketReference: ticketReference || undefined,
-          eventReference: eventReference || undefined,
-          description: description || undefined,
+    await runSavedAction(
+      () =>
+        apiRequest('/v1/oncall/deployments', OnCallDeploymentSchema, {
+          method: 'POST',
+          body: JSON.stringify({
+            personId,
+            rotationId,
+            startTime,
+            endTime,
+            remote,
+            ticketReference: ticketReference || undefined,
+            eventReference: eventReference || undefined,
+            description: description || undefined,
+          }),
         }),
-      });
-      setMessage(t('deploymentCreated'));
-      await loadDeployments();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    } finally {
-      setLoading(false);
-    }
+      () => loadDeployments(true),
+      t('deploymentCreated'),
+    );
   }
 
   const canManageRotations = me ? APPROVAL_ROLES.has(me.role) : false;
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
-
       <OnCallCommandBar
         t={t}
         loading={loading}

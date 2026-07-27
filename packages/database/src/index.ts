@@ -1,5 +1,5 @@
 /**
- * @cueq/database — Prisma client re-export
+ * @cueq/database: Prisma client re-export
  *
  * This package exports the Prisma client singleton for use across
  * the monorepo. Import from `@cueq/database` instead of importing
@@ -10,6 +10,7 @@ import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
+/** Shared client instance; non-production runtimes reuse it across hot reloads to limit connections. */
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({

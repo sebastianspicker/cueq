@@ -2,30 +2,40 @@
   "name": "@cueq/policy",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Policy-as-Code: versioned, testable, reviewable rules for time models, leave, compliance, and closing",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:integration": "vitest run src/__tests__/policy.integration.test.ts",
+    "test:coverage": "CUEQ_INCLUDE_SPECIALIZED_TESTS=1 vitest run --coverage",
+    "test:integration": "vitest run --config vitest.suites.config.ts src/__tests__/policy.integration.test.ts",
     "test:golden": "vitest run --config vitest.golden.config.ts",
-    "test:acceptance": "vitest run src/__tests__/policy.acceptance.test.ts",
-    "test:compliance": "vitest run src/__tests__/policy.compliance.test.ts",
+    "test:acceptance": "vitest run --config vitest.suites.config.ts src/__tests__/policy.acceptance.test.ts",
+    "test:compliance": "vitest run --config vitest.suites.config.ts src/__tests__/policy.compliance.test.ts",
     "clean": "rm -rf dist node_modules/.cache"
   },
   "dependencies": {
     "@cueq/shared": "workspace:*",
-    "zod": "3.25.76"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "ajv": "8.18.0",
-    "ajv-formats": "3.0.1",
-    "typescript": "5.9.3",
-    "vitest": "3.2.4"
+    "@types/node": "catalog:",
+    "@typescript/native": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
   }
 }

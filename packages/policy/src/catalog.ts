@@ -1,9 +1,10 @@
+/** Resolves effective-dated policy bundles while retaining history for audit and replay. */
 import { parseDateOnlyToTimestamp } from '@cueq/shared';
-import { DEFAULT_BREAK_RULE, type BreakRule } from './rules/break-rules';
-import { DEFAULT_LEAVE_RULE, type LeaveRule } from './rules/leave-rules';
-import { DEFAULT_MAX_HOURS_RULE, type MaxHoursRule } from './rules/max-hours-rules';
-import { DEFAULT_REST_RULE, type RestRule } from './rules/rest-rules';
-import { DEFAULT_SURCHARGE_RULE, type SurchargeRule } from './rules/surcharge-rules';
+import { DEFAULT_BREAK_RULE, type BreakRule } from './rules/break-rules.js';
+import { DEFAULT_LEAVE_RULE, type LeaveRule } from './rules/leave-rules.js';
+import { DEFAULT_MAX_HOURS_RULE, type MaxHoursRule } from './rules/max-hours-rules.js';
+import { DEFAULT_REST_RULE, type RestRule } from './rules/rest-rules.js';
+import { DEFAULT_SURCHARGE_RULE, type SurchargeRule } from './rules/surcharge-rules.js';
 
 export type PolicyRuleType =
   | 'BREAK_RULE'
@@ -36,6 +37,7 @@ export const POLICY_HISTORY: ReadonlyArray<PolicyCatalogRule> = Object.freeze([
   DEFAULT_SURCHARGE_RULE,
 ]);
 
+/** Return stable version-descending history, optionally restricted to one rule type. */
 export function getPolicyHistory(
   type?: PolicyRuleType,
   history: ReadonlyArray<PolicyCatalogRule> = POLICY_HISTORY,
@@ -47,6 +49,7 @@ export function getPolicyHistory(
   return history.filter((entry) => entry.type === type).sort((a, b) => b.version - a.version);
 }
 
+/** Resolve the highest active version of each rule type for a specific date. */
 export function getActivePolicyBundle(
   asOf: string,
   history: ReadonlyArray<PolicyCatalogRule> = POLICY_HISTORY,
@@ -59,11 +62,9 @@ export function getActivePolicyBundle(
     }
 
     const type = entry.type as PolicyRuleType;
-    if (!grouped.has(type)) {
-      grouped.set(type, []);
-    }
-
-    grouped.get(type)!.push(entry);
+    const entries = grouped.get(type) ?? [];
+    entries.push(entry);
+    grouped.set(type, entries);
   }
 
   const resolved: PolicyCatalogRule[] = [];

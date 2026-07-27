@@ -1,20 +1,23 @@
-# Product Spec: API-First Integration
+# Product Spec: API Integration
 
-> **CueQ Differentiator D** — Integration as a product surface.
-> **Status:** ✅ MVP Implemented
+> Source and checked-in OpenAPI contract surfaces are present.
+> External-provider integration and deployment approval require separate evidence.
 
 ---
 
 ## 1. Summary
 
-CueQ's API is not an implementation detail — it is a product surface. External systems (terminals, HR, payroll, ticketing, facility management) integrate through a documented, contract-tested, versioned API.
+The API defines versioned integration boundaries for terminals, HR data,
+payroll export, webhooks, and related external systems. The committed OpenAPI
+snapshot covers the HTTP surface; provider compatibility must be verified in
+each deployment.
 
 ## 2. OpenAPI Contract
 
-- **Source**: Generated from NestJS decorators via `@nestjs/swagger`
-- **Location**: Served at `/api/docs` (Swagger UI) in non-production environments; exported as JSON for CI validation
-- **CI validation**: The generated spec is checked against the last committed snapshot; drift fails the build
-- **Versioning**: API version in URL prefix (`/v1/`) once stable
+- Source: Generated from NestJS decorators via `@nestjs/swagger`
+- Location: Served at `/api/docs` (Swagger UI) in non-production environments; exported as JSON for CI validation
+- CI validation: The generated spec is checked against the last committed snapshot; drift fails the build
+- Versioning: Current API routes use the `/v1/` URL prefix
 
 ### CI OpenAPI Gate
 
@@ -31,7 +34,8 @@ OpenAPI snapshot comparison is implemented in `scripts/openapi-check.sh` and enf
 
 ## 3. Webhook / Event Patterns
 
-CueQ will emit domain events for key state changes, enabling downstream integrations:
+cueq's source defines domain-event payloads for key state changes; delivery to
+an external receiver is a separately configured deployment concern:
 
 | Event                | Trigger                  | Payload                                          |
 | -------------------- | ------------------------ | ------------------------------------------------ |
@@ -55,16 +59,20 @@ CueQ will emit domain events for key state changes, enabling downstream integrat
 }
 ```
 
-Webhook endpoints currently support unsigned delivery only. Secret-backed signing is intentionally not exposed until a real secret-resolution and signing flow exists.
+Working-tree source generates a one-time receiver secret, stores a versioned
+AES-256-GCM envelope, and signs deliveries with `X-Cueq-Signature`. Deployment
+key handling, migration application, receiver integration, and service-backed
+delivery remain separately verified concerns.
 
 ## 4. Terminal Gateway
 
 The Honeywell terminal integration is a dedicated adapter with:
 
-- **Offline buffer**: Terminals store bookings locally when offline
-- **Batch import**: Gateway imports buffered data on reconnection
-- **Conflict resolution**: Duplicate detection, timestamp ordering, absence-conflict flagging
-- **Monitoring**: Per-terminal heartbeat, last-seen timestamp, error counts
+- Offline buffer: required of the physical terminal/gateway deployment; not
+  implemented by this repository
+- Batch import: Gateway imports buffered data on reconnection
+- Conflict resolution: Duplicate detection, timestamp ordering, absence-conflict flagging
+- Monitoring: Per-terminal heartbeat, last-seen timestamp, error counts
 
 ### Gateway Architecture
 
@@ -79,6 +87,6 @@ Honeywell protocol baseline is now ratified as `HONEYWELL_CSV_V1` via
 
 ## 5. References
 
-- [`ARCHITECTURE.md`](../../ARCHITECTURE.md) §6 — Integration points
-- [`docs/SECURITY.md`](../SECURITY.md) — API authentication requirements
-- [`apps/api/src/main.ts`](../../apps/api/src/main.ts) — Swagger/OpenAPI setup
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md) §6: Integration points
+- [`docs/SECURITY.md`](../SECURITY.md): API authentication requirements
+- [`apps/api/src/main.ts`](../../apps/api/src/main.ts): Swagger/OpenAPI setup

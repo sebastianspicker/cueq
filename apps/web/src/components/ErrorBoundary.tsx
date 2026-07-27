@@ -1,5 +1,7 @@
 'use client';
 
+/** Client error boundary that contains rendering failures without changing server-side error policy. */
+
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
@@ -13,6 +15,7 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
+/** Recovers a failed subtree with a supplied or minimal accessible fallback. */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);

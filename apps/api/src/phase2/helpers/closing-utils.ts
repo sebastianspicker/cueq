@@ -1,10 +1,13 @@
+/** Maps closing contracts and computes period, cutoff, and XML-export primitives. */
 import { BadRequestException } from '@nestjs/common';
 import { ClosingStatus, Role } from '@cueq/database';
-import { parseShortOffsetToMinutes } from './closing-timezone';
+import { parseShortOffsetToMinutes } from './closing-timezone.js';
 
 /* ── Type Aliases ────────────────────────────────────────── */
 
+/** Least-privilege role vocabulary understood by the pure closing state machine. */
 export type ClosingActorRole = 'EMPLOYEE' | 'TEAM_LEAD' | 'HR' | 'ADMIN';
+/** Business-facing closing states, including the database `CLOSED` to `APPROVED` mapping. */
 export type CoreClosingStatus = 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED';
 
 /* ── Role / Status Mapping ──────────────────────────────── */
@@ -32,6 +35,7 @@ export function toClosingActorRole(role: Role): ClosingActorRole {
   return 'EMPLOYEE';
 }
 
+/** Converts the core closing state to its persistence representation. */
 export function toPersistenceClosingStatus(status: CoreClosingStatus): ClosingStatus {
   if (status === 'APPROVED') {
     return ClosingStatus.CLOSED;
@@ -50,8 +54,9 @@ export function toPersistenceClosingStatus(status: CoreClosingStatus): ClosingSt
 
 /* ── Response Mapping ───────────────────────────────────── */
 
-import { toCoreClosingStatus } from './closing-lock.helper';
+import { toCoreClosingStatus } from './closing-lock.helper.js';
 
+/** Serializes a persisted closing period into the stable API response shape. */
 export function mapClosingPeriodResponse(period: {
   id: string;
   organizationUnitId: string | null;
@@ -92,6 +97,7 @@ export function mapClosingPeriodResponse(period: {
 
 /* ── XML Escaping ───────────────────────────────────────── */
 
+/** Escapes text before it is embedded in the payroll XML export. */
 export function escapeXml(value: string): string {
   const escaped: string[] = [];
   for (const character of value) {
@@ -120,6 +126,7 @@ export function escapeXml(value: string): string {
 
 /* ── Month Parsing ──────────────────────────────────────── */
 
+/** Validates `YYYY-MM` and returns the inclusive UTC bounds used by closing queries. */
 export function parseMonthToRange(month: string) {
   const [yearString, monthString] = month.split('-');
   const year = Number(yearString);
@@ -141,16 +148,19 @@ export function parseMonthToRange(month: string) {
 
 /* ── Env Config Readers ─────────────────────────────────── */
 
+/** Reads the automatic-cutoff switch, defaulting to enabled unless explicitly disabled. */
 export function closingAutoCutoffEnabled(): boolean {
   const raw = (process.env.CLOSING_AUTO_CUTOFF_ENABLED ?? 'true').trim().toLowerCase();
   return !['0', 'false', 'no', 'off'].includes(raw);
 }
 
+/** Reads the manual review-start switch, which remains disabled by default. */
 export function allowManualReviewStart(): boolean {
   const raw = (process.env.CLOSING_ALLOW_MANUAL_REVIEW_START ?? 'false').trim().toLowerCase();
   return ['1', 'true', 'yes', 'on'].includes(raw);
 }
 
+/** @internal Reads and clamps the next-month cutoff day for focused tests. */
 export function closingCutoffDay(): number {
   const parsed = Number(process.env.CLOSING_CUTOFF_DAY ?? '3');
   if (!Number.isFinite(parsed)) {
@@ -160,6 +170,7 @@ export function closingCutoffDay(): number {
   return Math.min(28, Math.max(1, Math.trunc(parsed)));
 }
 
+/** @internal Reads and clamps the local cutoff hour for focused tests. */
 export function closingCutoffHour(): number {
   const parsed = Number(process.env.CLOSING_CUTOFF_HOUR ?? '12');
   if (!Number.isFinite(parsed)) {
@@ -169,7 +180,8 @@ export function closingCutoffHour(): number {
   return Math.min(23, Math.max(0, Math.trunc(parsed)));
 }
 
-export function closingTimeZone(): string {
+/** Returns a valid configured IANA zone or the Europe/Berlin operational default. */
+function closingTimeZone(): string {
   const candidate = process.env.CLOSING_TIMEZONE?.trim() || 'Europe/Berlin';
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date());
@@ -179,11 +191,13 @@ export function closingTimeZone(): string {
   }
 }
 
+/** Reads the booking-gap threshold and rejects implausibly small configuration values. */
 export function closingBookingGapMinutes(): number {
   const parsed = Number(process.env.CLOSING_BOOKING_GAP_MINUTES ?? '240');
   return Number.isFinite(parsed) && parsed >= 30 ? Math.trunc(parsed) : 240;
 }
 
+/** Reads the absolute balance threshold used to flag closing anomalies. */
 export function closingBalanceAnomalyHours(): number {
   const parsed = Number(process.env.CLOSING_BALANCE_ANOMALY_HOURS ?? '40');
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 40;
@@ -191,6 +205,7 @@ export function closingBalanceAnomalyHours(): number {
 
 /* ── Date / Timezone Helpers ────────────────────────────── */
 
+/** @internal Resolves a zone offset for focused date conversion tests. */
 export function resolveTimeZoneOffsetMinutes(at: Date, timeZone: string): number {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone,
@@ -203,6 +218,7 @@ export function resolveTimeZoneOffsetMinutes(at: Date, timeZone: string): number
   return parseShortOffsetToMinutes(zonePart?.value ?? 'UTC');
 }
 
+/** @internal Converts a closing-zone wall time for focused tests. */
 export function zonedDateTimeToUtcDate(input: {
   year: number;
   month: number;
@@ -218,6 +234,7 @@ export function zonedDateTimeToUtcDate(input: {
   return new Date(utcGuess.getTime() - offsetMinutes * 60 * 1000);
 }
 
+/** Computes the configured local cutoff in the month following the closing period. */
 export function cutoffAtForPeriod(period: { periodEnd: Date }): Date {
   const day = closingCutoffDay();
   const hour = closingCutoffHour();

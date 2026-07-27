@@ -1,3 +1,4 @@
+/** Maps the maintained policy catalog to stable API-facing representations. */
 import { Injectable } from '@nestjs/common';
 import {
   getActivePolicyBundle,
@@ -34,6 +35,9 @@ function toPolicyDto(entry: PolicyCatalogRule) {
   };
 }
 
+/**
+ * Maps the policy catalog into stable API DTOs without exposing internal rule implementation details.
+ */
 @Injectable()
 export class PolicyQueryService {
   async policyBundle(query: unknown) {
