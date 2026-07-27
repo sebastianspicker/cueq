@@ -1,4 +1,4 @@
-import { DEFAULT_DATABASE_URL, prismaPushReset, withSchema } from './db-utils';
+import { DEFAULT_DATABASE_URL, prismaPushReset, withSchema } from './db-utils.js';
 
 let initialized = false;
 

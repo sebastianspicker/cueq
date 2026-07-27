@@ -1,3 +1,4 @@
+/** Route-parameter boundary that rejects malformed CUID identifiers before persistence access. */
 import type { PipeTransform } from '@nestjs/common';
 import { BadRequestException } from '@nestjs/common';
 

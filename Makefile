@@ -1,7 +1,6 @@
-# cueq — Standard Commands
+# cueq: Standard Commands
 # ==========================
 # Run `make help` for a list of all targets.
-# See AGENTS.md §3 for command documentation.
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
@@ -12,7 +11,7 @@ SCRIPTS := ./scripts
 # ---------------------------------------------------------------------------
 
 .PHONY: setup
-setup: ## Install dependencies, start Docker, generate Prisma client
+setup: ## Install dependencies, attempt Docker startup, generate Prisma, apply migrations
 	$(SCRIPTS)/setup.sh
 
 # ---------------------------------------------------------------------------
@@ -21,7 +20,7 @@ setup: ## Install dependencies, start Docker, generate Prisma client
 
 .PHONY: dev
 dev: ## Start development servers (API + Web) with hot reload
-	$(SCRIPTS)/pnpm.sh dev
+	$(SCRIPTS)/dev.sh
 
 # ---------------------------------------------------------------------------
 # Quality Checks
@@ -58,6 +57,10 @@ lint-fix: ## Auto-fix lint + formatting issues
 typecheck: ## TypeScript type checking (no emit)
 	$(SCRIPTS)/pnpm.sh typecheck
 
+.PHONY: knip
+knip: ## Find unused files, exports, dependencies, and binaries
+	$(SCRIPTS)/pnpm.sh hygiene:code
+
 .PHONY: format
 format: ## Check code formatting
 	$(SCRIPTS)/pnpm.sh format
@@ -83,7 +86,7 @@ openapi-check: ## Validate committed OpenAPI snapshot against generated document
 # ---------------------------------------------------------------------------
 
 .PHONY: test
-test: ## Run all tests
+test: ## Run each workspace's default test script
 	$(SCRIPTS)/pnpm.sh test
 
 .PHONY: test-unit
@@ -111,7 +114,7 @@ test-compliance: ## Run GDPR/audit compliance tests
 	$(SCRIPTS)/pnpm.sh test:compliance
 
 .PHONY: test-all
-test-all: ## Run all test suites
+test-all: ## Run unit, integration, acceptance, compliance, golden, and backup/restore suites
 	$(SCRIPTS)/pnpm.sh test:all
 
 .PHONY: test-backup-restore
@@ -119,7 +122,7 @@ test-backup-restore: ## Run backup/restore verification (AT-08)
 	node ./scripts/backup-restore-verify.mjs
 
 .PHONY: demo-screenshots
-demo-screenshots: ## Generate local German demo screenshots (mock university dataset)
+demo-screenshots: ## Generate six synthetic German screenshots and refresh public candidate copies
 	$(SCRIPTS)/pnpm.sh demo:screenshots
 
 # ---------------------------------------------------------------------------
@@ -137,6 +140,15 @@ db-push: ## Push schema to database (development)
 .PHONY: db-migrate
 db-migrate: ## Run database migrations
 	$(SCRIPTS)/pnpm.sh db:migrate
+
+.PHONY: webhook-secrets-check
+webhook-secrets-check: ## Inventory and validate webhook secret storage without changing rows
+	$(SCRIPTS)/pnpm.sh migrate:webhook-envelopes --dry-run
+
+.PHONY: webhook-secrets-migrate
+webhook-secrets-migrate: ## Encrypt validated legacy webhook secrets in one transaction
+	@test "$(WEBHOOK_SECRET_MAINTENANCE_CONFIRMED)" = "1" || { echo "Refusing webhook secret migration: stop every old API/dispatcher, then rerun with WEBHOOK_SECRET_MAINTENANCE_CONFIRMED=1." >&2; exit 1; }
+	$(SCRIPTS)/pnpm.sh migrate:webhook-envelopes --apply --maintenance-window-confirmed
 
 # ---------------------------------------------------------------------------
 # Build
@@ -162,7 +174,7 @@ clean: ## Remove build artifacts, stop Docker, prune volumes
 
 .PHONY: help
 help: ## Show this help message
-	@echo "cueq — Available commands:"
+	@echo "cueq: Available commands:"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'

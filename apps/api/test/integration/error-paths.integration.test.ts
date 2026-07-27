@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp, seedPhase3Data, TOKENS } from '../test-helpers';
+import { createTestApp, seedPhase3Data, TOKENS } from '../test-helpers.js';
 
 /**
  * Error-path integration tests covering:
@@ -316,7 +316,7 @@ describe('Error-path coverage', () => {
         .set('Authorization', `Bearer ${TOKENS.hr}`)
         .send({});
 
-      // 400 from Zod validation or 403 from role check — either is a handled error
+      // 400 from Zod validation or 403 from role check: either is a handled error
       expect([400, 403]).toContain(response.status);
       expect(typeof response.body.message).toBe('string');
     });
@@ -327,7 +327,7 @@ describe('Error-path coverage', () => {
         .set('Authorization', `Bearer ${TOKENS.hr}`)
         .send({});
 
-      // 404 (workflow not found) or 400 (missing action) — both are handled
+      // 404 (workflow not found) or 400 (missing action): both are handled
       expect([400, 404]).toContain(response.status);
       expect(typeof response.body.message).toBe('string');
     });
@@ -423,7 +423,7 @@ describe('Error-path coverage', () => {
     it('closing lifecycle errors return { statusCode, message, details } not a raw array', async () => {
       // Attempting to approve a non-existent period returns 404, but
       // state transition errors (e.g. approve an OPEN period) return 400
-      // with { statusCode, message, details } — not a raw violations array.
+      // with { statusCode, message, details }: not a raw violations array.
       // We verify the shape on a valid 400 domain error.
       const response = await request(app.getHttpServer())
         .post(`/v1/closing-periods/${FAKE_CUID}/approve`)
@@ -439,7 +439,7 @@ describe('Error-path coverage', () => {
         .post(`/v1/closing-periods/${FAKE_CUID}/start-review`)
         .set('Authorization', `Bearer ${TOKENS.admin}`);
 
-      // Either 403 (manual review disabled) or 404 (not found) — both must be objects
+      // Either 403 (manual review disabled) or 404 (not found): both must be objects
       expect([403, 404]).toContain(response.status);
       expectObjectErrorShape(response);
     });
@@ -521,7 +521,7 @@ describe('Error-path coverage', () => {
         .post(`/v1/closing-periods/${FAKE_CUID}/lead-approve`)
         .set('Authorization', `Bearer ${TOKENS.lead}`);
 
-      // 404 (doesn't exist) — the important thing is it does not return 500
+      // 404 (doesn't exist): the important thing is it does not return 500
       expect([403, 404]).toContain(response.status);
       expect(typeof response.body.message).toBe('string');
     });
@@ -560,7 +560,7 @@ describe('Error-path coverage', () => {
         .set('Authorization', `Bearer ${TOKENS.hr}`)
         .query({ personId: FAKE_CUID });
 
-      // May return 404 or empty result — should not be 500
+      // May return 404 or empty result: should not be 500
       expect(response.status).toBeLessThan(500);
     });
   });

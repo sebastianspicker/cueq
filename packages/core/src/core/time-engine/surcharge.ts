@@ -1,5 +1,6 @@
+/** Maps Europe/Berlin local minutes into mutually exclusive surcharge categories. */
 import type { SurchargeCategory } from '@cueq/policy';
-import { WORK_INTERVAL_TYPES } from '../constants';
+import { WORK_INTERVAL_TYPES } from '../constants.js';
 
 const WEEKDAY_TO_INDEX: Record<string, number> = {
   Sun: 0,
@@ -65,6 +66,7 @@ function weekdayIndex(name: string): number {
   return 1;
 }
 
+/** Parse an `HH:MM` wall-clock value into minutes after midnight, or return null if invalid. */
 export function parseLocalTimeToMinute(localTime: string): number | null {
   const [hourRaw, minuteRaw] = localTime.split(':');
   const hour = Number(hourRaw);
@@ -84,6 +86,7 @@ export function parseLocalTimeToMinute(localTime: string): number | null {
   return hour * 60 + minute;
 }
 
+/** Test a local minute against a window, including windows that cross midnight. */
 export function isWithinWindow(
   localMinuteOfDay: number,
   startMinute: number,
@@ -100,6 +103,7 @@ export function isWithinWindow(
   return localMinuteOfDay >= startMinute || localMinuteOfDay < endMinute;
 }
 
+/** Project an instant through the supplied timezone formatter for local-day accounting. */
 export function localMinuteInfo(timestamp: number, formatter: Intl.DateTimeFormat): ZonedMinute {
   const parts = normalizeMidnight(readLocalDateParts(timestamp, formatter));
   const isoDate = `${String(parts.year)}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
@@ -111,10 +115,12 @@ export function localMinuteInfo(timestamp: number, formatter: Intl.DateTimeForma
   };
 }
 
+/** Identify interval categories that contribute productive work minutes. */
 export function isWorkIntervalType(type: string): boolean {
   return WORK_INTERVAL_TYPES.has(type);
 }
 
+/** Select one surcharge category by configured priority and a stable fallback tie-break. */
 export function selectSurchargeCategory(
   categories: SurchargeCategory[],
   configByCategory: ReadonlyMap<SurchargeCategory, { priority: number }>,

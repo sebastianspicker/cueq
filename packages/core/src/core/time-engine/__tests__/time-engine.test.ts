@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { calculateFlextimeWeek, evaluateOnCallRestCompliance, evaluateTimeRules } from '..';
+import {
+  calculateFlextimeWeek,
+  evaluateOnCallRestCompliance,
+  evaluateTimeRules,
+} from '../index.js';
 
 describe('calculateFlextimeWeek', () => {
   it('detects break deficits', () => {

@@ -1,5 +1,6 @@
+/** Defines mutually exclusive surcharge windows and their effective-dated policy contract. */
 import { z } from 'zod';
-import { PolicyRuleMetaSchema } from '../types';
+import { PolicyRuleMetaSchema } from '../types.js';
 
 export const SurchargeCategorySchema = z.enum(['NIGHT', 'WEEKEND', 'HOLIDAY']);
 export type SurchargeCategory = z.infer<typeof SurchargeCategorySchema>;

@@ -1,10 +1,10 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
-import { SEED_IDS } from '../../src/test-utils/seed-ids';
-import { WorkflowRuntimeService } from '../../src/phase2/workflow-runtime.service';
-import { PrismaService } from '../../src/persistence/prisma.service';
+import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers.js';
+import { SEED_IDS } from '../../src/test-utils/seed-ids.js';
+import { WorkflowRuntimeService } from '../../src/phase2/workflow-runtime.service.js';
+import { PrismaService } from '../../src/persistence/prisma.service.js';
 
 describe('FR-500 integration', () => {
   let app: INestApplication;
@@ -51,11 +51,18 @@ describe('FR-500 integration', () => {
     return as(token).post(`/v1/workflows/${workflowId}/decision`).send(payload);
   }
 
-  function createBookingCorrection(reason: string, token = TOKENS.employee) {
-    return as(token).post('/v1/workflows/booking-corrections').send({
-      bookingId: SEED_IDS.bookingEmployeeIn,
-      reason,
-    });
+  function createBookingCorrection(
+    reason: string,
+    token = TOKENS.employee,
+    correction: Record<string, unknown> = {},
+  ) {
+    return as(token)
+      .post('/v1/workflows/booking-corrections')
+      .send({
+        bookingId: SEED_IDS.bookingEmployeeIn,
+        reason,
+        ...correction,
+      });
   }
 
   async function createPlannerRosterShift(params: {
@@ -250,7 +257,15 @@ describe('FR-500 integration', () => {
   });
 
   it('supports action-based delegation and decision', async () => {
-    const created = await createBookingCorrection('FR-500 delegation action test');
+    const created = await createBookingCorrection(
+      'FR-500 delegation action test',
+      TOKENS.employee,
+      {
+        startTime: '2026-03-02T08:30:00.000Z',
+        endTime: '2026-03-02T12:30:00.000Z',
+        timeTypeId: SEED_IDS.timeTypePause,
+      },
+    );
     expect(created.status).toBe(201);
 
     const workflow = await getInboxWorkflow(
@@ -279,6 +294,14 @@ describe('FR-500 integration', () => {
     });
     expect(approved.status).toBe(201);
     expect(approved.body.status).toBe('APPROVED');
+
+    const correctedBooking = await app.get(PrismaService).booking.findUnique({
+      where: { id: SEED_IDS.bookingEmployeeIn },
+      select: { timeTypeId: true, startTime: true, endTime: true },
+    });
+    expect(correctedBooking?.timeTypeId).toBe(SEED_IDS.timeTypePause);
+    expect(correctedBooking?.startTime.toISOString()).toBe('2026-03-02T08:30:00.000Z');
+    expect(correctedBooking?.endTime?.toISOString()).toBe('2026-03-02T12:30:00.000Z');
   });
 
   it('rejects delegation action to ineligible or unknown delegate targets', async () => {

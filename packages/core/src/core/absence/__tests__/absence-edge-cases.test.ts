@@ -4,14 +4,14 @@ import {
   calculateLeaveLedger,
   calculateLeaveQuota,
   calculateProratedMonthlyTarget,
-} from '..';
+} from '../index.js';
 import { DEFAULT_LEAVE_RULE } from '@cueq/policy';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Leap-year edge cases
 // ────────────────────────────────────────────────────────────────────────────
 
-describe('calculateAbsenceWorkingDays — leap year February 29', () => {
+describe('calculateAbsenceWorkingDays: leap year February 29', () => {
   it('counts February 29 as a working day when it falls on a weekday', () => {
     // 2016-02-29 is a Monday
     const days = calculateAbsenceWorkingDays({
@@ -54,7 +54,7 @@ describe('calculateAbsenceWorkingDays — leap year February 29', () => {
   });
 });
 
-describe('calculateProratedMonthlyTarget — leap-year February', () => {
+describe('calculateProratedMonthlyTarget: leap-year February', () => {
   it('includes February 29 in the working-day count for a full-month segment (2028)', () => {
     // 2028-02 is a leap-year February with 29 days.
     // 2028-02-01 is a Tuesday → weekdays: 21 (Mon/Tue/Wed/Thu/Fri × ~4 weeks + extra)
@@ -97,7 +97,7 @@ describe('calculateProratedMonthlyTarget — leap-year February', () => {
 // Pro-rata rounding edge cases
 // ────────────────────────────────────────────────────────────────────────────
 
-describe('calculateLeaveLedger — pro-rata rounding', () => {
+describe('calculateLeaveLedger: pro-rata rounding', () => {
   it('rounds entitlement to two decimal places for an odd employment fraction', () => {
     // 25h/week out of 39.83h → fraction ≈ 0.62766
     // entitlement = 30 × 0.62766 = 18.83
@@ -151,7 +151,7 @@ describe('calculateLeaveLedger — pro-rata rounding', () => {
   });
 });
 
-describe('calculateLeaveQuota — pro-rata rounding', () => {
+describe('calculateLeaveQuota: pro-rata rounding', () => {
   it('handles a fractional entitlement without introducing floating-point drift', () => {
     // Mid-year entry (October): 3 months → 30 × 3/12 = 7.5 exactly
     const result = calculateLeaveQuota({
@@ -197,7 +197,7 @@ describe('calculateLeaveQuota — pro-rata rounding', () => {
 // Cross-year leave usage boundary
 // ────────────────────────────────────────────────────────────────────────────
 
-describe('calculateLeaveLedger — cross-year usage filtering', () => {
+describe('calculateLeaveLedger: cross-year usage filtering', () => {
   it('ignores usage entries from a prior year', () => {
     const result = calculateLeaveLedger(
       {
@@ -244,7 +244,7 @@ describe('calculateLeaveLedger — cross-year usage filtering', () => {
         workTimeModelWeeklyHours: 39.83,
         annualLeaveUsage: [
           { date: '2026-05-01', days: 2 },
-          { date: '2026-08-01', days: 5 }, // in the future — must be ignored
+          { date: '2026-08-01', days: 5 }, // in the future: must be ignored
         ],
       },
       DEFAULT_LEAVE_RULE,

@@ -27,5 +27,5 @@
 *.ttf binary
 *.eot binary
 
-# Lock files — treat as generated (do not diff in PRs)
+# Lock files: treat as generated (do not diff in PRs)
 pnpm-lock.yaml -diff linguist-generated=true

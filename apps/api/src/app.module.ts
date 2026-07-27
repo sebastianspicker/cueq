@@ -1,10 +1,11 @@
+/** Root NestJS composition boundary; wires infrastructure and feature modules without domain logic. */
 import 'reflect-metadata';
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
-import { HealthController } from './health/health.controller';
-import { AuthModule } from './common/auth/auth.module';
-import { PrismaModule } from './persistence/prisma.module';
-import { Phase2Module } from './phase2/phase2.module';
+import { HealthController } from './health/health.controller.js';
+import { AuthModule } from './common/auth/auth.module.js';
+import { PrismaModule } from './persistence/prisma.module.js';
+import { Phase2Module } from './phase2/phase2.module.js';
 
 /**
  * Root Nest module.

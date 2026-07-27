@@ -1,9 +1,17 @@
 'use client';
 
+/** Leave workspace for balances and requests; visible data and actions are server-authorized. */
+
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import {
+  AbsenceSchema,
+  LeaveBalanceSchema,
+  UserIdentitySchema,
+  type Absence,
+  type LeaveBalance,
+} from '@cueq/shared';
 import { FormField } from '../../../components/FormField';
 import { LoadingSpinner } from '../../../components/LoadingSpinner';
 import { PageShell } from '../../../components/PageShell';
@@ -11,30 +19,11 @@ import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
-
-interface LeaveBalanceResponse {
-  personId: string;
-  year: number;
-  asOfDate: string;
-  entitlement: number;
-  used: number;
-  remaining: number;
-  carriedOver: number;
-  carriedOverUsed: number;
-  forfeited: number;
-  adjustments: number;
-}
-
-interface AbsenceResponse {
-  id: string;
-  personId: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  days: number;
-  status: string;
-  note?: string | null;
-}
+import {
+  loadAndApply,
+  refreshAfterMutation,
+  type RefreshResult,
+} from '../../../lib/mutation-refresh';
 
 const ABSENCE_TYPES = [
   'ANNUAL_LEAVE',
@@ -48,11 +37,29 @@ const ABSENCE_TYPES = [
   'PARENTAL',
 ] as const;
 
+/** Hosts leave balance and request state for the current session. */
 export default function LeavePage() {
   const t = useTranslations('pages.leave');
+  const absenceTypeLabels: Record<(typeof ABSENCE_TYPES)[number], string> = {
+    ANNUAL_LEAVE: t('typeAnnualLeave'),
+    SICK: t('typeSick'),
+    SPECIAL_LEAVE: t('typeSpecialLeave'),
+    TRAINING: t('typeTraining'),
+    TRAVEL: t('typeTravel'),
+    COMP_TIME: t('typeCompTime'),
+    FLEX_DAY: t('typeFlexDay'),
+    UNPAID: t('typeUnpaid'),
+    PARENTAL: t('typeParental'),
+  };
+  const absenceStatusLabels: Record<string, string> = {
+    REQUESTED: t('statusRequested'),
+    APPROVED: t('statusApproved'),
+    REJECTED: t('statusRejected'),
+    CANCELLED: t('statusCancelled'),
+  };
   const params = useParams<{ locale: string }>();
   const locale = typeof params?.locale === 'string' ? params.locale : 'de';
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiRequest } = useApiContext();
   const [year, setYear] = useState('2026');
   const [asOfDate, setAsOfDate] = useState('2026-12-31');
   const [requestType, setRequestType] = useState<(typeof ABSENCE_TYPES)[number]>('ANNUAL_LEAVE');
@@ -60,8 +67,8 @@ export default function LeavePage() {
   const [endDate, setEndDate] = useState('2026-04-22');
   const [note, setNote] = useState('');
   const [personId, setPersonId] = useState<string | null>(null);
-  const [balance, setBalance] = useState<LeaveBalanceResponse | null>(null);
-  const [absences, setAbsences] = useState<AbsenceResponse[]>([]);
+  const [balance, setBalance] = useState<LeaveBalance | null>(null);
+  const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,39 +78,48 @@ export default function LeavePage() {
       return personId;
     }
 
-    const me = await apiRequest<{ id: string }>('/v1/me');
+    const me = await apiRequest('/v1/me', UserIdentitySchema);
     setPersonId(me.id);
     return me.id;
   }
 
-  async function loadBalance() {
-    setLoading(true);
-    setError(null);
+  async function loadLeaveData<T>(
+    request: () => Promise<T>,
+    apply: (data: T) => void,
+    preserveFeedback = false,
+  ): Promise<RefreshResult> {
+    if (!preserveFeedback) setLoading(true);
+    if (!preserveFeedback) setError(null);
     try {
-      const data = await apiRequest<LeaveBalanceResponse>(
-        `/v1/leave-balance/me?year=${encodeURIComponent(year)}&asOfDate=${encodeURIComponent(asOfDate)}`,
-      );
-      setBalance(data);
-      setMessage(null);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      const result = await loadAndApply(request, apply);
+      if (!preserveFeedback) {
+        if (result.ok) setMessage(null);
+        else setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
+      }
+      return result;
     } finally {
-      setLoading(false);
+      if (!preserveFeedback) setLoading(false);
     }
   }
 
-  async function loadAbsences() {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<AbsenceResponse[]>('/v1/absences/me');
-      setAbsences(data);
-      setMessage(null);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    } finally {
-      setLoading(false);
-    }
+  async function loadBalance(preserveFeedback = false): Promise<RefreshResult> {
+    return loadLeaveData(
+      () =>
+        apiRequest(
+          `/v1/leave-balance/me?year=${encodeURIComponent(year)}&asOfDate=${encodeURIComponent(asOfDate)}`,
+          LeaveBalanceSchema,
+        ),
+      setBalance,
+      preserveFeedback,
+    );
+  }
+
+  async function loadAbsences(preserveFeedback = false): Promise<RefreshResult> {
+    return loadLeaveData(
+      () => apiRequest('/v1/absences/me', AbsenceSchema.array()),
+      setAbsences,
+      preserveFeedback,
+    );
   }
 
   async function submitRequest() {
@@ -112,18 +128,29 @@ export default function LeavePage() {
     setMessage(null);
     try {
       const requesterId = await resolvePersonId();
-      await apiRequest<AbsenceResponse>('/v1/absences', {
-        method: 'POST',
-        body: JSON.stringify({
-          personId: requesterId,
-          type: requestType,
-          startDate,
-          endDate,
-          note: note || undefined,
-        }),
-      });
-      await Promise.all([loadAbsences(), loadBalance()]);
-      setMessage(t('requestCreated'));
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest('/v1/absences', AbsenceSchema, {
+            method: 'POST',
+            body: JSON.stringify({
+              personId: requesterId,
+              type: requestType,
+              startDate,
+              endDate,
+              note: note || undefined,
+            }),
+          }),
+        async () => {
+          const results = await Promise.all([loadAbsences(true), loadBalance(true)]);
+          const failed = results.find((result) => !result.ok);
+          return failed ?? { ok: true };
+        },
+      );
+      if (refresh.ok) {
+        setMessage(t('requestCreated'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -137,15 +164,6 @@ export default function LeavePage() {
       description={t('description')}
       breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}
     >
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
-
       <div className="cq-grid-2">
         <FormField label={t('yearLabel')}>
           <input
@@ -187,7 +205,7 @@ export default function LeavePage() {
             >
               {ABSENCE_TYPES.map((value) => (
                 <option key={value} value={value}>
-                  {value}
+                  {absenceTypeLabels[value]}
                 </option>
               ))}
             </select>
@@ -267,13 +285,20 @@ export default function LeavePage() {
               <li key={absence.id} className="cq-list-item">
                 <div className="cq-list-item-header">
                   <div className="cq-list-item-meta">
-                    <StatusBadge status={absence.type} variant="info" label={absence.type} />
+                    <StatusBadge
+                      status={absence.type}
+                      variant="info"
+                      label={absenceTypeLabels[absence.type] ?? absence.type}
+                    />
                     <span>
                       {absence.startDate.slice(0, 10)} &ndash; {absence.endDate.slice(0, 10)}
                     </span>
                     <span>({absence.days}d)</span>
                   </div>
-                  <StatusBadge status={absence.status} />
+                  <StatusBadge
+                    status={absence.status}
+                    label={absenceStatusLabels[absence.status] ?? absence.status}
+                  />
                 </div>
               </li>
             ))}

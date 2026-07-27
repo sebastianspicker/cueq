@@ -1,3 +1,4 @@
+/** Exposes monthly closing, correction, and payroll export endpoints. */
 import { Body, Controller, Get, Inject, Param, Post, Query, Res } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -15,15 +16,16 @@ import {
   ClosingPeriodMonthQuerySchema,
   PostCloseCorrectionRequestSchema,
 } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { ClosingDomainService } from '../services/closing-domain.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { ClosingDomainService } from '../services/closing-domain.service.js';
 import type { Response } from 'express';
-import { ClosingExportResponseDto } from '../dto/closing.dto';
+import { ClosingExportResponseDto } from '../dto/closing.dto.js';
 
+/** HTTP boundary for monthly closing, including guarded corrections and traceable payroll exports. */
 @ApiTags('closing')
 @ApiBearerAuth()
 @Controller('v1/closing-periods')

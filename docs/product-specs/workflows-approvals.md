@@ -1,6 +1,7 @@
 # Product Spec: Workflows & Approvals (FR-500)
 
-> **Status:** ✅ Implemented | **Scope:** Core + API + Web
+> Evidence: Source and contract surfaces are present across Core, API, and
+> Web; named tests are focused evidence, not service-backed or deployment proof.
 
 ---
 
@@ -12,10 +13,10 @@ FR-500 delivers a configurable workflow engine for approval-heavy operations wit
 - DB-backed delegation rules with effective windows and cycle-safe traversal
 - DB-backed workflow policy (deadline + escalation chain + max delegation depth)
 - type-based authorization matrix (no broad approver shortcut)
-- hourly automated escalation with immutable audit entries
+- hourly automated escalation with appended audit entries
 - approval inbox/detail APIs and web MVP for approve/reject/delegate/cancel actions
 
-Implemented workflow types:
+Workflow types represented in repository source:
 
 - `LEAVE_REQUEST`
 - `BOOKING_CORRECTION`

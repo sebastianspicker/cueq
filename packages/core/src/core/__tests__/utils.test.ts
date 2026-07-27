@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { deepFreeze, diffHours, overlapExists, roundToTwo, toIso, toViolation } from '../utils';
+import { deepFreeze, diffHours, overlapExists, roundToTwo, toIso, toViolation } from '../utils.js';
 
 describe('utils', () => {
   it('throws for invalid ISO timestamps', () => {

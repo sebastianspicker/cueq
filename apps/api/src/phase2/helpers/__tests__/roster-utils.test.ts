@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assignedPersonIdsForShift } from '../roster-utils';
+import { assignedPersonIdsForShift } from '../roster-utils.js';
 
 describe('assignedPersonIdsForShift', () => {
   it('returns only assignment IDs when personId is null', () => {

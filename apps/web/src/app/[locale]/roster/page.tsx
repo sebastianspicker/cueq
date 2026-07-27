@@ -1,10 +1,11 @@
 'use client';
 
+/** Roster planning workspace; client controls are convenience guards and API policy is authoritative. */
+
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSessionContext } from '../../../components/AppWorkspace';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
@@ -32,11 +33,12 @@ import {
 
 const ROSTER_MANAGERS = new Set(['SHIFT_PLANNER', 'HR', 'ADMIN']);
 
+/** Composes roster query, mutation, and selection state for the planning workspace. */
 export default function RosterPage() {
   const t = useTranslations('pages.roster');
   const params = useParams<{ locale: string }>();
   const locale = String(params?.locale ?? 'de');
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiRequest } = useApiContext();
   const { profile } = useSessionContext();
   const [roster, setRoster] = useState<RosterDetail | null>(null);
   const [planVsActual, setPlanVsActual] = useState<PlanVsActual | null>(null);
@@ -54,7 +56,7 @@ export default function RosterPage() {
   const [swapShiftId, setSwapShiftId] = useState('');
   const [swapFromPersonId, setSwapFromPersonId] = useState('');
   const [swapToPersonId, setSwapToPersonId] = useState('');
-  const [swapReason, setSwapReason] = useState('Please swap assignment for this shift.');
+  const [swapReason, setSwapReason] = useState(t('swapReasonDefault'));
   const canManage = ROSTER_MANAGERS.has(profile?.role ?? '');
   const canEdit = canManage && roster?.status === 'DRAFT';
   const operations: RosterOperationContext = {
@@ -87,14 +89,6 @@ export default function RosterPage() {
       description={t('description')}
       breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}
     >
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
       <RosterCommandBar
         t={t}
         loading={loading}

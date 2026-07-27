@@ -1,3 +1,4 @@
+/** Implements validated, auditable HR master-data import runs. */
 import {
   BadRequestException,
   ConflictException,
@@ -7,15 +8,16 @@ import {
 } from '@nestjs/common';
 import { type Prisma, Role, WorkTimeModelType } from '@cueq/database';
 import { z } from 'zod';
-import { PrismaService } from '../persistence/prisma.service';
-import { assertIntegrationToken } from '../common/integrations/integration-token';
-import { parseCsvRecords } from '../common/csv/parse-csv';
-import { AuditHelper } from './helpers/audit.helper';
+import { PrismaService } from '../persistence/prisma.service.js';
+import { assertIntegrationToken } from '../common/integrations/integration-token.js';
+import { parseCsvRecords } from '../common/csv/parse-csv.js';
+import { AuditHelper } from './helpers/audit.helper.js';
+import { lockPersonWrites } from './helpers/transaction-lock.helper.js';
 import {
   HR_MASTER_PROVIDER,
   type HrMasterProviderPort,
   type HrMasterRecord,
-} from './hr-master-provider.port';
+} from './hr-master-provider.port.js';
 
 const MAX_HR_IMPORT_CSV_BYTES = 2_000_000;
 // TV-L full-time: 39 h 50 min/week (39.83 h), 7.97 h/day
@@ -74,6 +76,11 @@ function parseNonnegativeHours(value: string, fallback: number): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+/**
+ * Imports HR master data as a serialized, auditable reconciliation run.
+ *
+ * Per-person writes are locked so retries cannot race identity or work-time-model updates.
+ */
 @Injectable()
 export class HrImportService {
   constructor(
@@ -343,6 +350,18 @@ export class HrImportService {
     }
   }
 
+  private async lockExistingPeopleForRows(tx: HrImportTransaction, rows: ValidatedRow[]) {
+    const existingPersonIds = new Set<string>();
+    for (const row of rows) {
+      const existing = await this.findExistingPersonForRow(tx, row);
+      if (existing) {
+        existingPersonIds.add(existing.id);
+      }
+    }
+
+    await lockPersonWrites(tx, existingPersonIds);
+  }
+
   private async resolveSupervisorId(
     tx: HrImportTransaction,
     row: ValidatedRow,
@@ -370,20 +389,16 @@ export class HrImportService {
     importedPeople: Map<string, string>,
   ) {
     for (const row of rows) {
-      if (!row.supervisorExternalId) {
-        continue;
-      }
-
-      const supervisorId = await this.resolveSupervisorId(tx, row, importedPeople);
-      if (!supervisorId) {
-        throw new BadRequestException(
-          `Supervisor externalId not found in batch: ${row.supervisorExternalId}`,
-        );
-      }
-
       const personId = importedPeople.get(row.externalId);
       if (!personId) {
         throw new BadRequestException(`Imported person missing for externalId: ${row.externalId}`);
+      }
+
+      const supervisorId = await this.resolveSupervisorId(tx, row, importedPeople);
+      if (row.supervisorExternalId && !supervisorId) {
+        throw new BadRequestException(
+          `Supervisor externalId not found in batch: ${row.supervisorExternalId}`,
+        );
       }
 
       await tx.person.update({
@@ -417,6 +432,7 @@ export class HrImportService {
           retryable: true,
         });
       }
+      await this.lockExistingPeopleForRows(tx, validatedRows);
       await this.preflightRows(tx, validatedRows);
       const result = await this.importValidatedRows(tx, validatedRows);
       await this.linkSupervisors(tx, validatedRows, result.importedPeople);

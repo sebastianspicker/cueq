@@ -1,5 +1,6 @@
+/** Resolves required break time from policy thresholds and shift-specific safeguards. */
 import type { BreakRule } from '@cueq/policy';
-import { NIGHT_SHIFT_MIN_BREAK_MINUTES, SHIFT_TYPE_NIGHT } from './constants';
+import { NIGHT_SHIFT_MIN_BREAK_MINUTES, SHIFT_TYPE_NIGHT } from './constants.js';
 
 /**
  * Calculate the required break minutes based on worked hours and a break rule's thresholds.

@@ -1,5 +1,7 @@
-import { consumeRowBreak, type CsvParserState } from './csv-parser-state';
+/** Token consumers shared by the stateful CSV parser to keep delimiter and newline rules consistent. */
+import { consumeRowBreak, type CsvParserState } from './csv-parser-state.js';
 
+/** Consumes a delimiter only outside quoted fields. */
 export function consumeDelimiter(state: CsvParserState, char: string): boolean {
   if (char !== ',' || state.inQuotes) return false;
   state.row.push(state.current);
@@ -7,6 +9,7 @@ export function consumeDelimiter(state: CsvParserState, char: string): boolean {
   return true;
 }
 
+/** Consumes LF, CR, and CRLF only when they terminate an unquoted record. */
 export function consumeLineBreak(
   state: CsvParserState,
   char: string,

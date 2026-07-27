@@ -1,10 +1,11 @@
+/** Authentication boundary that validates bearer credentials and resolves them to a local person record. */
 import type { CanActivate, ExecutionContext } from '@nestjs/common';
 import { ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { AuthService } from '../auth/auth.service';
-import { PUBLIC_ROUTE_METADATA } from '../decorators/public.decorator';
-import type { PrismaService } from '../../persistence/prisma.service';
-import { resolveAuthenticatedPerson } from '../auth/resolve-authenticated-person';
+import type { AuthService } from '../auth/auth.service.js';
+import { PUBLIC_ROUTE_METADATA } from '../decorators/public.decorator.js';
+import type { PrismaService } from '../../persistence/prisma.service.js';
+import { resolveAuthenticatedPerson } from '../auth/resolve-authenticated-person.js';
 
 const MAX_BEARER_TOKEN_LENGTH = 4096;
 const CONTROL_CHAR_PATTERN = /[\u0000-\u001f\u007f]/u;
@@ -36,6 +37,7 @@ function resolutionErrorClass(error: unknown): string {
   return error instanceof Error ? error.constructor.name : 'UnknownError';
 }
 
+/** Rejects malformed or unresolved identities before handlers can access request.user. */
 @Injectable()
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);

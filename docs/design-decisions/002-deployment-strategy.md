@@ -1,46 +1,46 @@
-# ADR-002: Deployment Strategy
+# ADR-002: Deployment boundary
 
-- Status: Accepted
-- Date: 2026-03-01
-- Deciders: Platform Team, Operations Team
+- Status: Accepted boundary; deployment implementation is not present
+- Scope: Production assessment
 
 ## Context
 
-Cueq must support pilot rollout in a university environment with strict privacy constraints, predictable operations, and low-complexity day-2 support.
+The applications require PostgreSQL, runtime secrets, identity-provider
+configuration, browser access, migration deployment, and process supervision.
+The repository currently provides source builds and a local Compose file only.
 
 ## Decision
 
-Adopt a containerized deployment model with two approved targets:
+Keep deployment infrastructure outside the source-alpha repository until a
+specific operating environment and responsible owner are selected.
 
-1. Primary: on-premises university infrastructure (Kubernetes or managed container platform)
-2. Secondary: managed EU cloud environment with equivalent controls
+Any deployment must provide:
 
-Both targets use the same runtime architecture:
+- separate web and API processes built from one reviewed revision;
+- PostgreSQL with migration, backup, restore, and least-privilege controls;
+- reverse proxy and TLS termination;
+- secret injection and rotation;
+- OIDC or SAML-bridge configuration;
+- explicit CORS and network policies;
+- process supervision, health checks, rollback, logs, monitoring, and alerts;
+  and
+- institutional security, privacy, accessibility, and operations review.
 
-- Stateless API and web services
-- PostgreSQL as stateful data service
-- Reverse proxy/TLS termination at ingress
-- Immutable build artifacts from CI
-- Blue/green or rolling deployments
+The repository must not imply a Kubernetes, cloud, high-availability, scaling,
+or rollout topology that has not been implemented and measured.
 
 ## Consequences
 
-### Positive
+- `docker-compose.yml` remains a local development definition.
+- CI validates source but does not publish deployable application artifacts.
+- `start:prod` and `next start` are process entry points, not a deployment
+  system.
+- Capacity, availability, recovery, and hosting location remain operator
+  decisions.
 
-- Same release artifact across environments
-- Predictable rollback path
-- Supports institutional hosting constraints
+## References
 
-### Negative
-
-- Requires disciplined environment configuration management
-- Adds operational overhead compared to single-node deployment
-
-## Implementation Notes
-
-- Deployment manifests and secrets are environment-specific and not committed with credentials
-- Migration strategy remains forward-only and additive-first
-- Default production topology:
-  - 2x API instances
-  - 2x web instances
-  - HA PostgreSQL managed by infra provider
+- [README deployment section](../../README.md#deployment-and-operation)
+- [Operations runbook](../OPERATIONS_RUNBOOK.md)
+- [Reliability](../RELIABILITY.md)
+- [Security design](../SECURITY.md)

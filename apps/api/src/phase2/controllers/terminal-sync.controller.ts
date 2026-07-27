@@ -1,14 +1,16 @@
+/** Exposes HR/Admin terminal batch import and batch-result lookup endpoints. */
 import { Body, Controller, ForbiddenException, Get, Inject, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
-import { PersonHelper } from '../helpers/person.helper';
-import { HR_LIKE_ROLES } from '../helpers/role-constants';
-import { TerminalGatewayService } from '../terminal-gateway.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe.js';
+import { PersonHelper } from '../helpers/person.helper.js';
+import { HR_LIKE_ROLES } from '../helpers/role-constants.js';
+import { TerminalGatewayService } from '../terminal-gateway.service.js';
 
+/** HR/Admin boundary for importing offline terminal batches and reading their results. */
 @ApiTags('terminal-sync')
 @ApiBearerAuth()
 @Roles(Role.HR, Role.ADMIN)

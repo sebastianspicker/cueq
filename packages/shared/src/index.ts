@@ -1,5 +1,5 @@
 /**
- * @cueq/shared — Shared schemas, types, and utilities
+ * @cueq/shared: Shared schemas, types, and utilities
  *
  * This package contains Zod schemas that serve as the single source of truth
  * for validation across the API (NestJS) and UI (Next.js) layers.
@@ -7,17 +7,17 @@
  * Import from `@cueq/shared` in both apps.
  */
 
-export * from './schemas/booking';
-export * from './schemas/absence';
-export * from './schemas/time-type';
-export * from './schemas/workflow';
-export * from './schemas/roster';
-export * from './schemas/oncall';
-export * from './schemas/policy';
-export * from './schemas/events';
-export * from './schemas/reporting';
-export * from './schemas/time-engine';
-export * from './schemas/common';
-export * from './schemas/closing';
-export * from './generated/core-schema-types';
-export * from './date-utils';
+export * from './schemas/booking.js';
+export * from './schemas/absence.js';
+export * from './schemas/time-type.js';
+export * from './schemas/workflow.js';
+export * from './schemas/roster.js';
+export * from './schemas/oncall.js';
+export * from './schemas/policy.js';
+export * from './schemas/events.js';
+export * from './schemas/reporting.js';
+export * from './schemas/time-engine.js';
+export * from './schemas/common.js';
+export * from './schemas/closing.js';
+export * from './generated/core-schema-types.js';
+export * from './date-utils.js';

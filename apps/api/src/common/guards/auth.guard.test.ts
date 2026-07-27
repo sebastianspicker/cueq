@@ -1,7 +1,7 @@
 import { ForbiddenException, Logger, UnauthorizedException } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { AuthGuard } from './auth.guard';
+import { AuthGuard } from './auth.guard.js';
 
 function createContext(request: {
   headers: Record<string, string | string[] | undefined>;

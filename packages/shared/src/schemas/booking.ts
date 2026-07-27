@@ -1,9 +1,15 @@
+/** Runtime contracts for booking creation, correction, and read responses across API and web. */
 import { z } from 'zod';
-import { DateTimeSchema, IdSchema } from './common';
-import { BookingSourceSchema, TimeTypeCategorySchema } from './time-type';
+import {
+  DateTimeSchema,
+  IdSchema,
+  isDateTimeInstantBefore,
+  validateOptionalDateTimeRange,
+} from './common.js';
+import { BookingSourceSchema, TimeTypeCategorySchema } from './time-type.js';
 
 // ---------------------------------------------------------------------------
-// Booking schemas — used for API validation (NestJS) and form validation (Next.js)
+// Booking schemas: used for API validation (NestJS) and form validation (Next.js)
 // ---------------------------------------------------------------------------
 
 /** Schema for creating a new booking */
@@ -17,7 +23,7 @@ export const CreateBookingSchema = z
     note: z.string().max(1000).optional(),
     shiftId: IdSchema.optional(),
   })
-  .refine((input) => !input.endTime || input.endTime > input.startTime, {
+  .refine((input) => !input.endTime || isDateTimeInstantBefore(input.startTime, input.endTime), {
     message: 'endTime must be after startTime',
     path: ['endTime'],
   });
@@ -32,15 +38,9 @@ export const BookingCorrectionSchema = z
     timeTypeId: IdSchema.optional(),
     reason: z.string().min(10, 'Correction reason must be at least 10 characters'),
   })
-  .superRefine((input, ctx) => {
-    if (input.startTime && input.endTime && input.endTime <= input.startTime) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'endTime must be after startTime',
-        path: ['endTime'],
-      });
-    }
-  });
+  .superRefine((input, ctx) =>
+    validateOptionalDateTimeRange(input, ctx, 'endTime must be after startTime'),
+  );
 export type BookingCorrection = z.infer<typeof BookingCorrectionSchema>;
 
 /** Schema for a booking response (read) */

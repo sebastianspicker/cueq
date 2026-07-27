@@ -1,3 +1,4 @@
+/** Last-resort database-error translator that prevents Prisma internals from reaching API clients. */
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, Logger } from '@nestjs/common';
 import { Prisma } from '@cueq/database';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildAuditEntry } from '..';
+import { buildAuditEntry } from '../index.js';
 
 describe('audit compliance', () => {
   it('preserves append-only semantics in runtime objects', () => {

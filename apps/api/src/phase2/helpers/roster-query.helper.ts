@@ -1,66 +1,18 @@
+/** Centralizes roster reads and plan-versus-actual coverage calculations. */
 import { Inject, Injectable } from '@nestjs/common';
-import { Role, TimeTypeCategory } from '@cueq/database';
-import { evaluatePlanVsActualCoverage } from '@cueq/core';
-import { PrismaService } from '../../persistence/prisma.service';
-import { assignedPersonIdsForShift } from './roster-utils';
+import { Role } from '@cueq/database';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import { buildRosterPlanVsActual, type RosterWithPlanShifts } from './plan-vs-actual.helper.js';
 
+/**
+ * Centralizes roster reads and plan-versus-actual coverage calculations so visibility filters stay consistent.
+ */
 @Injectable()
 export class RosterQueryHelper {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async buildPlanVsActualForRoster(roster: {
-    id: string;
-    organizationUnitId: string;
-    periodStart: Date;
-    periodEnd: Date;
-    shifts: Array<{
-      id: string;
-      personId: string | null;
-      startTime: Date;
-      endTime: Date;
-      shiftType: string;
-      minStaffing: number;
-      assignments: Array<{ personId: string }>;
-    }>;
-  }) {
-    const bookings = await this.prisma.booking.findMany({
-      where: {
-        person: { organizationUnitId: roster.organizationUnitId },
-        timeType: {
-          category: {
-            in: [TimeTypeCategory.WORK, TimeTypeCategory.DEPLOYMENT],
-          },
-        },
-        startTime: { lt: roster.periodEnd },
-        OR: [
-          { endTime: { gt: roster.periodStart } },
-          { endTime: null, startTime: { gte: roster.periodStart } },
-        ],
-      },
-      select: {
-        personId: true,
-        startTime: true,
-        endTime: true,
-        timeType: { select: { category: true } },
-      },
-    });
-
-    return evaluatePlanVsActualCoverage(
-      roster.shifts.map((shift) => ({
-        shiftId: shift.id,
-        startTime: shift.startTime.toISOString(),
-        endTime: shift.endTime.toISOString(),
-        shiftType: shift.shiftType,
-        minStaffing: shift.minStaffing,
-        assignedPersonIds: assignedPersonIdsForShift(shift),
-      })),
-      bookings.map((booking) => ({
-        personId: booking.personId,
-        startTime: booking.startTime.toISOString(),
-        endTime: (booking.endTime ?? booking.startTime).toISOString(),
-        timeTypeCategory: booking.timeType.category,
-      })),
-    );
+  async buildPlanVsActualForRoster(roster: RosterWithPlanShifts) {
+    return buildRosterPlanVsActual(this.prisma, roster);
   }
 
   async toRosterDetail(roster: {

@@ -1,6 +1,6 @@
 import { Role } from '@cueq/database';
 import { describe, expect, it } from 'vitest';
-import { parseRoleClaim, selectHighestRoleClaim } from './role-mapping';
+import { parseRoleClaim, selectHighestRoleClaim } from './role-mapping.js';
 
 describe('role mapping', () => {
   it('normalizes role claims with case and separator variants', () => {

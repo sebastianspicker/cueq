@@ -1,5 +1,6 @@
+/** Versioned domain-event and outbox contracts used for reliable integration delivery. */
 import { z } from 'zod';
-import { DateTimeSchema, IdSchema } from './common';
+import { DateTimeSchema, IdSchema } from './common.js';
 
 export const DomainEventTypeSchema = z.enum([
   'booking.created',

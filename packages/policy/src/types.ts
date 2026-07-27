@@ -1,7 +1,8 @@
+/** Shared metadata contract for reviewable, effective-dated policy rules. */
 import { z } from 'zod';
 
 /**
- * Base type for all policy rules — versioned with effective dates.
+ * Base type for all policy rules: versioned with effective dates.
  */
 export const PolicyRuleMetaSchema = z.object({
   id: z.string(),

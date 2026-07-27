@@ -1,3 +1,4 @@
+/** Declares OpenAPI DTOs for absence, leave balance, adjustment, and calendar responses. */
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const ABSENCE_TYPES = [

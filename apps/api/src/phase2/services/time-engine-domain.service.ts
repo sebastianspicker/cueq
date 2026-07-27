@@ -1,14 +1,18 @@
+/** Evaluates authorized working-time rules and records resulting evidence. */
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import {
   evaluateTimeRules as evaluateTimeRulesCore,
   calculateProratedMonthlyTarget,
 } from '@cueq/core';
 import { TimeRuleEvaluationRequestSchema } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { AuditHelper } from '../helpers/audit.helper';
-import { PersonHelper } from '../helpers/person.helper';
-import { TIME_ENGINE_ALLOWED_ROLES } from '../helpers/role-constants';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { AuditHelper } from '../helpers/audit.helper.js';
+import { PersonHelper } from '../helpers/person.helper.js';
+import { TIME_ENGINE_ALLOWED_ROLES } from '../helpers/role-constants.js';
 
+/**
+ * Evaluates time-engine rules for authorized people and records any persisted evaluation evidence.
+ */
 @Injectable()
 export class TimeEngineDomainService {
   constructor(

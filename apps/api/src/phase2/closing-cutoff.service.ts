@@ -1,7 +1,12 @@
+/** Schedules automatic progression of eligible monthly closing periods. */
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { ClosingDomainService } from './services/closing-domain.service';
+import { ClosingDomainService } from './services/closing-domain.service.js';
 
+/**
+ * Best-effort hourly trigger that advances eligible closing periods into review.
+ * The domain service owns the idempotent transition and cutoff policy.
+ */
 @Injectable()
 export class ClosingCutoffService {
   private readonly logger = new Logger(ClosingCutoffService.name);

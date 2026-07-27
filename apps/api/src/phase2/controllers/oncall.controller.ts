@@ -1,3 +1,4 @@
+/** Exposes authorized on-call planning endpoints. */
 import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
@@ -9,13 +10,15 @@ import {
   ListOnCallDeploymentsQuerySchema,
   OnCallComplianceQuerySchema,
 } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { OncallDomainService } from '../services/oncall-domain.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { Authenticated } from '../../common/decorators/authenticated.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ParseCuidPipe } from '../../common/pipes/parse-cuid.pipe.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { OncallDomainService } from '../services/oncall-domain.service.js';
 
+/** HTTP boundary for on-call planning; domain writes observe organization and closing constraints. */
 @ApiTags('oncall')
 @ApiBearerAuth()
 @Controller('v1/oncall')
@@ -35,6 +38,7 @@ export class OncallController {
   }
 
   @Get('rotations')
+  @Authenticated()
   @ApiOperation({ summary: 'List on-call rotations' })
   listRotations(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -66,6 +70,7 @@ export class OncallController {
   }
 
   @Get('deployments')
+  @Authenticated()
   @ApiOperation({ summary: 'List on-call deployments' })
   listDeployments(
     @CurrentUser() user: AuthenticatedIdentity,
@@ -76,6 +81,7 @@ export class OncallController {
   }
 
   @Get('compliance')
+  @Authenticated()
   @ApiOperation({ summary: 'Evaluate on-call rest compliance' })
   compliance(
     @CurrentUser() user: AuthenticatedIdentity,

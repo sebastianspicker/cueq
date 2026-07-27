@@ -1,26 +1,28 @@
-# Product Specifications — Index
+# Product Specifications: Index
 
 ---
 
-## CueQ Differentiators
+## Capability specifications
 
-These specs define what makes CueQ uniquely better than alternatives like NovaTime:
+These specifications describe the current source surfaces that are specific to
+cueq's evaluated scope:
 
-| #   | Spec                                                            | Differentiator                                    | Package/Location        | Source status              |
-| --- | --------------------------------------------------------------- | ------------------------------------------------- | ----------------------- | -------------------------- |
-| A   | [Policy-as-Code](policy-as-code.md)                             | Versioned, testable, reviewable rules             | `@cueq/policy`          | Implemented in source      |
-| B   | [Closing Console](closing-console.md)                           | Audit-ready monthly close as first-class workflow | `apps/api` + `apps/web` | Implemented in source      |
-| C   | [On-Call Domain](oncall-domain.md)                              | First-class on-call rotations + deployments       | `@cueq/shared`          | Implemented in source      |
-| D   | [API-First Integration](api-first-integration.md)               | OpenAPI contract + webhooks + terminal gateway    | `apps/api`              | Implemented in source      |
-| E   | [Privacy Reporting Guardrails](privacy-reporting-guardrails.md) | Default aggregation; no accidental surveillance   | Cross-cutting           | Reference controls present |
+| #   | Spec                                                            | Scope                                           | Package/Location        | Source status              |
+| --- | --------------------------------------------------------------- | ----------------------------------------------- | ----------------------- | -------------------------- |
+| A   | [Policy-as-Code](policy-as-code.md)                             | Versioned, testable, reviewable rules           | `@cueq/policy`          | Implemented in source      |
+| B   | [Closing Console](closing-console.md)                           | Traceable monthly-close workflow                | `apps/api` + `apps/web` | Implemented in source      |
+| C   | [On-Call Domain](oncall-domain.md)                              | First-class on-call rotations + deployments     | `@cueq/shared`          | Implemented in source      |
+| D   | [API-First Integration](api-first-integration.md)               | OpenAPI contract + webhooks + terminal gateway  | `apps/api`              | Implemented in source      |
+| E   | [Privacy Reporting Guardrails](privacy-reporting-guardrails.md) | Default aggregation; no accidental surveillance | Cross-cutting           | Reference controls present |
 
-## Parity Specifications
+## Supporting specifications
 
-These specs ensure CueQ matches baseline functionality (time, leave, roster, export, org):
+These specifications describe the remaining time, leave, roster, export, and
+organization workflows:
 
 | Spec                                                            | Description                                          | Source       | Source status                    |
 | --------------------------------------------------------------- | ---------------------------------------------------- | ------------ | -------------------------------- |
-| [New User Onboarding](new-user-onboarding.md)                   | First-time employee: SSO → dashboard → first booking | PRD §6 UJ1   | Implemented in source            |
+| [New User Onboarding](new-user-onboarding.md)                   | Manual alpha token → dashboard → first booking       | PRD §6 UJ1   | Source flow present; SSO absent  |
 | [Phase 2 Acceptance Scenarios](phase-2-acceptance-scenarios.md) | Canonical AT-01..AT-07 historical contract           | Phase 2 Plan | Historical scenario contract     |
 | [Phase 3 Acceptance Scenarios](phase-3-acceptance-scenarios.md) | Canonical AT-01..AT-08 release gate                  | Phase 3 Plan | Implemented; current run partial |
 | [Time Engine Rules](time-engine-rules.md)                       | Rule evaluation: pauses, rest, max-hours, surcharges | PRD FR-200   | Implemented in source            |
@@ -30,10 +32,12 @@ These specs ensure CueQ matches baseline functionality (time, leave, roster, exp
 | [Monthly Closing](monthly-closing.md)                           | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | Implemented in source            |
 | [Reports & Export](reports-export.md)                           | Payroll export, audit reports, compliance reports    | PRD FR-700   | Implemented in source            |
 
-Status describes repository source, not production approval. See
-[`../verification-baseline.md`](../verification-baseline.md) for the latest
-observed local checks.
+The status column records repository source or contract evidence only; it is not
+service-backed proof, deployment approval, audit certification, or GDPR/DSGVO
+compliance evidence. Candidate evidence requirements are recorded in
+[`../../RELEASE_STATUS.md`](../../RELEASE_STATUS.md).
 
 ## Traceability
 
-Product requirements originate from stakeholder workshops and the original PRD. Each spec above references the relevant PRD sections (FR-100 through FR-700).
+The specifications retain references to the original requirement identifiers
+where those identifiers still help trace source and tests.

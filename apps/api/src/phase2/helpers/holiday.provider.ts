@@ -1,13 +1,20 @@
+/** Loads deterministic NRW holiday fixtures for absence and roster calculations. */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Injectable } from '@nestjs/common';
 
+const moduleDirectory = fileURLToPath(new URL('.', import.meta.url));
 const HOLIDAY_FIXTURE_PATHS = [
-  resolve(__dirname, '../../../../../fixtures/calendars'),
+  resolve(moduleDirectory, '../../../../../fixtures/calendars'),
   resolve(process.cwd(), 'fixtures/calendars'),
   resolve(process.cwd(), '../../fixtures/calendars'),
 ];
 
+/**
+ * Loads and caches synthetic NRW holiday fixtures for deterministic absence and roster calculations.
+ * Missing or unreadable fixture years deliberately resolve to an empty set.
+ */
 @Injectable()
 export class HolidayProvider {
   private readonly holidayCache = new Map<number, Set<string>>();

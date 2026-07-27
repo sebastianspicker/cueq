@@ -1,3 +1,4 @@
+/** Exposes authorized, filtered reads of immutable audit entries. */
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
@@ -6,12 +7,13 @@ import {
   type AuditEntriesQuery,
   type AuditEntriesResult,
 } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { PrismaService } from '../../persistence/prisma.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { PrismaService } from '../../persistence/prisma.service.js';
 
+/** Read-only audit-trail boundary; access filtering protects employment-data visibility. */
 @ApiTags('audit')
 @ApiBearerAuth()
 @Controller('v1/audit-entries')

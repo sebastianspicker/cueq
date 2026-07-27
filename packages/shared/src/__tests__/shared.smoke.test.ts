@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import * as shared from '../index';
+import * as shared from '../index.js';
 
 describe('@cueq/shared schema behavior', () => {
   it('distinguishes skipped outbox events from delivery attempt statuses', () => {

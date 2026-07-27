@@ -1,8 +1,18 @@
 'use client';
 
+/** Policy administration workspace; client role checks only guide UX, while the API authorizes changes. */
+
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import {
+  NullableWorkflowPolicySchema,
+  PolicyBundleSchema,
+  TimeThresholdsResultSchema,
+  WorkflowPolicyHistorySchema,
+  WorkflowPolicySchema,
+  type PolicyBundle,
+  type WorkflowPolicyHistory,
+} from '@cueq/shared';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
@@ -17,53 +27,14 @@ const WORKFLOW_TYPES = [
   'POST_CLOSE_CORRECTION',
 ] as const;
 
-interface PolicyPayload {
-  [key: string]: unknown;
-}
-
-interface PolicyEntry {
-  id: string;
-  type: string;
-  name: string;
-  version: string;
-  effectiveFrom: string;
-  effectiveTo?: string | null;
-  description?: string | null;
-  payload: PolicyPayload;
-}
-
-interface PolicyBundleResponse {
-  asOf: string;
-  policies: PolicyEntry[];
-}
-
-interface WorkflowPolicyVersion {
-  id: string;
-  type: string;
-  escalationDeadlineHours: number;
-  escalationRoles: string[];
-  maxDelegationDepth: number;
-  activeFrom: string;
-  activeTo?: string | null;
-}
-
-interface WorkflowPolicyHistoryResponse {
-  entries: WorkflowPolicyVersion[];
-  total: number;
-}
-
-interface TimeThresholds {
-  dailyMaxMinutes: number;
-  minRestMinutes: number;
-}
-
+/** Hosts policy query and administration state for permitted API operations. */
 export default function PolicyAdminPage() {
   const t = useTranslations('pages.policyAdmin');
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiBaseUrl, token, apiRequest } = useApiContext();
 
   // Legacy bundle view
   const [asOf, setAsOf] = useState('2026-03-15');
-  const [bundle, setBundle] = useState<PolicyBundleResponse | null>(null);
+  const [bundle, setBundle] = useState<PolicyBundle | null>(null);
 
   // Workflow policy editor
   const [wfType, setWfType] = useState<string>(WORKFLOW_TYPES[0]);
@@ -72,7 +43,7 @@ export default function PolicyAdminPage() {
   const [wfMaxDepth, setWfMaxDepth] = useState(5);
 
   // Workflow policy version history
-  const [wfHistory, setWfHistory] = useState<WorkflowPolicyHistoryResponse | null>(null);
+  const [wfHistory, setWfHistory] = useState<WorkflowPolicyHistory | null>(null);
 
   // Time thresholds editor
   const [dailyMax, setDailyMax] = useState(600);
@@ -102,7 +73,7 @@ export default function PolicyAdminPage() {
     await withFeedback(async () => {
       const query = new URLSearchParams();
       if (asOf) query.set('asOf', asOf);
-      const data = await apiRequest<PolicyBundleResponse>(`/v1/policies?${query.toString()}`);
+      const data = await apiRequest(`/v1/policies?${query.toString()}`, PolicyBundleSchema);
       setBundle(data);
       setMessage(t('bundleLoaded'));
     }).catch((cause: unknown) => {
@@ -113,7 +84,14 @@ export default function PolicyAdminPage() {
 
   async function loadWorkflowPolicy() {
     await withFeedback(async () => {
-      const data = await apiRequest<WorkflowPolicyVersion>(`/v1/workflows/policies/${wfType}`);
+      const data = await apiRequest(
+        `/v1/workflows/policies/${wfType}`,
+        NullableWorkflowPolicySchema,
+      );
+      if (!data) {
+        setMessage(t('workflowPolicyMissing'));
+        return;
+      }
       setWfEscDeadline(data.escalationDeadlineHours);
       setWfEscRoles(data.escalationRoles.join(','));
       setWfMaxDepth(data.maxDelegationDepth);
@@ -125,7 +103,7 @@ export default function PolicyAdminPage() {
 
   async function saveWorkflowPolicy() {
     await withFeedback(async () => {
-      await apiRequest(`/v1/workflows/policies/${wfType}`, {
+      await apiRequest(`/v1/workflows/policies/${wfType}`, WorkflowPolicySchema, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -145,8 +123,9 @@ export default function PolicyAdminPage() {
 
   async function loadPolicyHistory() {
     await withFeedback(async () => {
-      const data = await apiRequest<WorkflowPolicyHistoryResponse>(
+      const data = await apiRequest(
         `/v1/workflows/policies/${wfType}/history`,
+        WorkflowPolicyHistorySchema,
       );
       setWfHistory(data);
       setMessage(t('historyLoaded'));
@@ -158,7 +137,7 @@ export default function PolicyAdminPage() {
 
   async function loadTimeThresholds() {
     await withFeedback(async () => {
-      const data = await apiRequest<TimeThresholds>('/v1/time-thresholds');
+      const data = await apiRequest('/v1/time-thresholds', TimeThresholdsResultSchema);
       setDailyMax(data.dailyMaxMinutes);
       setMinRest(data.minRestMinutes);
       setMessage(t('timeThresholdsLoaded'));
@@ -169,7 +148,7 @@ export default function PolicyAdminPage() {
 
   async function saveTimeThresholds() {
     await withFeedback(async () => {
-      await apiRequest('/v1/time-thresholds', {
+      await apiRequest('/v1/time-thresholds', TimeThresholdsResultSchema, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dailyMaxMinutes: dailyMax, minRestMinutes: minRest }),
@@ -182,15 +161,6 @@ export default function PolicyAdminPage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
-
       <StatusBanner message={message} error={error} />
 
       {/* Workflow policy editor */}
@@ -357,7 +327,7 @@ export default function PolicyAdminPage() {
                     {t('effectiveFrom')}: {entry.effectiveFrom}
                   </span>
                   <span>
-                    {t('effectiveTo')}: {entry.effectiveTo ?? '—'}
+                    {t('effectiveTo')}: {entry.effectiveTo ?? '-'}
                   </span>
                 </div>
               </li>

@@ -1,7 +1,9 @@
 # Product Spec: Monthly Closing (FR-600)
 
-> **Status:** ✅ Implemented
-> **Source:** PRD FR-600
+> Evidence: Source and contract surfaces are present; focused tests named in
+> related acceptance scenarios cover selected behaviour. Not audit certification,
+> service-backed evidence, or deployment approval.
+> Source: PRD FR-600
 
 ---
 
@@ -29,14 +31,14 @@ stateDiagram-v2
 
 ## 3. Roles and Permissions
 
-| Action                      | Team Lead   | HR/Admin | Employee |
-| --------------------------- | ----------- | -------- | -------- |
-| Read closing periods        | ✅ (own OE) | ✅       | ❌       |
-| Lead approve                | ✅ (own OE) | ❌       | ❌       |
-| HR final approve            | ❌          | ✅       | ❌       |
-| Export                      | ❌          | ✅       | ❌       |
-| Reopen                      | ❌          | ✅       | ❌       |
-| Post-close correction apply | ❌          | ✅       | ❌       |
+| Action                      | Team Lead    | HR/Admin | Employee |
+| --------------------------- | ------------ | -------- | -------- |
+| Read closing periods        | Yes (own OE) | Yes      | No       |
+| Lead approve                | Yes (own OE) | No       | No       |
+| HR final approve            | No           | Yes      | No       |
+| Export                      | No           | Yes      | No       |
+| Reopen                      | No           | Yes      | No       |
+| Post-close correction apply | No           | Yes      | No       |
 
 ## 4. Lock Behavior
 

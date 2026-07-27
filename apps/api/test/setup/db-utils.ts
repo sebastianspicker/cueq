@@ -1,10 +1,13 @@
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const DEFAULT_DATABASE_URL =
   'postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public';
 
-const repoRoot = join(__dirname, '..', '..', '..', '..');
+const moduleDirectory = fileURLToPath(new URL('.', import.meta.url));
+const repoRoot = join(moduleDirectory, '..', '..', '..', '..');
+const pnpmScript = join(repoRoot, 'scripts', 'pnpm.sh');
 
 export function withSchema(databaseUrl: string, schema: string) {
   const url = new URL(databaseUrl);
@@ -14,7 +17,7 @@ export function withSchema(databaseUrl: string, schema: string) {
 
 export function prismaPushReset(databaseUrl: string) {
   execFileSync(
-    'pnpm',
+    pnpmScript,
     [
       '--filter',
       '@cueq/database',
@@ -39,7 +42,7 @@ export function prismaPushReset(databaseUrl: string) {
 type DatabaseScript = 'db:seed:phase2' | 'db:seed:phase3';
 
 export function runDatabaseScript(script: DatabaseScript, databaseUrl: string) {
-  execFileSync('pnpm', ['--filter', '@cueq/database', script], {
+  execFileSync(pnpmScript, ['--filter', '@cueq/database', script], {
     cwd: repoRoot,
     stdio: 'inherit',
     env: {

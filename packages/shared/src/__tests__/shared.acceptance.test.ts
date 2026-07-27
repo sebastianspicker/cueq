@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WorkflowDecisionSchema } from '../schemas/workflow';
+import { WorkflowDecisionSchema } from '../schemas/workflow.js';
 
 describe('@cueq/shared acceptance', () => {
   it('accepts valid workflow decision payloads', () => {

@@ -11,7 +11,7 @@ import {
   toClosingActorRole,
   toPersistenceClosingStatus,
   zonedDateTimeToUtcDate,
-} from '../closing-utils';
+} from '../closing-utils.js';
 
 describe('toClosingActorRole', () => {
   it('maps HR → HR', () => expect(toClosingActorRole(Role.HR)).toBe('HR'));

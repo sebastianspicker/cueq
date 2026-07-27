@@ -1,18 +1,19 @@
-# Product Spec: Policy-as-Code
+# Product Spec: Policy as Code
 
-> **CueQ Differentiator A** — Rules are versioned, testable, reviewable, and rollback-capable.
-> **Status:** ✅ MVP Implemented | **Package:** `@cueq/policy`
+> Rules are versioned, testable, and reviewable in repository source.
+> Package source and focused tests are present; deployment rollback
+> and institutional policy approval require separate evidence.
 
 ---
 
 ## 1. Summary
 
-Unlike traditional time-tracking systems where rules are buried in configuration UIs or hard-coded, CueQ treats policy rules as first-class code artifacts:
+cueq stores policy rules as typed repository artifacts:
 
-- **Versioned**: every rule has `effectiveFrom`/`effectiveTo` dates and a monotonic version number
-- **Testable**: a "golden-case" test suite validates all rules in CI — no policy change ships without passing
-- **Reviewable**: policy changes go through the same PR process as code; diffs are human-readable
-- **Rollback-capable**: previous rule versions are retained; rollback is a config change, not a code deploy
+- Versioned: Every rule has `effectiveFrom` and `effectiveTo` dates and a monotonic version number.
+- Testable: The golden-case suite validates the committed default rules.
+- Reviewable: Policy changes are ordinary source diffs.
+- Rollback-capable: Previous rule versions remain available as configuration data.
 
 ## 2. Rule Categories
 
@@ -30,9 +31,9 @@ Located at `packages/policy/src/__tests__/golden-cases.test.ts`. This suite:
 
 1. Validates all default rules against their Zod schemas
 2. Asserts specific legal minimums (e.g., 30min break after 6h, 11h rest)
-3. Will be extended with reference calculation fixtures as the evaluation engine is built
+3. Exercises the current default rules against synthetic golden cases.
 
-**CI gate**: The `test:golden` script runs in CI and must pass for any PR touching `packages/policy/`.
+CI gate: The `test:golden` script runs through the repository checks.
 
 ## 4. Policy Changelog
 
@@ -52,5 +53,5 @@ Each entry includes: version number, effective date, what changed, why, and appr
 
 ## 6. References
 
-- [`packages/policy/`](../../packages/policy/) — Package source
-- [`docs/design-docs/core-beliefs.md`](../design-docs/core-beliefs.md) — "Configuration Over Hard-Coding" principle
+- [`packages/policy/`](../../packages/policy/): Package source
+- [`docs/design-docs/core-beliefs.md`](../design-docs/core-beliefs.md): "Configuration Over Hard-Coding" principle

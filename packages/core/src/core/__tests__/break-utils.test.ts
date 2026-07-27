@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BREAK_RULE } from '@cueq/policy';
 import type { BreakRule } from '@cueq/policy';
-import { requiredBreakMinutes } from '../break-utils';
+import { requiredBreakMinutes } from '../break-utils.js';
 
 describe('requiredBreakMinutes', () => {
   // DEFAULT_BREAK_RULE thresholds:

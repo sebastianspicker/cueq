@@ -1,9 +1,11 @@
+/** Calculates and applies missing workflow compatibility fields without overwriting newer data. */
 const ACTIVE_STATUSES = new Set(['SUBMITTED', 'PENDING', 'ESCALATED']);
 
 function addHours(date, hours) {
   return new Date(date.getTime() + hours * 3_600_000);
 }
 
+/** Derives only the null compatibility fields that an older workflow row still needs. */
 export function workflowBackfillPatch(workflow, deadlineHours) {
   const patch = {};
   const submittedAt = workflow.submittedAt ?? workflow.createdAt;
@@ -25,6 +27,7 @@ function auditSnapshot(workflow) {
   };
 }
 
+/** Lock, re-read, patch, and audit one workflow so concurrent workers converge safely. */
 export async function backfillWorkflow(db, input) {
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseCsvRecords } from '../common/csv/parse-csv';
+import { parseCsvRecords } from '../common/csv/parse-csv.js';
 
 const corpus = JSON.parse(
   readFileSync(resolve(process.cwd(), '../../fixtures/integrations/hr-csv-corpus.json'), 'utf8'),

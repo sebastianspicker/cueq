@@ -1,7 +1,9 @@
 # Product Spec: Reports & Export (FR-700)
 
-> **Status:** ✅ Implemented  
-> **Source:** PRD FR-700
+> Evidence: Source and contract surfaces are present; named acceptance
+> criteria require focused verification. Not audit certification, service-backed
+> evidence, or deployment approval.
+> Source: PRD FR-700
 
 ---
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { BreakRuleSchema, DEFAULT_BREAK_RULE, type BreakRule } from '../rules/break-rules';
-import { DEFAULT_LEAVE_RULE, LeaveRuleSchema, type LeaveRule } from '../rules/leave-rules';
-import { DEFAULT_SURCHARGE_RULE } from '../rules/surcharge-rules';
-import { getActivePolicyBundle, getPolicyHistory, type PolicyCatalogRule } from '../catalog';
+import { BreakRuleSchema, DEFAULT_BREAK_RULE, type BreakRule } from '../rules/break-rules.js';
+import { DEFAULT_LEAVE_RULE, LeaveRuleSchema, type LeaveRule } from '../rules/leave-rules.js';
+import { DEFAULT_SURCHARGE_RULE } from '../rules/surcharge-rules.js';
+import { getActivePolicyBundle, getPolicyHistory, type PolicyCatalogRule } from '../catalog.js';
 
 describe('@cueq/policy integration', () => {
   it('keeps break-rule thresholds ordered by worked-hours minimum', () => {
@@ -57,7 +57,7 @@ describe('@cueq/policy integration', () => {
     });
   });
 
-  describe('policy version transition — old rule until Jan 31, new rule from Feb 1', () => {
+  describe('policy version transition: old rule until Jan 31, new rule from Feb 1', () => {
     const v1Break: BreakRule = {
       ...DEFAULT_BREAK_RULE,
       id: 'break-v1',
@@ -120,9 +120,9 @@ describe('@cueq/policy integration', () => {
     });
   });
 
-  describe('surcharge categories stacking — Sunday + holiday + night', () => {
+  describe('surcharge categories stacking: Sunday + holiday + night', () => {
     it('HIGHEST_ONLY: when all three categories apply, holiday wins (priority 300)', () => {
-      // Scenario: Sunday Dec 25 at 23:00 — WEEKEND + HOLIDAY + NIGHT all match
+      // Scenario: Sunday Dec 25 at 23:00: WEEKEND + HOLIDAY + NIGHT all match
       const categories = DEFAULT_SURCHARGE_RULE.categories;
       const holiday = categories.find((c) => c.category === 'HOLIDAY')!;
       const weekend = categories.find((c) => c.category === 'WEEKEND')!;
@@ -144,7 +144,7 @@ describe('@cueq/policy integration', () => {
     });
 
     it('HIGHEST_ONLY: weekend + night overlap resolves to weekend (priority 200 > 100)', () => {
-      // Scenario: Saturday at 22:00 — WEEKEND + NIGHT match, but not HOLIDAY
+      // Scenario: Saturday at 22:00: WEEKEND + NIGHT match, but not HOLIDAY
       const weekend = DEFAULT_SURCHARGE_RULE.categories.find((c) => c.category === 'WEEKEND')!;
       const night = DEFAULT_SURCHARGE_RULE.categories.find((c) => c.category === 'NIGHT')!;
 
@@ -158,7 +158,7 @@ describe('@cueq/policy integration', () => {
     });
 
     it('night-only: weekday at 23:00 applies only night surcharge (25%)', () => {
-      // Scenario: Tuesday at 23:00 — only NIGHT matches
+      // Scenario: Tuesday at 23:00: only NIGHT matches
       const night = DEFAULT_SURCHARGE_RULE.categories.find((c) => c.category === 'NIGHT')!;
       expect(night.ratePercent).toBe(25);
       expect(night.priority).toBe(100);
@@ -284,7 +284,7 @@ describe('@cueq/policy integration', () => {
     });
 
     it('carry-over from full-time period applies to combined entitlement', () => {
-      // Carry-over rules don't change based on the transition —
+      // Carry-over rules do not change based on the transition:
       // the same forfeiture deadline and maxDays apply
       expect(fullTimeRule.carryOver.enabled).toBe(true);
       expect(fullTimeRule.carryOver.maxDays).toBe(30);

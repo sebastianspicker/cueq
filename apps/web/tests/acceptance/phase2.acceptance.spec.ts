@@ -54,8 +54,8 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     expect(timeEngineDe.status()).toBe(200);
     expect(timeEngineEn.status()).toBe(200);
 
-    expect(await de.text()).toContain('Soll/Ist');
-    expect(await en.text()).toContain('Target/actual');
+    expect(await de.text()).toContain('Tagesfortschritt');
+    expect(await en.text()).toContain('Day progress');
     expect(await bookings.text()).toContain('Meine Buchungen');
     expect(await oncall.text()).toContain('Rufbereitschaft');
     expect(await closing.text()).toContain('Monatsabschluss');
@@ -106,7 +106,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
   });
 
   test('dashboard supports load + quick-action booking flow', async ({ page }) => {
-    await authenticateAndOpen(page, 'de', employeeToken, 'Dashboard');
+    await authenticateAndOpen(page, 'de', employeeToken, 'Heute');
     await page.getByRole('button', { name: 'Dashboard laden' }).click();
 
     await expect(page.getByRole('heading', { name: 'Übersicht' })).toBeVisible();
@@ -207,7 +207,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
     await detailsArticle.getByRole('combobox').first().selectOption('DELEGATE');
     await page.getByLabel('Delegieren an Person-ID').fill('c000000000000000000000103');
     await page.getByLabel('Aktionsbegründung').fill('Playwright delegation');
-    await page.getByRole('button', { name: 'Aktion ausführen' }).click();
+    await page.getByRole('button', { name: 'Delegieren' }).click();
     await expect(page.getByText('Workflow-Aktion ausgeführt.')).toBeVisible();
 
     await changeToken(page, 'de', hrToken);
@@ -240,7 +240,7 @@ test.describe('Phase 2 web acceptance (Playwright)', () => {
   });
 
   test('bookings page lists bookings and creates correction workflow', async ({ page }) => {
-    await authenticateAndOpen(page, 'de', employeeToken, 'Meine Buchungen');
+    await authenticateAndOpen(page, 'de', employeeToken, 'Buchungen');
     await page.getByRole('button', { name: 'Eigene Buchungen laden' }).click();
 
     const firstBookingIdCell = page.locator('tbody tr').first().locator('td').first();

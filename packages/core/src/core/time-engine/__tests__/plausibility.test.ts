@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluatePlausibility } from '../plausibility';
+import { evaluatePlausibility } from '../plausibility.js';
 
 describe('evaluatePlausibility – edge cases', () => {
   describe('empty and minimal inputs', () => {

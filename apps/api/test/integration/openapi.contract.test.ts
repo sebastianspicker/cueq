@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp, seedPhase2Data } from '../test-helpers';
-import { buildOpenApiDocument } from '../../src/openapi';
+import { createTestApp, seedPhase2Data } from '../test-helpers.js';
+import { buildOpenApiDocument } from '../../src/openapi.js';
 
 type OpenApiDocument = ReturnType<typeof buildOpenApiDocument>;
 
@@ -30,8 +30,32 @@ function expectQueryParameters(
 
 function expectClosingExportContract(document: OpenApiDocument): void {
   const exportPost = document.paths?.['/v1/closing-periods/{id}/export']?.post;
-  expect(exportPost?.responses?.['201']?.content?.['application/json']).toBeDefined();
+  const createdResponse = exportPost?.responses?.['201'];
+  const createdContent =
+    createdResponse && !('$ref' in createdResponse)
+      ? createdResponse.content?.['application/json']
+      : undefined;
+  expect(createdContent).toBeDefined();
   expect(exportPost?.requestBody).toBeDefined();
+}
+
+function expectIntegrationTokenSecurity(document: OpenApiDocument): void {
+  expect(document.components?.securitySchemes?.['integration-token']).toMatchObject({
+    type: 'apiKey',
+    in: 'header',
+    name: 'x-integration-token',
+  });
+
+  const operations = [
+    document.paths?.['/v1/terminal/heartbeats']?.post,
+    document.paths?.['/v1/terminal/health']?.get,
+    document.paths?.['/v1/hr/import-runs']?.post,
+    document.paths?.['/v1/hr/import-runs/{id}']?.get,
+  ];
+
+  for (const operation of operations) {
+    expect(operation?.security).toContainEqual({ 'integration-token': [] });
+  }
 }
 
 describe('Phase 3 integration: OpenAPI contract', () => {
@@ -141,5 +165,9 @@ describe('Phase 3 integration: OpenAPI contract', () => {
     expectQueryParameters(document, '/v1/reports/audit-summary', ['from', 'to']);
     expectQueryParameters(document, '/v1/reports/compliance-summary', ['from', 'to']);
     expectClosingExportContract(document);
+  });
+
+  it('documents machine endpoint integration-token authentication', () => {
+    expectIntegrationTokenSecurity(buildOpenApiDocument(app));
   });
 });

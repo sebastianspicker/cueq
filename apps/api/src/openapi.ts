@@ -1,6 +1,8 @@
+/** Builds the committed public API description from Nest metadata and security scheme declarations. */
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
+/** Produces the OpenAPI document used by runtime Swagger and contract export tooling. */
 export function buildOpenApiDocument(app: INestApplication) {
   const config = new DocumentBuilder()
     .setTitle('cueq API')
@@ -25,6 +27,15 @@ export function buildOpenApiDocument(app: INestApplication) {
     .addTag('integrations', 'Event outbox and webhook delivery endpoints')
     .addTag('reports', 'Privacy-preserving aggregated reporting endpoints')
     .addBearerAuth()
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-integration-token',
+        description: 'Deployment-injected shared token for terminal and HR machine endpoints',
+      },
+      'integration-token',
+    )
     .build();
 
   return SwaggerModule.createDocument(app, config);

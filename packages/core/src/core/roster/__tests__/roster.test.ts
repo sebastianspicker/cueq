@@ -6,7 +6,7 @@ import {
   evaluateMinStaffing,
   evaluatePlanVsActualCoverage,
   evaluateShiftCompliance,
-} from '..';
+} from '../index.js';
 
 describe('evaluateShiftCompliance', () => {
   it('detects impossible shift intervals', () => {

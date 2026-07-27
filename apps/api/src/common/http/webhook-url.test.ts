@@ -5,7 +5,7 @@ import {
   assertWebhookTargetUrl,
   isPublicWebhookAddress,
   resolveWebhookDispatchTarget,
-} from './webhook-url';
+} from './webhook-url.js';
 
 vi.mock('node:dns/promises', () => ({
   lookup: vi.fn(),

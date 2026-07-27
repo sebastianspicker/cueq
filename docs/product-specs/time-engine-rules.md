@@ -1,6 +1,7 @@
 # Product Spec: Time Engine Rules (FR-200)
 
-> **Status:** ✅ Implemented | **Scope:** Core + API + Web Sandbox
+> Evidence: Source and contract surfaces are present across Core, API, and
+> Web sandbox; the named tests are focused evidence, not deployment approval.
 
 ---
 

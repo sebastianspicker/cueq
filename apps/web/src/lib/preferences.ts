@@ -1,8 +1,11 @@
 'use client';
 
+/** Browser-only preference helpers that fall back to caller defaults when storage is unavailable. */
+
 export const THEME_PREFERENCE_SLOT = 'cq-theme';
 export const PAGE_SIZE_PREFERENCE_SLOT = 'cq-page-size';
 
+/** Reads a local preference without making storage availability a rendering dependency. */
 export function getStoredPreference(key: string, fallback: string): string {
   if (typeof window === 'undefined') {
     return fallback;
@@ -15,6 +18,7 @@ export function getStoredPreference(key: string, fallback: string): string {
   }
 }
 
+/** Best-effort writes a local preference for future client sessions. */
 export function setStoredPreference(key: string, value: string) {
   if (typeof window === 'undefined') {
     return;
@@ -27,6 +31,7 @@ export function setStoredPreference(key: string, value: string) {
   }
 }
 
+/** Applies the selected theme to document-level CSS and native control color hints. */
 export function applyThemePreference(theme: string) {
   if (typeof document === 'undefined') {
     return;

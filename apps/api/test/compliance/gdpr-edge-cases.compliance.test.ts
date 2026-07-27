@@ -2,8 +2,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { prisma } from '@cueq/database';
-import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
-import { SEED_IDS } from '../../src/test-utils/seed-ids';
+import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers.js';
+import { SEED_IDS } from '../../src/test-utils/seed-ids.js';
 
 /**
  * P6.2 GDPR compliance edge-case tests:
@@ -84,7 +84,7 @@ describe('GDPR compliance edge cases (P6.2)', () => {
         type: 'SICK',
         startDate: '2026-05-01',
         endDate: '2026-05-02',
-        note: 'Medical appointment — private',
+        note: 'Medical appointment: private',
       });
 
       // Approve the absence via the lead workflow
@@ -166,7 +166,7 @@ describe('GDPR compliance edge cases (P6.2)', () => {
       });
       expect(auditEntry).not.toBeNull();
 
-      // Attempt to update the audit entry — the schema has no updatedAt field,
+      // Attempt to update the audit entry: the schema has no updatedAt field,
       // so we verify the entry is truly immutable by checking data integrity.
       const originalTimestamp = auditEntry!.timestamp;
       const originalAction = auditEntry!.action;
@@ -212,9 +212,9 @@ describe('GDPR compliance edge cases (P6.2)', () => {
     });
   });
 
-  /* ── Data Minimization — Own vs. Others' Absence Data ──────── */
+  /* ── Data Minimization: Own vs. Others' Absence Data ──────── */
 
-  describe('data minimization — absence type access', () => {
+  describe('data minimization: absence type access', () => {
     it('employee can see their own absence type via GET /v1/absences/me', async () => {
       await createAbsence(TOKENS.employee, {
         personId: SEED_IDS.personEmployee,
@@ -314,7 +314,7 @@ describe('GDPR compliance edge cases (P6.2)', () => {
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('privacy');
       expect(response.body.privacy).toHaveProperty('minGroupSize');
-      expect(response.body.privacy.minGroupSize).toBeGreaterThanOrEqual(1);
+      expect(response.body.privacy.minGroupSize).toBeGreaterThanOrEqual(5);
       // Must have aggregate counts
       expect(response.body).toHaveProperty('closing');
       expect(response.body).toHaveProperty('payrollExport');

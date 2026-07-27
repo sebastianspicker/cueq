@@ -1,6 +1,8 @@
-import { roundToTwo } from '../utils';
-import type { LeaveLedgerInput, LeaveUsageEntry } from './leave-ledger';
+/** Aggregates explicit HR adjustments and recorded leave usage for one ledger year. */
+import { roundToTwo } from '../utils.js';
+import type { LeaveLedgerInput, LeaveUsageEntry } from './leave-ledger.js';
 
+/** Sum only the explicit HR adjustments that belong to the requested ledger year. */
 export function adjustmentDaysForYear(input: LeaveLedgerInput): number {
   return roundToTwo(
     (input.adjustments ?? [])
@@ -9,6 +11,7 @@ export function adjustmentDaysForYear(input: LeaveLedgerInput): number {
   );
 }
 
+/** Sum normalized leave usage without exposing floating-point accumulation noise. */
 export function sumUsageDays(usage: LeaveUsageEntry[]): number {
   return roundToTwo(usage.reduce((sum, entry) => sum + entry.days, 0));
 }

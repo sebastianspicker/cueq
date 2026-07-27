@@ -1,32 +1,25 @@
 'use client';
 
+/** Audit-report workspace that keeps filter and pagination state local to the current session. */
+
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
 import { getStoredPreference, PAGE_SIZE_PREFERENCE_SLOT } from '../../../lib/preferences';
-import type { AuditEntriesResult, AuditEntryItem } from '@cueq/shared';
+import {
+  AuditEntriesResultSchema,
+  AuditSummaryReportSchema,
+  type AuditEntryItem,
+  type AuditSummaryReport,
+} from '@cueq/shared';
 
-interface AuditSummaryReport {
-  from: string;
-  to: string;
-  totals: {
-    entries: number;
-    uniqueActors: number;
-    reportAccesses: number;
-    exportsTriggered: number;
-    lockBlocks: number;
-  };
-  byAction: Array<{ action: string; count: number }>;
-  byEntityType: Array<{ entityType: string; count: number }>;
-}
-
+/** Hosts audit-summary and entry-browser query state. */
 export default function AuditPage() {
   const t = useTranslations('pages.audit');
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiBaseUrl, token, apiRequest } = useApiContext();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,8 +59,9 @@ export default function AuditPage() {
       const params = new URLSearchParams();
       params.set('from', from);
       params.set('to', to);
-      const result = await apiRequest<AuditSummaryReport>(
+      const result = await apiRequest(
         `/v1/reports/audit-summary?${params.toString()}`,
+        AuditSummaryReportSchema,
       );
       setSummary(result);
     } catch (cause) {
@@ -92,7 +86,10 @@ export default function AuditPage() {
       params.set('skip', String(skip));
       params.set('take', String(pageSize));
 
-      const result = await apiRequest<AuditEntriesResult>(`/v1/audit-entries?${params.toString()}`);
+      const result = await apiRequest(
+        `/v1/audit-entries?${params.toString()}`,
+        AuditEntriesResultSchema,
+      );
       setEntries(skip === 0 ? result.items : (prev) => [...prev, ...result.items]);
       setEntriesTotal(result.total);
       setEntriesSkip(skip + result.items.length);
@@ -105,15 +102,6 @@ export default function AuditPage() {
 
   return (
     <PageShell title={t('title')} description={t('description')}>
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
-
       <StatusBanner error={error} />
 
       <SectionCard>
@@ -251,7 +239,7 @@ export default function AuditPage() {
                   style={{ flexDirection: 'column', alignItems: 'flex-start' }}
                 >
                   <span>
-                    <strong>{entry.action}</strong> — {entry.entityType}{' '}
+                    <strong>{entry.action}</strong>: {entry.entityType}{' '}
                     <code>{entry.entityId.slice(0, 8)}…</code>
                   </span>
                   <span style={{ fontSize: '0.85em', color: 'var(--cq-text-muted, #666)' }}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyCutoffLock, computeExportChecksum, generateClosingChecklist } from '..';
+import { applyCutoffLock, computeExportChecksum, generateClosingChecklist } from '../index.js';
 
 describe('generateClosingChecklist', () => {
   it('marks checklist severities and unresolved errors', () => {
@@ -94,6 +94,9 @@ describe('generateClosingChecklist', () => {
     const b = generateClosingChecklist(input);
 
     expect(a).toEqual(b);
+    expect(a.items.find((item) => item.code === 'RULE_VIOLATIONS')?.details).toBe(
+      '1 unresolved policy violation',
+    );
   });
 });
 

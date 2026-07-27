@@ -1,9 +1,12 @@
+/** Exposes integration-token-protected terminal heartbeat and health endpoints. */
 import { Body, Controller, Get, Headers, Inject, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Public } from '../../common/decorators/public.decorator';
-import { TerminalGatewayService } from '../terminal-gateway.service';
+import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { Public } from '../../common/decorators/public.decorator.js';
+import { TerminalGatewayService } from '../terminal-gateway.service.js';
 
+/** Integration-token boundary for recording heartbeats and reading terminal health. */
 @ApiTags('terminal-sync')
+@ApiSecurity('integration-token')
 @Controller('v1/terminal')
 export class TerminalIntegrationController {
   constructor(

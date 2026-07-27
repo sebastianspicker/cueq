@@ -1,12 +1,16 @@
+/** Exposes authorized team-calendar absence views. */
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Role } from '@cueq/database';
 import { TeamCalendarQuerySchema } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { AbsenceDomainService } from '../services/absence-domain.service';
-import { TeamCalendarEntryDto } from '../dto/absence.dto';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { AbsenceDomainService } from '../services/absence-domain.service.js';
+import { TeamCalendarEntryDto } from '../dto/absence.dto.js';
 
+/** Team-calendar read boundary; responses are scoped by the underlying absence visibility policy. */
 @ApiTags('calendar')
 @ApiBearerAuth()
 @Controller('v1/calendar')
@@ -16,6 +20,7 @@ export class CalendarController {
   ) {}
 
   @Get('team')
+  @Roles(Role.EMPLOYEE, Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR)
   @ApiOperation({ summary: 'Get team absence calendar with role-based redaction' })
   @ApiOkResponse({ type: TeamCalendarEntryDto, isArray: true })
   @ApiQuery({ name: 'start', required: false, type: String })

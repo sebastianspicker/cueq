@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { ForbiddenException, InternalServerErrorException } from '@nestjs/common';
-import { assertIntegrationToken } from './integration-token';
+import { assertIntegrationToken } from './integration-token.js';
 
 const ORIGINAL_ENV = {
   NODE_ENV: process.env.NODE_ENV,

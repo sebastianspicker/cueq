@@ -1,18 +1,18 @@
+/** Resolves authenticated identities to verified personnel records. */
 import { Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '@cueq/database';
-import { PrismaService } from '../../persistence/prisma.service';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { resolveAuthenticatedPerson } from '../../common/auth/resolve-authenticated-person';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { resolveAuthenticatedPerson } from '../../common/auth/resolve-authenticated-person.js';
 
 /**
  * Resolves the Person entity for an authenticated user.
  *
  * Lookup order:
- *  1. Match by subject (id or externalId)
- *  2. Fallback: match by email
+ *  1. Match the identity-provider subject identifier to id or externalId
+ *  2. Cross-check the matched record's email against the authenticated claim
  *
- * An email cross-check prevents impersonation when both paths yield
- * different person records.
+ * Email alone never establishes an identity binding.
  */
 @Injectable()
 export class PersonHelper {

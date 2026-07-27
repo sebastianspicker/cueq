@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
-import { ParseCuidPipe } from './parse-cuid.pipe';
+import { ParseCuidPipe } from './parse-cuid.pipe.js';
 
 describe('ParseCuidPipe', () => {
   const pipe = new ParseCuidPipe();

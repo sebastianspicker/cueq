@@ -1,12 +1,19 @@
 'use client';
 
+/** Approval workspace for viewing and submitting workflow actions; server authorization is authoritative. */
+
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import { WorkflowInboxItemSchema, WorkflowInstanceSchema } from '@cueq/shared';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
 import { useApiContext } from '../../../lib/api-context';
+import {
+  loadAndApply,
+  refreshAfterMutation,
+  type RefreshResult,
+} from '../../../lib/mutation-refresh';
 import {
   FiltersSection,
   InboxSection,
@@ -17,11 +24,12 @@ import {
   type WorkflowInboxItem,
 } from './approvals-sections';
 
+/** Hosts workflow inbox filtering, detail loading, and action feedback. */
 export default function ApprovalsPage() {
   const t = useTranslations('pages.approvals');
   const params = useParams<{ locale: string }>();
   const locale = typeof params?.locale === 'string' ? params.locale : 'de';
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiRequest } = useApiContext();
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('ALL');
   const [typeFilter, setTypeFilter] = useState<(typeof TYPE_FILTERS)[number]>('ALL');
   const [overdueOnly, setOverdueOnly] = useState(false);
@@ -49,57 +57,63 @@ export default function ApprovalsPage() {
     return params.toString();
   }
 
-  async function loadInbox(preserveFeedback = false) {
-    setLoading(true);
+  async function loadInbox(preserveFeedback = false): Promise<RefreshResult> {
+    if (!preserveFeedback) setLoading(true);
     if (!preserveFeedback) {
       setError(null);
       setMessage(null);
     }
     try {
       const query = inboxQuery();
-      const data = await apiRequest<WorkflowInboxItem[]>(
-        `/v1/workflows/inbox${query ? `?${query}` : ''}`,
+      const result = await loadAndApply(
+        () =>
+          apiRequest(
+            `/v1/workflows/inbox${query ? `?${query}` : ''}`,
+            WorkflowInboxItemSchema.array(),
+          ),
+        (data) => {
+          setItems(data);
+          if (selectedId && !data.some((entry) => entry.id === selectedId)) {
+            setSelectedId(null);
+            setDetail(null);
+          }
+        },
       );
-      setItems(data);
-
-      if (selectedId) {
-        const stillExists = data.some((entry) => entry.id === selectedId);
-        if (!stillExists) {
-          setSelectedId(null);
-          setDetail(null);
-        }
+      if (!result.ok && !preserveFeedback) {
+        setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
       }
-    } catch (cause) {
-      if (!preserveFeedback) {
-        setError(cause instanceof Error ? cause.message : t('requestFailed'));
-      }
+      return result;
     } finally {
-      setLoading(false);
+      if (!preserveFeedback) setLoading(false);
     }
   }
 
-  async function loadDetail(workflowId: string, preserveFeedback = false) {
-    setLoading(true);
+  async function loadDetail(workflowId: string, preserveFeedback = false): Promise<RefreshResult> {
+    if (!preserveFeedback) setLoading(true);
     if (!preserveFeedback) {
       setError(null);
       setMessage(null);
     }
     try {
-      const data = await apiRequest<WorkflowInboxItem>(`/v1/workflows/${workflowId}`);
-      setSelectedId(workflowId);
-      setDetail(data);
-      if (data.availableActions.length > 0) {
-        setAction(data.availableActions[0] as WorkflowAction);
-      }
-    } catch (cause) {
-      if (preserveFeedback) {
+      const result = await loadAndApply(
+        () => apiRequest(`/v1/workflows/${workflowId}`, WorkflowInboxItemSchema),
+        (data) => {
+          setSelectedId(workflowId);
+          setDetail(data);
+          if (data.availableActions.length > 0) {
+            setAction(data.availableActions[0] as WorkflowAction);
+          }
+        },
+      );
+      if (!result.ok && preserveFeedback) {
         setSelectedId(null);
         setDetail(null);
-      } else {
-        setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      } else if (!result.ok) {
+        setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
       }
+      return result;
     } finally {
-      setLoading(false);
+      if (!preserveFeedback) setLoading(false);
     }
   }
 
@@ -113,16 +127,27 @@ export default function ApprovalsPage() {
     setError(null);
     setMessage(null);
     try {
-      await apiRequest(`/v1/workflows/${detail.id}/decision`, {
-        method: 'POST',
-        body: JSON.stringify({
-          action,
-          reason: reason || undefined,
-          delegateToId: action === 'DELEGATE' ? delegateToId : undefined,
-        }),
-      });
-      setMessage(t('actionApplied'));
-      await Promise.all([loadInbox(true), loadDetail(detail.id, true)]);
+      const refresh = await refreshAfterMutation(
+        () =>
+          apiRequest(`/v1/workflows/${detail.id}/decision`, WorkflowInstanceSchema, {
+            method: 'POST',
+            body: JSON.stringify({
+              action,
+              reason: reason || undefined,
+              delegateToId: action === 'DELEGATE' ? delegateToId : undefined,
+            }),
+          }),
+        async () => {
+          const results = await Promise.all([loadInbox(true), loadDetail(detail.id, true)]);
+          const failed = results.find((result) => !result.ok);
+          return failed ?? { ok: true };
+        },
+      );
+      if (refresh.ok) {
+        setMessage(t('actionApplied'));
+      } else {
+        setError(t('savedRefreshFailed'));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
@@ -136,15 +161,6 @@ export default function ApprovalsPage() {
       description={t('description')}
       breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}
     >
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
-      />
-
       <FiltersSection
         t={t}
         loading={loading}

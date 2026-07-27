@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UnauthorizedException } from '@nestjs/common';
-import { MockIdentityProviderAdapter } from './mock-identity-provider.adapter';
-import { SEED_IDS, buildMockToken } from '../../test-utils/seed-ids';
+import { MockIdentityProviderAdapter } from './mock-identity-provider.adapter.js';
+import { SEED_IDS, buildMockToken } from '../../test-utils/seed-ids.js';
 
 describe('MockIdentityProviderAdapter', () => {
   const adapter = new MockIdentityProviderAdapter();

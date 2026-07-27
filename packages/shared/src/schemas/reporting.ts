@@ -1,5 +1,11 @@
+/** Aggregate reporting contracts with suppression and audit-oriented query boundaries. */
 import { z } from 'zod';
-import { DateSchema, DateTimeSchema, IdSchema } from './common';
+import {
+  DateSchema,
+  DateTimeSchema,
+  IdSchema,
+  validateOptionalDateTimeQueryRange,
+} from './common.js';
 
 export const ReportSuppressionSchema = z.object({
   suppressed: z.boolean(),
@@ -57,7 +63,7 @@ export const ClosingCompletionReportSchema = z.object({
 });
 export type ClosingCompletionReport = z.infer<typeof ClosingCompletionReportSchema>;
 
-export const TeamAbsenceQuerySchema = z
+const OrganizationDateRangeQuerySchema = z
   .object({
     organizationUnitId: IdSchema.optional(),
     from: DateSchema,
@@ -67,30 +73,14 @@ export const TeamAbsenceQuerySchema = z
     message: 'to must be on or after from',
     path: ['to'],
   });
+
+export const TeamAbsenceQuerySchema = OrganizationDateRangeQuerySchema;
 export type TeamAbsenceQuery = z.infer<typeof TeamAbsenceQuerySchema>;
 
-export const OeOvertimeQuerySchema = z
-  .object({
-    organizationUnitId: IdSchema.optional(),
-    from: DateSchema,
-    to: DateSchema,
-  })
-  .refine((input) => input.to >= input.from, {
-    message: 'to must be on or after from',
-    path: ['to'],
-  });
+export const OeOvertimeQuerySchema = OrganizationDateRangeQuerySchema;
 export type OeOvertimeQuery = z.infer<typeof OeOvertimeQuerySchema>;
 
-export const ClosingCompletionQuerySchema = z
-  .object({
-    organizationUnitId: IdSchema.optional(),
-    from: DateSchema,
-    to: DateSchema,
-  })
-  .refine((input) => input.to >= input.from, {
-    message: 'to must be on or after from',
-    path: ['to'],
-  });
+export const ClosingCompletionQuerySchema = OrganizationDateRangeQuerySchema;
 export type ClosingCompletionQuery = z.infer<typeof ClosingCompletionQuerySchema>;
 
 export const ReportActionCountSchema = z.object({
@@ -148,7 +138,7 @@ export const ComplianceSummaryReportSchema = z.object({
 });
 export type ComplianceSummaryReport = z.infer<typeof ComplianceSummaryReportSchema>;
 
-export const AuditSummaryQuerySchema = z
+const SummaryDateRangeQuerySchema = z
   .object({
     from: DateSchema,
     to: DateSchema,
@@ -157,17 +147,11 @@ export const AuditSummaryQuerySchema = z
     message: 'to must be on or after from',
     path: ['to'],
   });
+
+export const AuditSummaryQuerySchema = SummaryDateRangeQuerySchema;
 export type AuditSummaryQuery = z.infer<typeof AuditSummaryQuerySchema>;
 
-export const ComplianceSummaryQuerySchema = z
-  .object({
-    from: DateSchema,
-    to: DateSchema,
-  })
-  .refine((input) => input.to >= input.from, {
-    message: 'to must be on or after from',
-    path: ['to'],
-  });
+export const ComplianceSummaryQuerySchema = SummaryDateRangeQuerySchema;
 export type ComplianceSummaryQuery = z.infer<typeof ComplianceSummaryQuerySchema>;
 
 export const CustomReportTypeSchema = z.enum(['TEAM_ABSENCE', 'OE_OVERTIME', 'CLOSING_COMPLETION']);
@@ -193,38 +177,34 @@ export const CustomReportOptionsSchema = z.object({
 });
 export type CustomReportOptions = z.infer<typeof CustomReportOptionsSchema>;
 
-export const CustomReportPreviewQuerySchema = z
-  .object({
-    reportType: CustomReportTypeSchema,
-    groupBy: CustomReportGroupBySchema,
-    metrics: z.array(CustomReportMetricSchema).min(1).max(4),
-    from: DateSchema,
-    to: DateSchema,
-    organizationUnitId: IdSchema.optional(),
-  })
-  .refine((input) => input.to >= input.from, {
-    message: 'to must be on or after from',
-    path: ['to'],
-  });
+function customReportPreviewQuerySchema<T extends z.ZodTypeAny>(metrics: T) {
+  return z
+    .object({
+      reportType: CustomReportTypeSchema,
+      groupBy: CustomReportGroupBySchema,
+      metrics,
+      from: DateSchema,
+      to: DateSchema,
+      organizationUnitId: IdSchema.optional(),
+    })
+    .refine((input) => input.to >= input.from, {
+      message: 'to must be on or after from',
+      path: ['to'],
+    });
+}
+
+export const CustomReportPreviewQuerySchema = customReportPreviewQuerySchema(
+  z.array(CustomReportMetricSchema).min(1).max(4),
+);
 export type CustomReportPreviewQuery = z.infer<typeof CustomReportPreviewQuerySchema>;
 
 /** Query-param version with string-to-array coercion for GET requests */
-export const CustomReportPreviewQueryParamsSchema = z
-  .object({
-    reportType: CustomReportTypeSchema,
-    groupBy: CustomReportGroupBySchema,
-    metrics: z.preprocess(
-      (val) => (typeof val === 'string' ? [val] : val),
-      z.array(CustomReportMetricSchema).min(1).max(4),
-    ),
-    from: DateSchema,
-    to: DateSchema,
-    organizationUnitId: IdSchema.optional(),
-  })
-  .refine((input) => input.to >= input.from, {
-    message: 'to must be on or after from',
-    path: ['to'],
-  });
+export const CustomReportPreviewQueryParamsSchema = customReportPreviewQuerySchema(
+  z.preprocess(
+    (val) => (typeof val === 'string' ? [val] : val),
+    z.array(CustomReportMetricSchema).min(1).max(4),
+  ),
+);
 export type CustomReportPreviewQueryParams = z.infer<typeof CustomReportPreviewQueryParamsSchema>;
 
 export const CustomReportPreviewRowSchema = z.object({
@@ -244,19 +224,23 @@ export const CustomReportPreviewSchema = z.object({
 export type CustomReportPreview = z.infer<typeof CustomReportPreviewSchema>;
 
 // ---------------------------------------------------------------------------
-// Audit Entries — filterable browse endpoint
+// Audit Entries: filterable browse endpoint
 // ---------------------------------------------------------------------------
 
-export const AuditEntriesQuerySchema = z.object({
-  from: DateTimeSchema.optional(),
-  to: DateTimeSchema.optional(),
-  action: z.string().max(64).optional(),
-  entityType: z.string().max(64).optional(),
-  actorId: IdSchema.optional(),
-  entityId: IdSchema.optional(),
-  skip: z.coerce.number().int().nonnegative().default(0),
-  take: z.coerce.number().int().min(1).max(200).default(50),
-});
+export const AuditEntriesQuerySchema = z
+  .object({
+    from: DateTimeSchema.optional(),
+    to: DateTimeSchema.optional(),
+    action: z.string().max(64).optional(),
+    entityType: z.string().max(64).optional(),
+    actorId: IdSchema.optional(),
+    entityId: IdSchema.optional(),
+    skip: z.coerce.number().int().nonnegative().default(0),
+    take: z.coerce.number().int().min(1).max(200).default(50),
+  })
+  .superRefine((input, ctx) =>
+    validateOptionalDateTimeQueryRange(input, ctx, 'to must be on or after from'),
+  );
 export type AuditEntriesQuery = z.infer<typeof AuditEntriesQuerySchema>;
 
 export const AuditEntryItemSchema = z.object({

@@ -1,9 +1,10 @@
+/** Routes reports through metric allow-lists and report-specific scope and privacy controls. */
 import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { CustomReportOptionsSchema, CustomReportPreviewQuerySchema } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { REPORT_ALLOWED_ROLES } from '../helpers/role-constants';
-import { ReportingComplianceHelper } from '../helpers/reporting-compliance.helper';
-import { ReportingAnalyticsHelper } from '../helpers/reporting-analytics.helper';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { REPORT_ALLOWED_ROLES } from '../helpers/role-constants.js';
+import { ReportingComplianceHelper } from '../helpers/reporting-compliance.helper.js';
+import { ReportingAnalyticsHelper } from '../helpers/reporting-analytics.helper.js';
 
 const METRIC_ALLOW_LIST: Record<string, Set<string>> = {
   TEAM_ABSENCE: new Set(['requests', 'days']),
@@ -19,6 +20,10 @@ type CustomPreviewBase = {
   metrics: string[];
 };
 
+/**
+ * Builds reporting views under explicit metric allow-lists and delegates to each
+ * report's role, organization-scope, and suppression rules.
+ */
 @Injectable()
 export class ReportingService {
   constructor(

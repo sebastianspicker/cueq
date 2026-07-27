@@ -1,3 +1,4 @@
+/** Validates synthetic JSON and CSV fixtures against their committed public contracts. */
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import Ajv2020 from 'ajv/dist/2020.js';
@@ -6,7 +7,6 @@ import addFormats from 'ajv-formats';
 const root = resolve(import.meta.dirname, '..');
 const fixtureSchemaPath = resolve(root, 'schemas/fixtures/reference-calculation.schema.json');
 const fixturesDir = resolve(root, 'fixtures/reference-calculations');
-const realDerivedFixturesDir = resolve(root, 'fixtures/reference-calculations-real');
 const holidaySchemaPath = resolve(root, 'schemas/fixtures/nrw-holidays.schema.json');
 const holidayFixturePath = resolve(root, 'fixtures/calendars/nrw-holidays-2026.json');
 const integrationFixturesDir = resolve(root, 'fixtures', 'integrations');
@@ -68,9 +68,6 @@ async function main() {
   const referenceFiles = (await readdir(fixturesDir))
     .filter((entry) => entry.endsWith('.json'))
     .sort();
-  const realDerivedFiles = (await readdir(realDerivedFixturesDir))
-    .filter((entry) => entry.endsWith('.json'))
-    .sort();
 
   let failed = false;
 
@@ -86,20 +83,6 @@ async function main() {
     }
 
     console.log(`✓ Valid fixture: ${file}`);
-  }
-
-  for (const file of realDerivedFiles) {
-    const fixture = await readJson(resolve(realDerivedFixturesDir, file));
-    const valid = validateReference(fixture);
-
-    if (!valid) {
-      failed = true;
-      console.error(`Invalid real-derived fixture: ${file}`);
-      console.error(ajv.errorsText(validateReference.errors, { separator: '\n' }));
-      continue;
-    }
-
-    console.log(`✓ Valid real-derived fixture: ${file}`);
   }
 
   const holidayFixture = await readJson(holidayFixturePath);

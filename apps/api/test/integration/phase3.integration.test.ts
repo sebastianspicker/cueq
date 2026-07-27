@@ -3,11 +3,11 @@ import { ClosingStatus, OutboxStatus } from '@cueq/database';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
-import { SEED_IDS } from '../../src/test-utils/seed-ids';
-import { ClosingDomainService } from '../../src/phase2/services/closing-domain.service';
-import { PrismaService } from '../../src/persistence/prisma.service';
-import type { HrMasterProviderPort } from '../../src/phase2/hr-master-provider.port';
+import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers.js';
+import { SEED_IDS } from '../../src/test-utils/seed-ids.js';
+import { ClosingDomainService } from '../../src/phase2/services/closing-domain.service.js';
+import { PrismaService } from '../../src/persistence/prisma.service.js';
+import type { HrMasterProviderPort } from '../../src/phase2/hr-master-provider.port.js';
 
 const TERMINAL_TOKEN = process.env.TERMINAL_GATEWAY_TOKEN ?? 'dev-terminal-token';
 const HR_IMPORT_TOKEN = process.env.HR_IMPORT_TOKEN ?? 'dev-hr-token';
@@ -797,7 +797,7 @@ describe('Phase 3 integration: terminal, HR import, payroll csv', () => {
       from: '2026-03-01',
       to: '2026-03-31',
     });
-    expect(complianceSummary.body.privacy.minGroupSize).toBeGreaterThan(0);
+    expect(complianceSummary.body.privacy.minGroupSize).toBeGreaterThanOrEqual(5);
     expect(complianceSummary.body.closing.periods).toBeGreaterThanOrEqual(0);
 
     const dataProtectionAudit = await request(app.getHttpServer())

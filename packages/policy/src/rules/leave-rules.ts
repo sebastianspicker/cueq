@@ -1,5 +1,6 @@
+/** Defines versioned leave-policy contracts and the current TV-L reference default. */
 import { z } from 'zod';
-import { PolicyRuleMetaSchema } from '../types';
+import { PolicyRuleMetaSchema } from '../types.js';
 
 /**
  * Leave/absence rules (TV-L §26).

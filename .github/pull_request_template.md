@@ -2,9 +2,13 @@
 
 <!-- What changed and why? -->
 
-## Linked Plan / Issue
+## Linked Roadmap / Issue
 
-- Plan or issue: <!-- e.g. docs/PLANS.md or #123 -->
+- Roadmap item or issue: <!-- e.g. docs/ROADMAP.md or #123 -->
+
+## Release Note
+
+<!-- Describe the user-visible change, or write "Not user-visible". -->
 
 ## Change Type
 
@@ -40,7 +44,7 @@
 - [ ] Role-based access check implemented
 - [ ] Audit logging for report access
 - [ ] No individual performance/behavior metrics exposed
-- [ ] Works council compatibility confirmed
+- [ ] Works-council impact status recorded as not applicable, pending, or privately evidenced
 - Private governance evidence reference, when required: <!-- Do not paste private minutes, names, or tickets. -->
 
 ## Scope Guardrails
@@ -48,5 +52,7 @@
 - [ ] One concern per PR
 - [ ] Change is small enough to review as one coherent concern
 - [ ] Relevant docs updated
+- [ ] User-visible changes are described in `CHANGELOG.md`
 - [ ] Generated artifacts refreshed or explicitly not affected
 - [ ] OpenAPI, Prisma migrations, and schema contracts reviewed when touched
+- [ ] Release-facing changes follow `docs/RELEASING.md`

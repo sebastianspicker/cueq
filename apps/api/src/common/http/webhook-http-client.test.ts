@@ -5,7 +5,7 @@ import { request as requestHttp } from 'node:http';
 import type { IncomingMessage } from 'node:http';
 import { request as requestHttps } from 'node:https';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { postWebhook } from './webhook-http-client';
+import { postWebhook } from './webhook-http-client.js';
 
 vi.mock('node:dns/promises', () => ({ lookup: vi.fn() }));
 vi.mock('node:http', () => ({ request: vi.fn() }));

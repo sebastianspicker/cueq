@@ -1,10 +1,15 @@
-# Core Beliefs — cueq Design Principles
+# Core Beliefs: cueq Design Principles
+
+These are normative engineering requirements, not a statement that every
+control is complete in the alpha. Current security limits are listed in
+[`../SECURITY.md`](../SECURITY.md), and candidate evidence requirements are in
+[`../../RELEASE_STATUS.md`](../../RELEASE_STATUS.md).
 
 ---
 
 ## 1. Correctness Over Convenience
 
-The system deals with legally relevant data (working hours, leave quotas, payroll exports). **Incorrect calculations are worse than slow calculations.** Every arithmetic operation on time, leave, or surcharges must be:
+The system deals with legally relevant data (working hours, leave quotas, payroll exports). Incorrect calculations are worse than slow calculations. Every arithmetic operation on time, leave, or surcharges must be:
 
 - Backed by a reference calculation fixture
 - Tested against the fixture in CI
@@ -14,8 +19,11 @@ The system deals with legally relevant data (working hours, leave quotas, payrol
 
 A German university under TV-L must demonstrate compliance to the Personalrat (works council), data protection officers, and external auditors. Therefore:
 
-- Every state change produces an **immutable audit entry** (who, what, when, why)
-- Audit entries are **append-only** — no update, no delete, no truncate
+- Audited state changes should append an entry containing who, what, when, and
+  why. Comprehensive state-change coverage is not yet established.
+- The candidate database migration rejects audit-row `UPDATE` and `DELETE` when
+  applied. `TRUNCATE` protection, hash chains, signatures, and external
+  witnessing are not implemented.
 - Workflow decisions (approval, rejection, delegation) are part of the audit trail
 - Rule changes are versioned (which rule set was active when a calculation was performed?)
 
@@ -23,10 +31,11 @@ A German university under TV-L must demonstrate compliance to the Personalrat (w
 
 Data minimization is a legal requirement (GDPR / DSGVO) and an institutional expectation:
 
-- **Colleagues see "absent", not "sick".** Absence reasons are role-gated.
-- **Reports must not enable individual performance monitoring.** Aggregation and role checks are mandatory.
-- **Retention is configurable.** Data categories have distinct deletion schedules.
-- **No telemetry.** The system does not phone home, does not collect usage analytics, does not embed third-party trackers.
+- Colleagues see "absent", not "sick". Absence reasons are role-gated.
+- Reports must not enable individual performance monitoring. Aggregation and role checks are mandatory.
+- Retention must become configurable. Automated category-specific retention
+  and deletion schedules are not implemented in the alpha.
+- No telemetry. The system does not phone home, does not collect usage analytics, does not embed third-party trackers.
 
 ## 4. Configuration Over Hard-Coding
 
@@ -40,30 +49,36 @@ The university has diverse employee groups (TV-L admin, shifts, student assistan
 
 Every interface boundary is defined by a machine-readable schema:
 
-- **Domain entities** → JSON Schema
-- **API endpoints** → OpenAPI 3.1
-- **Events** → JSON Schema event envelopes
-- **Exports** → Schema-defined column/field layouts
+- Domain entities → JSON Schema
+- API endpoints → generated OpenAPI 3.0 snapshot
+- Events: JSON Schema event envelopes
+- Exports: Schema-defined column and field layouts
 
-Types are generated from schemas, not hand-written. If the schema and the code disagree, the schema wins.
+Selected domain types and generated documents derive from schemas. Prisma,
+Zod, Nest DTO, and handwritten TypeScript contracts also exist; the owning
+source contract must be identified before changing an interface.
 
 ## 6. Offline Resilience
 
-Honeywell terminals can go offline. The system must:
+Honeywell terminals can go offline. A complete deployment must:
 
 - Buffer bookings locally at the terminal or gateway
 - Synchronize without data loss when connectivity returns
 - Flag and resolve conflicts (duplicate bookings, out-of-order timestamps)
 - Support a manual fallback process (emergency bookings with approval)
 
+The repository implements API-side batch ingestion and duplicate/conflict
+checks. Physical-terminal storage, device identity, and offline buffering are
+external assumptions, not alpha source capabilities.
+
 ## 7. Small, Verifiable Changes
 
 Complexity kills correctness. Every change to cueq must be:
 
-- **Small** — max 400 lines per PR (excl. generated files)
-- **Reviewable** — one concern per PR, conventional commit format
-- **Testable** — new behavior includes new tests
-- **Documented** — design decisions recorded as ADRs
+- Small: Maximum 400 lines per PR, excluding generated files.
+- Reviewable: One concern per PR, using the conventional commit format.
+- Testable: New behavior includes focused tests.
+- Documented: Design decisions are recorded as ADRs.
 
 ---
 
@@ -113,7 +128,7 @@ Complexity kills correctness. Every change to cueq must be:
 | Vertretung                 | Delegation / deputy   | Acting on behalf of an absent supervisor                                 |
 | Stellvertretungskette      | Delegation chain      | Ordered list of deputies for a role                                      |
 | Eskalation                 | Escalation            | Automatic routing when an approval is overdue                            |
-| Audittrail                 | Audit trail           | Immutable log of all changes and decisions                               |
+| Audittrail                 | Audit trail           | Append-only history for selected changes and decisions                   |
 | Organisationseinheit (OE)  | Organizational unit   | Department, team, or cost center                                         |
 | Personalrat                | Works council         | Employee representation body with co-determination rights                |
 | Bezügestelle               | Payroll office        | Department processing salary payments                                    |
@@ -146,5 +161,5 @@ Complexity kills correctness. Every change to cueq must be:
 
 ## References
 
-- [`ARCHITECTURE.md`](../../ARCHITECTURE.md) — System architecture
-- [`docs/DESIGN.md`](../DESIGN.md) — Design patterns and conventions
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md): System architecture
+- [`docs/DESIGN.md`](../DESIGN.md): Design patterns and conventions

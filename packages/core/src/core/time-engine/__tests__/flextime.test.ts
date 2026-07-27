@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MAX_HOURS_RULE } from '@cueq/policy';
-import { calculateFlextimeWeek } from '..';
+import { calculateFlextimeWeek } from '../index.js';
 
 const BASE_INPUT = {
   week: '2026-W10',

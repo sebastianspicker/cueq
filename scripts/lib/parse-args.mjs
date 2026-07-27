@@ -1,3 +1,4 @@
+/** Parses `--key=value`, `--key value`, and boolean CLI flags without external dependencies. */
 export function parseArgsMap(argv) {
   const args = new Map();
 

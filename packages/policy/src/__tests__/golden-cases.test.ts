@@ -31,7 +31,7 @@ import {
   type MaxHoursRule,
   type LeaveRule,
   type PolicyCatalogRule,
-} from '../index';
+} from '../index.js';
 
 describe('Golden Cases: Policy Rule Schema Validation', () => {
   it('DEFAULT_BREAK_RULE passes schema validation', () => {
@@ -192,7 +192,7 @@ describe('Golden Cases: Break Rule Constraints', () => {
 
   it('break thresholds are agnostic to time-of-day (overnight shifts use total worked hours)', () => {
     // A shift from 22:00 to 06:00 = 8h worked. Break rules only check total
-    // workedHoursMin, not clock time — so crossing midnight has no effect.
+    // workedHoursMin, not clock time: so crossing midnight has no effect.
     const sixHourThreshold = DEFAULT_BREAK_RULE.thresholds.find((t) => t.workedHoursMin === 6);
     expect(sixHourThreshold).toBeDefined();
     // 8h worked (regardless of crossing midnight) exceeds 6h threshold
@@ -413,7 +413,7 @@ describe('Golden Cases: Leave Entitlement Constraints', () => {
     expect(result.success).toBe(false);
   });
 
-  it('leave entitlement is in work-days — weekend holidays do not reduce count', () => {
+  it('leave entitlement is in work-days: weekend holidays do not reduce count', () => {
     // TV-L leave is measured in work-days (Mon-Fri for a 5-day week).
     // A public holiday falling on Saturday/Sunday doesn't affect entitlement
     // because those days aren't work-days to begin with.
@@ -643,7 +643,7 @@ describe('Golden Cases: Policy Catalog', () => {
 
   it('getActivePolicyBundle returns empty/throws for date before all rules', () => {
     // All rules have effectiveFrom: '2024-01-01', so 2023-12-31 should have no active rules
-    // The function doesn't explicitly throw when no rules match — it returns an empty array
+    // The function doesn't explicitly throw when no rules match: it returns an empty array
     // because it only throws per-type when grouped entries exist but latest is null
     const bundle = getActivePolicyBundle('2023-12-31');
     expect(bundle).toHaveLength(0);
@@ -696,7 +696,7 @@ describe('Golden Cases: Policy Catalog', () => {
   });
 
   it('effectiveTo=null means rules remain active indefinitely (far-future query)', () => {
-    // All current rules have effectiveTo=null — they never expire.
+    // All current rules have effectiveTo=null: they never expire.
     // Querying a far-future date should still return all 5 rules.
     const farFuture = getActivePolicyBundle('2099-12-31');
     expect(farFuture).toHaveLength(5);

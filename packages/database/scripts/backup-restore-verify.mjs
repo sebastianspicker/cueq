@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/** Verifies that a stable source backup restores losslessly into a disposable database and records successful evidence. */
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -21,6 +22,9 @@ function sortById(rows) {
   return [...rows].sort((left, right) => String(left.id).localeCompare(String(right.id)));
 }
 
+/**
+ * Parses the source URL for PostgreSQL client containers, mapping local hosts to Docker's host gateway.
+ */
 export function parseDatabaseUrl(databaseUrl) {
   const url = new URL(databaseUrl);
   const schema = url.searchParams.get('schema') ?? 'public';
@@ -117,6 +121,7 @@ function dumpSource(connection, tempDir, dumpPath) {
   );
 }
 
+/** Captures a dump only when source snapshots match before and after it, avoiding unverifiable backup evidence. */
 async function captureStableDump(source, connection, tempDir, dumpPath) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const before = await snapshot(source);
@@ -216,6 +221,7 @@ async function snapshot(prisma) {
   return { data, tables, checksum: checksum(data) };
 }
 
+/** Creates and removes an isolated restore database; only a successful parity check appends audit evidence to the source. */
 async function main() {
   const connection = parseDatabaseUrl(sourceUrl);
   const tempDir = await mkdtemp(join(tmpdir(), 'cueq-backup-restore-'));

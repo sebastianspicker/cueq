@@ -1,8 +1,9 @@
+/** Mock identity adapter for explicit local/test setups; AuthService rejects it in production. */
 import { UnauthorizedException } from '@nestjs/common';
-import type { IdentityProviderPort } from './identity-provider.port';
-import type { AuthenticatedIdentity } from './auth.types';
-import { MOCK_IDENTITIES } from '../../test-utils/seed-ids';
-import { parseRoleClaim } from './role-mapping';
+import type { IdentityProviderPort } from './identity-provider.port.js';
+import type { AuthenticatedIdentity } from './auth.types.js';
+import { MOCK_IDENTITIES } from '../../test-utils/seed-ids.js';
+import { parseRoleClaim } from './role-mapping.js';
 
 function requiredClaim(claims: Record<string, unknown>, name: 'sub' | 'email'): string {
   const value = String(claims[name] ?? '');
@@ -57,6 +58,7 @@ const NAMED_TOKENS = new Map<string, Record<string, unknown>>([
   ['admin-token', MOCK_IDENTITIES.admin],
 ]);
 
+/** Decodes named or encoded mock tokens into the same identity contract as live providers. */
 export class MockIdentityProviderAdapter implements IdentityProviderPort {
   async verifyAccessToken(token: string): Promise<AuthenticatedIdentity> {
     const named = NAMED_TOKENS.get(token);

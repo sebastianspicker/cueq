@@ -1,13 +1,14 @@
-# cueq — Continuous Integration
+# cueq: Continuous Integration
 # ================================
-# Runs on every pull request and push to main.
-# Validates: lint, typecheck, tests, Prisma schema.
+# Runs on every pull request and push to main, plus source-alpha tags.
+# Validates repository hygiene, contracts, tests, accessibility, and builds.
 
 name: CI
 
 on:
   push:
     branches: [main]
+    tags: ['v*.*.*-alpha.*']
   pull_request:
     branches: [main]
 
@@ -48,6 +49,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Validate alpha tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: node ./scripts/validate-release-tag.mjs "${GITHUB_REF_NAME}"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
@@ -56,7 +61,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 20
+          node-version: 20.19.0
           cache: pnpm
 
       - name: Cache turbo
@@ -70,6 +75,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify generated artifacts
+        run: |
+          make generate
+          git diff --exit-code -- contracts/openapi/openapi.json docs/generated/db-schema.md packages/shared/src/generated/core-schema-types.ts
 
       - name: Install Playwright browser
         run: pnpm --filter @cueq/web exec playwright install --with-deps chromium
@@ -146,7 +156,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 20
+          node-version: 20.19.0
           cache: pnpm
 
       - name: Fresh clone setup and check

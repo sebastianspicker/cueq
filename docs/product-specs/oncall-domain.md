@@ -1,18 +1,19 @@
 # Product Spec: On-Call Domain
 
-> **CueQ Differentiator C** — On-call is a first-class domain, not just "time types".
-> **Status:** ✅ MVP Implemented | **Schemas:** `@cueq/shared` `oncall.ts`
+> Shared schemas and repository source surfaces are present;
+> service-backed and deployment evidence are not asserted.
 
 ---
 
 ## 1. Summary
 
-Most time-tracking systems model on-call as a generic "time type". CueQ treats it as a dedicated subdomain with:
+cueq models on-call rotations and deployments as a dedicated subdomain with:
 
 - Rotation scheduling (weekly, daily, custom)
 - Deployment/incident entries with optional ticket and event references
 - Compliance checks (rest time after deployments)
-- Reporting readiness (on-call hours, deployment count, average response time)
+- Reporting data concepts (on-call hours and deployment count); operational
+  reporting acceptance remains separate
 
 ## 2. Data Model
 
@@ -44,9 +45,9 @@ Automated check for rest periods after deployments:
 
 ## 3. Key Use Cases
 
-| #    | Use Case                                              | Source              |
-| ---- | ----------------------------------------------------- | ------------------- |
-| UC-3 | System checks rest period compliance after deployment | CueQ differentiator |
+| #    | Use Case                                              | Source                |
+| ---- | ----------------------------------------------------- | --------------------- |
+| UC-3 | System checks rest period compliance after deployment | Policy and core rules |
 
 ## 4. Zod Schemas
 
@@ -63,4 +64,4 @@ On-call rest rules are defined in [`packages/policy/src/rules/rest-rules.ts`](..
 
 ## 6. References
 
-- [`docs/SECURITY.md`](../SECURITY.md) — Role-based visibility for on-call data
+- [`docs/SECURITY.md`](../SECURITY.md): Role-based visibility for on-call data

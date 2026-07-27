@@ -5,7 +5,7 @@ import {
   localMinuteInfo,
   parseLocalTimeToMinute,
   selectSurchargeCategory,
-} from '../surcharge';
+} from '../surcharge.js';
 import type { SurchargeCategory } from '@cueq/policy';
 
 describe('parseLocalTimeToMinute', () => {
@@ -27,7 +27,7 @@ describe('parseLocalTimeToMinute', () => {
 });
 
 describe('isWithinWindow', () => {
-  // Night window: 20:00 (1200) -> 06:00 (360) — crosses midnight
+  // Night window: 20:00 (1200) -> 06:00 (360): crosses midnight
   const nightStart = 1200; // 20:00
   const nightEnd = 360; // 06:00
 

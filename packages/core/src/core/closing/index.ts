@@ -1,7 +1,8 @@
+/** Implements pure monthly-closing checks, transitions, and export idempotency decisions. */
 import { createHash } from 'node:crypto';
 import type { CoreClosingContract } from '@cueq/shared';
-import type { ChecklistItem, ChecklistSeverity, RuleViolation } from '../types';
-import { toViolation } from '../utils';
+import type { ChecklistItem, ChecklistSeverity, RuleViolation } from '../types.js';
+import { toViolation } from '../utils.js';
 
 export type ClosingStatus = 'OPEN' | 'REVIEW' | 'APPROVED' | 'EXPORTED';
 
@@ -65,7 +66,7 @@ export function generateClosingChecklist(input: ClosingChecklistInput): ClosingC
       label: 'Rule violations',
       severity: severityFor(input.ruleViolations, true),
       status: statusFor(input.ruleViolations),
-      details: `${input.ruleViolations} unresolved policy violations`,
+      details: `${input.ruleViolations} unresolved policy ${input.ruleViolations === 1 ? 'violation' : 'violations'}`,
     },
     {
       code: 'ROSTER_MISMATCHES',

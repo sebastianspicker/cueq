@@ -1,8 +1,10 @@
+/** Resolves verified external identities to local persons while preventing conflicting email claims. */
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@cueq/database';
-import type { PrismaService } from '../../persistence/prisma.service';
-import type { AuthenticatedIdentity } from './auth.types';
+import type { PrismaService } from '../../persistence/prisma.service.js';
+import type { AuthenticatedIdentity } from './auth.types.js';
 
+/** Finds the local person for a verified subject and rejects a mismatched persisted email address. */
 export async function resolveAuthenticatedPerson<
   I extends Prisma.PersonInclude | undefined = undefined,
 >(prisma: PrismaService, user: AuthenticatedIdentity, options?: { include?: I }) {
@@ -38,16 +40,7 @@ export async function resolveAuthenticatedPerson<
     return personBySubject;
   }
 
-  const personByEmail = await prisma.person.findUnique({
-    where: { email: user.email },
-    ...(include ? { include } : {}),
-  });
-
-  if (!personByEmail) {
-    throw new NotFoundException('Authenticated person was not found.');
-  }
-
-  return personByEmail;
+  throw new NotFoundException('Authenticated person was not found.');
 }
 
 function assertMatchingEmail(persistedEmail: string, claimedEmail: string): void {

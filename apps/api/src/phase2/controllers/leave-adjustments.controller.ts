@@ -1,3 +1,4 @@
+/** Exposes HR-controlled, auditable leave-adjustment endpoints. */
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -10,13 +11,14 @@ import {
 } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
 import { CreateLeaveAdjustmentSchema, LeaveAdjustmentQuerySchema } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { CreateLeaveAdjustmentDto, LeaveAdjustmentDto } from '../dto/absence.dto';
-import { AbsenceDomainService } from '../services/absence-domain.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { CreateLeaveAdjustmentDto, LeaveAdjustmentDto } from '../dto/absence.dto.js';
+import { AbsenceDomainService } from '../services/absence-domain.service.js';
 
+/** HR-facing boundary for leave adjustments, whose domain writes are audit-backed. */
 @ApiTags('absences')
 @ApiBearerAuth()
 @Roles(Role.HR, Role.ADMIN)

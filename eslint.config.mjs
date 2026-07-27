@@ -3,6 +3,28 @@ import tsEslintPlugin from '@typescript-eslint/eslint-plugin';
 
 const typescriptFiles = ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'];
 
+const productionSourceFiles = [
+  'apps/api/src/**/*.{ts,mts,cts}',
+  'apps/web/src/**/*.{ts,tsx,mts,cts}',
+  'packages/core/src/**/*.{ts,mts,cts}',
+  'packages/database/src/**/*.{ts,mts,cts}',
+  'packages/policy/src/**/*.{ts,mts,cts}',
+  'packages/shared/src/**/*.{ts,mts,cts}',
+];
+
+const nonProductionSourceFiles = [
+  '**/*.test.ts',
+  '**/*.test.tsx',
+  '**/*.test.mts',
+  '**/*.test.cts',
+  '**/*.spec.ts',
+  '**/*.spec.tsx',
+  '**/*.spec.mts',
+  '**/*.spec.cts',
+  '**/__tests__/**',
+  '**/*.typecheck.ts',
+];
+
 const cueqPlugin = {
   rules: {
     'no-manual-schema-types': {
@@ -72,11 +94,20 @@ export default [
     },
     rules: {
       'no-console': ['warn', { allow: ['log', 'warn', 'error'] }],
+    },
+  },
+  {
+    files: productionSourceFiles,
+    ignores: nonProductionSourceFiles,
+    rules: {
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      '@typescript-eslint/consistent-type-imports': 'warn',
+      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'error',
+      complexity: ['error', 15],
     },
   },
   {

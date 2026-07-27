@@ -4,15 +4,12 @@ node_modules/
 
 # Build outputs
 dist/
-**/dist/
 .next/
-**/.next/
 out/
 contracts/openapi/openapi.generated.json
 
 # Turbo
 .turbo/
-**/.turbo/
 
 # Prisma
 packages/database/generated/
@@ -40,12 +37,10 @@ Thumbs.db
 
 # Test coverage
 coverage/
-**/coverage/
 .nyc_output/
-apps/web/test-results/
-**/test-results/
-apps/web/playwright-report/
-**/playwright-report/
+test-results/
+playwright-report/
+blob-report/
 
 # Logs
 *.log
@@ -76,74 +71,62 @@ id_ed25519*
 .agents/
 .codegraph/
 .serena/
+.impeccable/
 openclaw.json
 .codacy/generated/
 .codacy/logs/
 .codacy/tools-configs/
 .codacy/cli-config.yaml
+.codacy/codacy.config.json
+.codacy/codacy.yaml
 .codacy/configure-codacy-summary.json
 progress.md
-AUDIT.md
 /plan.md
 /status.md
-/*-ledger.md
-/*-status.md
-/*-audit.md
-/docs/*-ledger.md
-/docs/*-status.md
-/docs/*-audit.md
-/docs/*-review-log.md
-/docs/**/*-review-log.md
+/PLAN.md
+/STATUS.md
+/REMEDIATION.md
+/REMEDIATION_PLAN.md
+/agent.md
+/agent-notes.md
+/AGENT_NOTES.md
+/AGENTS.md
 /docs/code-index.md
-docs/archive/
 docs/agent/
-/archive/
 
 # Local reports, traces, dumps, and editor leftovers
 *.sarif
 *.har
-*.dump
-*.backup
-*.sqlite
-*.sqlite3
-*.db
-*.sqlite-shm
-*.sqlite-wal
-*.db-shm
-*.db-wal
-*.xlsx
-*.xls
-*.ods
-*.numbers
-*.ics
-*.eml
-*.msg
-*.mbox
-*.pst
-*.ost
-*.olm
-*.vcf
-*.zip
-*.7z
-*.tar
-*.tar.gz
-*.tgz
+/*.dump
+/*.backup
+/*.sqlite
+/*.sqlite3
+/*.db
+/*.sqlite-shm
+/*.sqlite-wal
+/*.db-shm
+/*.db-wal
 *.tmp
 *.orig
 *.rej
 /.eslintcache
+**/.eslintcache
 /.stylelintcache
+**/.stylelintcache
 /.parcel-cache/
 /.swc/
 /.vite/
 /.vitest/
 /.cache/
+**/.cache/
 /tmp/
 /temp/
 /backups/
 /exports/
 /reports/
-/docs/assets/demo-screenshots/
+*.lcov
+*.pid
+*.pid.lock
 
 # Misc
 *.tsbuildinfo

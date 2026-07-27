@@ -1,10 +1,11 @@
+/** Evaluates roster staffing, overlaps, plan-versus-actual coverage, and status transitions. */
 import { DEFAULT_BREAK_RULE, DEFAULT_REST_RULE } from '@cueq/policy';
 import type { BreakRule, RestRule } from '@cueq/policy';
 import type { CoreShiftComplianceContract } from '@cueq/shared';
-import { requiredBreakMinutes } from '../break-utils';
-import { WORK_INTERVAL_TYPES } from '../constants';
-import type { PlausibilityIssue, RuleViolation } from '../types';
-import { diffHours, overlapExists, roundToTwo, toViolation } from '../utils';
+import { requiredBreakMinutes } from '../break-utils.js';
+import { WORK_INTERVAL_TYPES } from '../constants.js';
+import type { PlausibilityIssue, RuleViolation } from '../types.js';
+import { diffHours, overlapExists, roundToTwo, toViolation } from '../utils.js';
 
 export interface ShiftWindow {
   type: string;
@@ -22,6 +23,7 @@ export type ShiftComplianceResult = Omit<CoreShiftComplianceContract['output'], 
   violations: RuleViolation[];
 };
 
+/** Evaluate one shift against duration, break, and inter-shift rest rules. */
 export function evaluateShiftCompliance(
   input: ShiftComplianceInput,
   policy: { breakRule?: BreakRule; restRule?: RestRule } = {},
@@ -90,6 +92,7 @@ export interface MinStaffingResult {
   shortfall: number;
 }
 
+/** Report whether assigned headcount meets the configured staffing floor. */
 export function evaluateMinStaffing(input: MinStaffingInput): MinStaffingResult {
   const shortfall = Math.max(input.requiredMinStaffing - input.assignedCount, 0);
   return {
@@ -110,6 +113,7 @@ export interface PlanVsActualResult {
   complianceRate: number;
 }
 
+/** Summarize exact headcount mismatches without treating an empty plan as a failure. */
 export function comparePlanVsActual(slots: PlanVsActualSlot[]): PlanVsActualResult {
   if (slots.length === 0) {
     return {
@@ -344,6 +348,7 @@ function totalActualCoverageMinutes(slotResults: PlanVsActualCoverageSlotResult[
   return slotResults.reduce((sum, slot) => sum + slot.actualCoveredMinutes, 0);
 }
 
+/** Compare planned staffing with actual work coverage using a configurable duration threshold. */
 export function evaluatePlanVsActualCoverage(
   slots: PlanVsActualCoverageSlot[],
   bookings: PlanVsActualBooking[],

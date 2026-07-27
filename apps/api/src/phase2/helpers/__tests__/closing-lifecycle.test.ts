@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ClosingStatus, ClosingLockSource, Role } from '@cueq/database';
-import type { AuthenticatedIdentity } from '../../../common/auth/auth.types';
-import { ClosingLifecycleHelper } from '../closing-lifecycle.helper';
+import type { AuthenticatedIdentity } from '../../../common/auth/auth.types.js';
+import { ClosingLifecycleHelper } from '../closing-lifecycle.helper.js';
 
 const ADMIN_USER: AuthenticatedIdentity = {
   subject: 'u-admin',
@@ -48,6 +48,7 @@ const REVIEW_PERIOD = { ...OPEN_PERIOD, status: ClosingStatus.REVIEW };
 const makeHelper = (overrides: { findUnique?: unknown; checklist?: { hasErrors: boolean } }) => {
   const updated = { ...OPEN_PERIOD };
   const prisma = {
+    $queryRaw: vi.fn().mockResolvedValue([{ acquired: true }]),
     closingPeriod: {
       findUnique: vi.fn().mockResolvedValue(overrides.findUnique ?? null),
       update: vi
@@ -57,6 +58,9 @@ const makeHelper = (overrides: { findUnique?: unknown; checklist?: { hasErrors: 
         ),
     },
   };
+  Object.assign(prisma, {
+    $transaction: vi.fn(async (callback: (tx: typeof prisma) => unknown) => callback(prisma)),
+  });
   const personHelper = {
     personForUser: vi.fn().mockImplementation((user: AuthenticatedIdentity) =>
       Promise.resolve({
@@ -141,6 +145,7 @@ describe('ClosingLifecycleHelper', () => {
           before: expect.objectContaining({ leadApprovedAt: null }),
           after: expect.objectContaining({ leadApprovedById: 'person-u-lead' }),
         }),
+        expect.anything(),
       );
     });
   });
@@ -180,6 +185,7 @@ describe('ClosingLifecycleHelper', () => {
       await helper.startClosingReview(ADMIN_USER, 'cp-1');
       expect(auditHelper.appendAudit).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'CLOSING_REVIEW_STARTED', entityType: 'ClosingPeriod' }),
+        expect.anything(),
       );
     });
 
@@ -225,6 +231,7 @@ describe('ClosingLifecycleHelper', () => {
       await helper.reopenClosing(HR_USER, 'cp-1');
       expect(auditHelper.appendAudit).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'CLOSING_REOPENED' }),
+        expect.anything(),
       );
     });
 
@@ -275,6 +282,7 @@ describe('ClosingLifecycleHelper', () => {
       await helper.approveClosing(HR_USER, 'cp-1');
       expect(eventOutboxHelper.enqueueDomainEvent).toHaveBeenCalledWith(
         expect.objectContaining({ eventType: 'closing.completed' }),
+        expect.anything(),
       );
     });
 
@@ -283,6 +291,7 @@ describe('ClosingLifecycleHelper', () => {
       await helper.approveClosing(HR_USER, 'cp-1');
       expect(auditHelper.appendAudit).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'CLOSING_APPROVED' }),
+        expect.anything(),
       );
     });
   });

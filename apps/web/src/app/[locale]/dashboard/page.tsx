@@ -1,66 +1,82 @@
 'use client';
 
+/** Role-adaptive dashboard that loads the current user's operational summary. */
+
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ConnectionPanel } from '../../../components/ConnectionPanel';
+import {
+  BookingSchema,
+  ClosingPeriodLockedErrorSchema,
+  DashboardSummarySchema,
+  WorkflowInstanceSchema,
+} from '@cueq/shared';
 import { LoadingSpinner } from '../../../components/LoadingSpinner';
-import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
+import { useOptionalSessionContext } from '../../../components/AppWorkspace';
 import { useApiContext } from '../../../lib/api-context';
 import { ApiRequestError } from '../../../lib/api-client';
 import {
-  DashboardSummarySection,
-  OrientationSection,
-  OvertimeSection,
-  QuickActionsSection,
-  type DashboardSummary,
-} from './dashboard-sections';
+  loadAndApply,
+  refreshAfterMutation,
+  type RefreshResult,
+} from '../../../lib/mutation-refresh';
+import { DashboardContextRail } from './dashboard-context-rail';
+import { DashboardHero } from './dashboard-hero';
+import { DashboardTasks, OrientationSection } from './dashboard-tasks';
+import { DayLedgerSection } from './day-ledger';
+import type { DashboardBooking, DashboardSummary } from './types';
 
-interface ClosingPeriodLockedErrorPayload {
-  code?: string;
-  periodEnd?: string;
-}
-
-function isClosingPeriodLockedError(
-  payload: unknown,
-): payload is ClosingPeriodLockedErrorPayload & {
-  code: 'CLOSING_PERIOD_LOCKED';
-  periodEnd: string;
-} {
-  if (typeof payload !== 'object' || payload === null) {
-    return false;
-  }
-  const candidate = payload as ClosingPeriodLockedErrorPayload;
-  return candidate.code === 'CLOSING_PERIOD_LOCKED' && typeof candidate.periodEnd === 'string';
-}
-
+/** Loads and renders the current user's operational dashboard. */
 export default function DashboardPage() {
   const t = useTranslations('pages.dashboard');
   const params = useParams<{ locale: string }>();
   const locale = typeof params?.locale === 'string' ? params.locale : 'de';
-  const { apiBaseUrl, setApiBaseUrl, token, setToken, apiRequest } = useApiContext();
+  const { apiRequest } = useApiContext();
+  const session = useOptionalSessionContext();
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [bookings, setBookings] = useState<DashboardBooking[]>([]);
   const [overtimeHours, setOvertimeHours] = useState('2');
   const [overtimePeriodStart, setOvertimePeriodStart] = useState('2026-03-01T00:00:00.000Z');
   const [overtimePeriodEnd, setOvertimePeriodEnd] = useState('2026-03-31T23:59:59.000Z');
-  const [overtimeReason, setOvertimeReason] = useState(
-    'Requesting overtime approval for this period.',
-  );
+  const [overtimeReason, setOvertimeReason] = useState(t('overtimeReasonDefault'));
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadSummary() {
+  async function loadSummary(preserveFeedback = false): Promise<RefreshResult> {
     setLoading(true);
-    setError(null);
-    setMessage(null);
+    if (!preserveFeedback) {
+      setError(null);
+      setMessage(null);
+    }
     try {
-      const nextSummary = await apiRequest<DashboardSummary>('/v1/dashboard/me');
-      setSummary(nextSummary);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      const result = await loadAndApply(
+        () =>
+          Promise.all([
+            apiRequest('/v1/dashboard/me', DashboardSummarySchema),
+            apiRequest('/v1/bookings/me', BookingSchema.array()),
+          ]),
+        ([nextSummary, nextBookings]) => {
+          const dayKey = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/Berlin',
+          }).format(new Date(nextSummary.now));
+          setSummary(nextSummary);
+          setBookings(
+            nextBookings.filter(
+              (booking) =>
+                new Intl.DateTimeFormat('en-CA', {
+                  timeZone: 'Europe/Berlin',
+                }).format(new Date(booking.startTime)) === dayKey,
+            ),
+          );
+        },
+      );
+      if (!result.ok && !preserveFeedback) {
+        setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
+      }
+      return result;
     } finally {
       setLoading(false);
     }
@@ -83,42 +99,47 @@ export default function DashboardPage() {
         note: 'Dashboard quick action clock-in',
       };
 
-      try {
-        await apiRequest('/v1/bookings', {
-          method: 'POST',
-          body: JSON.stringify({
-            ...bookingPayload,
-            startTime: new Date().toISOString(),
-          }),
-        });
-      } catch (cause) {
-        if (
-          cause instanceof ApiRequestError &&
-          cause.status === 409 &&
-          isClosingPeriodLockedError(cause.payload)
-        ) {
-          const retryStartTime = new Date(
-            new Date(cause.payload.periodEnd).getTime() + 60_000,
-          ).toISOString();
-          await apiRequest('/v1/bookings', {
-            method: 'POST',
-            body: JSON.stringify({
-              ...bookingPayload,
-              startTime: retryStartTime,
-            }),
-          });
-        } else {
-          throw cause;
-        }
+      const refresh = await refreshAfterMutation(
+        async () => {
+          await createClockInBooking(bookingPayload);
+        },
+        async () => {
+          const result = await loadSummary(true);
+          return result;
+        },
+      );
+      if (refresh.ok) {
+        setMessage(t('clockInSuccess'));
+      } else {
+        setError(t('savedRefreshFailed'));
       }
-
-      await loadSummary();
-      setMessage(t('clockInSuccess'));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      const lockedError =
+        cause instanceof ApiRequestError && cause.status === 409
+          ? ClosingPeriodLockedErrorSchema.safeParse(cause.payload)
+          : null;
+      setError(
+        lockedError?.success
+          ? t('clockInLocked')
+          : cause instanceof Error
+            ? cause.message
+            : t('requestFailed'),
+      );
     } finally {
       setLoading(false);
     }
+  }
+
+  async function createClockInBooking(bookingPayload: {
+    personId: string;
+    timeTypeId: string;
+    source: string;
+    note: string;
+  }) {
+    await apiRequest('/v1/bookings', BookingSchema, {
+      method: 'POST',
+      body: JSON.stringify({ ...bookingPayload, startTime: new Date().toISOString() }),
+    });
   }
 
   async function requestOvertimeApproval() {
@@ -131,7 +152,7 @@ export default function DashboardPage() {
     setError(null);
     setMessage(null);
     try {
-      await apiRequest('/v1/workflows/overtime-approvals', {
+      await apiRequest('/v1/workflows/overtime-approvals', WorkflowInstanceSchema, {
         method: 'POST',
         body: JSON.stringify({
           personId: summary.personId,
@@ -157,53 +178,52 @@ export default function DashboardPage() {
   }
 
   return (
-    <PageShell
-      title={t('title')}
-      description={t('description')}
-      breadcrumbs={[{ label: 'cueq', href: `/${locale}` }, { label: t('title') }]}
-    >
-      <ConnectionPanel
-        apiBaseLabel={t('apiBaseLabel')}
-        tokenLabel={t('tokenLabel')}
-        apiBaseUrl={apiBaseUrl}
-        setApiBaseUrl={setApiBaseUrl}
-        token={token}
-        setToken={setToken}
+    <section className="cq-dashboard-page" aria-label={t('title')}>
+      <DashboardHero
+        t={t}
+        locale={locale}
+        firstName={session?.profile?.firstName ?? null}
+        loading={loading}
+        summary={summary}
+        onLoad={() => void loadSummary()}
       />
-
-      <div>
-        <button type="button" disabled={loading} onClick={() => void loadSummary()}>
-          {loading ? t('loading') : t('loadSummary')}
-        </button>
-      </div>
 
       {loading && !summary ? <LoadingSpinner label={t('loading')} /> : null}
 
       <StatusBanner message={message} error={error} />
 
-      <DashboardSummarySection t={t} summary={summary} formatHours={formatHours} />
-      <OrientationSection t={t} summary={summary} />
-      <QuickActionsSection
-        t={t}
-        locale={locale}
-        loading={loading}
-        summary={summary}
-        onClockIn={() => void clockIn()}
-      />
-      <OvertimeSection
-        t={t}
-        loading={loading}
-        summary={summary}
-        overtimeHours={overtimeHours}
-        overtimeReason={overtimeReason}
-        overtimePeriodStart={overtimePeriodStart}
-        overtimePeriodEnd={overtimePeriodEnd}
-        onOvertimeHoursChange={setOvertimeHours}
-        onOvertimeReasonChange={setOvertimeReason}
-        onOvertimePeriodStartChange={setOvertimePeriodStart}
-        onOvertimePeriodEndChange={setOvertimePeriodEnd}
-        onRequestOvertimeApproval={() => void requestOvertimeApproval()}
-      />
-    </PageShell>
+      {summary ? (
+        <div className="cq-dashboard-workspace">
+          <div className="cq-dashboard-main">
+            <DayLedgerSection
+              t={t}
+              locale={locale}
+              summary={summary}
+              bookings={bookings}
+              loading={loading}
+              formatHours={formatHours}
+              onClockIn={() => void clockIn()}
+            />
+            <OrientationSection t={t} summary={summary} />
+            <DashboardTasks
+              t={t}
+              locale={locale}
+              loading={loading}
+              summary={summary}
+              overtimeHours={overtimeHours}
+              overtimeReason={overtimeReason}
+              overtimePeriodStart={overtimePeriodStart}
+              overtimePeriodEnd={overtimePeriodEnd}
+              onOvertimeHoursChange={setOvertimeHours}
+              onOvertimeReasonChange={setOvertimeReason}
+              onOvertimePeriodStartChange={setOvertimePeriodStart}
+              onOvertimePeriodEndChange={setOvertimePeriodEnd}
+              onRequestOvertimeApproval={() => void requestOvertimeApproval()}
+            />
+          </div>
+          <DashboardContextRail t={t} locale={locale} summary={summary} formatHours={formatHours} />
+        </div>
+      ) : null}
+    </section>
   );
 }

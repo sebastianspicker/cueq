@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HealthController } from '../src/health/health.controller';
+import { HealthController } from '../src/health/health.controller.js';
 
 describe('@cueq/api smoke test', () => {
   it('returns a public liveness payload without operational details', async () => {

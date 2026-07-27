@@ -1,8 +1,10 @@
+/** Applies effective leave rules to annual entitlement and carry-over limits. */
 import type { LeaveRule } from '@cueq/policy';
-import { roundToTwo } from '../utils';
-import type { LeaveLedgerInput } from './leave-ledger';
-import { coveredMonthFactor } from './leave-date';
+import { roundToTwo } from '../utils.js';
+import type { LeaveLedgerInput } from './leave-ledger.js';
+import { coveredMonthFactor } from './leave-date.js';
 
+/** Scale annual entitlement by work-time fraction and rule-controlled entry/exit prorating. */
 export function calculateEntitlementDays(input: LeaveLedgerInput, rule: LeaveRule): number {
   const fullTimeWeeklyHours = Number(rule.fullTimeWeeklyHours ?? 39.83);
   const employmentFraction = Math.max(input.workTimeModelWeeklyHours / fullTimeWeeklyHours, 0);
@@ -18,6 +20,7 @@ export function calculateEntitlementDays(input: LeaveLedgerInput, rule: LeaveRul
   );
 }
 
+/** Clamp prior-year carry-over to non-negative input and the active policy maximum. */
 export function cappedCarryOverDays(input: LeaveLedgerInput, rule: LeaveRule): number {
   return roundToTwo(
     Math.min(Math.max(input.priorYearCarryOverDays ?? 0, 0), rule.carryOver.maxDays),

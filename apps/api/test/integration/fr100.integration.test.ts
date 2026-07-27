@@ -1,9 +1,9 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { buildMockToken, cuidFor, SEED_IDS } from '../../src/test-utils/seed-ids';
-import { PrismaService } from '../../src/persistence/prisma.service';
-import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
+import { buildMockToken, cuidFor, SEED_IDS } from '../../src/test-utils/seed-ids.js';
+import { PrismaService } from '../../src/persistence/prisma.service.js';
+import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers.js';
 
 describe('FR-100 integration', () => {
   let app: INestApplication;

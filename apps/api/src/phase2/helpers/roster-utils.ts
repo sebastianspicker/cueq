@@ -1,3 +1,5 @@
+/** Provides shared, side-effect-free roster assignment transformations. */
+
 /**
  * Returns the union of person IDs assigned to a shift, merging the legacy
  * `shift.personId` field with the `shift.assignments` relation.

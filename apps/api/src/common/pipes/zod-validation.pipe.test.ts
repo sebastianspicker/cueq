@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import { z } from 'zod';
-import { ZodValidationPipe } from './zod-validation.pipe';
+import { ZodValidationPipe } from './zod-validation.pipe.js';
 
 const TestSchema = z.object({
   name: z.string().min(1, 'Name is required'),

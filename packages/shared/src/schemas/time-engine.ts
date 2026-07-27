@@ -1,5 +1,22 @@
+/** Runtime contracts for time-rule evaluation inputs, policies, totals, and outcomes. */
 import { z } from 'zod';
-import { DateSchema, DateTimeSchema } from './common';
+import { DateSchema, DateTimeSchema, isDateTimeInstantBefore } from './common.js';
+
+const TimeZoneSchema = z.string().refine(
+  (value) => {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: 'Must be a valid IANA timezone' },
+);
+
+const YearMonthSchema = z
+  .string()
+  .regex(/^\d{4}-(?:0[1-9]|1[0-2])$/, 'Must be a valid YYYY-MM value');
 
 export const TimeRuleIntervalTypeSchema = z.enum(['WORK', 'PAUSE', 'DEPLOYMENT']);
 export type TimeRuleIntervalType = z.infer<typeof TimeRuleIntervalTypeSchema>;
@@ -10,7 +27,7 @@ export const TimeRuleIntervalSchema = z
     end: DateTimeSchema,
     type: TimeRuleIntervalTypeSchema,
   })
-  .refine((value) => value.start < value.end, {
+  .refine((value) => isDateTimeInstantBefore(value.start, value.end), {
     message: 'start must be before end',
     path: ['end'],
   });
@@ -19,7 +36,7 @@ export type TimeRuleInterval = z.infer<typeof TimeRuleIntervalSchema>;
 export const TimeRuleEvaluationRequestSchema = z.object({
   week: z.string(),
   targetHours: z.number(),
-  timezone: z.string().optional(),
+  timezone: TimeZoneSchema.optional(),
   holidayDates: z.array(DateSchema).optional(),
   intervals: z.array(TimeRuleIntervalSchema).min(1),
 });
@@ -62,7 +79,7 @@ export const ProratedTargetSegmentSchema = z
 export type ProratedTargetSegment = z.infer<typeof ProratedTargetSegmentSchema>;
 
 export const ProratedTargetRequestSchema = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/, 'Must be YYYY-MM format'),
+  month: YearMonthSchema,
   actualHours: z.number(),
   transitionAdjustmentHours: z.number().optional(),
   segments: z.array(ProratedTargetSegmentSchema).min(1),

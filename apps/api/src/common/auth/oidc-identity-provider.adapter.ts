@@ -1,10 +1,12 @@
+/** OIDC trust adapter that verifies issuer tokens and maps only supported identity claims. */
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { Role } from '@cueq/database';
-import type { IdentityProviderPort } from './identity-provider.port';
-import type { AuthenticatedIdentity } from './auth.types';
-import { selectHighestRoleClaim } from './role-mapping';
+import type { IdentityProviderPort } from './identity-provider.port.js';
+import type { AuthenticatedIdentity } from './auth.types.js';
+import { selectHighestRoleClaim } from './role-mapping.js';
 
+/** Converts verified OIDC access tokens into the application identity contract. */
 @Injectable()
 export class OidcIdentityProviderAdapter implements IdentityProviderPort {
   private readonly logger = new Logger(OidcIdentityProviderAdapter.name);

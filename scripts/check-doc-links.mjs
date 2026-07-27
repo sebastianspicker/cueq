@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+
+/**
+ * Validates internal Markdown links across tracked and candidate public docs.
+ * Git metadata defines the publication surface so ignored archives, generated
+ * output, and deleted indexed files do not create misleading failures.
+ */
 import { readFileSync, statSync } from 'node:fs';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +18,9 @@ const gitLs = spawnSync(
   'git',
   [
     'ls-files',
+    '--cached',
+    '--others',
+    '--exclude-standard',
     '--',
     '*.md',
     ':!:docs/archive/**',
@@ -34,6 +43,7 @@ const markdownFiles = gitLs.stdout
   .split('\n')
   .map((line) => line.trim())
   .filter(Boolean)
+  .filter((line, index, lines) => lines.indexOf(line) === index)
   .map((line) => resolve(repoRoot, line));
 
 const markdownLinkPattern = /\[[^\]]+]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)/g;

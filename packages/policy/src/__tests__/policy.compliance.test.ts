@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LEAVE_RULE } from '../rules/leave-rules';
-import { DEFAULT_BREAK_RULE } from '../rules/break-rules';
-import { DEFAULT_SURCHARGE_RULE } from '../rules/surcharge-rules';
-import { DEFAULT_REST_RULE } from '../rules/rest-rules';
-import { DEFAULT_MAX_HOURS_RULE } from '../rules/max-hours-rules';
-import { PolicyViolationSchema, PolicyEvalResultSchema, type PolicyViolation } from '../types';
-import { getActivePolicyBundle, POLICY_HISTORY } from '../catalog';
+import { DEFAULT_LEAVE_RULE } from '../rules/leave-rules.js';
+import { DEFAULT_BREAK_RULE } from '../rules/break-rules.js';
+import { DEFAULT_SURCHARGE_RULE } from '../rules/surcharge-rules.js';
+import { DEFAULT_REST_RULE } from '../rules/rest-rules.js';
+import { DEFAULT_MAX_HOURS_RULE } from '../rules/max-hours-rules.js';
+import { PolicyViolationSchema, PolicyEvalResultSchema, type PolicyViolation } from '../types.js';
+import { getActivePolicyBundle, POLICY_HISTORY } from '../catalog.js';
 
 describe('@cueq/policy compliance', () => {
   it('keeps TV-L annual entitlement baseline at 30 days', () => {
     expect(DEFAULT_LEAVE_RULE.annualEntitlementDays).toBe(30);
   });
 
-  describe('GDPR — absence reason privacy', () => {
+  describe('GDPR: absence reason privacy', () => {
     it('policy rule schemas do not include absence-reason fields', () => {
       // GDPR requires that absence reasons (e.g., "sick", "therapy") are never
       // exposed to unauthorized roles. Policy rules must not embed or reference
-      // raw absence reasons — they define entitlement structures, not personal data.
+      // raw absence reasons: they define entitlement structures, not personal data.
       const ruleKeys = [
         ...Object.keys(DEFAULT_LEAVE_RULE),
         ...Object.keys(DEFAULT_BREAK_RULE),
@@ -42,7 +42,7 @@ describe('@cueq/policy compliance', () => {
     });
 
     it('policy evaluation result schema does not leak personal absence details', () => {
-      // The PolicyEvalResult carries violations — verify a violation's context
+      // The PolicyEvalResult carries violations: verify a violation's context
       // cannot structurally embed GDPR-sensitive fields by ensuring the schema
       // only accepts the defined shape, not arbitrary personal data at the top level.
       const violationWithSensitiveField = {
@@ -50,7 +50,7 @@ describe('@cueq/policy compliance', () => {
         ruleName: 'Test',
         severity: 'WARNING' as const,
         message: 'Test violation',
-        // context is z.record(z.unknown()).optional() — intentionally flexible,
+        // context is z.record(z.unknown()).optional(): intentionally flexible,
         // but the violation itself must not have named sensitive fields
       };
       const result = PolicyViolationSchema.safeParse(violationWithSensitiveField);
@@ -64,7 +64,7 @@ describe('@cueq/policy compliance', () => {
   });
 
   describe('severity levels', () => {
-    it('violation schema accepts exactly ERROR, WARNING, INFO — no other severities', () => {
+    it('violation schema accepts exactly ERROR, WARNING, INFO: no other severities', () => {
       const validSeverities = ['ERROR', 'WARNING', 'INFO'] as const;
       for (const severity of validSeverities) {
         const violation: PolicyViolation = {
@@ -89,7 +89,7 @@ describe('@cueq/policy compliance', () => {
     });
 
     it('break violation should carry ERROR severity for ArbZG compliance', () => {
-      // ArbZG break violations are legal non-compliance — must be ERROR, not WARNING
+      // ArbZG break violations are legal non-compliance: must be ERROR, not WARNING
       const breakViolation: PolicyViolation = {
         ruleId: DEFAULT_BREAK_RULE.id,
         ruleName: DEFAULT_BREAK_RULE.name,
@@ -114,7 +114,7 @@ describe('@cueq/policy compliance', () => {
     });
   });
 
-  describe('determinism — same input produces same output', () => {
+  describe('determinism: same input produces same output', () => {
     it('getActivePolicyBundle returns identical results on repeated calls', () => {
       const date = '2026-03-15';
       const result1 = getActivePolicyBundle(date);

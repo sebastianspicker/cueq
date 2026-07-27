@@ -1,3 +1,4 @@
+/** Declares OpenAPI DTOs for closing-period payroll export responses. */
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class PayrollCsvRowDto {

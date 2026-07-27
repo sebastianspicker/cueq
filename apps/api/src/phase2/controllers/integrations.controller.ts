@@ -1,13 +1,15 @@
-import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
+/** Exposes administration endpoints for integration configuration and delivery state. */
+import { Body, Controller, Get, Header, Inject, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
 import { CreateWebhookEndpointSchema, OutboxQuerySchema, DeliveryQuerySchema } from '@cueq/shared';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { WebhookDomainService } from '../services/webhook-domain.service';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { WebhookDomainService } from '../services/webhook-domain.service.js';
 
+/** Administration boundary for integration configuration; secrets stay outside normal response payloads. */
 @ApiTags('integrations')
 @ApiBearerAuth()
 @Roles(Role.HR, Role.ADMIN)
@@ -18,6 +20,7 @@ export class IntegrationsController {
   ) {}
 
   @Post('webhooks/endpoints')
+  @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Register a webhook endpoint' })
   createEndpoint(
     @CurrentUser() user: AuthenticatedIdentity,

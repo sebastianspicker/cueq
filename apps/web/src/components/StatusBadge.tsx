@@ -1,3 +1,4 @@
+/** Maps domain status values to a compact, consistently styled visual badge. */
 type BadgeVariant = 'ok' | 'error' | 'warn' | 'info' | 'muted' | 'neutral';
 
 const STATUS_MAP: Record<string, BadgeVariant> = {
@@ -53,6 +54,7 @@ interface StatusBadgeProps {
   label?: string;
 }
 
+/** Renders an explicit or inferred badge variant for a domain status. */
 export function StatusBadge({ status, variant, label }: StatusBadgeProps) {
   const resolved = variant ?? STATUS_MAP[status.toUpperCase()] ?? 'neutral';
   return <span className={variantClass[resolved]}>{label ?? status}</span>;

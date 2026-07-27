@@ -1,3 +1,4 @@
+/** Shared-token verifier with timing-safe equal-length comparison and no production fallback credential. */
 import { timingSafeEqual } from 'node:crypto';
 import { ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 
@@ -16,6 +17,7 @@ function tokenMatches(input: string, expected: string): boolean {
   return timingSafeEqual(left, right);
 }
 
+/** Enforces the configured integration token and reports missing production configuration separately. */
 export function assertIntegrationToken(
   token: string | string[] | undefined,
   envVar: string,

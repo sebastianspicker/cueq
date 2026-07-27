@@ -1,8 +1,9 @@
+/** Runtime contracts for configured time categories and booking-source metadata. */
 import { z } from 'zod';
-import { DateTimeSchema } from './common';
+import { DateTimeSchema } from './common.js';
 
 // ---------------------------------------------------------------------------
-// Time Type schemas — mirrors the TimeType and TimeTypeCategory enums
+// Time Type schemas: mirrors the TimeType and TimeTypeCategory enums
 // from the Prisma schema, but as runtime-validatable Zod schemas.
 // ---------------------------------------------------------------------------
 

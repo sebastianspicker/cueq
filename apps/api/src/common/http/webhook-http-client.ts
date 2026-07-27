@@ -1,16 +1,19 @@
+/** Low-level webhook transport that follows bounded redirects only after each target passes SSRF checks. */
 import { request as requestHttp } from 'node:http';
 import type { ClientRequest, IncomingMessage, RequestOptions } from 'node:http';
 import { request as requestHttps } from 'node:https';
-import { resolveWebhookDispatchTarget } from './webhook-url';
+import { resolveWebhookDispatchTarget } from './webhook-url.js';
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const DEFAULT_MAX_REDIRECTS = 5;
 
+/** Sanitized response metadata returned to webhook delivery code. */
 export interface WebhookHttpResponse {
   status: number;
   body: string;
 }
 
+/** Dispatch input whose URL is revalidated at each redirect boundary. */
 export interface WebhookHttpRequest {
   url: string;
   headers: Record<string, string>;
@@ -94,6 +97,7 @@ async function requestOnce(input: WebhookHttpRequest): Promise<{
   });
 }
 
+/** Posts a webhook with timeout and redirect limits while preserving DNS-rebinding protections. */
 export async function postWebhook(input: WebhookHttpRequest): Promise<WebhookHttpResponse> {
   const maxRedirects = input.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
   let destination = input.url;

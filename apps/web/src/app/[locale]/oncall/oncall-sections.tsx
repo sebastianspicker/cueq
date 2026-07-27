@@ -1,47 +1,26 @@
 'use client';
 
+/** Presentational on-call rotation, deployment, and compliance sections. */
+
+import type {
+  OnCallComplianceCheck as SharedOnCallComplianceCheck,
+  OnCallDeployment as SharedOnCallDeployment,
+  OnCallRotation as SharedOnCallRotation,
+  UserProfile,
+} from '@cueq/shared';
 import type { useTranslations } from 'next-intl';
 import { FormField } from '../../../components/FormField';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 
-export interface OnCallRotation {
-  id: string;
-  personId: string;
-  organizationUnitId: string;
-  startTime: string;
-  endTime: string;
-  rotationType: 'WEEKLY' | 'DAILY' | 'CUSTOM';
-  note?: string | null;
-}
-
-export interface OnCallDeployment {
-  id: string;
-  personId: string;
-  rotationId: string;
-  startTime: string;
-  endTime: string | null;
-  remote: boolean;
-  ticketReference?: string | null;
-  eventReference?: string | null;
-  description?: string | null;
-}
-
-export interface ComplianceResult {
-  personId: string;
-  compliant: boolean;
-  requiredRestHours: number;
-  actualRestHours: number;
-  violation: string | null;
-}
-
-export interface MeResponse {
-  id: string;
-  role: string;
-}
+export type OnCallRotation = SharedOnCallRotation;
+export type OnCallDeployment = SharedOnCallDeployment;
+export type ComplianceResult = SharedOnCallComplianceCheck;
+export type MeResponse = Pick<UserProfile, 'id' | 'role'>;
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
+/** Renders command controls for the on-call workspace. */
 export function OnCallCommandBar({
   t,
   loading,
@@ -190,17 +169,18 @@ function OnCallFormFields({ form }: { form: OnCallFormSectionProps }) {
   );
 }
 
+/** Renders fields for creating or editing on-call planning data. */
 export function OnCallFormSection(props: OnCallFormSectionProps) {
   return (
     <SectionCard>
       <h2>{props.t('createDeploymentTitle')}</h2>
       <OnCallFormFields form={props} />
       <div className="cq-flex-wrap cq-space-top-sm">
-        <button type="button" disabled={props.loading} onClick={props.onCreateDeployment}>
-          {props.loading ? props.t('loading') : props.t('createDeployment')}
-        </button>
         {props.canManageRotations ? (
           <>
+            <button type="button" disabled={props.loading} onClick={props.onCreateDeployment}>
+              {props.loading ? props.t('loading') : props.t('createDeployment')}
+            </button>
             <button type="button" disabled={props.loading} onClick={props.onCreateRotation}>
               {props.loading ? props.t('loading') : props.t('createRotation')}
             </button>
@@ -220,6 +200,7 @@ export function OnCallFormSection(props: OnCallFormSectionProps) {
   );
 }
 
+/** Renders the API-filtered on-call rotation list. */
 export function RotationsSection({
   t,
   rotations,
@@ -257,6 +238,7 @@ export function RotationsSection({
   );
 }
 
+/** Renders deployments associated with the selected rotation. */
 export function DeploymentsSection({
   t,
   deployments,
@@ -280,7 +262,7 @@ export function DeploymentsSection({
                     variant={deployment.remote ? 'info' : 'muted'}
                   />
                   <span>
-                    {deployment.startTime} &ndash; {deployment.endTime ?? '—'}
+                    {deployment.startTime} &ndash; {deployment.endTime ?? '-'}
                   </span>
                 </div>
               </div>
@@ -294,6 +276,7 @@ export function DeploymentsSection({
   );
 }
 
+/** Renders API-calculated on-call compliance results. */
 export function ComplianceSection({
   t,
   compliance,
@@ -319,13 +302,15 @@ export function ComplianceSection({
           />
         </dd>
         <dt>{t('requiredRestLabel')}</dt>
-        <dd>{compliance.requiredRestHours}h</dd>
+        <dd>{compliance.minimumRestHours}h</dd>
         <dt>{t('actualRestLabel')}</dt>
-        <dd>{compliance.actualRestHours}h</dd>
+        <dd>{compliance.restHoursAfterDeployment}h</dd>
       </dl>
-      {compliance.violation ? (
-        <div className="cq-status-warning">{compliance.violation}</div>
-      ) : null}
+      {compliance.violations.map((violation) => (
+        <div key={`${violation.code}:${violation.message}`} className="cq-status-warning">
+          {violation.message}
+        </div>
+      ))}
     </SectionCard>
   );
 }

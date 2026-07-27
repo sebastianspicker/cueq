@@ -10,6 +10,14 @@
  * Throws if the input is not a valid date.
  */
 export function parseIsoDateTime(input: string): Date {
+  const match =
+    /^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/u.exec(
+      input,
+    );
+  if (!match?.[1]) {
+    throw new Error(`Invalid ISO datetime: ${input}`);
+  }
+  parseDateOnly(match[1]);
   const date = new Date(input);
   if (Number.isNaN(date.getTime())) {
     throw new Error(`Invalid ISO datetime: ${input}`);
@@ -22,8 +30,11 @@ export function parseIsoDateTime(input: string): Date {
  * Throws if the input is not a valid date.
  */
 export function parseDateOnly(input: string): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(input)) {
+    throw new Error(`Invalid date: ${input}`);
+  }
   const date = new Date(`${input}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== input) {
     throw new Error(`Invalid date: ${input}`);
   }
   return date;

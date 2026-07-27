@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createApiRequest } from './api-client';
+import { EmptyResponseSchema, UserIdentitySchema } from '@cueq/shared';
+import { ApiContractError, createApiFetch, createApiRequest } from './api-client';
+
+const UnknownResponseSchema = {
+  parse(input: unknown): unknown {
+    return input;
+  },
+};
 
 describe('createApiRequest', () => {
   afterEach(() => {
@@ -17,7 +24,7 @@ describe('createApiRequest', () => {
     const apiRequest = createApiRequest('/api', 'mock-token', 'Request failed.');
     const customHeaders = new Headers({ 'X-Correlation-Id': 'req-123' });
 
-    await apiRequest('/v1/dashboard/me', {
+    await apiRequest('/v1/dashboard/me', UnknownResponseSchema, {
       headers: customHeaders,
     });
 
@@ -37,7 +44,7 @@ describe('createApiRequest', () => {
     );
 
     const apiRequest = createApiRequest('/api', 'mock-token', 'Request failed.');
-    await apiRequest('/v1/dashboard/me');
+    await apiRequest('/v1/dashboard/me', UnknownResponseSchema);
 
     expect(fetchSpy).toHaveBeenCalledOnce();
     const options = fetchSpy.mock.calls[0]?.[1] ?? {};
@@ -54,7 +61,7 @@ describe('createApiRequest', () => {
     );
 
     const apiRequest = createApiRequest('/api', 'mock-token', 'Request failed.');
-    await apiRequest('/v1/dashboard/me');
+    await apiRequest('/v1/dashboard/me', UnknownResponseSchema);
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/v1/dashboard/me', expect.any(Object));
   });
@@ -73,7 +80,9 @@ describe('createApiRequest', () => {
       'Request failed.',
     );
 
-    await expect(apiRequest('/v1/dashboard/me')).rejects.toThrow('Unsafe API base URL');
+    await expect(apiRequest('/v1/dashboard/me', UnknownResponseSchema)).rejects.toThrow(
+      'Unsafe API base URL',
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -90,7 +99,9 @@ describe('createApiRequest', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const apiRequest = createApiRequest(baseUrl, 'secret-token', 'Request failed.');
 
-    await expect(apiRequest('/v1/dashboard/me')).rejects.toThrow('Unsafe API base URL');
+    await expect(apiRequest('/v1/dashboard/me', UnknownResponseSchema)).rejects.toThrow(
+      'Unsafe API base URL',
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -102,7 +113,7 @@ describe('createApiRequest', () => {
       'Request failed.',
     );
 
-    await apiRequest('/v1/dashboard/me');
+    await apiRequest('/v1/dashboard/me', UnknownResponseSchema);
 
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
@@ -117,9 +128,9 @@ describe('createApiRequest', () => {
 
     const apiRequest = createApiRequest('/api', 'mock-token', 'Request failed.');
 
-    await expect(apiRequest('https://attacker.example/v1/dashboard/me')).rejects.toThrow(
-      'Unsafe API request path',
-    );
+    await expect(
+      apiRequest('https://attacker.example/v1/dashboard/me', UnknownResponseSchema),
+    ).rejects.toThrow('Unsafe API request path');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -129,8 +140,91 @@ describe('createApiRequest', () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
       const apiRequest = createApiRequest('/api', 'secret-token', 'Request failed.');
 
-      await expect(apiRequest(path)).rejects.toThrow('Unsafe API request path');
+      await expect(apiRequest(path, UnknownResponseSchema)).rejects.toThrow(
+        'Unsafe API request path',
+      );
       expect(fetchSpy).not.toHaveBeenCalled();
     },
   );
+
+  it('rejects malformed successful JSON without exposing its body', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{', { status: 200 }));
+    const apiRequest = createApiRequest('/api', '', 'Request failed.');
+
+    await expect(apiRequest('/v1/dashboard/me', UserIdentitySchema)).rejects.toBeInstanceOf(
+      ApiContractError,
+    );
+  });
+
+  it('rejects successful payloads that do not match their schema', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"id":1}', { status: 200 }));
+    const apiRequest = createApiRequest('/api', '', 'Request failed.');
+
+    await expect(apiRequest('/v1/dashboard/me', UserIdentitySchema)).rejects.toBeInstanceOf(
+      ApiContractError,
+    );
+  });
+
+  it('accepts an empty successful response only when its schema accepts null', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+    const apiRequest = createApiRequest('/api', '', 'Request failed.');
+
+    await expect(apiRequest('/v1/dashboard/me', EmptyResponseSchema)).resolves.toBeNull();
+    await expect(apiRequest('/v1/dashboard/me', UserIdentitySchema)).rejects.toThrow(
+      ApiContractError,
+    );
+  });
+
+  it('uses only validated API error fields and drops arbitrary response data', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        '{"message":"Safe conflict message","code":"WRITE_CONFLICT","secret":"discard-me"}',
+        { status: 409 },
+      ),
+    );
+    const apiRequest = createApiRequest('/api', '', 'Request failed.');
+
+    await expect(apiRequest('/v1/dashboard/me', EmptyResponseSchema)).rejects.toMatchObject({
+      message: '409: Safe conflict message',
+      payload: { code: 'WRITE_CONFLICT', message: 'Safe conflict message' },
+      status: 409,
+    });
+  });
+
+  it('retains sanitized schema issue paths without retaining response values', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"id":1}', { status: 200 }));
+    const apiRequest = createApiRequest('/api', '', 'Request failed.');
+
+    await expect(apiRequest('/v1/dashboard/me', UserIdentitySchema)).rejects.toMatchObject({
+      issues: [{ code: 'invalid_type', path: 'id' }],
+    });
+  });
+});
+
+describe('createApiFetch', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns a raw response while retaining the credential boundary', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response('export-body', { status: 200, headers: { 'content-type': 'text/plain' } }),
+      );
+    const apiFetch = createApiFetch('/api', 'download-token');
+
+    await expect(apiFetch('/v1/export-runs/run-1/artifact')).resolves.toBeInstanceOf(Response);
+
+    const headers = new Headers(fetchSpy.mock.calls[0]?.[1]?.headers);
+    expect(headers.get('Authorization')).toBe('Bearer download-token');
+  });
+
+  it('rejects a hostile download base before fetch can receive the bearer token', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const apiFetch = createApiFetch('https://attacker.example', 'download-token');
+
+    await expect(apiFetch('/v1/export-runs/run-1/artifact')).rejects.toThrow('Unsafe API base URL');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });

@@ -1,14 +1,16 @@
+/** Selects the configured identity-provider adapter and forbids mock authentication in production. */
 import { Inject, Injectable } from '@nestjs/common';
-import type { AuthenticatedIdentity } from './auth.types';
-import type { IdentityProviderPort } from './identity-provider.port';
-import { MockIdentityProviderAdapter } from './mock-identity-provider.adapter';
-import { OidcIdentityProviderAdapter } from './oidc-identity-provider.adapter';
-import { SamlIdentityProviderAdapter } from './saml-identity-provider.adapter';
+import type { AuthenticatedIdentity } from './auth.types.js';
+import type { IdentityProviderPort } from './identity-provider.port.js';
+import { MockIdentityProviderAdapter } from './mock-identity-provider.adapter.js';
+import { OidcIdentityProviderAdapter } from './oidc-identity-provider.adapter.js';
+import { SamlIdentityProviderAdapter } from './saml-identity-provider.adapter.js';
 
 function isProductionRuntime(): boolean {
   return (process.env.NODE_ENV ?? '').toLowerCase() === 'production';
 }
 
+/** Central credential-verification facade used by the HTTP authentication guard. */
 @Injectable()
 export class AuthService {
   private readonly identityProvider: IdentityProviderPort;
@@ -17,8 +19,6 @@ export class AuthService {
     @Inject(OidcIdentityProviderAdapter) oidcProvider: OidcIdentityProviderAdapter,
     @Inject(SamlIdentityProviderAdapter) samlProvider: SamlIdentityProviderAdapter,
   ) {
-    const allowMockInProduction =
-      (process.env.AUTH_ALLOW_INSECURE_MOCK ?? '').toLowerCase() === 'true';
     let selectedProvider: IdentityProviderPort;
     const authProvider = (process.env.AUTH_PROVIDER ?? '').trim().toLowerCase();
     if (authProvider) {
@@ -43,10 +43,10 @@ export class AuthService {
     }
 
     const usingMockProvider = selectedProvider instanceof MockIdentityProviderAdapter;
-    if (usingMockProvider && isProductionRuntime() && !allowMockInProduction) {
+    if (usingMockProvider && isProductionRuntime()) {
       throw new Error(
         'Insecure auth configuration: mock auth provider is disabled in production. ' +
-          'Set AUTH_PROVIDER to oidc/saml or explicitly opt in via AUTH_ALLOW_INSECURE_MOCK=true.',
+          'Set AUTH_PROVIDER to oidc or saml.',
       );
     }
 

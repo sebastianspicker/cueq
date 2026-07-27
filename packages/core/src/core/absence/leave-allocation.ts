@@ -1,6 +1,7 @@
+/** Allocates leave usage to carry-over before current-year entitlement for deterministic balances. */
 import { parseDateOrDateTime } from '@cueq/shared';
-import { roundToTwo } from '../utils';
-import type { LeaveUsageEntry } from './leave-ledger';
+import { roundToTwo } from '../utils.js';
+import type { LeaveUsageEntry } from './leave-ledger.js';
 
 export interface CarryOverAllocation {
   carriedOverUsedDays: number;
@@ -8,6 +9,7 @@ export interface CarryOverAllocation {
   forfeitedDays: number;
 }
 
+/** Consume carry-over chronologically and forfeit only the amount left after its deadline. */
 export function allocateCarryOverUsage(input: {
   usage: LeaveUsageEntry[];
   asOf: Date;

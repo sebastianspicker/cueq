@@ -1,5 +1,6 @@
+/** Defines versioned maximum-hours policy contracts and the current ArbZG reference default. */
 import { z } from 'zod';
-import { PolicyRuleMetaSchema } from '../types';
+import { PolicyRuleMetaSchema } from '../types.js';
 
 /**
  * Maximum working hours rules (ArbZG §3).

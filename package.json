@@ -2,19 +2,29 @@
   "name": "cueq",
   "version": "0.0.0",
   "private": true,
-  "description": "Integrated time-tracking, absence-management, and shift-planning system for a German university (NRW / TV-L)",
+  "type": "module",
+  "description": "Source alpha for time tracking, absence management, and shift planning in a German university context",
   "license": "MIT",
   "author": "Sebastian J. Spicker",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sebastianspicker/cueq.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sebastianspicker/cueq/issues"
+  },
+  "homepage": "https://github.com/sebastianspicker/cueq#readme",
   "scripts": {
     "prepare": "husky",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
-    "typecheck": "turbo run typecheck",
+    "toolchain:verify": "node ./scripts/verify-typescript-toolchain.mjs",
+    "typecheck": "node ./scripts/verify-typescript-toolchain.mjs && turbo run typecheck",
     "test": "turbo run test",
-    "test:coverage": "turbo run test:coverage --filter=@cueq/api --filter=@cueq/core",
-    "test:unit": "turbo run test:unit",
+    "test:coverage": "turbo run test:coverage",
+    "test:unit": "turbo run test:unit && node --test scripts/*.test.mjs",
     "test:integration": "turbo run test:integration",
     "test:e2e": "turbo run test:e2e --filter=@cueq/web",
     "test:acceptance": "turbo run test:acceptance",
@@ -22,9 +32,13 @@
     "test:backup-restore": "node ./scripts/backup-restore-verify.mjs",
     "backfill:leave-adjustments": "node ./scripts/backfill-leave-adjustments.mjs",
     "backfill:workflow-fields": "node ./scripts/backfill-workflow-fields.mjs",
-    "test:all": "pnpm test:unit && pnpm test:integration && pnpm test:acceptance && pnpm test:compliance && pnpm test:backup-restore",
+    "migrate:webhook-envelopes": "bash ./scripts/migrate-webhook-secrets.sh",
+    "test:all": "./scripts/pnpm.sh test:unit && ./scripts/pnpm.sh test:integration && ./scripts/pnpm.sh test:acceptance && ./scripts/pnpm.sh test:compliance && ./scripts/pnpm.sh --filter @cueq/policy test:golden && ./scripts/pnpm.sh test:backup-restore",
     "demo:screenshots": "bash ./scripts/demo-screenshots.sh",
     "docs:links": "node ./scripts/check-doc-links.mjs",
+    "knip": "knip --cache",
+    "knip:production": "knip --strict --cache",
+    "hygiene:code": "pnpm run knip && pnpm run knip:production",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "schemas": "bash ./scripts/schemas.sh",
@@ -36,29 +50,47 @@
     "clean": "turbo run clean && rm -rf node_modules .turbo"
   },
   "devDependencies": {
+    "@typescript/native": "catalog:",
     "husky": "9.1.7",
     "ajv": "8.18.0",
     "ajv-formats": "3.0.1",
-    "@typescript-eslint/eslint-plugin": "8.57.2",
-    "@typescript-eslint/parser": "8.57.2",
+    "@typescript-eslint/eslint-plugin": "catalog:",
+    "@typescript-eslint/parser": "catalog:",
     "eslint": "9.39.3",
-    "eslint-config-prettier": "10.1.8",
+    "knip": "6.25.0",
     "prettier": "3.8.1",
-    "turbo": "2.8.20",
-    "typescript": "5.9.3"
+    "turbo": "2.9.14",
+    "typescript": "catalog:"
   },
   "pnpm": {
     "overrides": {
+      "@nestjs/cli>typescript": "npm:@typescript/typescript6@6.0.2",
       "effect": "3.21.4",
       "lodash": "4.18.1",
       "multer": "2.2.0",
       "path-to-regexp": "8.4.2",
-      "serialize-javascript": "7.0.7"
+      "file-type": "21.3.4",
+      "flatted": "3.4.2",
+      "picomatch": "4.0.4",
+      "defu": "6.1.7",
+      "js-yaml": "4.2.0",
+      "postcss": "8.5.10",
+      "qs": "6.15.3",
+      "@angular-devkit/core>ajv": "8.18.0",
+      "ajv-formats>ajv": "8.18.0",
+      "esbuild": "0.28.1",
+      "fast-uri": "3.1.2",
+      "form-data": "4.0.6",
+      "undici": "7.28.0",
+      "vite": "7.3.5",
+      "minimatch@3.1.5>brace-expansion": "1.1.13",
+      "minimatch@9.0.9>brace-expansion": "2.0.3",
+      "minimatch@10.2.4>brace-expansion": "5.0.6"
     }
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
+    "node": ">=20.19.0",
+    "pnpm": "9.15.0"
   }
 }

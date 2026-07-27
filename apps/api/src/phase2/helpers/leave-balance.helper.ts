@@ -1,17 +1,46 @@
+/** Calculates leave entitlement and carry-over from employment terms, absences, and adjustments. */
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { AbsenceStatus, AbsenceType } from '@cueq/database';
-import { calculateLeaveLedger } from '@cueq/core';
+import { type Absence, AbsenceStatus, AbsenceType } from '@cueq/database';
+import { calculateAbsenceWorkingDays, calculateLeaveLedger } from '@cueq/core';
 import { DEFAULT_LEAVE_RULE } from '@cueq/policy';
-import { PrismaService } from '../../persistence/prisma.service';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { PersonHelper } from './person.helper';
+import { parseDateOnly } from '@cueq/shared';
+import { PrismaService } from '../../persistence/prisma.service.js';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { HolidayProvider } from './holiday.provider.js';
+import { PersonHelper } from './person.helper.js';
 
+/**
+ * Calculates leave balances from employment terms, approved absences, and adjustments.
+ * Callers use the same calculation for employee views and closing validations.
+ */
 @Injectable()
 export class LeaveBalanceHelper {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(HolidayProvider) private readonly holidayProvider: HolidayProvider,
   ) {}
+
+  private leaveUsageForPeriod(absences: Absence[], from: Date, to: Date) {
+    return absences.flatMap((absence) => {
+      const start = absence.startDate > from ? absence.startDate : from;
+      const end = absence.endDate < to ? absence.endDate : to;
+      if (start > end) return [];
+
+      const startDate = start.toISOString().slice(0, 10);
+      const endDate = end.toISOString().slice(0, 10);
+      return [
+        {
+          date: startDate,
+          days: calculateAbsenceWorkingDays({
+            startDate,
+            endDate,
+            holidayDates: this.holidayProvider.holidayDatesBetween(startDate, endDate),
+          }),
+        },
+      ];
+    });
+  }
 
   private defaultAsOfDate(targetYear: number): string {
     const today = new Date();
@@ -51,8 +80,10 @@ export class LeaveBalanceHelper {
       : null;
     const targetYear = year ?? new Date().getUTCFullYear();
     const resolvedAsOfDate = asOfDate ?? this.defaultAsOfDate(targetYear);
-    const asOf = new Date(`${resolvedAsOfDate}T00:00:00.000Z`);
-    if (Number.isNaN(asOf.getTime())) {
+    let asOf: Date;
+    try {
+      asOf = parseDateOnly(resolvedAsOfDate);
+    } catch {
       throw new BadRequestException('Invalid asOfDate.');
     }
     if (asOf.getUTCFullYear() !== targetYear) {
@@ -105,10 +136,7 @@ export class LeaveBalanceHelper {
       workTimeModelWeeklyHours: modelWeeklyHours,
       employmentStartDate,
       employmentEndDate,
-      usage: priorAnnualLeaveAbsences.map((absence) => ({
-        date: absence.startDate.toISOString().slice(0, 10),
-        days: Number(absence.days),
-      })),
+      usage: this.leaveUsageForPeriod(priorAnnualLeaveAbsences, previousFrom, previousTo),
       adjustments: adjustments.map((entry) => ({
         year: entry.year,
         deltaDays: Number(entry.deltaDays),
@@ -123,10 +151,7 @@ export class LeaveBalanceHelper {
       workTimeModelWeeklyHours: modelWeeklyHours,
       employmentStartDate,
       employmentEndDate,
-      usage: annualLeaveAbsences.map((absence) => ({
-        date: absence.startDate.toISOString().slice(0, 10),
-        days: Number(absence.days),
-      })),
+      usage: this.leaveUsageForPeriod(annualLeaveAbsences, from, asOf),
       adjustments: adjustments.map((entry) => ({
         year: entry.year,
         deltaDays: Number(entry.deltaDays),

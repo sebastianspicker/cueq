@@ -2,19 +2,28 @@
   "name": "@cueq/database",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Prisma schema and database client for cueq",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "test": "vitest run src/__tests__/database.smoke.test.ts src/__tests__/database.acceptance.test.ts src/__tests__/database.compliance.test.ts",
-    "test:unit": "vitest run --config vitest.config.ts",
+    "test": "vitest run --config vitest.config.ts && node --test prisma/*.test.mjs scripts/*.test.mjs",
+    "test:unit": "vitest run --config vitest.config.ts && node --test prisma/*.test.mjs scripts/*.test.mjs",
+    "test:coverage": "CUEQ_INCLUDE_SPECIALIZED_TESTS=1 vitest run --config vitest.config.ts --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:acceptance": "vitest run src/__tests__/database.acceptance.test.ts",
-    "test:compliance": "vitest run src/__tests__/database.compliance.test.ts",
+    "test:acceptance": "vitest run --config vitest.suites.config.ts src/__tests__/database.acceptance.test.ts",
+    "test:compliance": "vitest run --config vitest.suites.config.ts src/__tests__/database.compliance.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:push:force": "prisma db push --accept-data-loss",
@@ -33,8 +42,10 @@
     "@prisma/client": "6.19.2"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
+    "@typescript/native": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
     "prisma": "6.19.2",
-    "typescript": "5.9.3",
-    "vitest": "3.2.4"
+    "vitest": "catalog:"
   }
 }

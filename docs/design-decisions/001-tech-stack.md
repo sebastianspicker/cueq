@@ -1,86 +1,79 @@
-# ADR-001: Technology Stack Selection
+# ADR-001: Technology stack
 
-> **Status:** Accepted
-> **Date:** 2026-02-28
-> **Deciders:** Project lead, IT department
-
----
+- Status: Accepted
+- Scope: Current repository implementation
 
 ## Context
 
-cueq is a greenfield project that needs a technology stack suitable for:
-
-1. **A university IT environment** — maintainability by a small team, standard tooling, no exotic dependencies
-2. **Compliance-heavy domain** — strong type safety, schema-driven development, audit-grade data handling
-3. **Multiple interfaces** — web self-service, API for terminals, export pipelines, SSO integration
-4. **Long-term operation** — the system will run for 10+ years; technology choices must be stable and well-supported
+cueq needs shared contracts across a browser application, HTTP API, domain
+rules, database schema, and integration boundaries. The repository also needs
+repeatable local and hosted checks for a privacy-sensitive workforce domain.
 
 ## Decision
 
-### Accepted Stack
+Use the following stack:
 
-| Concern                | Choice                               | Rationale                                                                                              |
-| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| **Monorepo tooling**   | pnpm workspaces + Turborepo          | Fast installs, efficient disk usage, parallel builds, single lockfile                                  |
-| **Backend framework**  | NestJS                               | TypeScript-native, modular, built-in OpenAPI/Swagger, dependency injection, proven enterprise patterns |
-| **Frontend framework** | Next.js (App Router)                 | SSR/SSG flexibility, React ecosystem, excellent TypeScript support, built-in routing                   |
-| **Database**           | PostgreSQL 16                        | Proven for transactional + audit workloads; university IT experience; open source                      |
-| **ORM**                | Prisma                               | Type-safe schema-first ORM; migration tooling; Prisma Studio for debugging                             |
-| **Validation**         | Zod                                  | Runtime validation shared across API + UI; TypeScript type inference; composable schemas               |
-| **API design**         | OpenAPI via @nestjs/swagger          | Generated from decorators; Swagger UI for dev/testing; CI-verifiable spec                              |
-| **Auth**               | NestJS Guards + Passport (SAML/OIDC) | Flexible; supports university IdP; role-based guards                                                   |
-| **Testing**            | Vitest                               | Fast; Vite-native; modern; good TypeScript support                                                     |
-| **CI**                 | GitHub Actions                       | Already in use for the repo; excellent pnpm/turborepo caching support                                  |
-| **Containerization**   | Docker + docker-compose              | Standard dev setup; PostgreSQL in development; production-compatible                                   |
-| **Code quality**       | ESLint + Prettier                    | Industry standard; enforced in CI                                                                      |
+| Concern           | Current choice                                                       |
+| ----------------- | -------------------------------------------------------------------- |
+| Workspace         | pnpm 9.15.0 workspaces and Turborepo                                 |
+| Language          | TypeScript                                                           |
+| API               | NestJS 11                                                            |
+| Web               | Next.js 15 App Router and React 19                                   |
+| Database          | PostgreSQL 16 and Prisma 6                                           |
+| Validation        | Zod and JSON Schema                                                  |
+| HTTP contract     | NestJS Swagger decorators and a committed OpenAPI snapshot           |
+| Authentication    | `jose` with mock, OIDC, and SAML-bridge adapters                     |
+| Tests             | Vitest, Playwright, axe, and Node test runner                        |
+| Repository checks | ESLint, Prettier, Knip, schema validation, and contract drift checks |
+| Hosted checks     | GitHub Actions and CodeQL                                            |
 
-### Monorepo Structure
+The workspace contains:
 
+```text
+apps/
+  api/
+  web/
+packages/
+  core/
+  database/
+  policy/
+  shared/
 ```
-cueq/
-├── apps/
-│   ├── api/          # NestJS API server
-│   └── web/          # Next.js frontend
-├── packages/
-│   ├── core/         # Domain core logic helpers (@cueq/core)
-│   ├── database/     # Prisma schema + client
-│   ├── shared/       # Zod schemas + shared types
-│   └── policy/       # Policy-as-code rule definitions + golden tests
-```
+
+## TypeScript toolchain
+
+Workspace type checking and package emission use the native TypeScript package
+pinned as `@typescript/native`. Framework tools that consume the TypeScript
+compiler API resolve the compatibility package pinned as `typescript`.
+`pnpm run toolchain:verify` checks the installed versions and resolution paths.
+
+Node-targeted packages use `NodeNext` module resolution and explicit `.js`
+relative import specifiers. The Next.js workspace uses bundler resolution.
+
+## Authentication boundary
+
+The OIDC adapter expects Keycloak-style role claims and a Keycloak certificate
+path. The SAML selector verifies an HMAC-signed bridge JWT and does not
+implement SAML. The browser accepts a bearer token manually and has no complete
+SSO or refresh-session flow.
+
+These are current limitations, not implied capabilities of the selected
+frameworks.
 
 ## Consequences
 
-### Positive
-
-- Single language (TypeScript) across frontend, backend, and shared packages
-- Zod schemas are the single source of truth for validation — shared between NestJS DTOs and Next.js forms
-- Prisma provides type-safe database access with automatic migration management
-- Turborepo caching significantly speeds up CI and local builds
-- NestJS modules map naturally to the domain's bounded contexts (BookingsModule, AbsenceModule, etc.)
-
-### Negative
-
-- NestJS decorator-heavy style has a learning curve
-- Prisma has some limitations with complex queries (raw SQL escape hatch available)
-- Next.js App Router is relatively new; some ecosystem libraries still catching up
-
-### Neutral
-
-- pnpm `workspace:*` protocol requires all packages to be built before consumers can use them (Turborepo handles ordering)
-- OpenAPI spec is generated from NestJS decorators rather than spec-first; CI validation of the generated spec against a checked-in snapshot ensures contract stability
-
-## Alternatives Considered
-
-| Alternative                                 | Pros                                 | Cons                                                              | Why Not                                                 |
-| ------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------- |
-| Express (instead of NestJS)                 | Simpler, lighter                     | No structure, no DI, no built-in Swagger                          | Too unstructured for a compliance-heavy domain          |
-| Drizzle ORM (instead of Prisma)             | Closer to SQL, lighter               | Less mature migration tooling, smaller community                  | Prisma's schema-first approach better fits our workflow |
-| tRPC (instead of REST + OpenAPI)            | End-to-end type safety               | No standard API contract for non-TS consumers (terminals, export) | Need OpenAPI for external integrations                  |
-| SolidJS / Svelte (instead of React/Next.js) | Smaller bundle, simpler mental model | Smaller ecosystem, fewer a11y tools                               | React has the largest pool of available developers      |
+- Runtime validation can be shared between packages through Zod.
+- External HTTP consumers have a committed OpenAPI snapshot.
+- Prisma schema changes require migrations and regeneration.
+- Package build order is explicit in the Turborepo task graph.
+- Decorator and schema contracts can drift, so generation and contract checks
+  remain required.
+- The framework choices do not provide deployment, identity administration,
+  data protection, monitoring, or operational approval.
 
 ## References
 
-- [`ARCHITECTURE.md`](../../ARCHITECTURE.md) — System architecture requirements
-- [`docs/DESIGN.md`](../DESIGN.md) — Schema-first development principle
-- [`docs/design-docs/core-beliefs.md`](../design-docs/core-beliefs.md) — Core beliefs
-- [`docs/FRONTEND.md`](../FRONTEND.md) — Frontend architecture decisions
+- [Architecture](../../ARCHITECTURE.md)
+- [Configuration](../CONFIGURATION.md)
+- [Frontend](../FRONTEND.md)
+- [Quality gates](../QUALITY_GATES.md)

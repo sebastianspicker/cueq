@@ -1,8 +1,8 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers';
-import { SEED_IDS } from '../../src/test-utils/seed-ids';
+import { createTestApp, seedPhase2Data, TOKENS } from '../test-helpers.js';
+import { SEED_IDS } from '../../src/test-utils/seed-ids.js';
 
 const TERMINAL_TOKEN = process.env.TERMINAL_GATEWAY_TOKEN ?? 'dev-terminal-token';
 

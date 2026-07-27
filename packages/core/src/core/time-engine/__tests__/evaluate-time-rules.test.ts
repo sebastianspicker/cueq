@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SURCHARGE_RULE } from '@cueq/policy';
-import { evaluateTimeRules } from '..';
+import { evaluateTimeRules } from '../index.js';
 
 const BASE_INPUT = {
   week: '2026-W10',
@@ -236,6 +236,25 @@ describe('evaluateTimeRules – edge cases', () => {
       });
       expect(result.violations.some((v) => v.code === 'BREAK_DEFICIT')).toBe(false);
     });
+
+    it('does not double-count duplicate or overlapping pauses', () => {
+      const result = evaluateTimeRules({
+        ...BASE_INPUT,
+        targetHours: 0,
+        intervals: [
+          { start: '2026-03-03T07:00:00.000Z', end: '2026-03-03T16:00:00.000Z', type: 'WORK' },
+          { start: '2026-03-03T12:00:00.000Z', end: '2026-03-03T12:30:00.000Z', type: 'PAUSE' },
+          { start: '2026-03-03T12:00:00.000Z', end: '2026-03-03T12:30:00.000Z', type: 'PAUSE' },
+        ],
+      });
+
+      expect(result.violations).toContainEqual(
+        expect.objectContaining({
+          code: 'BREAK_DEFICIT',
+          context: expect.objectContaining({ breakMinutes: 30, requiredBreakMinutes: 45 }),
+        }),
+      );
+    });
   });
 
   describe('max daily hours boundaries', () => {
@@ -308,6 +327,19 @@ describe('evaluateTimeRules – edge cases', () => {
   });
 
   describe('rest period between shifts', () => {
+    it('treats split work intervals on one local workday as one period', () => {
+      const result = evaluateTimeRules({
+        ...BASE_INPUT,
+        targetHours: 0,
+        intervals: [
+          { start: '2026-03-03T07:00:00.000Z', end: '2026-03-03T12:00:00.000Z', type: 'WORK' },
+          { start: '2026-03-03T13:00:00.000Z', end: '2026-03-03T16:00:00.000Z', type: 'WORK' },
+        ],
+      });
+
+      expect(result.violations.some((v) => v.code === 'REST_HOURS_DEFICIT')).toBe(false);
+    });
+
     it('detects rest deficit when gap between shifts is under 11h', () => {
       const result = evaluateTimeRules({
         ...BASE_INPUT,
@@ -319,6 +351,26 @@ describe('evaluateTimeRules – edge cases', () => {
       });
       // Gap is 10h (15:00 to 01:00)
       expect(result.violations.some((v) => v.code === 'REST_HOURS_DEFICIT')).toBe(true);
+    });
+
+    it('uses instant order when same-day interval ends have different fractional precision', () => {
+      const laterEnd = '2026-03-03T15:00:00.001Z';
+      const result = evaluateTimeRules({
+        ...BASE_INPUT,
+        targetHours: 0,
+        intervals: [
+          { start: '2026-03-03T07:00:00Z', end: '2026-03-03T15:00:00Z', type: 'WORK' },
+          { start: '2026-03-03T14:30:00Z', end: laterEnd, type: 'WORK' },
+          { start: '2026-03-04T01:00:00Z', end: '2026-03-04T09:00:00Z', type: 'WORK' },
+        ],
+      });
+
+      expect(result.violations).toContainEqual(
+        expect.objectContaining({
+          code: 'REST_HOURS_DEFICIT',
+          context: expect.objectContaining({ previousEnd: laterEnd }),
+        }),
+      );
     });
 
     it('no rest violation when gap is exactly 11h', () => {
@@ -430,7 +482,7 @@ describe('evaluateTimeRules – edge cases', () => {
         ],
       });
       expect(result.actualHours).toBe(3);
-      // Friday night, 21:00-00:00 CET — pure NIGHT, no weekend
+      // Friday night, 21:00-00:00 CET: pure NIGHT, no weekend
       // But wait: 23:00 UTC = 00:00 CET on Saturday 2026-03-28
       // Minutes at 23:00 CET are Friday, minutes at 00:00 are Saturday
       // So we get split: some NIGHT (Friday), some WEEKEND (Saturday midnight)
@@ -516,7 +568,7 @@ describe('evaluateTimeRules – edge cases', () => {
           },
         ],
       });
-      // 09:00-17:00 CET on a Tuesday — no surcharge
+      // 09:00-17:00 CET on a Tuesday: no surcharge
       expect(result.surchargeMinutes).toEqual([]);
     });
 
@@ -532,7 +584,7 @@ describe('evaluateTimeRules – edge cases', () => {
           },
         ],
       });
-      // 09:00-11:00 CET on Saturday — weekend only (not night)
+      // 09:00-11:00 CET on Saturday: weekend only (not night)
       expect(result.surchargeMinutes).toEqual([
         { category: 'WEEKEND', ratePercent: 50, minutes: 120 },
       ]);
@@ -552,7 +604,7 @@ describe('evaluateTimeRules – edge cases', () => {
         ],
         holidayDates: ['2026-03-04'],
       });
-      // 09:00-10:00 CET on Wednesday holiday — not weekend, not night
+      // 09:00-10:00 CET on Wednesday holiday: not weekend, not night
       expect(result.surchargeMinutes).toEqual([
         { category: 'HOLIDAY', ratePercent: 100, minutes: 60 },
       ]);
@@ -732,7 +784,7 @@ describe('evaluateTimeRules – edge cases', () => {
   describe('holiday matching uses local timezone date, not UTC', () => {
     it('applies HOLIDAY surcharge when UTC date differs from local Berlin date', () => {
       // 2026-03-03 23:00 UTC = 2026-03-04 00:00 CET (Berlin)
-      // March 4 is declared as holiday — surcharge should apply because the local date is March 4
+      // March 4 is declared as holiday: surcharge should apply because the local date is March 4
       const result = evaluateTimeRules({
         ...BASE_INPUT,
         targetHours: 0,
@@ -768,7 +820,7 @@ describe('evaluateTimeRules – edge cases', () => {
         ],
         holidayDates: ['2026-03-04'],
       });
-      // 22:00 UTC = 23:00 CET on Tuesday March 3 — not a holiday, but within night window
+      // 22:00 UTC = 23:00 CET on Tuesday March 3: not a holiday, but within night window
       expect(result.surchargeMinutes).toEqual([
         { category: 'NIGHT', ratePercent: 25, minutes: 60 },
       ]);
@@ -777,7 +829,7 @@ describe('evaluateTimeRules – edge cases', () => {
 
   describe('unsorted input intervals', () => {
     it('produces correct results regardless of input order', () => {
-      // Provide intervals in reverse order — function should sort by start
+      // Provide intervals in reverse order: function should sort by start
       const result = evaluateTimeRules({
         ...BASE_INPUT,
         targetHours: 0,
@@ -812,7 +864,7 @@ describe('evaluateTimeRules – edge cases', () => {
         targetHours: 0,
         intervals: [
           { start: '2026-03-03T07:00:00.000Z', end: '2026-03-03T16:00:00.000Z', type: 'WORK' },
-          // Two separate 15-minute pauses = 30 total — not enough for 9h shift (needs 45)
+          // Two separate 15-minute pauses = 30 total: not enough for 9h shift (needs 45)
           { start: '2026-03-03T10:00:00.000Z', end: '2026-03-03T10:15:00.000Z', type: 'PAUSE' },
           { start: '2026-03-03T13:00:00.000Z', end: '2026-03-03T13:15:00.000Z', type: 'PAUSE' },
         ],
@@ -826,7 +878,7 @@ describe('evaluateTimeRules – edge cases', () => {
         targetHours: 0,
         intervals: [
           { start: '2026-03-03T07:00:00.000Z', end: '2026-03-03T16:00:00.000Z', type: 'WORK' },
-          // Three 15-minute pauses = 45 total — enough for 9h shift
+          // Three 15-minute pauses = 45 total: enough for 9h shift
           { start: '2026-03-03T10:00:00.000Z', end: '2026-03-03T10:15:00.000Z', type: 'PAUSE' },
           { start: '2026-03-03T12:00:00.000Z', end: '2026-03-03T12:15:00.000Z', type: 'PAUSE' },
           { start: '2026-03-03T14:00:00.000Z', end: '2026-03-03T14:15:00.000Z', type: 'PAUSE' },
@@ -864,7 +916,7 @@ describe('evaluateTimeRules – edge cases', () => {
       expect(result.surchargeMinutes).toContainEqual(
         expect.objectContaining({ category: 'HOLIDAY', minutes: 480 }),
       );
-      // No WEEKEND bucket — HOLIDAY always outranks WEEKEND
+      // No WEEKEND bucket: HOLIDAY always outranks WEEKEND
       expect(result.surchargeMinutes.some((s) => s.category === 'WEEKEND')).toBe(false);
     });
   });
@@ -1022,8 +1074,8 @@ describe('evaluateTimeRules – edge cases', () => {
         intervals: [
           // Day 1: 11h work, no break → break deficit + max daily exceeded
           { start: '2026-03-03T06:00:00.000Z', end: '2026-03-03T17:00:00.000Z', type: 'WORK' },
-          // Day 2: starts 5h after day 1 ends → rest deficit (5h < 11h)
-          { start: '2026-03-03T22:00:00.000Z', end: '2026-03-04T08:00:00.000Z', type: 'WORK' },
+          // Next local workday starts 9h after day 1 ends → rest deficit (9h < 11h)
+          { start: '2026-03-04T02:00:00.000Z', end: '2026-03-04T12:00:00.000Z', type: 'WORK' },
         ],
       });
       expect(result.violations.some((v) => v.code === 'BREAK_DEFICIT')).toBe(true);

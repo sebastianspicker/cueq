@@ -1,13 +1,15 @@
+/** Exposes administration endpoints for active working-time thresholds. */
 import { Body, Controller, Get, Inject, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Roles } from '../../common/decorators/roles.decorator';
-import type { AuthenticatedIdentity } from '../../common/auth/auth.types';
-import { TimeThresholdPolicyHelper } from '../helpers/time-threshold-policy.helper';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
+import type { AuthenticatedIdentity } from '../../common/auth/auth.types.js';
+import { TimeThresholdPolicyHelper } from '../helpers/time-threshold-policy.helper.js';
 import { TimeThresholdsUpsertSchema } from '@cueq/shared';
 
+/** Administration boundary for versioned working-time thresholds and their audit history. */
 @ApiBearerAuth()
 @ApiTags('time-thresholds')
 @Roles(Role.HR, Role.ADMIN)
@@ -26,16 +28,20 @@ export class TimeThresholdsController {
 
   @Put()
   @ApiOperation({
-    summary: 'Upsert ArbZG time thresholds — creates a new policy version (HR/Admin)',
+    summary: 'Upsert ArbZG time thresholds: creates a new policy version (HR/Admin)',
   })
   upsertThresholds(
-    @CurrentUser() _user: AuthenticatedIdentity,
+    @CurrentUser() user: AuthenticatedIdentity,
     @Body(new ZodValidationPipe(TimeThresholdsUpsertSchema)) payload: unknown,
   ): Promise<unknown> {
     const { dailyMaxMinutes, minRestMinutes } = payload as {
       dailyMaxMinutes: number;
       minRestMinutes: number;
     };
-    return this.timeThresholdHelper.upsertThresholds(dailyMaxMinutes, minRestMinutes);
+    return this.timeThresholdHelper.upsertThresholds(
+      dailyMaxMinutes,
+      minRestMinutes,
+      user.personId ?? user.subject,
+    );
   }
 }

@@ -1,6 +1,6 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { resolveAuthenticatedPerson } from './resolve-authenticated-person';
+import { resolveAuthenticatedPerson } from './resolve-authenticated-person.js';
 
 const identity = {
   subject: 'idp-subject',
@@ -21,7 +21,7 @@ function person(id: string, externalId: string | null = null) {
 }
 
 describe('resolveAuthenticatedPerson', () => {
-  it('uses a deterministic id, external id, then email lookup order', async () => {
+  it('uses a deterministic id then external-id lookup order', async () => {
     const persisted = person('person-1', 'idp-subject');
     const findUnique = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(persisted);
 
@@ -53,5 +53,26 @@ describe('resolveAuthenticatedPerson', () => {
     await expect(
       resolveAuthenticatedPerson({ person: { findUnique } } as never, identity as never),
     ).rejects.toThrowError(ForbiddenException);
+  });
+
+  it('does not bind an unknown subject to a privileged person by email', async () => {
+    const privilegedPerson = {
+      ...person('admin-person', 'admin-external-id'),
+      email: identity.email,
+      role: 'ADMIN',
+    };
+    const findUnique = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(privilegedPerson);
+
+    await expect(
+      resolveAuthenticatedPerson({ person: { findUnique } } as never, identity as never),
+    ).rejects.toThrowError(NotFoundException);
+    expect(findUnique.mock.calls.map(([query]) => query.where)).toEqual([
+      { id: 'idp-subject' },
+      { externalId: 'idp-subject' },
+    ]);
   });
 });

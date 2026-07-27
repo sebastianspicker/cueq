@@ -1,5 +1,6 @@
+/** Runtime contracts for absence requests, leave balances, adjustments, and calendar redaction. */
 import { z } from 'zod';
-import { DateSchema, DateTimeSchema, IdSchema, PositiveDecimalSchema } from './common';
+import { DateSchema, DateTimeSchema, IdSchema, PositiveDecimalSchema } from './common.js';
 
 // ---------------------------------------------------------------------------
 // Absence & Leave schemas

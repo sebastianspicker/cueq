@@ -1,5 +1,11 @@
+/** Runtime contracts for rosters, shifts, assignments, swaps, and coverage comparisons. */
 import { z } from 'zod';
-import { DateTimeSchema, IdSchema } from './common';
+import {
+  DateTimeSchema,
+  IdSchema,
+  isDateTimeInstantBefore,
+  validateOptionalDateTimeRange,
+} from './common.js';
 
 export const RosterStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'CLOSED']);
 export type RosterStatus = z.infer<typeof RosterStatusSchema>;
@@ -10,7 +16,7 @@ export const CreateRosterSchema = z
     periodStart: DateTimeSchema,
     periodEnd: DateTimeSchema,
   })
-  .refine((input) => input.periodStart < input.periodEnd, {
+  .refine((input) => isDateTimeInstantBefore(input.periodStart, input.periodEnd), {
     message: 'periodStart must be before periodEnd',
     path: ['periodEnd'],
   });
@@ -23,7 +29,7 @@ export const CreateShiftSchema = z
     shiftType: z.string().min(1).max(100),
     minStaffing: z.number().int().min(1),
   })
-  .refine((input) => input.startTime < input.endTime, {
+  .refine((input) => isDateTimeInstantBefore(input.startTime, input.endTime), {
     message: 'startTime must be before endTime',
     path: ['endTime'],
   });
@@ -36,15 +42,9 @@ export const UpdateShiftSchema = z
     shiftType: z.string().min(1).max(100).optional(),
     minStaffing: z.number().int().min(1).optional(),
   })
-  .superRefine((input, ctx) => {
-    if (input.startTime && input.endTime && input.startTime >= input.endTime) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'startTime must be before endTime',
-        path: ['endTime'],
-      });
-    }
-  });
+  .superRefine((input, ctx) =>
+    validateOptionalDateTimeRange(input, ctx, 'startTime must be before endTime'),
+  );
 export type UpdateShift = z.infer<typeof UpdateShiftSchema>;
 
 export const AssignShiftSchema = z.object({
@@ -56,6 +56,8 @@ export const ShiftAssignmentSchema = z.object({
   id: IdSchema,
   shiftId: IdSchema,
   personId: IdSchema,
+  firstName: z.string(),
+  lastName: z.string(),
   createdAt: DateTimeSchema,
   updatedAt: DateTimeSchema,
 });
@@ -100,6 +102,17 @@ export const RosterDetailSchema = z.object({
   members: z.array(RosterMemberSchema),
 });
 export type RosterDetail = z.infer<typeof RosterDetailSchema>;
+
+export const RosterPublishResponseSchema = z.object({
+  id: IdSchema,
+  status: RosterStatusSchema,
+  publishedAt: DateTimeSchema.nullable(),
+});
+
+export const RosterUnassignResponseSchema = z.object({
+  deleted: z.literal(true),
+  assignmentId: IdSchema,
+});
 
 export const PlanVsActualSlotSchema = z.object({
   shiftId: IdSchema,

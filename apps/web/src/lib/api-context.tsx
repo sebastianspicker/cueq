@@ -1,12 +1,15 @@
 'use client';
 
+/** Client API configuration context; stored endpoint values are convenience settings, not a trust boundary. */
+
 import { createContext, useContext, useMemo, useState } from 'react';
-import { createApiRequest, type ApiRequest } from './api-client';
+import { createApiFetch, createApiRequest, type ApiFetch, type ApiRequest } from './api-client';
 
 const SESSION_ENDPOINT_SLOT = 'cq-api-base-url';
 const LEGACY_SESSION_TOKEN_SLOT = 'cq-token';
 const DEFAULT_API_BASE_URL = '/api';
 
+/** Reads session-scoped configuration without failing server rendering or restricted browsers. */
 function readSessionValue(key: string, fallback: string): string {
   if (typeof window === 'undefined') {
     return fallback;
@@ -19,6 +22,7 @@ function readSessionValue(key: string, fallback: string): string {
   }
 }
 
+/** Persists session-scoped configuration when browser storage is available. */
 function writeSessionValue(key: string, value: string) {
   if (typeof window === 'undefined') {
     return;
@@ -50,6 +54,7 @@ interface ApiContextValue {
   token: string;
   setToken: (value: string) => void;
   connectionKey: string;
+  apiFetch: ApiFetch;
   apiRequest: ApiRequest;
 }
 
@@ -59,6 +64,7 @@ interface ApiProviderProps {
   children: React.ReactNode;
 }
 
+/** Provides request helpers and resets legacy token state when the API endpoint changes. */
 export function ApiProvider({ children }: ApiProviderProps) {
   const [apiBaseUrl, setApiBaseUrlState] = useState(() =>
     normalizeApiBaseUrl(readSessionValue(SESSION_ENDPOINT_SLOT, DEFAULT_API_BASE_URL)),
@@ -89,6 +95,7 @@ export function ApiProvider({ children }: ApiProviderProps) {
       token,
       setToken,
       connectionKey: `${apiBaseUrl}|${token}`,
+      apiFetch: createApiFetch(apiBaseUrl, token),
       apiRequest: createApiRequest(apiBaseUrl, token, 'Request failed.'),
     };
   }, [apiBaseUrl, token]);
@@ -96,6 +103,7 @@ export function ApiProvider({ children }: ApiProviderProps) {
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
 }
 
+/** Reads API configuration and request helpers from the enclosing provider. */
 export function useApiContext() {
   const value = useContext(ApiContext);
   if (!value) {

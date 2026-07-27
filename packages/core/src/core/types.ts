@@ -1,3 +1,4 @@
+/** Cross-domain result types used by pure core calculations and their API adapters. */
 export type RuleViolationSeverity = 'ERROR' | 'WARNING' | 'INFO';
 
 /** Known violation codes emitted by the core domain. */
@@ -19,17 +20,6 @@ export type ViolationCode =
 
 /** Known warning codes emitted by the core domain. */
 export type WarningCode = 'MAX_DAILY_HOURS_EXTENDED_RANGE';
-
-/** Typed context payloads for specific violation codes. */
-export interface ViolationContextMap {
-  BREAK_DEFICIT: { day: string; requiredBreakMinutes: number; breakMinutes: number };
-  REST_HOURS_DEFICIT: { previousEnd: string; nextStart: string; restHours: number };
-  MAX_DAILY_HOURS_EXCEEDED: { day: string; workedHours: number };
-  INVALID_INTERVAL: { start: string; end: string; type: string };
-  ONCALL_REST_DEFICIT: { previousEnd: string; nextStart: string; gapHours: number };
-  INVALID_SHIFT_INTERVAL: { start: string; end: string };
-  INVALID_TRANSITION: { workflowId?: string; actorId?: string; reason?: string | null };
-}
 
 export interface RuleViolation {
   code: ViolationCode | (string & {});

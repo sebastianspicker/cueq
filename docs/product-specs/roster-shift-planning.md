@@ -1,6 +1,7 @@
 # Product Spec: Roster & Shift Planning (FR-300)
 
-> **Status:** ✅ Implemented | **Scope:** Core + API + Web
+> Evidence: Source and contract surfaces are present across Core, API, and
+> Web; the named tests are focused evidence, not deployment approval.
 
 ---
 
@@ -66,7 +67,7 @@ The feature is intentionally manual-first: no optimization or auto-scheduling in
 1. Planner creates `DRAFT` roster for OU and period.
 2. Planner manages shifts and assignments.
 3. Publish validates minimum staffing (`assignedHeadcount >= minStaffing` for every shift).
-4. On success: `DRAFT -> PUBLISHED` with immutable audit entry.
+4. On success: `DRAFT -> PUBLISHED` with an appended audit entry.
 
 ## 4. Plan-vs-Actual Semantics
 
@@ -103,4 +104,4 @@ For each shift slot:
 
 - Shift swap workflows
 - Automatic scheduling/optimization
-- Removal of legacy `Shift.personId` field (deferred compatibility cleanup)
+- Removal of the legacy `Shift.personId` compatibility field

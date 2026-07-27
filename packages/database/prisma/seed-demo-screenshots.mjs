@@ -1,3 +1,4 @@
+/** Builds the synthetic, deterministic mock-university dataset used to capture product screenshots locally. */
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -631,32 +632,20 @@ async function seedDemoAuditEntries() {
       },
     },
   ];
-  for (const entry of auditEntries) {
-    await prisma.auditEntry.upsert({
-      where: { id: entry.id },
-      create: {
-        id: entry.id,
-        timestamp: new Date(entry.timestamp),
-        actorId: IDs.personHr,
-        action: entry.action,
-        entityType: 'DemoRun',
-        entityId: entry.entityId,
-        after: entry.after,
-        reason: 'Synthetic deterministic mock-university screenshot baseline',
-        ipAddress: '127.0.0.1',
-      },
-      update: {
-        timestamp: new Date(entry.timestamp),
-        actorId: IDs.personHr,
-        action: entry.action,
-        entityType: 'DemoRun',
-        entityId: entry.entityId,
-        after: entry.after,
-        reason: 'Synthetic deterministic mock-university screenshot baseline',
-        ipAddress: '127.0.0.1',
-      },
-    });
-  }
+  await prisma.auditEntry.createMany({
+    data: auditEntries.map((entry) => ({
+      id: entry.id,
+      timestamp: new Date(entry.timestamp),
+      actorId: IDs.personHr,
+      action: entry.action,
+      entityType: 'DemoRun',
+      entityId: entry.entityId,
+      after: entry.after,
+      reason: 'Synthetic deterministic mock-university screenshot baseline',
+      ipAddress: '127.0.0.1',
+    })),
+    skipDuplicates: true,
+  });
 }
 
 async function seedDemoClosing() {
@@ -666,6 +655,7 @@ async function seedDemoClosing() {
   await seedDemoAuditEntries();
 }
 
+/** Applies screenshot-specific fixtures after the Phase 3 baseline; stable IDs and upserts keep reruns reproducible. */
 async function seed() {
   await seedDemoPeople();
   await seedDemoSecurityPeople();
@@ -673,6 +663,7 @@ async function seed() {
   await seedDemoClosing();
 }
 
+/** Delegates cleanup to the Phase 3 reset, which also clears the lower seed layers. */
 async function reset() {
   runPhase3('reset');
 }

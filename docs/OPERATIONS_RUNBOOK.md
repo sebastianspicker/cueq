@@ -1,341 +1,313 @@
-# OPERATIONS_RUNBOOK.md — Phase 3 Integrations & Ops
+# Operations runbook
 
----
+This runbook covers repository-provided local and maintenance procedures. It is
+not a deployment runbook for a specific institution.
 
-## 1. Scope
+Use synthetic data unless an approved deployment process defines a different
+data boundary.
 
-This runbook covers operational procedures introduced in Phase 3:
+## Local services
 
-- Terminal heartbeat and sync health
-- HR master data import (file + API provider)
-- Payroll export (`CSV_V1`, `XML_V1`)
-- Backup/restore verification (AT-08)
-
-## 2. Commands
-
-| Purpose                          | Command                                                                        |
-| -------------------------------- | ------------------------------------------------------------------------------ |
-| Full local validation            | `make check`                                                                   |
-| Acceptance including AT-08       | `make test-acceptance`                                                         |
-| Backup/restore drill (AT-08)     | `make test-backup-restore`                                                     |
-| Mock university demo screenshots | `make demo-screenshots`                                                        |
-| Phase 3 seed data                | `pnpm --filter @cueq/database db:seed:phase3`                                  |
-| Reset Phase 3 seed               | `pnpm --filter @cueq/database db:reset:phase3`                                 |
-| Demo screenshot seed data        | `pnpm --filter @cueq/database db:seed:demo`                                    |
-| Reset demo screenshot seed       | `pnpm --filter @cueq/database db:reset:demo`                                   |
-| HR import (CLI)                  | `node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv` |
-| FR-400 leave-adjustment backfill | `pnpm backfill:leave-adjustments -- --year 2026`                               |
-
-## 2.1 Auth Provider Modes
-
-- `AUTH_PROVIDER=mock`: local/dev token testing (`mock.<base64url-json>`)
-- `AUTH_PROVIDER=oidc`: OIDC validation via issuer JWKS
-- `AUTH_PROVIDER=saml`: SAML bridge token validation (`SAML_ISSUER`, `SAML_AUDIENCE`, `SAML_JWT_SECRET`)
-
-## 3. Terminal Gateway Operations
-
-### Heartbeats
-
-- Endpoint: `POST /v1/terminal/heartbeats`
-- Header: `x-integration-token: <TERMINAL_GATEWAY_TOKEN>`
-- Health endpoint: `GET /v1/terminal/health`
-
-### Incident Indicators
-
-- `heartbeatAgeSeconds > 1800` (30 min) is stale
-- `lastErrorCount > 0` signals degraded terminal state
-
-### Honeywell Terminal File Protocol
-
-- Endpoint: `POST /v1/terminal/sync/batches/file`
-- Protocol: `HONEYWELL_CSV_V1`
-- Payload shape:
-  - `terminalId`
-  - `sourceFile`
-  - `protocol` (`HONEYWELL_CSV_V1`)
-  - `csv` (header: `personId,timeTypeCode,startTime,endTime,note`)
-- Behavior:
-  - malformed rows are counted and skipped
-  - duplicate rows are deduplicated deterministically
-  - ingestion checksum is emitted in response/audit
-
-## 4. HR Import Operations
-
-### API Import
-
-- Endpoint: `POST /v1/hr/import-runs`
-- Header: `x-integration-token: <HR_IMPORT_TOKEN>`
-- Payload: `{ source: "FILE", sourceFile: "...", csv: "..." }`
-- API payload: `{ source: "API", sourceFile: "hr-master-http-v1" }`
-- Provider config:
-  - `HR_PROVIDER_MODE=stub|http`
-  - `HR_MASTER_API_URL`
-  - `HR_MASTER_API_TOKEN`
-  - `HR_MASTER_API_TIMEOUT_MS`
-
-### CLI Import
-
-Use file-first import for pilot batches:
+Start PostgreSQL and Keycloak:
 
 ```bash
-node scripts/hr-import.mjs --file fixtures/integrations/hr-master-phase3.csv
+docker compose up -d
 ```
 
-## 5. Payroll Export Operations
+The Compose ports are loopback-bound:
 
-- Lead sign-off (OE periods): `POST /v1/closing-periods/{id}/lead-approve`
-- HR final approval: `POST /v1/closing-periods/{id}/approve`
-- Trigger export: `POST /v1/closing-periods/{id}/export` with optional body `{ "format": "CSV_V1" | "XML_V1" }`
-- Download artifact: `GET /v1/closing-periods/{closingPeriodId}/export-runs/{runId}/csv`
-- Download format-agnostic artifact: `GET /v1/closing-periods/{closingPeriodId}/export-runs/{runId}/artifact`
-- Formats: `CSV_V1`, `XML_V1`
-- Deterministic checksum: `SHA-256` over canonical payload per format
+| Service    | Address                 |
+| ---------- | ----------------------- |
+| PostgreSQL | `localhost:5433`        |
+| Keycloak   | `http://localhost:8081` |
 
-### Lock behavior and corrections
+The committed credentials and Keycloak realm are synthetic development values.
+Do not expose these services publicly or reuse their credentials.
 
-- Mutable writes overlapping `REVIEW`, `APPROVED`, `EXPORTED` periods return `409` with code `CLOSING_PERIOD_LOCKED`.
-- Start post-close correction workflow: `POST /v1/closing-periods/{id}/post-close-corrections`
-- Apply approved booking correction: `POST /v1/closing-periods/{id}/corrections/bookings`
+Stop the services without removing data:
 
-### Monthly closing scheduler defaults
+```bash
+docker compose down
+```
 
-- `CLOSING_AUTO_CUTOFF_ENABLED=true`
-- `CLOSING_CUTOFF_DAY=3`
-- `CLOSING_CUTOFF_HOUR=12`
-- `CLOSING_TIMEZONE=Europe/Berlin`
-- `CLOSING_BOOKING_GAP_MINUTES=240`
-- `CLOSING_BALANCE_ANOMALY_HOURS=40`
-- `CLOSING_ALLOW_MANUAL_REVIEW_START=false`
+Remove the services and local database volume:
 
-## 5.1 Reporting Operations (FR-700)
+```bash
+docker compose down -v
+```
 
-- Team absence report: `GET /v1/reports/team-absence`
-- OU overtime report: `GET /v1/reports/oe-overtime`
-- Closing completion report: `GET /v1/reports/closing-completion`
-- Audit summary report: `GET /v1/reports/audit-summary`
-- Compliance summary report: `GET /v1/reports/compliance-summary`
+## Application startup
 
-### Role access
+For development:
 
-- Aggregated reports: `TEAM_LEAD`, `HR`, `ADMIN`, `DATA_PROTECTION`, `WORKS_COUNCIL`
-- Summary reports (`audit-summary`, `compliance-summary`): `HR`, `ADMIN`, `DATA_PROTECTION`, `WORKS_COUNCIL`
+```bash
+make dev
+```
 
-### Operational guardrails
+`make dev` requires a readable `.env` unless `CUEQ_ENV_FILE` selects another
+file. By default it starts the API on port 3001 and the web application on port 3000. `PORT` overrides the API port.
 
-- All report accesses are logged with `REPORT_ACCESSED` audit entries.
-- Aggregated report suppression uses `REPORT_MIN_GROUP_SIZE` (default `5`).
-- Summary report payloads are aggregate-only and do not include individual actor IDs.
+For built processes:
 
-## 6. Backup / Restore Verification
+```bash
+make build
+pnpm --filter @cueq/api start:prod
+pnpm --filter @cueq/web start
+```
 
-AT-08 automation verifies:
+The start commands do not load `.env`, apply migrations, configure TLS, or
+supervise the processes. Inject all runtime settings explicitly. See
+[CONFIGURATION.md](CONFIGURATION.md).
 
-1. Snapshot source dataset
-2. Restore into isolated schema
-3. Compare row counts and dataset checksum
-4. Verify audit continuity and write `BACKUP_RESTORE_VERIFIED` audit entry
+## Database migrations
 
-Run manually:
+Apply committed migrations:
+
+```bash
+pnpm --filter @cueq/database db:migrate:deploy
+```
+
+Create a development migration after changing the Prisma schema:
+
+```bash
+make db-migrate
+```
+
+Regenerate the Prisma client and contract artifacts:
+
+```bash
+make generate
+make openapi-check
+```
+
+Do not use `make db-push` as a substitute for committed migration review. It is
+a development schema synchronization command.
+
+## Synthetic seeds
+
+Load the phase-2 evaluation data:
+
+```bash
+pnpm --filter @cueq/database db:seed:phase2
+```
+
+Reset and reload that data:
+
+```bash
+pnpm --filter @cueq/database db:reset:phase2
+```
+
+Additional phase-3 and screenshot seeds are available through the
+`@cueq/database` package scripts. They are test data, not migration fixtures.
+
+## Health checks
+
+Public liveness:
+
+```bash
+curl http://localhost:3001/health
+```
+
+The response proves that the API process is serving requests. It does not query
+PostgreSQL.
+
+Authenticated operational health:
+
+```bash
+curl \
+  -H 'Authorization: Bearer <hr-or-admin-token>' \
+  http://localhost:3001/health/ready
+```
+
+This route reads operational records for terminals, HR imports, exports, and
+backup verification. It returns `ok` or `degraded` with HTTP 200.
+
+Terminal integration health:
+
+```bash
+curl \
+  -H 'x-integration-token: <terminal-integration-token>' \
+  http://localhost:3001/v1/terminal/health
+```
+
+Use deployment-specific probes and alert rules. The repository does not provide
+a metrics endpoint or alert delivery.
+
+## Authentication modes
+
+Local evaluation uses:
+
+```dotenv
+AUTH_PROVIDER=mock
+```
+
+Production mode rejects mock authentication. Use either:
+
+```dotenv
+AUTH_PROVIDER=oidc
+OIDC_ISSUER_URL=https://identity.example.invalid/realms/cueq
+OIDC_CLIENT_ID=cueq
+```
+
+or a configured external SAML bridge:
+
+```dotenv
+AUTH_PROVIDER=saml
+SAML_ISSUER=<bridge-issuer>
+SAML_AUDIENCE=<bridge-audience>
+SAML_JWT_SECRET=<deployment-secret>
+```
+
+The API SAML adapter verifies bridge JWTs. It does not implement the SAML
+protocol.
+
+## Terminal and HR integration tokens
+
+Terminal heartbeat and sync routes require `TERMINAL_GATEWAY_TOKEN`. HR import
+routes require `HR_IMPORT_TOKEN`. Development and test mode have local fallback
+values; production mode does not.
+
+Inject distinct random values through the deployment secret system. Rotate them
+with a coordinated client and server change. Do not put tokens in URLs, logs,
+fixtures, screenshots, issues, or command history.
+
+The terminal CSV protocol identifier in source is `HONEYWELL_CSV_V1`.
+
+## HR master-data provider
+
+`HR_PROVIDER_MODE=stub` uses the local stub provider.
+
+`HR_PROVIDER_MODE=http` enables the HTTP provider and requires
+`HR_MASTER_API_URL`. Production mode requires an HTTPS URL. The URL must not
+contain credentials. `HR_MASTER_API_TOKEN` adds an optional bearer token, and
+`HR_MASTER_API_TIMEOUT_MS` controls the bounded request timeout.
+
+The provider validates response shape before records enter the import pipeline.
+HTTP status, transport, and schema failures are reported as service errors.
+
+## Webhook signing keys
+
+The API requires `WEBHOOK_SECRET_ENCRYPTION_KEY`, a canonical base64 encoding
+of exactly 32 bytes. It encrypts stored webhook signing secrets with
+AES-256-GCM and binds each envelope to its endpoint ID.
+
+Check current rows without changing them:
+
+```bash
+make webhook-secrets-check
+```
+
+Before applying a legacy-row migration or key rotation:
+
+1. stop old API and dispatcher processes;
+2. drain webhook dispatch and database traffic;
+3. create and verify a database backup;
+4. inject the new `WEBHOOK_SECRET_ENCRYPTION_KEY`;
+5. inject the old key as `WEBHOOK_SECRET_PREVIOUS_ENCRYPTION_KEY` when rotating;
+6. run the count-only check; and
+7. review the result before applying changes.
+
+Apply the transactional migration only during the confirmed maintenance
+window:
+
+```bash
+WEBHOOK_SECRET_MAINTENANCE_CONFIRMED=1 make webhook-secrets-migrate
+```
+
+Run `make webhook-secrets-check` again before restarting the new processes. The
+migration validates rows before writing, aborts on unknown state, and does not
+print secret material.
+
+## Closing and payroll export
+
+Closing defaults are documented in [CONFIGURATION.md](CONFIGURATION.md).
+Operationally significant settings include the cutoff day, hour, time zone,
+booking-gap threshold, balance-anomaly threshold, and manual review switch.
+
+Closing state and post-close corrections are controlled by API role checks and
+database transactions. Export runs are recorded before their artifacts are
+downloaded. A successful local export does not establish acceptance by a
+payroll provider.
+
+Review changes to closing defaults with HR, payroll, privacy, and works-council
+owners before deployment.
+
+## Backup and restore verification
+
+Run:
 
 ```bash
 make test-backup-restore
 ```
 
-## 7. Weekly CI Drill
+The verifier creates a custom-format PostgreSQL dump, restores it into an
+isolated temporary database, compares table counts and content checksums, and
+records successful verification in the audit table.
 
-Weekly workflow: `.github/workflows/backup-restore-weekly.yml`
+The command requires a reachable PostgreSQL database and either local
+PostgreSQL client tools or the configured `POSTGRES_CLIENT_IMAGE`.
 
-- spins up PostgreSQL service
-- runs setup + backup/restore verification
-- fails on parity mismatch
+The scheduled GitHub Actions workflow
+`.github/workflows/backup-restore-weekly.yml` runs the drill against synthetic
+data. It does not configure production backup retention, off-site storage, WAL
+archiving, or recovery objectives.
 
-## 8. Security Notes
+## Diagnostics
 
-- Never commit integration tokens
-- Keep service-account scopes minimal
-- Preserve append-only audit behavior
-- No external telemetry
+### Database connection failures
 
-## 9. Local Demo Screenshots
-
-Generate deterministic German demo screenshots with a dedicated mock-university dataset:
+Prisma `P1001` means the configured database is unreachable.
 
 ```bash
-make demo-screenshots
+docker compose ps
+docker compose logs postgres
 ```
 
-Artifacts are generated locally only in:
+Confirm the host, port, credentials, database name, and schema in
+`DATABASE_URL`.
 
-`apps/web/test-results/demo-screenshots/latest/`
+### Migration failures during setup
 
-Expected files:
+If `make setup` started Compose and migration deployment fails, it removes the
+cueq Compose volumes and retries once. Recover required data before rerunning.
+For a non-disposable database, run the migration command directly and inspect
+the Prisma error without invoking the setup reset path.
 
-- `01-dashboard.png`
-- `02-leave.png`
-- `03-roster.png`
-- `04-approvals.png`
-- `05-closing.png`
-- `06-reports.png`
+### API startup failure
 
-## 10. Diagnostics
+Check:
 
-This section covers how to investigate the most common production problems.
+- `DATABASE_URL`;
+- `WEBHOOK_SECRET_ENCRYPTION_KEY`;
+- the authentication provider and its required settings;
+- production integration tokens; and
+- `CORS_ORIGINS` for browser access.
 
-### 10.1 Slow Queries
+The API intentionally fails closed for invalid webhook-key and production mock
+authentication configuration.
 
-**Symptoms:** API response times >500 ms; health endpoint shows DB latency spikes.
+### Browser cannot reach the API
 
-**Steps:**
+The local web application expects `/api` and rewrites it to
+`http://localhost:3001`. For direct browser access to the API, add the exact web
+origin to `CORS_ORIGINS`. Changing `CUEQ_DEV_HOST` does not update CORS.
 
-1. Enable PostgreSQL slow-query logging temporarily:
-   ```sql
-   ALTER SYSTEM SET log_min_duration_statement = '200';  -- log queries >200 ms
-   SELECT pg_reload_conf();
-   ```
-2. Tail the Postgres log (adjust path for your deployment):
-   ```bash
-   tail -f /var/log/postgresql/postgresql.log | grep duration
-   ```
-3. Check the most common hot paths and their indexes:
+### TypeScript or dependency mismatch
 
-   ```sql
-   -- Approval inbox (WorkflowInstance by approver + status)
-   EXPLAIN ANALYZE
-   SELECT * FROM workflow_instances
-   WHERE "approverId" = '<uuid>' AND status = 'PENDING';
+Reinstall the pinned graph:
 
-   -- Absence status dashboard
-   EXPLAIN ANALYZE
-   SELECT * FROM absences
-   WHERE "personId" = '<uuid>' AND status IN ('REQUESTED', 'APPROVED');
-
-   -- Booking lookup by person + accounting period
-   EXPLAIN ANALYZE
-   SELECT * FROM bookings
-   WHERE "personId" = '<uuid>'
-     AND "startTime" >= TIMESTAMPTZ '2026-04-01T00:00:00Z'
-     AND "startTime" <  TIMESTAMPTZ '2026-05-01T00:00:00Z';
-   ```
-
-   If any of these show `Seq Scan`, confirm the relevant indexes are present:
-   - `workflow_instances_approverId_status_idx`
-   - `workflow_instances_requesterId_status_idx`
-   - `absences_personId_status_idx`
-   - `bookings_personId_startTime_idx`
-
-   Re-run `make db-migrate` if indexes are missing.
-
-4. Reset slow-query logging after investigation:
-   ```sql
-   ALTER SYSTEM RESET log_min_duration_statement;
-   SELECT pg_reload_conf();
-   ```
-
----
-
-### 10.2 Audit-Trail Gaps
-
-**Symptoms:** Audit page shows missing actions between state transitions; compliance checks fail; payroll auditors flag unlogged changes.
-
-**Steps:**
-
-1. Query for entity state-change sequences that skip expected actions:
-   ```sql
-   -- Find Absence entities that went APPROVED → EXPORTED without a CLOSING_EXPORTED entry
-   SELECT a.id, a.status
-   FROM absences a
-   WHERE a.status = 'EXPORTED'
-     AND NOT EXISTS (
-       SELECT 1 FROM audit_entries ae
-       WHERE ae.entity_id = a.id
-         AND ae.action = 'CLOSING_EXPORTED'
-     );
-   ```
-2. Check for duplicate or out-of-order entries:
-   ```sql
-   SELECT entity_id, action, COUNT(*) AS n
-   FROM audit_entries
-   GROUP BY entity_id, action
-   HAVING COUNT(*) > 1
-   ORDER BY n DESC;
-   ```
-3. Verify the audit entry append-only constraint is intact (no `UPDATE`/`DELETE` permissions on `audit_entries` for the app DB user):
-   ```sql
-   SELECT grantee, privilege_type
-   FROM information_schema.role_table_grants
-   WHERE table_name = 'audit_entries'
-     AND grantee = '<app_db_user>';
-   ```
-   Only `SELECT` and `INSERT` should be present.
-4. If gaps are found, file a compliance incident. Do **not** back-fill audit entries manually — create a corrective entry with `action = 'AUDIT_GAP_NOTED'` and document the root cause.
-
----
-
-### 10.3 Workflow Escalation Failures
-
-**Symptoms:** Approvals stuck in `PENDING`; escalation notifications not sent; assignments not advancing after deadline.
-
-**Steps:**
-
-1. Check for stale `PENDING` workflow instances past their SLA:
-   ```sql
-   SELECT id, workflow_type, assignee_id, created_at,
-          NOW() - created_at AS age
-   FROM workflow_instances
-   WHERE status = 'PENDING'
-     AND created_at < NOW() - INTERVAL '48 hours'
-   ORDER BY age DESC;
-   ```
-2. Verify that delegation rules are active for the affected workflow type:
-   ```sql
-   SELECT * FROM workflow_delegation_rules
-   WHERE workflow_type = '<type>'
-     AND active = true;
-   ```
-3. Check the API logs for escalation side-effect errors:
-   ```bash
-   grep -i "escalat\|delegation\|workflow.*error" /var/log/cueq/api.log | tail -100
-   ```
-4. If escalation is stuck due to a missing delegate (e.g., HR user deactivated):
-   - Assign a new delegate via `PUT /v1/workflows/delegations` (HR/Admin role required).
-   - Manually trigger re-assignment via `PATCH /v1/workflows/:id` with the new `assigneeId`.
-5. For permanent escalation loop issues, check the policy `escalationAfterHours` value:
-   ```sql
-   SELECT type, config->>'escalationAfterHours' AS sla_hours, active_from, active_to
-   FROM workflow_policies
-   WHERE active_to IS NULL
-   ORDER BY type;
-   ```
-
----
-
-### 10.4 Interpreting Health Check Payloads
-
-The readiness endpoint is `GET /health/ready`. A `200` response with the following structure indicates all subsystems are operational:
-
-```json
-{
-  "status": "ok",
-  "db": "ok",
-  "terminalLastSeen": {
-    "pforte-01": "2026-04-19T08:45:00.000Z",
-    "pforte-02": "2026-04-19T08:44:58.000Z"
-  },
-  "latestHrImport": "2026-04-19T06:00:00.000Z",
-  "latestPayrollExport": "2026-04-18T23:59:00.000Z"
-}
+```bash
+./scripts/pnpm.sh install --frozen-lockfile
+make typecheck
 ```
 
-| Field                 | Expected                    | Action if stale/missing                                          |
-| --------------------- | --------------------------- | ---------------------------------------------------------------- |
-| `db`                  | `"ok"`                      | Check Postgres container; run `docker compose ps`                |
-| `terminalLastSeen`    | All terminals within 15 min | Check terminal network; inspect terminal firmware logs           |
-| `latestHrImport`      | Within 25 h (daily import)  | Re-trigger `POST /v1/hr-import` manually; check SFTP credentials |
-| `latestPayrollExport` | Present if period is closed | Check `ClosingPeriod.status`; re-trigger export if stuck         |
+The repository verifies both the native TypeScript compiler package and the
+compatibility compiler used by current tooling.
 
-A `503` response means at least one subsystem is unhealthy. The `status` field will be `"error"` and individual fields will show `"degraded"` or an error message.
+## Incident boundary
 
-**Common false positives:**
+The repository contains no paging, escalation, communication, or recovery-time
+policy. A deployment owner must define those procedures and must control access
+to logs, exports, backups, secrets, and database administration.
 
-- Terminals show stale during network maintenance windows (expected; suppress alerts for scheduled windows).
-- `latestHrImport` stale on weekends if HR has no Saturday delivery — confirm with HR schedule.
+Security reports follow [../SECURITY.md](../SECURITY.md).

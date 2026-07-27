@@ -1,5 +1,7 @@
+/** Coordinates transactional workflow routing, decisions, delegation, and escalation. */
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -14,24 +16,25 @@ import type {
   WorkflowInboxQuery,
   WorkflowPolicyUpsert,
 } from '@cueq/shared';
-import { PrismaService } from '../persistence/prisma.service';
-import { AuditHelper } from './helpers/audit.helper';
-import { HR_LIKE_ROLES } from './helpers/role-constants';
-import { WorkflowAssignmentHelper } from './helpers/workflow-assignment.helper';
-import { WorkflowDelegationCrudHelper } from './helpers/workflow-delegation-crud.helper';
-import { WorkflowSideEffectsHelper } from './helpers/workflow-side-effects.helper';
+import { PrismaService } from '../persistence/prisma.service.js';
+import { AuditHelper } from './helpers/audit.helper.js';
+import { HR_LIKE_ROLES } from './helpers/role-constants.js';
+import { WorkflowAssignmentHelper } from './helpers/workflow-assignment.helper.js';
+import { WorkflowDelegationCrudHelper } from './helpers/workflow-delegation-crud.helper.js';
+import { WorkflowSideEffectsHelper } from './helpers/workflow-side-effects.helper.js';
+import { lockPersonWrites } from './helpers/transaction-lock.helper.js';
 import type {
   WorkflowActor,
   WorkflowAssignmentInput,
   WorkflowAssignmentResult,
   WorkflowDecisionResult,
-} from './helpers/workflow-utils';
+} from './helpers/workflow-utils.js';
 import {
   appendTrail,
   isRoleAllowedForType,
   isWorkflowFinal,
   toIso,
-} from './helpers/workflow-utils';
+} from './helpers/workflow-utils.js';
 
 export type {
   WorkflowActor,
@@ -40,6 +43,10 @@ export type {
   WorkflowDecisionResult,
 };
 
+/**
+ * Coordinates workflow routing, decisions, delegation, escalation, and their audit trail.
+ * State changes run under person and policy locks to preserve a single valid transition history.
+ */
 @Injectable()
 export class WorkflowRuntimeService {
   constructor(
@@ -195,7 +202,7 @@ export class WorkflowRuntimeService {
   async decide(
     actor: WorkflowActor,
     command: WorkflowDecisionCommand,
-    tx?: Pick<PrismaService, 'workflowInstance' | 'auditEntry'>,
+    tx?: Prisma.TransactionClient,
   ): Promise<WorkflowDecisionResult> {
     const db = tx ?? this.prisma;
     const action = this.normalizeAction(command);
@@ -205,30 +212,48 @@ export class WorkflowRuntimeService {
     if (!workflow) {
       throw new NotFoundException('Workflow not found.');
     }
+    await this.validateDecision(actor, workflow, action, command.reason);
+    const transition = this.transitionDecision(actor, workflow, action, command.reason);
+    const routing = await this.resolveDecisionRouting(actor, workflow, action, command, tx);
+    const updated = await this.persistDecision(db, workflow, action, command, transition, routing);
+    await this.appendDecisionAudit(actor.id, action, workflow, updated, command.reason, db);
 
-    const actions = this.availableActions(workflow, actor);
-    if (!actions.includes(action)) {
+    return {
+      action,
+      previous: workflow,
+      updated,
+    };
+  }
+
+  private async validateDecision(
+    actor: WorkflowActor,
+    workflow: WorkflowInstance,
+    action: WorkflowAction,
+    reason?: string,
+  ) {
+    if (!this.availableActions(workflow, actor).includes(action)) {
       throw new ForbiddenException('Action is not allowed for this actor and workflow state.');
     }
-
     if (action !== 'CANCEL' && !isRoleAllowedForType(actor.role, workflow.type)) {
       throw new ForbiddenException('Role cannot decide this workflow type.');
     }
-
     if (action === 'APPROVE') {
-      await this.sideEffectsHelper.validatePostCloseSelfApproval(
-        actor.id,
-        workflow,
-        command.reason,
-      );
+      await this.sideEffectsHelper.validatePostCloseSelfApproval(actor.id, workflow, reason);
     }
+  }
 
+  private transitionDecision(
+    actor: WorkflowActor,
+    workflow: WorkflowInstance,
+    action: WorkflowAction,
+    reason?: string,
+  ) {
     const transition = transitionWorkflow({
       workflowId: workflow.id,
       currentStatus: workflow.status,
       decision: action as WorkflowDecision,
       actorId: actor.id,
-      reason: command.reason,
+      reason,
       at: toIso(new Date()),
     });
     if (!transition.ok) {
@@ -239,75 +264,113 @@ export class WorkflowRuntimeService {
         details: transition.violations,
       });
     }
+    return transition;
+  }
 
-    let nextApproverId = workflow.approverId;
-    let delegationTrail = appendTrail(workflow.delegationTrail, workflow.approverId);
-    if (action === 'DELEGATE') {
-      if (!command.delegateToId) {
-        throw new BadRequestException('delegateToId is required for DELEGATE.');
-      }
-      await this.delegationCrud.validateInlineDelegation({
+  private async resolveDecisionRouting(
+    actor: WorkflowActor,
+    workflow: WorkflowInstance,
+    action: WorkflowAction,
+    command: WorkflowDecisionCommand,
+    tx?: Prisma.TransactionClient,
+  ) {
+    if (action !== 'DELEGATE') {
+      return {
+        nextApproverId: workflow.approverId,
+        delegationTrail: appendTrail(workflow.delegationTrail, workflow.approverId),
+      };
+    }
+    if (!command.delegateToId) {
+      throw new BadRequestException('delegateToId is required for DELEGATE.');
+    }
+    if (tx) await lockPersonWrites(tx, [command.delegateToId]);
+    await this.delegationCrud.validateInlineDelegation(
+      {
         delegateToId: command.delegateToId,
         actorId: actor.id,
         actorRole: actor.role,
         actorOrganizationUnitId: actor.organizationUnitId,
         requesterId: workflow.requesterId,
         workflowType: workflow.type,
-      });
+      },
+      tx,
+    );
+    return {
+      nextApproverId: command.delegateToId,
+      delegationTrail: appendTrail(workflow.delegationTrail, command.delegateToId),
+    };
+  }
 
-      nextApproverId = command.delegateToId;
-      delegationTrail = appendTrail(workflow.delegationTrail, command.delegateToId);
-    }
-
-    const updated = await db.workflowInstance.update({
-      where: { id: workflow.id, status: workflow.status },
+  private async persistDecision(
+    db: PrismaService | Prisma.TransactionClient,
+    workflow: WorkflowInstance,
+    action: WorkflowAction,
+    command: WorkflowDecisionCommand,
+    transition: ReturnType<typeof transitionWorkflow> & { ok: true },
+    routing: { nextApproverId: string | null; delegationTrail: string[] },
+  ) {
+    const updatedCount = await db.workflowInstance.updateMany({
+      where: {
+        id: workflow.id,
+        status: workflow.status,
+        approverId: workflow.approverId,
+        delegationTrail: { equals: workflow.delegationTrail ?? undefined },
+      },
       data: {
         status: transition.nextStatus,
-        approverId: nextApproverId,
-        delegationTrail,
+        approverId: routing.nextApproverId,
+        delegationTrail: routing.delegationTrail,
         decisionReason: command.reason ?? workflow.decisionReason,
-        decidedAt:
-          action === 'APPROVE' || action === 'REJECT' || action === 'CANCEL'
-            ? new Date(transition.decidedAt)
-            : workflow.decidedAt,
+        decidedAt: ['APPROVE', 'REJECT', 'CANCEL'].includes(action)
+          ? new Date(transition.decidedAt)
+          : workflow.decidedAt,
       },
     });
+    if (updatedCount.count === 0) {
+      throw new ConflictException({
+        code: 'WORKFLOW_DECISION_IN_PROGRESS',
+        message: 'This workflow changed while the decision was being processed.',
+        retryable: true,
+      });
+    }
+    return db.workflowInstance.findUniqueOrThrow({ where: { id: workflow.id } });
+  }
 
+  private async appendDecisionAudit(
+    actorId: string,
+    action: WorkflowAction,
+    workflow: WorkflowInstance,
+    updated: WorkflowInstance,
+    reason: string | undefined,
+    db: PrismaService | Prisma.TransactionClient,
+  ) {
+    const auditAction =
+      action === 'DELEGATE'
+        ? 'WORKFLOW_DELEGATED'
+        : action === 'CANCEL'
+          ? 'WORKFLOW_CANCELLED'
+          : 'WORKFLOW_DECIDED';
     await this.auditHelper.appendAudit(
       {
-        actorId: actor.id,
-        action:
-          action === 'DELEGATE'
-            ? 'WORKFLOW_DELEGATED'
-            : action === 'CANCEL'
-              ? 'WORKFLOW_CANCELLED'
-              : 'WORKFLOW_DECIDED',
+        actorId,
+        action: auditAction,
         entityType: 'WorkflowInstance',
         entityId: workflow.id,
-        before: {
-          status: workflow.status,
-          approverId: workflow.approverId,
-        },
-        after: {
-          status: updated.status,
-          approverId: updated.approverId,
-        },
-        reason: command.reason,
+        before: { status: workflow.status, approverId: workflow.approverId },
+        after: { status: updated.status, approverId: updated.approverId },
+        reason,
       },
       db,
     );
-
-    return {
-      action,
-      previous: workflow,
-      updated,
-    };
   }
 
   /* ── Delegated to Helpers ────────────────────────────────── */
 
-  async buildWorkflowAssignment(input: WorkflowAssignmentInput): Promise<WorkflowAssignmentResult> {
-    return this.assignmentHelper.buildWorkflowAssignment(input);
+  async buildWorkflowAssignment(
+    input: WorkflowAssignmentInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<WorkflowAssignmentResult> {
+    return this.assignmentHelper.buildWorkflowAssignment(input, tx);
   }
 
   async listPolicies(): Promise<WorkflowPolicy[]> {

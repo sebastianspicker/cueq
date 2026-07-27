@@ -1,5 +1,6 @@
-import { consumeRowBreak, type CsvParserState } from './csv-parser-state';
-import { consumeDelimiter, consumeLineBreak } from './csv-token-consumers';
+/** Small dependency-free CSV parser for import payloads, including quoted fields and BOM cleanup. */
+import { consumeRowBreak, type CsvParserState } from './csv-parser-state.js';
+import { consumeDelimiter, consumeLineBreak } from './csv-token-consumers.js';
 
 function consumeQuote(state: CsvParserState, next: string | undefined): number {
   if (state.inQuotes && next === '"') {
@@ -38,6 +39,7 @@ function parseCsvRows(csv: string): string[][] {
   return state.rows;
 }
 
+/** Parses header-based CSV input and rejects ambiguous header contracts before import processing. */
 export function parseCsvRecords(csv: string): {
   headers: string[];
   rows: Array<Record<string, string>>;

@@ -1,11 +1,12 @@
+/** Accounts for work, pause, and surcharge minutes without introducing I/O or mutable state. */
 import type { SurchargeCategory, SurchargeRule } from '@cueq/policy';
-import { isWithinWindow, localMinuteInfo, selectSurchargeCategory } from './surcharge';
-import type { TimeRuleInterval } from './types';
+import { isWithinWindow, localMinuteInfo, selectSurchargeCategory } from './surcharge.js';
+import type { TimeRuleInterval } from './types.js';
 
 const MINUTE_MS = 60_000;
 
 export type DailyTotals = { workMinutes: number; pauseMinutes: number };
-export type SurchargeCategoryConfig = SurchargeRule['categories'][number];
+type SurchargeCategoryConfig = SurchargeRule['categories'][number];
 export type CategoryConfigByCategory = Map<SurchargeCategory, SurchargeCategoryConfig>;
 
 function surchargeCategoryForMinute(
@@ -41,6 +42,7 @@ function forEachStartedMinute(
   }
 }
 
+/** Record each started work minute once and assign at most one surcharge category. */
 export function recordWorkMinutes(
   intervals: TimeRuleInterval[],
   formatter: Intl.DateTimeFormat,
@@ -69,6 +71,7 @@ export function recordWorkMinutes(
   return totalWorkMinutes;
 }
 
+/** Add pause minutes to per-local-day totals using the same timezone projection as work. */
 export function recordPauseMinutes(
   intervals: TimeRuleInterval[],
   formatter: Intl.DateTimeFormat,

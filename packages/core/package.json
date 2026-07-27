@@ -2,30 +2,36 @@
   "name": "@cueq/core",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Pure domain core logic for cueq",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "test": "vitest run --coverage",
-    "test:coverage": "vitest run --coverage",
+    "test": "vitest run",
+    "test:coverage": "CUEQ_INCLUDE_SPECIALIZED_TESTS=1 vitest run --coverage",
     "test:unit": "vitest run",
-    "test:integration": "vitest run src/core/__tests__/phase2.integration.test.ts",
-    "test:acceptance": "vitest run src/core/__tests__/phase2.acceptance.test.ts",
-    "test:compliance": "vitest run src/core/audit/__tests__/build-audit-entry.compliance.test.ts",
+    "test:compliance": "vitest run --config vitest.suites.config.ts src/core/audit/__tests__/build-audit-entry.compliance.test.ts",
     "clean": "rm -rf dist node_modules/.cache coverage"
   },
   "dependencies": {
     "@cueq/policy": "workspace:*",
-    "@cueq/shared": "workspace:*",
-    "zod": "3.25.76"
+    "@cueq/shared": "workspace:*"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "3.2.4",
-    "typescript": "5.9.3",
-    "vitest": "3.2.4"
+    "@types/node": "catalog:",
+    "@typescript/native": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
   }
 }

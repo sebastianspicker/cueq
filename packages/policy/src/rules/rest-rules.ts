@@ -1,5 +1,6 @@
+/** Defines versioned minimum-rest policy contracts and the current ArbZG reference default. */
 import { z } from 'zod';
-import { PolicyRuleMetaSchema } from '../types';
+import { PolicyRuleMetaSchema } from '../types.js';
 
 /**
  * Rest period rules (ArbZG §5).
