@@ -22,6 +22,10 @@ This is a source alpha for local evaluation. It is not a hosted service or an
 approved system for institutional use. Do not load real employee, payroll,
 health, credential, or operational data.
 
+Explore the [guided static demo](https://sebastianspicker.github.io/cueq/). It
+uses sanitized fixture captures of the real interface; every command-capable
+action is visibly marked as simulated and no backend is connected.
+
 The current release evidence and unresolved gates are recorded in
 [RELEASE_STATUS.md](RELEASE_STATUS.md).
 
