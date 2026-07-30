@@ -98,6 +98,7 @@ const caption = document.querySelector('#screen-caption');
 const position = document.querySelector('#screen-position');
 const previous = document.querySelector('#previous-screen');
 const next = document.querySelector('#next-screen');
+const panel = document.querySelector('#demo-panel');
 let currentScreen = 0;
 
 function renderScreen(index, { focusTab = false } = {}) {
@@ -125,6 +126,7 @@ function renderScreen(index, { focusTab = false } = {}) {
   position.textContent = `${currentScreen + 1} of ${screens.length}`;
   previous.disabled = currentScreen === 0;
   next.disabled = currentScreen === screens.length - 1;
+  panel.setAttribute('aria-labelledby', `screen-tab-${currentScreen + 1}`);
 
   tabs.forEach((tab, tabIndex) => {
     const selected = tabIndex === currentScreen;
@@ -141,13 +143,17 @@ tabs.forEach((tab, index) => {
   tab.addEventListener('keydown', (event) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
-    const nextIndex =
-      event.key === 'Home'
-        ? 0
-        : event.key === 'End'
-          ? screens.length - 1
-          : (currentScreen + (event.key === 'ArrowRight' ? 1 : -1) + screens.length) %
-            screens.length;
+    const nextIndex = Math.max(
+      0,
+      Math.min(
+        screens.length - 1,
+        event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? screens.length - 1
+            : currentScreen + (event.key === 'ArrowRight' ? 1 : -1),
+      ),
+    );
     renderScreen(nextIndex, { focusTab: true });
   });
 });
@@ -157,3 +163,8 @@ next.addEventListener('click', () => renderScreen(currentScreen + 1));
 
 const requestedScreen = Number.parseInt(window.location.hash.replace('#screen-', ''), 10) - 1;
 renderScreen(Number.isInteger(requestedScreen) ? requestedScreen : 0);
+
+window.addEventListener('hashchange', () => {
+  const hashScreen = Number.parseInt(window.location.hash.replace('#screen-', ''), 10) - 1;
+  if (Number.isInteger(hashScreen) && hashScreen !== currentScreen) renderScreen(hashScreen);
+});

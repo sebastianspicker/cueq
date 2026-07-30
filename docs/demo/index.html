@@ -57,17 +57,69 @@
 
       <section class="demo-workspace" aria-labelledby="screen-title">
         <nav class="demo-step-nav" aria-label="Demo screens" role="tablist">
-          <button type="button" role="tab" data-screen="0" aria-selected="true">01 Today</button>
-          <button type="button" role="tab" data-screen="1" aria-selected="false">02 Leave</button>
-          <button type="button" role="tab" data-screen="2" aria-selected="false">03 Roster</button>
-          <button type="button" role="tab" data-screen="3" aria-selected="false">
+          <button
+            id="screen-tab-1"
+            type="button"
+            role="tab"
+            data-screen="0"
+            aria-controls="demo-panel"
+            aria-selected="true"
+          >
+            01 Today
+          </button>
+          <button
+            id="screen-tab-2"
+            type="button"
+            role="tab"
+            data-screen="1"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
+            02 Leave
+          </button>
+          <button
+            id="screen-tab-3"
+            type="button"
+            role="tab"
+            data-screen="2"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
+            03 Roster
+          </button>
+          <button
+            id="screen-tab-4"
+            type="button"
+            role="tab"
+            data-screen="3"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
             04 Approvals
           </button>
-          <button type="button" role="tab" data-screen="4" aria-selected="false">05 Closing</button>
-          <button type="button" role="tab" data-screen="5" aria-selected="false">06 Reports</button>
+          <button
+            id="screen-tab-5"
+            type="button"
+            role="tab"
+            data-screen="4"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
+            05 Closing
+          </button>
+          <button
+            id="screen-tab-6"
+            type="button"
+            role="tab"
+            data-screen="5"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
+            06 Reports
+          </button>
         </nav>
 
-        <div class="demo-stage">
+        <div id="demo-panel" class="demo-stage" role="tabpanel" aria-labelledby="screen-tab-1">
           <div class="demo-copy">
             <p id="screen-meta" class="demo-screen-meta"></p>
             <h2 id="screen-title"></h2>
