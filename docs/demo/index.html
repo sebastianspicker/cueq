@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="A guided static demonstration of cueq using sanitized fixture data and captures of the real product interface."
+    />
+    <title>cueq guided static demo</title>
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./app.css" />
+    <link rel="stylesheet" href="./demo.css" />
+    <script src="./demo.js" defer></script>
+  </head>
+  <body>
+    <a class="cq-skip-link" href="#demo-viewer">Skip to demo</a>
+
+    <header class="demo-header">
+      <a
+        class="demo-brand"
+        href="https://github.com/sebastianspicker/cueq"
+        aria-label="cueq repository"
+      >
+        <svg aria-hidden="true" viewBox="0 0 64 64">
+          <path
+            d="M27 13h-6C10 13 6 21 6 32s4 19 15 19h6M37 13h6c11 0 15 8 15 19s-4 19-15 19h-6M22 51l5 6M42 51l-5 6"
+          />
+        </svg>
+        <span>
+          <strong>cueq</strong>
+          <small>Guided static demo</small>
+        </span>
+      </a>
+      <a class="demo-source-link" href="https://github.com/sebastianspicker/cueq">View source</a>
+    </header>
+
+    <main id="demo-viewer" class="demo-main">
+      <section class="demo-intro" aria-labelledby="demo-title">
+        <div>
+          <p class="demo-context">Source alpha · German university context</p>
+          <h1 id="demo-title">A guided view of workforce operations</h1>
+          <p>
+            Six captures from the real cueq interface show time recording, leave, roster planning,
+            approvals, monthly closing, and reporting with deterministic synthetic data.
+          </p>
+        </div>
+        <aside class="demo-boundary" aria-label="Simulation boundary">
+          <strong>Static simulation</strong>
+          <p>
+            No API, database, identity provider, or command runs here. Controls inside each capture
+            are non-operative. Every command-capable action shown is named below and marked
+            <span class="demo-simulated-label">Simulated</span>.
+          </p>
+        </aside>
+      </section>
+
+      <section class="demo-workspace" aria-labelledby="screen-title">
+        <nav class="demo-step-nav" aria-label="Demo screens" role="tablist">
+          <button
+            id="screen-tab-1"
+            type="button"
+            role="tab"
+            data-screen="0"
+            aria-controls="demo-panel"
+            aria-selected="true"
+          >
+            01 Today
+          </button>
+          <button
+            id="screen-tab-2"
+            type="button"
+            role="tab"
+            data-screen="1"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
+            02 Leave
+          </button>
+          <button
+            id="screen-tab-3"
+            type="button"
+            role="tab"
+            data-screen="2"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
+            03 Roster
+          </button>
+          <button
+            id="screen-tab-4"
+            type="button"
+            role="tab"
+            data-screen="3"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
+            04 Approvals
+          </button>
+          <button
+            id="screen-tab-5"
+            type="button"
+            role="tab"
+            data-screen="4"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
+            05 Closing
+          </button>
+          <button
+            id="screen-tab-6"
+            type="button"
+            role="tab"
+            data-screen="5"
+            aria-controls="demo-panel"
+            aria-selected="false"
+          >
+            06 Reports
+          </button>
+        </nav>
+
+        <div id="demo-panel" class="demo-stage" role="tabpanel" aria-labelledby="screen-tab-1">
+          <div class="demo-copy">
+            <p id="screen-meta" class="demo-screen-meta"></p>
+            <h2 id="screen-title"></h2>
+            <p id="screen-summary"></p>
+
+            <div class="demo-actions">
+              <h3>Command actions shown in this capture</h3>
+              <ul id="screen-actions"></ul>
+            </div>
+
+            <div class="demo-pager" aria-label="Demo navigation">
+              <button id="previous-screen" class="demo-secondary" type="button">
+                Previous screen
+              </button>
+              <span id="screen-position" aria-live="polite"></span>
+              <button id="next-screen" type="button">Next screen</button>
+            </div>
+          </div>
+
+          <figure class="demo-capture">
+            <div class="demo-capture-bar">
+              <span><span aria-hidden="true"></span> Synthetic fixture capture</span>
+              <strong>All captured controls are non-operative</strong>
+            </div>
+            <img id="screen-image" alt="" width="1440" height="937" />
+            <figcaption id="screen-caption"></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="demo-notes" aria-labelledby="what-this-is">
+        <h2 id="what-this-is">What this demo is, and is not</h2>
+        <div>
+          <p>
+            This page is a documentation surface built from the repository's tracked screenshot
+            contract. It does not reproduce cueq's domain rules, persistence, authorization, or
+            write workflows.
+          </p>
+          <p>
+            cueq remains a local evaluation source alpha, not a hosted service or an approved
+            institutional system. Do not use real employee, payroll, health, credential, or
+            operational data.
+          </p>
+        </div>
+        <p class="demo-reference-links">
+          <a href="https://github.com/sebastianspicker/cueq#readme">Repository overview</a>
+          <a href="https://github.com/sebastianspicker/cueq/blob/main/RELEASE_STATUS.md"
+            >Release evidence</a
+          >
+          <a
+            href="https://github.com/sebastianspicker/cueq/blob/main/docs/assets/screenshots/README.md"
+            >Screenshot contract</a
+          >
+        </p>
+      </section>
+    </main>
+
+    <footer class="demo-footer">
+      <span>cueq · deterministic synthetic fixture data</span>
+      <span>This static page sends no product commands.</span>
+    </footer>
+  </body>
+</html>

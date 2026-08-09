@@ -33,11 +33,20 @@ function booking(
   };
 }
 
-function makeHelper(bookings: ReturnType<typeof booking>[]) {
+function makeHelper(
+  bookings: ReturnType<typeof booking>[],
+  options: {
+    actorOrganizationUnitId?: string;
+    people?: Array<{ id: string }>;
+    period?: typeof PERIOD | null;
+  } = {},
+) {
   const tx = {
     $queryRaw: vi.fn().mockResolvedValue([{ acquired: true }]),
-    closingPeriod: { findUnique: vi.fn().mockResolvedValue(PERIOD) },
-    person: { findMany: vi.fn().mockResolvedValue([{ id: 'person-1' }]) },
+    closingPeriod: {
+      findUnique: vi.fn().mockResolvedValue(options.period === undefined ? PERIOD : options.period),
+    },
+    person: { findMany: vi.fn().mockResolvedValue(options.people ?? [{ id: 'person-1' }]) },
     booking: { findMany: vi.fn().mockResolvedValue(bookings) },
     absence: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
     workflowInstance: { count: vi.fn().mockResolvedValue(0) },
@@ -51,23 +60,72 @@ function makeHelper(bookings: ReturnType<typeof booking>[]) {
   const eventOutboxHelper = {
     enqueueDomainEvent: vi.fn().mockResolvedValue(undefined),
   };
+  const personHelper = {
+    personForUser: vi
+      .fn()
+      .mockResolvedValue({ organizationUnitId: options.actorOrganizationUnitId ?? 'unit-1' }),
+  };
+  const timeThresholdPolicyHelper = {
+    getActiveThresholds: vi.fn().mockResolvedValue({
+      dailyMaxMinutes: 600,
+      minRestMinutes: 660,
+    }),
+  };
   const helper = new ClosingChecklistHelper(
     prisma as never,
-    {
-      personForUser: vi.fn().mockResolvedValue({ organizationUnitId: 'unit-1' }),
-    } as never,
+    personHelper as never,
     eventOutboxHelper as never,
-    {
-      getActiveThresholds: vi.fn().mockResolvedValue({
-        dailyMaxMinutes: 600,
-        minRestMinutes: 660,
-      }),
-    } as never,
+    timeThresholdPolicyHelper as never,
   );
-  return { eventOutboxHelper, helper, prisma, tx };
+  return { eventOutboxHelper, helper, personHelper, prisma, timeThresholdPolicyHelper, tx };
 }
 
 describe('ClosingChecklistHelper', () => {
+  it('resolves the actor before denying an unauthorized checklist read', async () => {
+    const { eventOutboxHelper, helper, personHelper, prisma, tx } = makeHelper([]);
+    const unauthorizedUser = { ...ADMIN_USER, role: Role.EMPLOYEE };
+
+    await expect(helper.closingChecklist(unauthorizedUser, PERIOD.id)).rejects.toThrow(
+      'Role does not permit reading closing checklist details.',
+    );
+
+    expect(personHelper.personForUser).toHaveBeenCalledWith(unauthorizedUser);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(eventOutboxHelper.enqueueDomainEvent).not.toHaveBeenCalled();
+  });
+
+  it('locks the root transaction before reporting a missing closing period', async () => {
+    const { eventOutboxHelper, helper, timeThresholdPolicyHelper, tx } = makeHelper([], {
+      period: null,
+    });
+
+    await expect(helper.closingChecklist(ADMIN_USER, PERIOD.id)).rejects.toThrow(
+      'Closing period not found.',
+    );
+
+    expect(tx.$queryRaw).toHaveBeenCalledOnce();
+    expect(tx.closingPeriod.findUnique).toHaveBeenCalledOnce();
+    expect(timeThresholdPolicyHelper.getActiveThresholds).not.toHaveBeenCalled();
+    expect(eventOutboxHelper.enqueueDomainEvent).not.toHaveBeenCalled();
+  });
+
+  it('denies a cross-unit team lead after the period lookup and before metrics', async () => {
+    const { eventOutboxHelper, helper, timeThresholdPolicyHelper, tx } = makeHelper([], {
+      actorOrganizationUnitId: 'unit-2',
+    });
+    const teamLead = { ...ADMIN_USER, role: Role.TEAM_LEAD };
+
+    await expect(helper.closingChecklist(teamLead, PERIOD.id)).rejects.toThrow(
+      'Team leads can only access closing checklist in their own unit.',
+    );
+
+    expect(tx.$queryRaw).toHaveBeenCalledOnce();
+    expect(tx.closingPeriod.findUnique).toHaveBeenCalledOnce();
+    expect(timeThresholdPolicyHelper.getActiveThresholds).not.toHaveBeenCalled();
+    expect(eventOutboxHelper.enqueueDomainEvent).not.toHaveBeenCalled();
+  });
+
   it('blocks an open booking and does not accept it as clean coverage', async () => {
     const { helper } = makeHelper([
       booking('2026-03-02T08:00:00.000Z', null, TimeTypeCategory.WORK),
@@ -100,6 +158,81 @@ describe('ClosingChecklistHelper', () => {
       }),
       tx,
     );
+  });
+
+  it('does not open a nested transaction or relock when given a transaction client', async () => {
+    const { helper, prisma, tx } = makeHelper([
+      booking('2026-03-02T08:00:00.000Z', null, TimeTypeCategory.WORK),
+    ]);
+
+    await helper.closingChecklist(ADMIN_USER, PERIOD.id, tx as never);
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('fetches thresholds before booking and absence queries', async () => {
+    const { helper, timeThresholdPolicyHelper, tx } = makeHelper([
+      booking('2026-03-02T08:00:00.000Z', '2026-03-02T16:00:00.000Z', TimeTypeCategory.WORK),
+    ]);
+
+    await helper.closingChecklist(ADMIN_USER, PERIOD.id);
+
+    expect(timeThresholdPolicyHelper.getActiveThresholds.mock.invocationCallOrder[0]!).toBeLessThan(
+      tx.booking.findMany.mock.invocationCallOrder[0]!,
+    );
+    expect(timeThresholdPolicyHelper.getActiveThresholds.mock.invocationCallOrder[0]!).toBeLessThan(
+      tx.absence.findMany.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('does not emit a violation event for an error-free checklist', async () => {
+    const { eventOutboxHelper, helper } = makeHelper([
+      booking('2026-03-02T08:00:00.000Z', '2026-03-02T12:00:00.000Z', TimeTypeCategory.WORK),
+    ]);
+
+    const checklist = await helper.closingChecklist(ADMIN_USER, PERIOD.id);
+
+    expect(checklist.hasErrors).toBe(false);
+    expect(eventOutboxHelper.enqueueDomainEvent).not.toHaveBeenCalled();
+  });
+
+  it('suppresses the otherwise-repeatable violation event when requested', async () => {
+    const { eventOutboxHelper, helper } = makeHelper([
+      booking('2026-03-02T08:00:00.000Z', null, TimeTypeCategory.WORK),
+    ]);
+
+    await helper.closingChecklist(ADMIN_USER, PERIOD.id, undefined, false);
+
+    expect(eventOutboxHelper.enqueueDomainEvent).not.toHaveBeenCalled();
+  });
+
+  it('emits an error checklist event on each repeat read', async () => {
+    const { eventOutboxHelper, helper } = makeHelper([
+      booking('2026-03-02T08:00:00.000Z', null, TimeTypeCategory.WORK),
+    ]);
+
+    await helper.closingChecklist(ADMIN_USER, PERIOD.id);
+    await helper.closingChecklist(ADMIN_USER, PERIOD.id);
+
+    expect(eventOutboxHelper.enqueueDomainEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns clean zero metrics without querying person-scoped aggregates for an empty population', async () => {
+    const { eventOutboxHelper, helper, timeThresholdPolicyHelper, tx } = makeHelper([], {
+      people: [],
+    });
+
+    const checklist = await helper.closingChecklist(ADMIN_USER, PERIOD.id);
+
+    expect(checklist.hasErrors).toBe(false);
+    expect(timeThresholdPolicyHelper.getActiveThresholds).toHaveBeenCalledOnce();
+    expect(tx.booking.findMany).not.toHaveBeenCalled();
+    expect(tx.absence.findMany).not.toHaveBeenCalled();
+    expect(tx.absence.count).not.toHaveBeenCalled();
+    expect(tx.workflowInstance.count).not.toHaveBeenCalled();
+    expect(tx.timeAccount.count).not.toHaveBeenCalled();
+    expect(eventOutboxHelper.enqueueDomainEvent).not.toHaveBeenCalled();
   });
 
   it('uses the supplied transaction client for plan-versus-actual coverage', async () => {

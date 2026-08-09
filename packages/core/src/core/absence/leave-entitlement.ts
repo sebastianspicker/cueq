@@ -1,7 +1,7 @@
 /** Applies effective leave rules to annual entitlement and carry-over limits. */
 import type { LeaveRule } from '@cueq/policy';
 import { roundToTwo } from '../utils.js';
-import type { LeaveLedgerInput } from './leave-ledger.js';
+import type { LeaveLedgerInput } from './leave-ledger.types.js';
 import { coveredMonthFactor } from './leave-date.js';
 
 /** Scale annual entitlement by work-time fraction and rule-controlled entry/exit prorating. */

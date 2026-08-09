@@ -231,6 +231,14 @@ describe('TerminalGatewayService heartbeat integrity', () => {
     expect(auditHelper.appendAudit).toHaveBeenCalledWith(expect.any(Object), tx);
   });
 
+  it('checks the integration token before parsing a heartbeat or touching persistence', async () => {
+    const { service, prisma } = buildService();
+
+    await expect(service.recordHeartbeat(undefined, { malformed: true })).rejects.toThrow();
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('records a delayed heartbeat without regressing the device last-seen state', async () => {
     const { service, tx } = buildService();
     tx.terminalDevice.findUnique.mockResolvedValueOnce({

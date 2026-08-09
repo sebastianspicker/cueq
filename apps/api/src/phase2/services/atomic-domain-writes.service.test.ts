@@ -1,4 +1,5 @@
-import { AbsenceStatus, BookingSource, WorkflowStatus, WorkflowType } from '@cueq/database';
+import { ConflictException } from '@nestjs/common';
+import { AbsenceStatus, BookingSource, Role, WorkflowStatus, WorkflowType } from '@cueq/database';
 import { describe, expect, it, vi } from 'vitest';
 import { AbsenceDomainService } from './absence-domain.service.js';
 import { BookingDomainService } from './booking-domain.service.js';
@@ -335,6 +336,263 @@ describe('atomic domain writes', () => {
         createdAt: '2026-07-01T08:00:00.000Z',
         updatedAt: '2026-07-02T09:00:00.000Z',
       },
+    ]);
+  });
+
+  it('cancels only a re-read active absence, then cancels pending workflows and audits in order', async () => {
+    const writes: string[] = [];
+    const absence = {
+      id: ABSENCE_ID,
+      personId: ACTOR_ID,
+      type: 'ANNUAL_LEAVE',
+      startDate: new Date('2026-07-14T00:00:00.000Z'),
+      endDate: new Date('2026-07-14T00:00:00.000Z'),
+      days: { toNumber: () => 1 },
+      status: AbsenceStatus.APPROVED,
+      note: null,
+      createdAt: new Date('2026-07-01T08:00:00.000Z'),
+      updatedAt: new Date('2026-07-02T09:00:00.000Z'),
+    };
+    const tx = {
+      $queryRaw: vi.fn(async () => {
+        writes.push('person-lock');
+        return [{ acquired: true }];
+      }),
+      person: {
+        findUnique: vi.fn(async () => {
+          writes.push('person-reread');
+          return { organizationUnitId: ORGANIZATION_UNIT_ID };
+        }),
+      },
+      absence: {
+        findUnique: vi.fn(async () => {
+          writes.push('absence-reread');
+          return absence;
+        }),
+        update: vi.fn(async () => {
+          writes.push('absence-cancel');
+          return { ...absence, status: AbsenceStatus.CANCELLED };
+        }),
+      },
+      workflowInstance: {
+        updateMany: vi.fn(async () => {
+          writes.push('workflow-cancel');
+          return { count: 1 };
+        }),
+      },
+    };
+    const prisma = {
+      ...transactionPrisma(tx),
+      absence: { findUnique: vi.fn().mockResolvedValue(absence) },
+      person: {
+        findUnique: vi.fn().mockResolvedValue({ organizationUnitId: ORGANIZATION_UNIT_ID }),
+      },
+    };
+    const auditHelper = {
+      appendAudit: vi.fn(async (_input, db) => {
+        expect(db).toBe(tx);
+        writes.push('audit');
+      }),
+    };
+    const service = absenceService(prisma, auditHelper, {});
+
+    await expect(service.cancelAbsence(user as never, ABSENCE_ID)).resolves.toMatchObject({
+      id: ABSENCE_ID,
+      status: AbsenceStatus.CANCELLED,
+    });
+
+    expect(writes).toEqual([
+      'person-lock',
+      'person-reread',
+      'absence-reread',
+      'absence-cancel',
+      'workflow-cancel',
+      'audit',
+    ]);
+    expect(tx.workflowInstance.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: {
+            in: [WorkflowStatus.SUBMITTED, WorkflowStatus.PENDING, WorkflowStatus.ESCALATED],
+          },
+        }),
+        data: expect.objectContaining({
+          status: WorkflowStatus.CANCELLED,
+          approverId: ACTOR_ID,
+          decisionReason: 'absence cancelled by requester',
+        }),
+      }),
+    );
+    expect(auditHelper.appendAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'ABSENCE_CANCELLED', entityId: ABSENCE_ID }),
+      tx,
+    );
+  });
+
+  it('keeps cancellation workflow updates inside the transaction when its audit write fails', async () => {
+    const writes: string[] = [];
+    const absence = {
+      id: ABSENCE_ID,
+      personId: ACTOR_ID,
+      type: 'SICK',
+      startDate: new Date('2026-07-14T00:00:00.000Z'),
+      endDate: new Date('2026-07-14T00:00:00.000Z'),
+      days: { toNumber: () => 1 },
+      status: AbsenceStatus.REQUESTED,
+      note: null,
+      createdAt: new Date('2026-07-01T08:00:00.000Z'),
+      updatedAt: new Date('2026-07-02T09:00:00.000Z'),
+    };
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ acquired: true }]),
+      person: {
+        findUnique: vi.fn().mockResolvedValue({ organizationUnitId: ORGANIZATION_UNIT_ID }),
+      },
+      absence: {
+        findUnique: vi.fn().mockResolvedValue(absence),
+        update: vi.fn(async () => {
+          writes.push('absence');
+          return { ...absence, status: AbsenceStatus.CANCELLED };
+        }),
+      },
+      workflowInstance: {
+        updateMany: vi.fn(async () => {
+          writes.push('workflow');
+          return { count: 1 };
+        }),
+      },
+    };
+    const prisma = {
+      ...transactionPrisma(tx),
+      absence: { findUnique: vi.fn().mockResolvedValue(absence) },
+      person: {
+        findUnique: vi.fn().mockResolvedValue({ organizationUnitId: ORGANIZATION_UNIT_ID }),
+      },
+    };
+    const auditHelper = {
+      appendAudit: vi.fn(async (_input, db) => {
+        expect(db).toBe(tx);
+        writes.push('audit');
+        throw new Error('cancellation audit write failed');
+      }),
+    };
+    const service = absenceService(prisma, auditHelper, {});
+
+    await expect(service.cancelAbsence(user as never, ABSENCE_ID)).rejects.toThrow(
+      'cancellation audit write failed',
+    );
+
+    expect(writes).toEqual(['absence', 'workflow', 'audit']);
+    expect(prisma.absence.findUnique).toHaveBeenCalledOnce();
+  });
+
+  it('routes a transaction-time absence cancellation closing conflict through durable audit', async () => {
+    const absence = {
+      id: ABSENCE_ID,
+      personId: ACTOR_ID,
+      startDate: new Date('2026-07-14T00:00:00.000Z'),
+      endDate: new Date('2026-07-14T00:00:00.000Z'),
+      status: AbsenceStatus.APPROVED,
+    };
+    const conflict = new ConflictException({ code: 'CLOSING_PERIOD_LOCKED' });
+    const durableAudit = vi.fn((error: unknown) => {
+      throw error;
+    });
+    const prisma = {
+      ...transactionPrisma({}),
+      absence: { findUnique: vi.fn().mockResolvedValue(absence) },
+      person: {
+        findUnique: vi.fn().mockResolvedValue({ organizationUnitId: ORGANIZATION_UNIT_ID }),
+      },
+    };
+    const service = new AbsenceDomainService(
+      prisma as never,
+      personForActor() as never,
+      {} as never,
+      {
+        assertClosingPeriodUnlockedForRange: vi.fn().mockResolvedValue(undefined),
+        assertClosingPeriodUnlockedForRangeInTransaction: vi.fn().mockRejectedValue(conflict),
+        rethrowWithDurableClosingAudit: durableAudit,
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(service.cancelAbsence(user as never, ABSENCE_ID)).rejects.toBe(conflict);
+
+    expect(durableAudit).toHaveBeenCalledWith(
+      conflict,
+      expect.objectContaining({
+        attemptedAction: 'ABSENCE_CANCEL',
+        entityId: ABSENCE_ID,
+        organizationUnitId: ORGANIZATION_UNIT_ID,
+      }),
+    );
+  });
+
+  it('locks and re-reads the person before creating and auditing a leave adjustment', async () => {
+    const writes: string[] = [];
+    const tx = {
+      $queryRaw: vi.fn(async () => {
+        writes.push('person-lock');
+        return [{ acquired: true }];
+      }),
+      person: {
+        findUnique: vi.fn(async () => {
+          writes.push('person-reread');
+          return { organizationUnitId: ORGANIZATION_UNIT_ID };
+        }),
+      },
+      leaveAdjustment: {
+        create: vi.fn(async () => {
+          writes.push('adjustment');
+          return {
+            id: 'ckz00000000000000000000009',
+            personId: ACTOR_ID,
+            year: 2026,
+            deltaDays: 2,
+            reason: 'Carry-over correction',
+          };
+        }),
+      },
+    };
+    const prisma = {
+      ...transactionPrisma(tx),
+      person: {
+        findUnique: vi.fn().mockResolvedValue({ organizationUnitId: ORGANIZATION_UNIT_ID }),
+      },
+    };
+    const auditHelper = {
+      appendAudit: vi.fn(async (input, db) => {
+        expect(db).toBe(tx);
+        writes.push(input.action);
+      }),
+    };
+    const service = new AbsenceDomainService(
+      prisma as never,
+      personForActor() as never,
+      auditHelper as never,
+      closingLock() as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      service.createLeaveAdjustment({ ...user, role: Role.HR } as never, {
+        personId: ACTOR_ID,
+        year: 2026,
+        deltaDays: 2,
+        reason: 'Carry-over correction',
+      }),
+    ).resolves.toMatchObject({ deltaDays: 2 });
+
+    expect(writes).toEqual([
+      'person-lock',
+      'person-reread',
+      'adjustment',
+      'LEAVE_ADJUSTMENT_CREATED',
     ]);
   });
 });

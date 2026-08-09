@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -54,8 +54,13 @@ describe('@cueq/database compliance', () => {
   });
 
   it('keeps seed and reset paths append-only for audit entries', () => {
-    const seedScripts = ['seed-phase2.mjs', 'seed-phase3.mjs', 'seed-demo-screenshots.mjs'].map(
-      (file) => readFileSync(resolve(moduleDirectory, `../../prisma/${file}`), 'utf8'),
+    const prismaDirectory = resolve(moduleDirectory, '../../prisma');
+    const seedFiles = ['seed-phase2.mjs', 'seed-phase3.mjs', 'seed-demo-screenshots.mjs'];
+    const seedModuleFiles = ['seed-phase2', 'demo-seed'].flatMap((directory) =>
+      readdirSync(resolve(prismaDirectory, directory)).map((file) => `${directory}/${file}`),
+    );
+    const seedScripts = [...seedFiles, ...seedModuleFiles].map((file) =>
+      readFileSync(resolve(prismaDirectory, file), 'utf8'),
     );
 
     for (const source of seedScripts) {

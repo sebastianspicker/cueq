@@ -4,8 +4,11 @@
 
 import type { useTranslations } from 'next-intl';
 import { FormField } from '../../../components/FormField';
+import { LoadingSpinner } from '../../../components/LoadingSpinner';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
+import { StatusBanner } from '../../../components/StatusBanner';
+import type { useBookingsWorkspace } from './use-bookings-workspace';
 
 export interface Booking {
   id: string;
@@ -21,6 +24,54 @@ export interface Booking {
 }
 
 type TranslationFn = ReturnType<typeof useTranslations>;
+type BookingsWorkspace = ReturnType<typeof useBookingsWorkspace>;
+
+interface BookingsWorkspaceSectionsProps {
+  t: TranslationFn;
+  workspace: BookingsWorkspace;
+}
+
+/** Renders booking actions, feedback, correction controls, and the booking table. */
+export function BookingsWorkspaceSections({ t, workspace }: BookingsWorkspaceSectionsProps) {
+  return (
+    <>
+      <div>
+        <button
+          type="button"
+          disabled={workspace.loading}
+          onClick={() => void workspace.loadBookings()}
+        >
+          {workspace.loading ? t('loading') : t('load')}
+        </button>
+      </div>
+
+      {workspace.loading && workspace.bookings.length === 0 ? (
+        <LoadingSpinner label={t('loading')} />
+      ) : null}
+
+      <StatusBanner message={workspace.message} error={workspace.error} />
+
+      <BookingCorrectionSection
+        t={t}
+        loading={workspace.loading}
+        bookingId={workspace.bookingId}
+        timeTypeId={workspace.timeTypeId}
+        startTime={workspace.startTime}
+        endTime={workspace.endTime}
+        reason={workspace.reason}
+        fieldErrors={workspace.fieldErrors}
+        onBookingIdChange={workspace.updateBookingId}
+        onTimeTypeIdChange={workspace.setTimeTypeId}
+        onStartTimeChange={workspace.setStartTime}
+        onEndTimeChange={workspace.setEndTime}
+        onReasonChange={workspace.updateReason}
+        onRequestCorrection={() => void workspace.requestCorrection()}
+      />
+
+      <BookingsTableSection t={t} bookings={workspace.bookings} />
+    </>
+  );
+}
 
 interface BookingCorrectionSectionProps {
   t: TranslationFn;
@@ -40,7 +91,7 @@ interface BookingCorrectionSectionProps {
 }
 
 /** Renders the booking-correction request fields and local validation feedback. */
-export function BookingCorrectionSection(props: BookingCorrectionSectionProps) {
+function BookingCorrectionSection(props: BookingCorrectionSectionProps) {
   const {
     t,
     loading,
@@ -91,7 +142,7 @@ export function BookingCorrectionSection(props: BookingCorrectionSectionProps) {
 }
 
 /** Renders the current user's API-filtered booking list. */
-export function BookingsTableSection({ t, bookings }: { t: TranslationFn; bookings: Booking[] }) {
+function BookingsTableSection({ t, bookings }: { t: TranslationFn; bookings: Booking[] }) {
   return (
     <SectionCard>
       <h2>{t('title')}</h2>

@@ -1,0 +1,308 @@
+import { describe, expect, it } from 'vitest';
+import { applyCutoffLock, generateClosingChecklist } from '../index.js';
+
+describe('applyCutoffLock', () => {
+  it('preserves the exhaustive status/action/role error contract', () => {
+    const statuses = ['OPEN', 'REVIEW', 'APPROVED', 'EXPORTED'] as const;
+    const roles = ['EMPLOYEE', 'TEAM_LEAD', 'HR', 'ADMIN'] as const;
+    const actions = {
+      ADVANCE_TO_REVIEW: {
+        allowed: ['OPEN'],
+        next: 'REVIEW',
+        invalid: 'Can only advance to review from OPEN.',
+      },
+      APPROVE: {
+        allowed: ['REVIEW'],
+        next: 'APPROVED',
+        invalid: 'Can only approve from REVIEW.',
+      },
+      EXPORT: {
+        allowed: ['APPROVED'],
+        next: 'EXPORTED',
+        invalid: 'Can only export from APPROVED.',
+      },
+      REOPEN: {
+        allowed: ['REVIEW', 'APPROVED'],
+        next: 'OPEN',
+        invalid: 'Can only re-open from REVIEW or APPROVED.',
+        forbidden: 'Only HR or Admin can re-open a closing period.',
+      },
+      POST_CLOSE_CORRECTION: {
+        allowed: ['EXPORTED'],
+        next: 'REVIEW',
+        invalid: 'Post-close correction is only valid for EXPORTED periods.',
+        forbidden: 'Only HR or Admin can initiate post-close corrections.',
+      },
+    } as const;
+
+    for (const [action, rule] of Object.entries(actions)) {
+      for (const currentStatus of statuses) {
+        for (const actorRole of roles) {
+          const result = applyCutoffLock({
+            action: action as keyof typeof actions,
+            currentStatus,
+            actorRole,
+            checklistHasErrors: false,
+          });
+          if (!(rule.allowed as readonly string[]).includes(currentStatus)) {
+            expect(result).toMatchObject({
+              nextStatus: currentStatus,
+              violations: [{ code: 'INVALID_CLOSING_TRANSITION', message: rule.invalid }],
+            });
+          } else if ('forbidden' in rule && actorRole !== 'HR' && actorRole !== 'ADMIN') {
+            expect(result).toMatchObject({
+              nextStatus: currentStatus,
+              violations: [{ code: 'ROLE_FORBIDDEN', message: rule.forbidden }],
+            });
+          } else {
+            expect(result).toEqual({ nextStatus: rule.next, violations: [] });
+          }
+        }
+      }
+    }
+  });
+
+  it('preserves the exact checklist error contract for every role', () => {
+    for (const actorRole of ['EMPLOYEE', 'TEAM_LEAD', 'HR', 'ADMIN'] as const) {
+      expect(
+        applyCutoffLock({
+          currentStatus: 'REVIEW',
+          action: 'APPROVE',
+          actorRole,
+          checklistHasErrors: true,
+        }),
+      ).toMatchObject({
+        nextStatus: 'REVIEW',
+        violations: [
+          {
+            code: 'CHECKLIST_NOT_GREEN',
+            message: 'Cannot approve while error checklist items are open.',
+          },
+        ],
+      });
+    }
+  });
+
+  it('enforces open -> review -> approved -> exported path', () => {
+    const step1 = applyCutoffLock({
+      currentStatus: 'OPEN',
+      action: 'ADVANCE_TO_REVIEW',
+      actorRole: 'TEAM_LEAD',
+      checklistHasErrors: false,
+    });
+    expect(step1.nextStatus).toBe('REVIEW');
+
+    const step2 = applyCutoffLock({
+      currentStatus: 'REVIEW',
+      action: 'APPROVE',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(step2.nextStatus).toBe('APPROVED');
+
+    const step3 = applyCutoffLock({
+      currentStatus: 'APPROVED',
+      action: 'EXPORT',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(step3.nextStatus).toBe('EXPORTED');
+  });
+
+  it('prevents approval when checklist errors remain', () => {
+    const result = applyCutoffLock({
+      currentStatus: 'REVIEW',
+      action: 'APPROVE',
+      actorRole: 'HR',
+      checklistHasErrors: true,
+    });
+
+    expect(result.nextStatus).toBe('REVIEW');
+    expect(result.violations[0]?.code).toBe('CHECKLIST_NOT_GREEN');
+  });
+
+  it('allows HR/Admin re-open and post-close correction', () => {
+    const reopenFromReview = applyCutoffLock({
+      currentStatus: 'REVIEW',
+      action: 'REOPEN',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(reopenFromReview.nextStatus).toBe('OPEN');
+
+    const reopenFromApproved = applyCutoffLock({
+      currentStatus: 'APPROVED',
+      action: 'REOPEN',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(reopenFromApproved.nextStatus).toBe('OPEN');
+
+    const reopenFromApprovedAsAdmin = applyCutoffLock({
+      currentStatus: 'APPROVED',
+      action: 'REOPEN',
+      actorRole: 'ADMIN',
+      checklistHasErrors: false,
+    });
+    expect(reopenFromApprovedAsAdmin.nextStatus).toBe('OPEN');
+
+    const postClose = applyCutoffLock({
+      currentStatus: 'EXPORTED',
+      action: 'POST_CLOSE_CORRECTION',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(postClose.nextStatus).toBe('REVIEW');
+
+    const postCloseAsAdmin = applyCutoffLock({
+      currentStatus: 'EXPORTED',
+      action: 'POST_CLOSE_CORRECTION',
+      actorRole: 'ADMIN',
+      checklistHasErrors: false,
+    });
+    expect(postCloseAsAdmin.nextStatus).toBe('REVIEW');
+  });
+
+  it('returns deterministic violations for invalid state transitions', () => {
+    const invalidReviewAdvance = applyCutoffLock({
+      currentStatus: 'REVIEW',
+      action: 'ADVANCE_TO_REVIEW',
+      actorRole: 'TEAM_LEAD',
+      checklistHasErrors: false,
+    });
+    expect(invalidReviewAdvance.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+
+    const invalidApprove = applyCutoffLock({
+      currentStatus: 'OPEN',
+      action: 'APPROVE',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(invalidApprove.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+
+    const invalidExport = applyCutoffLock({
+      currentStatus: 'REVIEW',
+      action: 'EXPORT',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(invalidExport.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+  });
+
+  it('blocks non-HR/Admin re-open and post-close correction', () => {
+    const reopenForbidden = applyCutoffLock({
+      currentStatus: 'REVIEW',
+      action: 'REOPEN',
+      actorRole: 'TEAM_LEAD',
+      checklistHasErrors: false,
+    });
+    expect(reopenForbidden.violations[0]?.code).toBe('ROLE_FORBIDDEN');
+
+    const postCloseForbidden = applyCutoffLock({
+      currentStatus: 'EXPORTED',
+      action: 'POST_CLOSE_CORRECTION',
+      actorRole: 'TEAM_LEAD',
+      checklistHasErrors: false,
+    });
+    expect(postCloseForbidden.violations[0]?.code).toBe('ROLE_FORBIDDEN');
+  });
+
+  it('handles unsupported action values defensively', () => {
+    const result = applyCutoffLock({
+      currentStatus: 'OPEN',
+      action: 'UNKNOWN' as never,
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+
+    expect(result.nextStatus).toBe('OPEN');
+    expect(result.violations[0]?.code).toBe('UNSUPPORTED_ACTION');
+  });
+
+  it('rejects EXPORTED → OPEN (must go through POST_CLOSE_CORRECTION)', () => {
+    // Direct advance-to-review from EXPORTED is not valid
+    const advanceFromExported = applyCutoffLock({
+      currentStatus: 'EXPORTED',
+      action: 'ADVANCE_TO_REVIEW',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(advanceFromExported.nextStatus).toBe('EXPORTED');
+    expect(advanceFromExported.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+
+    // REOPEN is only valid from REVIEW, not EXPORTED
+    const reopenFromExported = applyCutoffLock({
+      currentStatus: 'EXPORTED',
+      action: 'REOPEN',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(reopenFromExported.nextStatus).toBe('EXPORTED');
+    expect(reopenFromExported.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+  });
+
+  it('verifies each transition guard rejects skipped steps', () => {
+    // OPEN → APPROVED (skip REVIEW)
+    const skipReview = applyCutoffLock({
+      currentStatus: 'OPEN',
+      action: 'APPROVE',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(skipReview.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+
+    // OPEN → EXPORTED (skip REVIEW + APPROVED)
+    const skipToExport = applyCutoffLock({
+      currentStatus: 'OPEN',
+      action: 'EXPORT',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(skipToExport.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+
+    // REVIEW → EXPORTED (skip APPROVED)
+    const skipApproval = applyCutoffLock({
+      currentStatus: 'REVIEW',
+      action: 'EXPORT',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(skipApproval.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+
+    // EXPORTED → OPEN must use post-close correction, not reopen
+    const reopenFromApproved = applyCutoffLock({
+      currentStatus: 'EXPORTED',
+      action: 'REOPEN',
+      actorRole: 'HR',
+      checklistHasErrors: false,
+    });
+    expect(reopenFromApproved.violations[0]?.code).toBe('INVALID_CLOSING_TRANSITION');
+  });
+
+  it('blocks closing with pending workflow approvals via checklist integration', () => {
+    // Simulate: open leave requests and open corrections → checklist has errors
+    const checklist = generateClosingChecklist({
+      missingBookings: 0,
+      bookingGaps: 0,
+      openCorrectionRequests: 3,
+      openLeaveRequests: 2,
+      ruleViolations: 0,
+      rosterMismatches: 0,
+      balanceAnomalies: 0,
+    });
+
+    // openCorrectionRequests > 0 with errorByDefault=true → hasErrors=true
+    expect(checklist.hasErrors).toBe(true);
+
+    // Feed into transition: approval should be blocked
+    const result = applyCutoffLock({
+      currentStatus: 'REVIEW',
+      action: 'APPROVE',
+      actorRole: 'HR',
+      checklistHasErrors: checklist.hasErrors,
+    });
+
+    expect(result.nextStatus).toBe('REVIEW');
+    expect(result.violations[0]?.code).toBe('CHECKLIST_NOT_GREEN');
+  });
+});

@@ -310,3 +310,61 @@ describe('WorkflowsDomainService decision write guards', () => {
     );
   });
 });
+
+describe('WorkflowsDomainService delegated read and policy boundaries', () => {
+  it('resolves the actor before delegating the parsed inbox scope to the runtime', async () => {
+    const calls: string[] = [];
+    const personHelper = {
+      personForUser: vi.fn(async () => {
+        calls.push('person');
+        return { id: 'clactor000000000000000001', organizationUnitId: ORGANIZATION_UNIT_ID };
+      }),
+    };
+    const runtime = {
+      listInbox: vi.fn(async () => {
+        calls.push('inbox');
+        return [{ id: ids.workflow }];
+      }),
+    };
+    const service = new WorkflowsDomainService(
+      {} as never,
+      personHelper as never,
+      runtime as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(service.workflowInbox(ACTOR, {})).resolves.toEqual([{ id: ids.workflow }]);
+
+    expect(calls).toEqual(['person', 'inbox']);
+    expect(runtime.listInbox).toHaveBeenCalledWith(
+      {
+        id: 'clactor000000000000000001',
+        role: Role.TEAM_LEAD,
+        organizationUnitId: ORGANIZATION_UNIT_ID,
+      },
+      expect.any(Object),
+    );
+  });
+
+  it('rejects non-HR policy writes before resolving the identity or parsing the payload', async () => {
+    const personHelper = { personForUser: vi.fn() };
+    const runtime = { upsertPolicy: vi.fn() };
+    const service = new WorkflowsDomainService(
+      {} as never,
+      personHelper as never,
+      runtime as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      service.upsertWorkflowPolicy(ACTOR, WorkflowType.LEAVE_REQUEST, { not: 'a valid policy' }),
+    ).rejects.toThrow();
+
+    expect(personHelper.personForUser).not.toHaveBeenCalled();
+    expect(runtime.upsertPolicy).not.toHaveBeenCalled();
+  });
+});

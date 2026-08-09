@@ -3,7 +3,9 @@
 /** Client API configuration context; stored endpoint values are convenience settings, not a trust boundary. */
 
 import { createContext, useContext, useMemo, useState } from 'react';
-import { createApiFetch, createApiRequest, type ApiFetch, type ApiRequest } from './api-client';
+import type { ApiFetch, ApiRequest } from './api-client-types';
+import { createApiFetch } from './api-fetch';
+import { createApiRequest } from './api-request';
 
 const SESSION_ENDPOINT_SLOT = 'cq-api-base-url';
 const LEGACY_SESSION_TOKEN_SLOT = 'cq-token';
