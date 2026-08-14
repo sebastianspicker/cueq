@@ -20,6 +20,26 @@ import { PrismaService } from '../../persistence/prisma.service.js';
 export class AuditController {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
+  private buildDateWindowFilter({ from, to }: AuditEntriesQuery) {
+    return from || to
+      ? {
+          timestamp: {
+            ...(from ? { gte: new Date(from) } : {}),
+            ...(to ? { lte: new Date(to) } : {}),
+          },
+        }
+      : {};
+  }
+
+  private buildExactFilters({ action, entityType, actorId, entityId }: AuditEntriesQuery) {
+    return {
+      ...(action ? { action } : {}),
+      ...(entityType ? { entityType } : {}),
+      ...(actorId ? { actorId } : {}),
+      ...(entityId ? { entityId } : {}),
+    };
+  }
+
   @Get()
   @Roles(Role.HR, Role.ADMIN, Role.DATA_PROTECTION)
   @ApiOperation({
@@ -67,20 +87,9 @@ export class AuditController {
     @Query(new ZodValidationPipe(AuditEntriesQuerySchema)) query: unknown,
   ): Promise<AuditEntriesResult> {
     const parsed = query as AuditEntriesQuery;
-
     const where = {
-      ...(parsed.from || parsed.to
-        ? {
-            timestamp: {
-              ...(parsed.from ? { gte: new Date(parsed.from) } : {}),
-              ...(parsed.to ? { lte: new Date(parsed.to) } : {}),
-            },
-          }
-        : {}),
-      ...(parsed.action ? { action: parsed.action } : {}),
-      ...(parsed.entityType ? { entityType: parsed.entityType } : {}),
-      ...(parsed.actorId ? { actorId: parsed.actorId } : {}),
-      ...(parsed.entityId ? { entityId: parsed.entityId } : {}),
+      ...this.buildDateWindowFilter(parsed),
+      ...this.buildExactFilters(parsed),
     };
 
     const [items, total] = await Promise.all([

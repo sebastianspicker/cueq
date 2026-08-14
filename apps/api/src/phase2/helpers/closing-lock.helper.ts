@@ -17,6 +17,50 @@ export interface ClosingBlockedAttemptInput {
   entityId: string;
 }
 
+type ClosingPeriodRangeInput = Pick<
+  ClosingBlockedAttemptInput,
+  'organizationUnitId' | 'from' | 'to'
+>;
+
+type ClosingLockedPeriod = {
+  id: string;
+  organizationUnitId: string | null;
+  status: ClosingStatus;
+  periodStart: Date;
+  periodEnd: Date;
+  lockSource: string | null;
+};
+
+type ClosingBlockedAttemptError = ConflictException & {
+  closingBlockedAttempt?: ClosingBlockedAttemptInput;
+};
+
+const CLOSING_RANGE_QUERY_CHUNK_SIZE = 128;
+
+function rangeChunks<T>(items: T[]): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += CLOSING_RANGE_QUERY_CHUNK_SIZE) {
+    chunks.push(items.slice(index, index + CLOSING_RANGE_QUERY_CHUNK_SIZE));
+  }
+  return chunks;
+}
+
+/** Returns the exact input whose transaction-scoped closing check was denied. */
+export function closingBlockedAttemptFromError(
+  error: unknown,
+): ClosingBlockedAttemptInput | undefined {
+  if (!(error instanceof ConflictException)) return undefined;
+
+  const attempt = (error as ClosingBlockedAttemptError).closingBlockedAttempt;
+  return attempt &&
+    typeof attempt.actorId === 'string' &&
+    typeof attempt.entityId === 'string' &&
+    attempt.from instanceof Date &&
+    attempt.to instanceof Date
+    ? attempt
+    : undefined;
+}
+
 function closingPeriodLockedConflictResponse(error: unknown): Record<string, unknown> | null {
   if (!(error instanceof ConflictException)) return null;
   const response = error.getResponse();
@@ -111,6 +155,66 @@ export class ClosingLockHelper {
     });
   }
 
+  /**
+   * Checks canonical terminal records with bounded query predicates: first all
+   * periods that must be locked, then their locked state after those locks are held.
+   * The first blocked input is retained on the exception for durable auditing.
+   */
+  async assertClosingPeriodsUnlockedForRangesInTransaction(
+    inputs: ClosingBlockedAttemptInput[],
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    if (inputs.length === 0) return;
+
+    const overlappingPeriodIds = new Set<string>();
+    for (const inputChunk of rangeChunks(inputs)) {
+      const overlappingPeriods = await tx.closingPeriod.findMany({
+        where: this.overlappingClosingPeriodsWhere(inputChunk, false),
+        select: { id: true },
+        orderBy: { id: 'asc' },
+      });
+      for (const period of overlappingPeriods) overlappingPeriodIds.add(period.id);
+    }
+
+    for (const periodId of [...overlappingPeriodIds].sort()) {
+      await lockClosingPeriodWrites(tx, periodId);
+    }
+
+    const lockedPeriodsById = new Map<string, ClosingLockedPeriod>();
+    for (const inputChunk of rangeChunks(inputs)) {
+      const lockedPeriods = (await tx.closingPeriod.findMany({
+        where: this.overlappingClosingPeriodsWhere(inputChunk, true),
+        orderBy: { periodStart: 'desc' },
+      })) as ClosingLockedPeriod[];
+      for (const period of lockedPeriods) lockedPeriodsById.set(period.id, period);
+    }
+    const lockedPeriods = [...lockedPeriodsById.values()].sort(
+      (left, right) => right.periodStart.getTime() - left.periodStart.getTime(),
+    );
+    const blockedAttempt = inputs.find((input) =>
+      lockedPeriods.some((period) => this.periodOverlapsInput(period, input)),
+    );
+
+    if (!blockedAttempt) return;
+
+    const lockedPeriod = lockedPeriods.find((period) =>
+      this.periodOverlapsInput(period, blockedAttempt),
+    );
+    if (!lockedPeriod) return;
+
+    const error = new ConflictException({
+      code: 'CLOSING_PERIOD_LOCKED',
+      message: 'Requested mutation overlaps with a locked closing period.',
+      closingPeriodId: lockedPeriod.id,
+      status: toCoreClosingStatus(lockedPeriod.status),
+      periodStart: lockedPeriod.periodStart.toISOString(),
+      periodEnd: lockedPeriod.periodEnd.toISOString(),
+      lockSource: lockedPeriod.lockSource ?? null,
+    }) as ClosingBlockedAttemptError;
+    error.closingBlockedAttempt = blockedAttempt;
+    throw error;
+  }
+
   private overlappingClosingPeriodWhere(
     input: {
       organizationUnitId: string | null;
@@ -138,6 +242,29 @@ export class ClosingLockHelper {
           }
         : { organizationUnitId: null }),
     };
+  }
+
+  private overlappingClosingPeriodsWhere(
+    inputs: ClosingPeriodRangeInput[],
+    lockedOnly: boolean,
+  ): Prisma.ClosingPeriodWhereInput {
+    return {
+      OR: inputs.map((input) => this.overlappingClosingPeriodWhere(input, lockedOnly)),
+    };
+  }
+
+  private periodOverlapsInput(
+    period: ClosingLockedPeriod,
+    input: ClosingPeriodRangeInput,
+  ): boolean {
+    return (
+      period.periodStart <= input.to &&
+      period.periodEnd >= input.from &&
+      (input.organizationUnitId
+        ? period.organizationUnitId === input.organizationUnitId ||
+          period.organizationUnitId === null
+        : period.organizationUnitId === null)
+    );
   }
 
   private async appendClosingLockBlockedAudit(

@@ -12,7 +12,7 @@ import {
   WorkflowInstanceSchema,
 } from '@cueq/shared';
 import { localDateTimeInputToIsoInstant } from '../../../lib/datetime-local';
-import type { PlanVsActual, RosterDetail } from './roster-sections';
+import type { PlanVsActual, RosterDetail } from './roster-types';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 

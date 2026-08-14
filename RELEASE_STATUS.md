@@ -12,8 +12,22 @@ No candidate commit or tag is designated. Local checks can guide development,
 but they do not establish release readiness until they are run against the
 exact reviewed candidate revision.
 
-No hosted deployment, npm package, application container image, or production
-support offering is part of the current release scope.
+No hosted application deployment, npm package, application container image, or
+production support offering is part of the current release scope. The GitHub
+Pages workflow publishes only the sanitized static fixture walkthrough.
+
+## Current local demo evidence
+
+On 2026-08-14, the dependency-free Pages builder and verifier passed, including
+all six screenshots and the eight stylesheets imported by the application
+entry stylesheet. The artifact's HTML, CSS, JavaScript, SVG, and screenshot
+routes returned HTTP 200 from a loopback server. The Markdown link check passed
+for 47 files.
+
+This does not designate a release candidate. The current host runs Node.js 26
+rather than the pinned Node.js 20.19.0, `node_modules` is absent, and the
+PostgreSQL, application build, coverage, acceptance, Chromium, CI, and hosted
+Pages lanes remain unverified in this checkout.
 
 ## Required candidate evidence
 

@@ -20,6 +20,13 @@ export type RosterWithPlanShifts = {
   }>;
 };
 
+export type PlanVsActualBooking = {
+  personId: string;
+  startTime: Date;
+  endTime: Date | null;
+  timeType: { category: TimeTypeCategory };
+};
+
 /** Query eligible work bookings through the supplied client and evaluate roster coverage. */
 export async function buildRosterPlanVsActual(
   db: Pick<PrismaService, 'booking'>,
@@ -47,6 +54,14 @@ export async function buildRosterPlanVsActual(
     },
   });
 
+  return buildRosterPlanVsActualFromBookings(roster, bookings);
+}
+
+/** Evaluate roster coverage from a caller-provided eligible booking projection. */
+export function buildRosterPlanVsActualFromBookings(
+  roster: RosterWithPlanShifts,
+  bookings: readonly PlanVsActualBooking[],
+) {
   return evaluatePlanVsActualCoverage(
     roster.shifts.map((shift) => ({
       shiftId: shift.id,

@@ -1,0 +1,390 @@
+/* Progress strip */
+.cq-progress-strip {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1rem 0.625rem;
+}
+
+.cq-progress-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+  color: var(--cq-text-muted);
+  font-size: 0.8125rem;
+}
+
+.cq-progress-label strong {
+  color: var(--cq-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.cq-progress-track {
+  position: relative;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cq-border) 45%, var(--cq-surface-subtle));
+}
+
+.cq-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cq-accent);
+}
+
+/* Vertical day ledger: hours | timeline (inside day stage — no second card chrome) */
+.cq-day-ledger {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 0 0.75rem;
+  margin: 0;
+  padding: 0.25rem 1rem 1.125rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cq-day-stage > .cq-ledger-empty {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  color: var(--cq-text-muted);
+}
+
+.cq-day-ledger > .cq-ledger-model,
+.cq-day-ledger > .cq-ledger-heading,
+.cq-day-ledger > .cq-day-toolbar,
+.cq-day-ledger > .cq-progress-strip,
+.cq-day-ledger > .cq-ledger-legend {
+  grid-column: 1 / -1;
+}
+
+.cq-ledger-hours {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.5rem 0 0.25rem;
+  color: var(--cq-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
+}
+
+.cq-ledger-timeline {
+  position: relative;
+  min-height: 21rem;
+  padding: 0.5rem 0 0.5rem 0.875rem;
+  border-left: 1px solid var(--cq-border);
+}
+
+.cq-ledger-hour-guide {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--cq-border) 70%, transparent);
+}
+
+.cq-now-line {
+  position: absolute;
+  z-index: 3;
+  right: 0;
+  left: -1px;
+  height: 2px;
+  background: var(--cq-current);
+}
+
+.cq-now-line::before {
+  position: absolute;
+  top: -1.125rem;
+  right: 0;
+  color: var(--cq-current);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  content: attr(data-label);
+}
+
+.cq-ledger-block {
+  position: absolute;
+  z-index: 2;
+  right: 0.5rem;
+  left: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.125rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--cq-radius-md);
+}
+
+.cq-ledger-block[data-kind='work'] {
+  border-color: color-mix(in srgb, var(--cq-ok) 22%, transparent);
+  background: color-mix(in srgb, var(--cq-work) 88%, var(--cq-surface));
+}
+
+.cq-ledger-block[data-kind='pause'] {
+  border-color: var(--cq-border);
+  border-style: dashed;
+  background: var(--cq-surface-subtle);
+}
+
+.cq-ledger-block[data-kind='open'] {
+  border-color: color-mix(in srgb, var(--cq-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--cq-accent-soft) 70%, var(--cq-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cq-accent) 8%, transparent);
+}
+
+.cq-ledger-block .cq-ledger-block-type {
+  color: var(--cq-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.cq-ledger-block .cq-ledger-block-range {
+  color: var(--cq-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cq-ledger-block .cq-ledger-block-note {
+  color: var(--cq-text-muted);
+  font-size: 0.72rem;
+  opacity: 0.9;
+}
+
+.cq-ledger-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  padding: 0 1rem 0.875rem;
+  color: var(--cq-text-muted);
+  font-size: 0.75rem;
+}
+
+.cq-ledger-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.cq-ledger-swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 1px solid var(--cq-border);
+  border-radius: 3px;
+}
+
+.cq-ledger-swatch[data-kind='work'] {
+  border-color: color-mix(in srgb, var(--cq-ok) 25%, transparent);
+  background: var(--cq-work);
+}
+
+.cq-ledger-swatch[data-kind='pause'] {
+  border-style: dashed;
+  background: var(--cq-surface-subtle);
+}
+
+.cq-ledger-swatch[data-kind='open'] {
+  border-color: color-mix(in srgb, var(--cq-accent) 30%, transparent);
+  background: var(--cq-accent-soft);
+}
+
+/* Legacy horizontal-ledger helpers (scoped, non-dominant) */
+.cq-ledger-model {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.cq-ledger-model > span:first-child {
+  width: 1rem;
+  height: 1rem;
+  border: 1.5px solid var(--cq-text);
+  border-radius: 50%;
+}
+
+.cq-ledger-model > span:last-child {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.cq-ledger-model small {
+  color: var(--cq-text-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.cq-ledger-model strong {
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.cq-ledger-heading,
+.cq-ledger-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cq-ledger-heading {
+  margin-bottom: 0.75rem;
+}
+
+.cq-ledger-heading h2,
+.cq-ledger-section-heading h2,
+.cq-overtime-workspace h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.cq-ledger-heading > span {
+  color: var(--cq-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+/* Horizontal track only when canvas is present */
+.cq-ledger-scroll {
+  grid-column: 1 / -1;
+  padding: 0.35rem 0 0.6rem;
+  overflow-x: auto;
+  scrollbar-color: var(--cq-border) transparent;
+}
+
+.cq-ledger-canvas {
+  position: relative;
+  min-width: 32rem;
+  padding: 0 0.4rem;
+}
+
+.cq-ledger-axis {
+  position: relative;
+  height: 2rem;
+  border-bottom: 1px solid var(--cq-border-strong);
+}
+
+.cq-ledger-axis span {
+  position: absolute;
+  bottom: 0.55rem;
+  color: var(--cq-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.7rem;
+  transform: translateX(-50%);
+}
+
+.cq-ledger-axis span:first-child {
+  transform: none;
+}
+
+.cq-ledger-axis span:last-child {
+  transform: translateX(-100%);
+}
+
+.cq-ledger-track {
+  position: relative;
+  height: 6.5rem;
+  margin-top: 0.75rem;
+}
+
+.cq-ledger-interval {
+  position: absolute;
+  top: 0;
+  height: 1.5rem;
+  border-radius: var(--cq-radius-sm);
+  background: var(--cq-work);
+}
+
+.cq-ledger-event,
+.cq-ledger-marker {
+  position: absolute;
+  top: 2rem;
+  max-width: 8rem;
+  color: var(--cq-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  transform: translateX(-50%);
+  white-space: pre-line;
+}
+
+.cq-ledger-event::before,
+.cq-ledger-marker::before {
+  position: absolute;
+  bottom: calc(100% + 0.3rem);
+  left: 50%;
+  width: 1px;
+  height: 1.75rem;
+  background: currentcolor;
+  content: '';
+}
+
+.cq-ledger-event::after,
+.cq-ledger-marker::after {
+  position: absolute;
+  bottom: calc(100% + 1.85rem);
+  left: 50%;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: currentcolor;
+  content: '';
+  transform: translate(-50%, 50%);
+}
+
+.cq-ledger-event[data-kind='in'] {
+  color: var(--cq-ok);
+  transform: none;
+}
+
+.cq-ledger-event[data-kind='in']::before,
+.cq-ledger-event[data-kind='in']::after {
+  left: 0;
+}
+
+.cq-ledger-event[data-kind='out'] {
+  text-align: right;
+  transform: translateX(-100%);
+}
+
+.cq-ledger-event[data-kind='out']::before,
+.cq-ledger-event[data-kind='out']::after {
+  left: 100%;
+}
+
+.cq-ledger-marker-now {
+  top: 2rem;
+  color: var(--cq-current);
+}
+
+.cq-ledger-marker-now::before {
+  height: 4.25rem;
+}
+
+.cq-ledger-marker-now::after {
+  bottom: calc(100% + 4.35rem);
+}
+
+.cq-ledger-marker-target {
+  top: 3.5rem;
+  padding-top: 0.2rem;
+  border-top: 1px dashed currentcolor;
+}
+
+.cq-ledger-empty {
+  grid-column: 1 / -1;
+  padding: 1.5rem 0;
+  border-block: 1px solid var(--cq-border);
+  color: var(--cq-text-muted);
+}
+

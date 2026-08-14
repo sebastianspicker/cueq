@@ -1,0 +1,310 @@
+/* Rhein-Desk workspace: main column + sticky rail */
+.cq-dashboard-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  align-items: start;
+  gap: 1.125rem;
+}
+
+.cq-dashboard-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.cq-dashboard-rail {
+  position: sticky;
+  top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cq-dashboard-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0.125rem 0.125rem;
+}
+
+.cq-dashboard-hero h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.cq-dashboard-hero p {
+  margin: 0.25rem 0 0;
+  color: var(--cq-text-muted);
+  font-size: 0.9rem;
+}
+
+.cq-dashboard-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cq-dashboard-primary-actions button,
+.cq-dashboard-primary-actions a {
+  display: inline-flex;
+  min-height: 2.375rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0 0.875rem;
+  border: 1px solid transparent;
+  border-radius: var(--cq-radius-md);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.cq-dashboard-primary-actions button {
+  min-width: 0;
+  border-color: var(--cq-accent);
+  background: var(--cq-accent);
+  color: var(--cq-on-accent);
+}
+
+.cq-dashboard-primary-actions button svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.cq-dashboard-primary-actions a {
+  border-color: var(--cq-border);
+  background: var(--cq-surface);
+  color: var(--cq-text);
+}
+
+.cq-dashboard-primary-actions a:hover {
+  border-color: var(--cq-border-strong);
+  background: var(--cq-surface-subtle);
+}
+
+/* Day stage + vertical ledger */
+.cq-day-stage {
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius-lg);
+  background: var(--cq-surface);
+}
+
+.cq-day-title-sub {
+  margin-top: 0.15rem;
+  color: var(--cq-text-muted);
+  font-size: 0.8125rem;
+}
+
+.cq-day-actions .cq-btn-secondary,
+.cq-day-actions a.cq-btn-secondary {
+  display: inline-flex;
+  min-height: 2.375rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.875rem;
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius-md);
+  background: var(--cq-surface);
+  color: var(--cq-text);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.cq-day-actions .cq-btn-primary,
+.cq-day-actions button.cq-btn-primary {
+  display: inline-flex;
+  min-height: 2.375rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--cq-accent);
+  border-radius: var(--cq-radius-md);
+  background: var(--cq-accent);
+  color: var(--cq-on-accent);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.cq-progress-now {
+  position: absolute;
+  top: -0.2rem;
+  bottom: -0.2rem;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--cq-text);
+}
+
+.cq-balance-inline {
+  display: flex;
+  min-width: 7.5rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.125rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--cq-border);
+}
+
+.cq-balance-k {
+  color: var(--cq-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.cq-balance-v {
+  color: var(--cq-ok);
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.cq-balance-v:not([data-positive='true']) {
+  color: var(--cq-text);
+}
+
+.cq-rail-panel,
+.cq-panel {
+  overflow: hidden;
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius-lg);
+  background: var(--cq-surface);
+}
+
+.cq-rail-panel-head,
+.cq-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--cq-border);
+  background: var(--cq-surface-subtle);
+}
+
+.cq-rail-panel-head h2,
+.cq-panel-head h2 {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.cq-rail-panel-body,
+.cq-panel-body {
+  padding: 0.75rem 0.875rem 0.875rem;
+}
+
+.cq-model-name {
+  margin: 0 0 0.25rem;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.cq-model-meta {
+  margin: 0 0 0.75rem;
+  color: var(--cq-text-muted);
+  font-size: 0.78rem;
+}
+
+.cq-rail-kv {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.cq-rail-kv dt {
+  margin: 0;
+  color: var(--cq-text-muted);
+}
+
+.cq-rail-kv dd {
+  margin: 0;
+  color: var(--cq-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.cq-rail-kv dd[data-positive='true'] {
+  color: var(--cq-ok);
+}
+
+.cq-rail-footnote {
+  margin: 0.75rem 0 0;
+  color: var(--cq-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.cq-task-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-top: auto;
+}
+
+.cq-task-hint {
+  color: var(--cq-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.cq-task-card a.cq-btn-secondary {
+  display: inline-flex;
+  flex-shrink: 0;
+  min-height: 2.25rem;
+  align-items: center;
+  padding: 0 0.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--cq-radius-md);
+  background: transparent;
+  color: var(--cq-accent);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.cq-task-card a.cq-btn-secondary:hover {
+  background: var(--cq-accent-soft);
+}
+
+.cq-day-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--cq-border);
+  background: var(--cq-surface-subtle);
+}
+
+.cq-day-toolbar h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.cq-day-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+

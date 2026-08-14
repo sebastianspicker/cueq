@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { HealthController } from '../src/health/health.controller.js';
 
 describe('@cueq/api smoke test', () => {
@@ -18,11 +18,12 @@ describe('@cueq/api smoke test', () => {
   });
 
   it('returns operational details on the readiness endpoint', async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
     const controller = new HealthController({
       exportRun: { findFirst: async () => null },
       hrImportRun: { findFirst: async () => null },
       auditEntry: { findFirst: async () => null },
-      terminalDevice: { findMany: async () => [] },
+      terminalDevice: { findMany },
     } as never);
     const result = await controller.readiness();
 
@@ -30,6 +31,7 @@ describe('@cueq/api smoke test', () => {
     expect(result.degraded).toBe(false);
     expect(result.degradedReasons).toEqual([]);
     expect(result.operations).toBeDefined();
+    expect(findMany).toHaveBeenCalledWith({ select: { lastSeenAt: true } });
   });
 
   it('marks readiness degraded when a terminal heartbeat is stale', async () => {

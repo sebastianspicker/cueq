@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ActionsSection, PeriodStateSection, type ClosingPeriod } from './closing-sections';
+import { ActionsSection } from './closing-action-sections';
+import { PeriodStateSection } from './closing-period-sections';
+import type { ClosingPeriod } from './closing-types';
 
 vi.mock('next/link', () => ({
   default: ({ children, href, ...props }: React.ComponentProps<'a'>) => (

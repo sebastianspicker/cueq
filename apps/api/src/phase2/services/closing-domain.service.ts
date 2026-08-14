@@ -91,49 +91,7 @@ export class ClosingDomainService {
         message: 'Automatic closing cutoff requires an ADMIN or HR audit actor.',
       });
     }
-    let transitioned = 0;
-    let busy = 0;
-
-    for (const { period, cutoff } of duePeriods) {
-      try {
-        const didTransition = await this.prisma.$transaction(async (tx) => {
-          await lockClosingPeriodWrites(tx, period.id);
-          const current = await tx.closingPeriod.findUnique({ where: { id: period.id } });
-          if (!current || current.status !== ClosingStatus.OPEN) return false;
-
-          await tx.closingPeriod.update({
-            where: { id: current.id },
-            data: {
-              status: ClosingStatus.REVIEW,
-              lockedAt: now,
-              lockSource: ClosingLockSource.AUTO_CUTOFF,
-            },
-          });
-          await this.auditHelper.appendAudit(
-            {
-              actorId,
-              action: 'CLOSING_CUTOFF_APPLIED',
-              entityType: 'ClosingPeriod',
-              entityId: current.id,
-              before: { status: 'OPEN' },
-              after: {
-                status: 'REVIEW',
-                lockedAt: now.toISOString(),
-                lockSource: 'AUTO_CUTOFF',
-                cutoffAt: cutoff.toISOString(),
-              },
-            },
-            tx,
-          );
-          return true;
-        });
-
-        if (didTransition) transitioned += 1;
-      } catch (error) {
-        if (!isBusyClosingPeriod(error)) throw error;
-        busy += 1;
-      }
-    }
+    const { transitioned, busy } = await this.transitionDuePeriods(duePeriods, actorId, now);
 
     return {
       enabled: true,
@@ -141,6 +99,64 @@ export class ClosingDomainService {
       transitioned,
       busy,
     };
+  }
+
+  private async transitionDuePeriods(
+    duePeriods: Array<{ period: { id: string }; cutoff: Date }>,
+    actorId: string,
+    now: Date,
+  ) {
+    let transitioned = 0;
+    let busy = 0;
+
+    for (const { period, cutoff } of duePeriods) {
+      const outcome = await this.transitionDuePeriod(period.id, cutoff, actorId, now);
+      transitioned += outcome.transitioned;
+      busy += outcome.busy;
+    }
+
+    return { transitioned, busy };
+  }
+
+  private async transitionDuePeriod(periodId: string, cutoff: Date, actorId: string, now: Date) {
+    try {
+      const didTransition = await this.prisma.$transaction(async (tx) => {
+        await lockClosingPeriodWrites(tx, periodId);
+        const current = await tx.closingPeriod.findUnique({ where: { id: periodId } });
+        if (!current || current.status !== ClosingStatus.OPEN) return false;
+
+        await tx.closingPeriod.update({
+          where: { id: current.id },
+          data: {
+            status: ClosingStatus.REVIEW,
+            lockedAt: now,
+            lockSource: ClosingLockSource.AUTO_CUTOFF,
+          },
+        });
+        await this.auditHelper.appendAudit(
+          {
+            actorId,
+            action: 'CLOSING_CUTOFF_APPLIED',
+            entityType: 'ClosingPeriod',
+            entityId: current.id,
+            before: { status: 'OPEN' },
+            after: {
+              status: 'REVIEW',
+              lockedAt: now.toISOString(),
+              lockSource: 'AUTO_CUTOFF',
+              cutoffAt: cutoff.toISOString(),
+            },
+          },
+          tx,
+        );
+        return true;
+      });
+
+      return { transitioned: didTransition ? 1 : 0, busy: 0 };
+    } catch (error) {
+      if (isBusyClosingPeriod(error)) return { transitioned: 0, busy: 1 };
+      throw error;
+    }
   }
 
   /* ── Period Queries ──────────────────────────────────────── */

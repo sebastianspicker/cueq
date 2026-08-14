@@ -1,9 +1,77 @@
 import { ConflictException } from '@nestjs/common';
 import { ClosingStatus } from '@cueq/database';
 import { describe, expect, it, vi } from 'vitest';
-import { ClosingLockHelper } from '../closing-lock.helper.js';
+import { closingBlockedAttemptFromError, ClosingLockHelper } from '../closing-lock.helper.js';
 
 describe('ClosingLockHelper race audit', () => {
+  it('uses two bounded reads for many ranges and maps a conflict to its exact canonical attempt', async () => {
+    const period = {
+      id: 'closing-org-b',
+      organizationUnitId: 'org-b',
+      status: ClosingStatus.REVIEW,
+      periodStart: new Date('2026-07-14T12:00:00.000Z'),
+      periodEnd: new Date('2026-07-14T16:00:00.000Z'),
+      lockSource: 'MANUAL_REVIEW_START',
+    };
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ acquired: true }]),
+      closingPeriod: {
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([{ id: period.id }])
+          .mockResolvedValueOnce([period]),
+      },
+    };
+    const auditHelper = { appendAudit: vi.fn().mockResolvedValue(undefined) };
+    const helper = new ClosingLockHelper({} as never, auditHelper as never);
+    const attempts = [
+      {
+        actorId: 'actor-1',
+        organizationUnitId: 'org-a',
+        from: new Date('2026-07-14T08:00:00.000Z'),
+        to: new Date('2026-07-14T09:00:00.000Z'),
+        attemptedAction: 'TERMINAL_BATCH_IMPORT',
+        entityType: 'TerminalSyncBatch',
+        entityId: 'terminal-1:first',
+      },
+      {
+        actorId: 'actor-1',
+        organizationUnitId: 'org-b',
+        from: new Date('2026-07-14T13:00:00.000Z'),
+        to: new Date('2026-07-14T14:00:00.000Z'),
+        attemptedAction: 'TERMINAL_BATCH_IMPORT',
+        entityType: 'TerminalSyncBatch',
+        entityId: 'terminal-1:blocked',
+      },
+    ];
+
+    let error: unknown;
+    try {
+      await helper.assertClosingPeriodsUnlockedForRangesInTransaction(attempts, tx as never);
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(ConflictException);
+    expect(tx.closingPeriod.findMany).toHaveBeenCalledTimes(2);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(closingBlockedAttemptFromError(error)).toBe(attempts[1]);
+    await expect(
+      helper.rethrowWithDurableClosingAudit(error, closingBlockedAttemptFromError(error)!),
+    ).rejects.toBe(error);
+    expect(auditHelper.appendAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: 'terminal-1:blocked',
+        before: expect.objectContaining({
+          organizationUnitId: 'org-b',
+          from: '2026-07-14T13:00:00.000Z',
+          to: '2026-07-14T14:00:00.000Z',
+        }),
+        after: expect.objectContaining({ closingPeriodId: period.id }),
+      }),
+    );
+  });
+
   it('audits a preliminary locked-period denial using the period evidence', async () => {
     const period = {
       id: 'closing-1',

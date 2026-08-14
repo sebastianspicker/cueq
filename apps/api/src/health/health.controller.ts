@@ -62,7 +62,7 @@ export class HealthController {
           where: { action: 'BACKUP_RESTORE_VERIFIED' },
           orderBy: { timestamp: 'desc' },
         }),
-        this.prisma.terminalDevice.findMany(),
+        this.prisma.terminalDevice.findMany({ select: { lastSeenAt: true } }),
       ]);
 
     const staleTerminals = terminalDevices.filter(

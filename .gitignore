@@ -130,3 +130,57 @@ docs/agent/
 
 # Misc
 *.tsbuildinfo
+
+# Shared local indexes and operator records
+.repowise/
+/.kilo/
+/.cursor/
+/CLAUDE.md
+/GEMINI.md
+/AUDIT_LEDGER.md
+/remediation-ledger.md
+
+# Public environment templates
+!.env.*.example
+!.env.sample
+!.env.template
+
+# Local-only credentials
+secrets.local.*
+credentials.local.*
+.npmrc.local
+*.local.pem
+*.local.key
+
+# Python caches and test reports
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyright/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+junit*.xml
+*.sarif
+
+# Shared build output
+target/
+.build/
+DerivedData/
+xcuserdata/
+
+# Local database sidecars
+*.local.db
+*.local.sqlite
+*.local.sqlite3
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal

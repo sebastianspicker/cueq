@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service.js';
 import { OidcIdentityProviderAdapter } from './oidc-identity-provider.adapter.js';
 import { SamlIdentityProviderAdapter } from './saml-identity-provider.adapter.js';
@@ -65,5 +65,36 @@ describe('AuthService provider selection', () => {
     expect(
       () => new AuthService(new OidcIdentityProviderAdapter(), new SamlIdentityProviderAdapter()),
     ).toThrow(/Unsupported AUTH_MODE value/iu);
+  });
+
+  it('prefers explicit AUTH_PROVIDER over the legacy mode', async () => {
+    process.env.NODE_ENV = 'test';
+    process.env.AUTH_PROVIDER = 'saml';
+    process.env.AUTH_MODE = 'oidc';
+    const oidcProvider = { verifyAccessToken: vi.fn() };
+    const samlIdentity = { subject: 'saml-user' };
+    const samlProvider = { verifyAccessToken: vi.fn().mockResolvedValue(samlIdentity) };
+
+    const service = new AuthService(oidcProvider as never, samlProvider as never);
+
+    await expect(service.verifyToken('token')).resolves.toBe(samlIdentity);
+    expect(samlProvider.verifyAccessToken).toHaveBeenCalledWith('token');
+    expect(oidcProvider.verifyAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('selects OIDC implicitly only when the legacy settings are absent', async () => {
+    process.env.NODE_ENV = 'test';
+    delete process.env.AUTH_PROVIDER;
+    delete process.env.AUTH_MODE;
+    process.env.OIDC_ISSUER_URL = 'https://identity.example';
+    const oidcIdentity = { subject: 'oidc-user' };
+    const oidcProvider = { verifyAccessToken: vi.fn().mockResolvedValue(oidcIdentity) };
+    const samlProvider = { verifyAccessToken: vi.fn() };
+
+    const service = new AuthService(oidcProvider as never, samlProvider as never);
+
+    await expect(service.verifyToken('token')).resolves.toBe(oidcIdentity);
+    expect(oidcProvider.verifyAccessToken).toHaveBeenCalledWith('token');
+    expect(samlProvider.verifyAccessToken).not.toHaveBeenCalled();
   });
 });

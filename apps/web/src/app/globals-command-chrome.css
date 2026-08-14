@@ -1,0 +1,145 @@
+/* Top command chrome — Rhein-Desk
+   .cq-chrome.cq-app-sidebar is the sticky header shell.
+   .cq-chrome-top is the desktop task bar; brand/session/locale panels are mobile-drawer only. */
+.cq-chrome,
+.cq-app-sidebar {
+  position: sticky;
+  z-index: 30;
+  top: 0;
+  width: 100%;
+  background: var(--cq-surface);
+  border-bottom: 1px solid var(--cq-border);
+}
+
+.cq-chrome.cq-app-sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  max-width: none;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
+  padding: 0;
+}
+
+.cq-chrome-top {
+  display: flex;
+  width: 100%;
+  max-width: 90rem;
+  min-height: 3.5rem;
+  align-items: center;
+  gap: 1.25rem;
+  margin: 0 auto;
+  overflow: visible;
+  padding: 0.625rem clamp(1rem, 2vw, 1.25rem) 0.5rem;
+}
+
+/* Desktop: hide mobile-drawer-only chrome sections (identity lives in chip + mast) */
+.cq-chrome > .cq-brand,
+.cq-chrome > .cq-session-panel,
+.cq-chrome > .cq-locale-panel {
+  display: none;
+}
+
+.cq-chrome-actions .cq-session-settings {
+  display: grid;
+  width: 2.125rem;
+  min-width: 2.125rem;
+  min-height: 2.125rem;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius-md);
+  background: var(--cq-surface);
+  color: var(--cq-text-muted);
+  text-decoration: none;
+}
+
+.cq-chrome-actions .cq-session-settings:hover {
+  border-color: var(--cq-border-strong);
+  color: var(--cq-text);
+  background: var(--cq-surface-subtle);
+}
+
+.cq-chrome-actions .cq-locale-switch,
+.cq-chrome-actions a.cq-locale-switch {
+  display: inline-flex;
+  min-height: 2.125rem;
+  align-items: center;
+  padding: 0 0.7rem;
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius-md);
+  background: var(--cq-surface);
+  color: var(--cq-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cq-brand {
+  display: flex;
+  min-width: 9rem;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.cq-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--cq-text);
+  text-decoration: none;
+}
+
+.cq-brand-symbol {
+  width: 1.75rem;
+  height: auto;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: var(--cq-accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cq-brand-copy {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.cq-brand-copy strong {
+  color: var(--cq-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.cq-brand-copy span {
+  display: block;
+  max-width: 11.5rem;
+  color: var(--cq-text-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.cq-brand-institution {
+  max-width: 11.5rem;
+  margin: 0;
+  color: var(--cq-text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cq-brand-mark[data-variant='compact'] .cq-brand-symbol {
+  width: 1.85rem;
+}
+
+.cq-brand-mark[data-variant='compact'] .cq-brand-copy strong {
+  font-size: 1.05rem;
+}
+

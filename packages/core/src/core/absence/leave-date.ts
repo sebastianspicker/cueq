@@ -1,6 +1,6 @@
 /** Normalizes leave-policy dates and builds year-bounded usage entries. */
 import { parseDateOrDateTime } from '@cueq/shared';
-import type { LeaveUsageEntry } from './leave-ledger.js';
+import type { LeaveUsageEntry } from './leave-ledger.types.js';
 
 /** Parse a policy month-day value while accepting both `MM-DD` and year-prefixed forms. */
 export function parseMonthDay(value: string): { month: number; day: number } {

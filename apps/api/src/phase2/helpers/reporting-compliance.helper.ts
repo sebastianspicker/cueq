@@ -37,6 +37,24 @@ export class ReportingComplianceHelper {
     }
   }
 
+  private async appendReportAccessAudit(
+    actorId: string,
+    report: 'audit-summary' | 'compliance-summary',
+    from: string,
+    to: string,
+  ) {
+    await this.auditHelper.appendAudit({
+      actorId,
+      action: 'REPORT_ACCESSED',
+      entityType: 'Report',
+      entityId: `${report}:${from}:${to}`,
+      after: {
+        report,
+        suppressed: false,
+      },
+    });
+  }
+
   async reportAuditSummary(user: AuthenticatedIdentity, query: unknown) {
     this.assertCanReadSensitiveReports(user);
     const actor = await this.personHelper.personForUser(user);
@@ -44,58 +62,51 @@ export class ReportingComplianceHelper {
     const from = new Date(`${parsed.from}T00:00:00.000Z`);
     const to = new Date(`${parsed.to}T23:59:59.999Z`);
 
-    const entries = await this.prisma.auditEntry.findMany({
-      where: {
-        timestamp: { gte: from, lte: to },
-      },
-      select: {
-        actorId: true,
-        action: true,
-        entityType: true,
-      },
-    });
+    const where = { timestamp: { gte: from, lte: to } };
+    const [entries, uniqueActors, actionGroups, entityTypeGroups] = await Promise.all([
+      this.prisma.auditEntry.count({ where }),
+      this.prisma.auditEntry.groupBy({
+        by: ['actorId'],
+        where,
+      }),
+      this.prisma.auditEntry.groupBy({
+        by: ['action'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.auditEntry.groupBy({
+        by: ['entityType'],
+        where,
+        _count: { _all: true },
+      }),
+    ]);
 
-    const uniqueActors = new Set<string>();
-    const byAction = new Map<string, number>();
-    const byEntityType = new Map<string, number>();
+    const byAction = actionGroups
+      .map((group) => ({ action: group.action, count: group._count._all }))
+      .sort((left, right) => left.action.localeCompare(right.action));
+    const byEntityType = entityTypeGroups
+      .map((group) => ({ entityType: group.entityType, count: group._count._all }))
+      .sort((left, right) => left.entityType.localeCompare(right.entityType));
+    const actionCounts = new Map(byAction.map(({ action, count }) => [action, count]));
 
-    for (const entry of entries) {
-      uniqueActors.add(entry.actorId);
-      byAction.set(entry.action, (byAction.get(entry.action) ?? 0) + 1);
-      byEntityType.set(entry.entityType, (byEntityType.get(entry.entityType) ?? 0) + 1);
-    }
+    const reportAccesses = actionCounts.get('REPORT_ACCESSED') ?? 0;
+    const exportsTriggered = actionCounts.get('CLOSING_EXPORTED') ?? 0;
+    const lockBlocks = actionCounts.get('CLOSING_LOCK_BLOCKED') ?? 0;
 
-    const reportAccesses = byAction.get('REPORT_ACCESSED') ?? 0;
-    const exportsTriggered = byAction.get('CLOSING_EXPORTED') ?? 0;
-    const lockBlocks = byAction.get('CLOSING_LOCK_BLOCKED') ?? 0;
-
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'REPORT_ACCESSED',
-      entityType: 'Report',
-      entityId: `audit-summary:${parsed.from}:${parsed.to}`,
-      after: {
-        report: 'audit-summary',
-        suppressed: false,
-      },
-    });
+    await this.appendReportAccessAudit(actor.id, 'audit-summary', parsed.from, parsed.to);
 
     return {
       from: parsed.from,
       to: parsed.to,
       totals: {
-        entries: entries.length,
-        uniqueActors: uniqueActors.size,
+        entries,
+        uniqueActors: uniqueActors.length,
         reportAccesses,
         exportsTriggered,
         lockBlocks,
       },
-      byAction: [...byAction.entries()]
-        .map(([action, count]) => ({ action, count }))
-        .sort((left, right) => left.action.localeCompare(right.action)),
-      byEntityType: [...byEntityType.entries()]
-        .map(([entityType, count]) => ({ entityType, count }))
-        .sort((left, right) => left.entityType.localeCompare(right.entityType)),
+      byAction,
+      byEntityType,
     };
   }
 
@@ -176,16 +187,7 @@ export class ReportingComplianceHelper {
     const uniqueChecksums = new Set(exportRuns.map((run) => run.checksum)).size;
     const duplicateChecksums = runs - uniqueChecksums;
 
-    await this.auditHelper.appendAudit({
-      actorId: actor.id,
-      action: 'REPORT_ACCESSED',
-      entityType: 'Report',
-      entityId: `compliance-summary:${parsed.from}:${parsed.to}`,
-      after: {
-        report: 'compliance-summary',
-        suppressed: false,
-      },
-    });
+    await this.appendReportAccessAudit(actor.id, 'compliance-summary', parsed.from, parsed.to);
 
     return {
       from: parsed.from,

@@ -81,17 +81,17 @@ FR-400 delivers absence and leave management with:
 
 ## 5. Acceptance Coverage
 
-| Case                                               | Coverage                                                   |
-| -------------------------------------------------- | ---------------------------------------------------------- |
-| Working-day counting with holidays                 | `packages/core/src/core/absence/__tests__/absence.test.ts` |
-| Carry-over-first consumption + forfeiture boundary | `packages/core/src/core/absence/__tests__/absence.test.ts` |
-| Request → workflow approval/rejection              | `apps/api/test/integration/fr400.integration.test.ts`      |
-| Cancellation semantics                             | `apps/api/test/integration/fr400.integration.test.ts`      |
-| Leave-adjustment HR APIs + balance projection      | `apps/api/test/integration/fr400.integration.test.ts`      |
-| AT-04 carry-over + forfeiture assertions           | `apps/api/test/acceptance/phase2.acceptance.test.ts`       |
-| AT-07 pending visibility split by role             | `apps/api/test/acceptance/phase2.acceptance.test.ts`       |
-| Employee redaction compliance                      | `apps/api/test/compliance/phase2.compliance.test.ts`       |
-| Web leave request + role visibility flow           | `apps/web/tests/acceptance/phase2.acceptance.spec.ts`      |
+| Case                                               | Coverage                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------- |
+| Working-day counting with holidays                 | `packages/core/src/core/absence/__tests__/absence-working-days.test.ts`   |
+| Carry-over-first consumption + forfeiture boundary | `packages/core/src/core/absence/__tests__/absence-leave-ledger.test.ts`   |
+| Request → workflow approval/rejection              | `apps/api/test/integration/fr400.integration.test.ts`                     |
+| Cancellation semantics                             | `apps/api/test/integration/fr400.integration.test.ts`                     |
+| Leave-adjustment HR APIs + balance projection      | `apps/api/test/integration/fr400.integration.test.ts`                     |
+| AT-04 carry-over + forfeiture assertions           | `apps/api/test/acceptance/phase2-roster-target-oncall.acceptance.test.ts` |
+| AT-07 pending visibility split by role             | `apps/api/test/acceptance/phase2-calendar.acceptance.test.ts`             |
+| Employee redaction compliance                      | `apps/api/test/compliance/gdpr-edge-cases.compliance.test.ts`             |
+| Web leave request + role visibility flow           | `apps/web/tests/acceptance/phase2.acceptance.spec.ts`                     |
 
 ## 6. Out of Scope
 

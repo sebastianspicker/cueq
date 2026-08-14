@@ -81,7 +81,10 @@ service checks.
 - API responses use Helmet headers.
 - The web application sets content-type, frame, referrer, permissions, and
   legacy XSS headers.
-- The web application does not currently set a Content Security Policy.
+- Localized documents use a request-scoped nonce and an enforced Content
+  Security Policy. Inline scripts without the request nonce and `eval` are
+  blocked in production. Inline styles remain allowed because current React
+  views use style attributes.
 - Production CORS defaults to an empty browser-origin allowlist.
 - `CORS_ORIGINS=*` cannot be combined with credentialed CORS.
 
@@ -167,7 +170,7 @@ separate outbound-network review.
 | Terminal spoofing                            | Shared token and ingestion validation                             | Device identity, physical security, badge controls, and token rotation |
 | Credential theft                             | JWT verification and memory-only browser token                    | Login, refresh, revocation, MFA, and browser hardening                 |
 | SQL injection                                | Prisma operations and input validation                            | Raw query review and database privileges                               |
-| Cross-site scripting                         | React escaping and security headers                               | No Content Security Policy; browser-token exposure remains possible    |
+| Cross-site scripting                         | React escaping and nonce-based script CSP                         | Inline styles remain allowed; browser-token exposure remains possible  |
 | Export exfiltration                          | Role checks and export audit records                              | Operator storage, delivery, access review, and retention               |
 | Server-side request forgery through webhooks | URL validation and private-target rejection                       | DNS and outbound network policy at delivery time                       |
 

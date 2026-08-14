@@ -25,7 +25,10 @@ function exportRun(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function buildHelper(existingRun?: Record<string, unknown>) {
+function buildHelper(
+  existingRun?: Record<string, unknown>,
+  accounts = [{ personId: 'person-1', targetHours: 160, actualHours: 158, balance: -2 }],
+) {
   const tx = {
     $queryRaw: vi.fn().mockResolvedValue([{ acquired: true }]),
     closingPeriod: {
@@ -33,11 +36,7 @@ function buildHelper(existingRun?: Record<string, unknown>) {
       update: vi.fn().mockResolvedValue({ ...period, status: ClosingStatus.EXPORTED }),
     },
     timeAccount: {
-      findMany: vi
-        .fn()
-        .mockResolvedValue([
-          { personId: 'person-1', targetHours: 160, actualHours: 158, balance: -2 },
-        ]),
+      findMany: vi.fn().mockResolvedValue(accounts),
     },
     exportRun: {
       findUnique: vi.fn().mockResolvedValue(existingRun ?? null),
@@ -63,7 +62,7 @@ function buildHelper(existingRun?: Record<string, unknown>) {
     eventOutboxHelper as never,
   );
 
-  return { helper, prisma, tx, auditHelper, eventOutboxHelper };
+  return { helper, prisma, tx, personHelper, auditHelper, eventOutboxHelper };
 }
 
 const user = {
@@ -74,6 +73,67 @@ const user = {
 };
 
 describe('ClosingExportHelper atomic export', () => {
+  it('serializes ordered XML rows with escaped attributes and a stable checksum', async () => {
+    const closingPeriodId = 'closing-<&"\'-1';
+    const { helper, tx } = buildHelper(undefined, [
+      {
+        personId: 'person-a<&"\'',
+        targetHours: 2.345,
+        actualHours: 1.2,
+        balance: -1.145,
+      },
+      { personId: 'person-z', targetHours: 160, actualHours: 158, balance: -2 },
+    ]);
+
+    const result = await helper.exportClosing(user, closingPeriodId, { format: 'XML_V1' });
+
+    expect(result.artifact).toBe(`<?xml version="1.0" encoding="UTF-8"?>
+<payrollExport format="XML_V1" closingPeriodId="closing-&lt;&amp;&quot;&apos;-1">
+  <row personId="person-a&lt;&amp;&quot;&apos;" targetHours="2.35" actualHours="1.20" balance="-1.15" />
+  <row personId="person-z" targetHours="160.00" actualHours="158.00" balance="-2.00" />
+</payrollExport>
+`);
+    expect(result.checksum).toBe(
+      'c31a7bb169bc86fbd85db34f4b0f8c35c2d771400c2bad6c944c4a10bcadba1b',
+    );
+    expect(result.rows.map((row) => row.personId)).toEqual(['person-a<&"\'', 'person-z']);
+    expect(tx.timeAccount.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { personId: 'asc' } }),
+    );
+    expect(tx.exportRun.findUnique).toHaveBeenCalledWith({
+      where: {
+        closingPeriodId_format_checksum: {
+          closingPeriodId,
+          format: 'XML_V1',
+          checksum: result.checksum,
+        },
+      },
+    });
+  });
+
+  it('checks export authorization before parsing an invalid format', async () => {
+    const { helper, prisma, personHelper } = buildHelper();
+    const unauthorizedUser = { ...user, role: Role.EMPLOYEE };
+
+    await expect(
+      helper.exportClosing(unauthorizedUser, period.id, { format: 'INVALID_FORMAT' }),
+    ).rejects.toThrow('Only HR/Admin can export closing periods.');
+
+    expect(personHelper.personForUser).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid export format before resolving the actor or opening a transaction', async () => {
+    const { helper, prisma, personHelper } = buildHelper();
+
+    await expect(
+      helper.exportClosing(user, period.id, { format: 'INVALID_FORMAT' }),
+    ).rejects.toMatchObject({ name: 'ZodError' });
+
+    expect(personHelper.personForUser).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('writes the status, export, audit, and outbox through one transaction client', async () => {
     const { helper, prisma, tx, auditHelper, eventOutboxHelper } = buildHelper();
 
@@ -85,6 +145,31 @@ describe('ClosingExportHelper atomic export', () => {
     expect(tx.exportRun.create).toHaveBeenCalledTimes(1);
     expect(auditHelper.appendAudit).toHaveBeenCalledWith(expect.any(Object), tx);
     expect(eventOutboxHelper.enqueueDomainEvent).toHaveBeenCalledWith(expect.any(Object), tx);
+  });
+
+  it('keeps the locked lifecycle ordering through persistence and publication', async () => {
+    const { helper, tx, auditHelper, eventOutboxHelper } = buildHelper();
+
+    await helper.exportClosing(user, period.id, { format: 'CSV_V1' });
+
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]!).toBeLessThan(
+      tx.closingPeriod.findUnique.mock.invocationCallOrder[0]!,
+    );
+    expect(tx.closingPeriod.findUnique.mock.invocationCallOrder[0]!).toBeLessThan(
+      tx.timeAccount.findMany.mock.invocationCallOrder[0]!,
+    );
+    expect(tx.timeAccount.findMany.mock.invocationCallOrder[0]!).toBeLessThan(
+      tx.exportRun.findUnique.mock.invocationCallOrder[0]!,
+    );
+    expect(tx.exportRun.findUnique.mock.invocationCallOrder[0]!).toBeLessThan(
+      tx.closingPeriod.update.mock.invocationCallOrder[0]!,
+    );
+    expect(tx.closingPeriod.update.mock.invocationCallOrder[0]!).toBeLessThan(
+      tx.exportRun.create.mock.invocationCallOrder[0]!,
+    );
+    expect(auditHelper.appendAudit.mock.invocationCallOrder[0]!).toBeLessThan(
+      eventOutboxHelper.enqueueDomainEvent.mock.invocationCallOrder[0]!,
+    );
   });
 
   it('reuses an identical committed export without emitting duplicate side effects', async () => {
@@ -184,5 +269,35 @@ describe('ClosingExportHelper atomic export', () => {
     expect(prisma.exportRun.findFirst).toHaveBeenCalledWith({
       where: { id: 'missing-run', closingPeriodId: period.id },
     });
+  });
+
+  it('checks download authorization before resolving the actor or looking up a run', async () => {
+    const { helper, prisma, personHelper, auditHelper } = buildHelper();
+    const unauthorizedUser = { ...user, role: Role.EMPLOYEE };
+
+    await expect(helper.getExportRunCsv(unauthorizedUser, period.id, 'export-1')).rejects.toThrow(
+      'Only HR/Admin/Payroll can download payroll export CSV.',
+    );
+
+    expect(personHelper.personForUser).not.toHaveBeenCalled();
+    expect(prisma.exportRun.findFirst).not.toHaveBeenCalled();
+    expect(auditHelper.appendAudit).not.toHaveBeenCalled();
+  });
+
+  it('validates an unavailable downloaded artifact after period-scoped lookup and before audit', async () => {
+    const unavailableRun = exportRun({ artifact: null });
+    const { helper, prisma, personHelper, auditHelper } = buildHelper(unavailableRun);
+
+    await expect(
+      helper.getExportRunArtifact(user, period.id, unavailableRun.id as string),
+    ).rejects.toThrow('Artifact is unavailable for this export run.');
+
+    expect(personHelper.personForUser.mock.invocationCallOrder[0]!).toBeLessThan(
+      prisma.exportRun.findFirst.mock.invocationCallOrder[0]!,
+    );
+    expect(prisma.exportRun.findFirst).toHaveBeenCalledWith({
+      where: { id: unavailableRun.id, closingPeriodId: period.id },
+    });
+    expect(auditHelper.appendAudit).not.toHaveBeenCalled();
   });
 });

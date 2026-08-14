@@ -1,0 +1,288 @@
+:root {
+  color-scheme: light;
+
+  /* Rhein-Desk mineral canvas + Rhine teal */
+  --cq-bg: rgb(238 242 243);
+  --cq-surface: rgb(255 255 255);
+  --cq-surface-solid: rgb(255 255 255);
+  --cq-surface-elevated: rgb(255 255 255);
+  --cq-surface-subtle: rgb(243 246 247);
+  --cq-border: rgb(195 208 212);
+  --cq-border-strong: rgb(143 160 167);
+  --cq-text: rgb(11 22 34);
+  --cq-text-muted: rgb(61 77 88);
+  --cq-accent: rgb(7 99 113);
+  --cq-accent-hover: rgb(5 74 85);
+  --cq-accent-soft: rgb(220 238 241);
+  --cq-on-accent: rgb(255 255 255);
+  --cq-focus: rgb(8 126 164);
+  --cq-current: rgb(167 55 55);
+  --cq-work: rgb(207 228 223);
+  --cq-ok: rgb(22 112 75);
+  --cq-ok-soft: rgb(227 243 235);
+  --cq-ok-border: rgb(138 197 170);
+  --cq-error: rgb(167 55 55);
+  --cq-error-soft: rgb(249 231 231);
+  --cq-error-border: rgb(221 167 167);
+  --cq-warn: rgb(138 90 8);
+  --cq-warn-soft: rgb(247 237 214);
+  --cq-warn-border: rgb(216 188 128);
+  --cq-info: rgb(7 99 113);
+  --cq-info-soft: rgb(220 238 241);
+  --cq-info-border: rgb(147 196 207);
+  --cq-neutral: rgb(75 92 99);
+  --cq-neutral-soft: rgb(234 240 242);
+  --cq-neutral-border: rgb(200 211 215);
+  --cq-radius-sm: 6px;
+  --cq-radius-md: 8px;
+  --cq-radius-lg: 12px;
+  --cq-shadow-float: 0 2px 8px rgb(10 31 38 / 14%);
+  --cq-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --cq-duration-fast: 180ms;
+  --cq-duration-standard: 220ms;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --cq-bg: rgb(16 23 25);
+  --cq-surface: rgb(23 33 36);
+  --cq-surface-solid: rgb(23 33 36);
+  --cq-surface-elevated: rgb(32 45 49);
+  --cq-surface-subtle: rgb(32 45 49);
+  --cq-border: rgb(64 81 88);
+  --cq-border-strong: rgb(114 134 141);
+  --cq-text: rgb(242 246 247);
+  --cq-text-muted: rgb(182 197 202);
+  --cq-accent: rgb(101 184 204);
+  --cq-accent-hover: rgb(139 203 217);
+  --cq-accent-soft: rgb(32 61 68);
+  --cq-on-accent: rgb(16 23 25);
+  --cq-focus: rgb(114 201 223);
+  --cq-current: rgb(240 160 160);
+  --cq-work: rgb(42 74 68);
+  --cq-ok: rgb(117 201 158);
+  --cq-ok-soft: rgb(29 58 46);
+  --cq-ok-border: rgb(71 124 97);
+  --cq-error: rgb(240 160 160);
+  --cq-error-soft: rgb(67 39 39);
+  --cq-error-border: rgb(134 80 80);
+  --cq-warn: rgb(226 189 115);
+  --cq-warn-soft: rgb(61 50 31);
+  --cq-warn-border: rgb(119 97 58);
+  --cq-info: rgb(139 203 217);
+  --cq-info-soft: rgb(32 61 68);
+  --cq-info-border: rgb(71 121 133);
+  --cq-neutral: rgb(182 197 202);
+  --cq-neutral-soft: rgb(32 45 49);
+  --cq-neutral-border: rgb(64 81 88);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --cq-bg: rgb(16 23 25);
+    --cq-surface: rgb(23 33 36);
+    --cq-surface-solid: rgb(23 33 36);
+    --cq-surface-elevated: rgb(32 45 49);
+    --cq-surface-subtle: rgb(32 45 49);
+    --cq-border: rgb(64 81 88);
+    --cq-border-strong: rgb(114 134 141);
+    --cq-text: rgb(242 246 247);
+    --cq-text-muted: rgb(182 197 202);
+    --cq-accent: rgb(101 184 204);
+    --cq-accent-hover: rgb(139 203 217);
+    --cq-accent-soft: rgb(32 61 68);
+    --cq-on-accent: rgb(16 23 25);
+    --cq-focus: rgb(114 201 223);
+    --cq-current: rgb(240 160 160);
+    --cq-work: rgb(42 74 68);
+    --cq-ok: rgb(117 201 158);
+    --cq-ok-soft: rgb(29 58 46);
+    --cq-ok-border: rgb(71 124 97);
+    --cq-error: rgb(240 160 160);
+    --cq-error-soft: rgb(67 39 39);
+    --cq-error-border: rgb(134 80 80);
+    --cq-warn: rgb(226 189 115);
+    --cq-warn-soft: rgb(61 50 31);
+    --cq-warn-border: rgb(119 97 58);
+    --cq-info: rgb(139 203 217);
+    --cq-info-soft: rgb(32 61 68);
+    --cq-info-border: rgb(71 121 133);
+    --cq-neutral: rgb(182 197 202);
+    --cq-neutral-soft: rgb(32 45 49);
+    --cq-neutral-border: rgb(64 81 88);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 20rem;
+  background: var(--cq-bg);
+  font-size: 16px;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--cq-bg);
+  color: var(--cq-text);
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+input,
+select,
+textarea,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius-md);
+}
+
+button,
+input,
+select {
+  min-height: 2.5rem;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: var(--cq-surface);
+  color: var(--cq-text);
+}
+
+textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--cq-text-muted);
+  opacity: 1;
+}
+
+button {
+  padding: 0.55rem 1rem;
+  border-color: var(--cq-accent);
+  background: var(--cq-accent);
+  color: var(--cq-on-accent);
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background var(--cq-duration-fast) var(--cq-ease),
+    border-color var(--cq-duration-fast) var(--cq-ease),
+    color var(--cq-duration-fast) var(--cq-ease);
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--cq-accent-hover);
+  background: var(--cq-accent-hover);
+}
+
+button:disabled {
+  border-color: var(--cq-border);
+  background: var(--cq-surface-subtle);
+  color: var(--cq-text-muted);
+  cursor: not-allowed;
+  opacity: 0.82;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cq-focus);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--cq-text);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+h1 {
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+h2 {
+  margin-bottom: 0.75rem;
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+p {
+  max-width: 72ch;
+  text-wrap: pretty;
+}
+
+.cq-skip-link {
+  position: fixed;
+  z-index: 50;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--cq-radius-md);
+  background: var(--cq-text);
+  color: var(--cq-surface);
+  transform: translateY(-180%);
+}
+
+.cq-skip-link:focus {
+  transform: translateY(0);
+}
+
+.cq-app-shell {
+  min-height: 100vh;
+}
+

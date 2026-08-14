@@ -1,26 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Role, WorkflowStatus, WorkflowType } from '@cueq/database';
 import { WorkflowAssignmentHelper } from './workflow-assignment.helper.js';
+import { resolveBaseApprover } from './workflow-assignment-routing.js';
 
 describe('WorkflowAssignmentHelper post-close assignment', () => {
   it('never falls back to the requester when no independent HR/Admin approver exists', async () => {
     const prisma = {
       person: { findFirst: vi.fn().mockResolvedValue(null) },
     };
-    const helper = new WorkflowAssignmentHelper(prisma as never, {} as never);
-
-    const approver = await (
-      helper as unknown as {
-        resolveBaseApprover: (
-          input: {
-            type: WorkflowType;
-            requesterId: string;
-            requesterOrganizationUnitId: string;
-          },
-          db: typeof prisma,
-        ) => Promise<string | null>;
-      }
-    ).resolveBaseApprover(
+    const approver = await resolveBaseApprover(
       {
         type: WorkflowType.POST_CLOSE_CORRECTION,
         requesterId: 'clrequester000000000000001',

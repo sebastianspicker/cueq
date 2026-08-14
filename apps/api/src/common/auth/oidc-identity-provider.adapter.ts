@@ -28,30 +28,31 @@ export class OidcIdentityProviderAdapter implements IdentityProviderPort {
         audience: this.audience,
       });
 
-      const claims = verified.payload as Record<string, unknown>;
-      const email = claims.email ? String(claims.email) : '';
-      const subject = claims.sub ? String(claims.sub) : '';
-
-      if (!subject || !email) {
-        throw new UnauthorizedException('Missing required identity claims.');
-      }
-
-      const realmAccess = claims.realm_access as { roles?: string[] } | undefined;
-      const firstMapped = selectHighestRoleClaim(realmAccess?.roles ?? []) ?? Role.EMPLOYEE;
-
-      return {
-        subject,
-        email,
-        role: firstMapped,
-        organizationUnitId: claims.organizationUnitId
-          ? String(claims.organizationUnitId)
-          : undefined,
-        claims,
-      };
+      return this.mapClaims(verified.payload as Record<string, unknown>);
     } catch (error) {
       const errorClass = error instanceof Error ? error.constructor.name : 'UnknownError';
       this.logger.warn('oidc_token_validation_failed', errorClass);
       throw new UnauthorizedException('OIDC token validation failed.');
     }
+  }
+
+  private mapClaims(claims: Record<string, unknown>): AuthenticatedIdentity {
+    const email = claims.email ? String(claims.email) : '';
+    const subject = claims.sub ? String(claims.sub) : '';
+
+    if (!subject || !email) {
+      throw new UnauthorizedException('Missing required identity claims.');
+    }
+
+    const realmAccess = claims.realm_access as { roles?: string[] } | undefined;
+    const role = selectHighestRoleClaim(realmAccess?.roles ?? []) ?? Role.EMPLOYEE;
+
+    return {
+      subject,
+      email,
+      role,
+      organizationUnitId: claims.organizationUnitId ? String(claims.organizationUnitId) : undefined,
+      claims,
+    };
   }
 }

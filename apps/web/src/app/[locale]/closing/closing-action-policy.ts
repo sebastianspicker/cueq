@@ -1,6 +1,6 @@
 /** Derives closing UI affordances from role and period state; it is not an authorization boundary. */
 import type { CueqRole } from '../../../components/AppWorkspace';
-import type { ClosingChecklistResponse, ClosingPeriod } from './closing-sections';
+import type { ClosingChecklistResponse, ClosingPeriod } from './closing-types';
 
 export type ClosingActionId =
   | 'lead-approve'

@@ -75,9 +75,6 @@ export class LeaveBalanceHelper {
 
   async leaveBalance(user: AuthenticatedIdentity, year?: number, asOfDate?: string) {
     const person = await this.personHelper.personForUser(user);
-    const workTimeModel = person.workTimeModelId
-      ? await this.prisma.workTimeModel.findUnique({ where: { id: person.workTimeModelId } })
-      : null;
     const targetYear = year ?? new Date().getUTCFullYear();
     const resolvedAsOfDate = asOfDate ?? this.defaultAsOfDate(targetYear);
     let asOf: Date;
@@ -95,38 +92,43 @@ export class LeaveBalanceHelper {
     const previousYear = targetYear - 1;
     const previousFrom = new Date(Date.UTC(previousYear, 0, 1));
     const previousTo = new Date(Date.UTC(previousYear, 11, 31, 23, 59, 59, 999));
+    const workTimeModel = person.workTimeModelId
+      ? this.prisma.workTimeModel.findUnique({ where: { id: person.workTimeModelId } })
+      : Promise.resolve(null);
 
-    const [annualLeaveAbsences, priorAnnualLeaveAbsences, adjustments] = await Promise.all([
-      this.prisma.absence.findMany({
-        where: {
-          personId: person.id,
-          status: AbsenceStatus.APPROVED,
-          type: AbsenceType.ANNUAL_LEAVE,
-          startDate: { lte: to },
-          endDate: { gte: from },
-        },
-        orderBy: { startDate: 'asc' },
-      }),
-      this.prisma.absence.findMany({
-        where: {
-          personId: person.id,
-          status: AbsenceStatus.APPROVED,
-          type: AbsenceType.ANNUAL_LEAVE,
-          startDate: { lte: previousTo },
-          endDate: { gte: previousFrom },
-        },
-        orderBy: { startDate: 'asc' },
-      }),
-      this.prisma.leaveAdjustment.findMany({
-        where: {
-          personId: person.id,
-          year: { in: [previousYear, targetYear] },
-        },
-      }),
-    ]);
+    const [resolvedWorkTimeModel, annualLeaveAbsences, priorAnnualLeaveAbsences, adjustments] =
+      await Promise.all([
+        workTimeModel,
+        this.prisma.absence.findMany({
+          where: {
+            personId: person.id,
+            status: AbsenceStatus.APPROVED,
+            type: AbsenceType.ANNUAL_LEAVE,
+            startDate: { lte: to },
+            endDate: { gte: from },
+          },
+          orderBy: { startDate: 'asc' },
+        }),
+        this.prisma.absence.findMany({
+          where: {
+            personId: person.id,
+            status: AbsenceStatus.APPROVED,
+            type: AbsenceType.ANNUAL_LEAVE,
+            startDate: { lte: previousTo },
+            endDate: { gte: previousFrom },
+          },
+          orderBy: { startDate: 'asc' },
+        }),
+        this.prisma.leaveAdjustment.findMany({
+          where: {
+            personId: person.id,
+            year: { in: [previousYear, targetYear] },
+          },
+        }),
+      ]);
 
     const modelWeeklyHours = Number(
-      workTimeModel?.weeklyHours ?? DEFAULT_LEAVE_RULE.fullTimeWeeklyHours,
+      resolvedWorkTimeModel?.weeklyHours ?? DEFAULT_LEAVE_RULE.fullTimeWeeklyHours,
     );
     const employmentStartDate = person.employmentStartDate?.toISOString().slice(0, 10);
     const employmentEndDate = person.employmentEndDate?.toISOString().slice(0, 10);

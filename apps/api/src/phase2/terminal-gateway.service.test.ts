@@ -1,5 +1,7 @@
-import { Role } from '@cueq/database';
+import { ConflictException } from '@nestjs/common';
+import { BookingSource, Role } from '@cueq/database';
 import { describe, expect, it, vi } from 'vitest';
+import { ClosingLockHelper } from './helpers/closing-lock.helper.js';
 import { TerminalGatewayService, TerminalSyncBatchSchema } from './terminal-gateway.service.js';
 
 const PERSON_ID = 'cm0000000000000000000001';
@@ -43,6 +45,9 @@ function buildService(existingResult?: Record<string, unknown>) {
         { id: 'cm0000000000000000000003', organizationUnitId: 'cm0000000000000000000004' },
       ]),
     },
+    closingPeriod: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     terminalHeartbeat: {
       create: vi.fn().mockResolvedValue({
         id: 'heartbeat-1',
@@ -51,14 +56,20 @@ function buildService(existingResult?: Record<string, unknown>) {
       }),
     },
     timeType: {
-      findUnique: vi.fn().mockResolvedValue({ id: 'time-type-1' }),
+      findMany: vi
+        .fn()
+        .mockImplementation(({ where: { code } }) =>
+          Promise.resolve(
+            code.in.map((value: string) => ({ id: `time-type-${value}`, code: value })),
+          ),
+        ),
     },
     booking: {
-      findFirst: vi.fn().mockResolvedValue(null),
-      create: vi.fn().mockResolvedValue({ id: 'booking-1' }),
+      findMany: vi.fn().mockResolvedValue([]),
+      createMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     absence: {
-      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
     },
     auditEntry: {
       create: vi.fn().mockResolvedValue({}),
@@ -72,6 +83,7 @@ function buildService(existingResult?: Record<string, unknown>) {
   };
   const closingLockHelper = {
     assertClosingPeriodUnlockedForRangeInTransaction: vi.fn().mockResolvedValue(undefined),
+    assertClosingPeriodsUnlockedForRangesInTransaction: vi.fn().mockResolvedValue(undefined),
     rethrowWithDurableClosingAudit: vi.fn(async (error: unknown) => {
       throw error;
     }),
@@ -126,16 +138,27 @@ describe('TerminalGatewayService import atomicity', () => {
 
     expect(result).toMatchObject({ batchId: 'batch-new', created: 1, duplicates: 0 });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(tx.booking.create).toHaveBeenCalledTimes(1);
+    expect(tx.booking.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          personId: PERSON_ID,
+          source: BookingSource.IMPORT,
+        }),
+      ],
+    });
     expect(tx.$queryRaw.mock.calls.slice(0, 2).map((call) => call[1])).toEqual([
       'cueq:terminal-write:terminal-1',
       expect.stringMatching(/^cueq:terminal-ingestion:terminal-1:/u),
     ]);
-    expect(closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organizationUnitId: 'cm0000000000000000000004',
-        from: new Date(payload.records[0]!.startTime),
-      }),
+    expect(
+      closingLockHelper.assertClosingPeriodsUnlockedForRangesInTransaction,
+    ).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          organizationUnitId: 'cm0000000000000000000004',
+          from: new Date(payload.records[0]!.startTime),
+        }),
+      ],
       tx,
     );
     expect(tx.terminalSyncBatch.create).toHaveBeenCalledWith({
@@ -145,6 +168,174 @@ describe('TerminalGatewayService import atomicity', () => {
       }),
     });
     expect(auditHelper.appendAudit).toHaveBeenCalledWith(expect.any(Object), tx);
+  });
+
+  it('preloads batch lookups while preserving terminal record outcomes and in-batch overlaps', async () => {
+    const { service, tx } = buildService();
+    tx.timeType.findMany.mockImplementationOnce(({ where: { code } }) =>
+      Promise.resolve(
+        code.in
+          .filter((value: string) => value !== 'UNKNOWN')
+          .map((value: string) => ({ id: `time-type-${value}`, code: value })),
+      ),
+    );
+    tx.absence.findMany.mockResolvedValueOnce([
+      {
+        personId: PERSON_ID,
+        startDate: new Date('2026-07-14T11:00:00.000Z'),
+        endDate: new Date('2026-07-14T12:00:00.000Z'),
+      },
+    ]);
+    tx.booking.findMany.mockResolvedValueOnce([
+      {
+        personId: PERSON_ID,
+        timeTypeId: 'time-type-WORK',
+        startTime: new Date('2026-07-14T09:00:00.000Z'),
+        endTime: new Date('2026-07-14T10:00:00.000Z'),
+        source: BookingSource.IMPORT,
+      },
+      {
+        personId: PERSON_ID,
+        timeTypeId: 'time-type-WORK',
+        startTime: new Date('2026-07-14T13:30:00.000Z'),
+        endTime: new Date('2026-07-14T14:30:00.000Z'),
+        source: BookingSource.WEB,
+      },
+    ]);
+    const records = [
+      {
+        personId: PERSON_ID,
+        timeTypeCode: 'UNKNOWN',
+        startTime: '2026-07-14T08:00:00.000Z',
+        endTime: '2026-07-14T08:30:00.000Z',
+      },
+      {
+        personId: PERSON_ID,
+        timeTypeCode: 'WORK',
+        startTime: '2026-07-14T09:00:00.000Z',
+        endTime: '2026-07-14T10:00:00.000Z',
+      },
+      {
+        personId: PERSON_ID,
+        timeTypeCode: 'WORK',
+        startTime: '2026-07-14T11:00:00.000Z',
+        endTime: '2026-07-14T12:00:00.000Z',
+      },
+      {
+        personId: PERSON_ID,
+        timeTypeCode: 'WORK',
+        startTime: '2026-07-14T13:00:00.000Z',
+        endTime: '2026-07-14T14:00:00.000Z',
+      },
+      {
+        personId: PERSON_ID,
+        timeTypeCode: 'WORK',
+        startTime: '2026-07-14T15:00:00.000Z',
+        endTime: '2026-07-14T16:00:00.000Z',
+      },
+      {
+        personId: PERSON_ID,
+        timeTypeCode: 'PAUSE',
+        startTime: '2026-07-14T15:30:00.000Z',
+      },
+    ];
+
+    await expect(
+      service.importBatch(user, ACTOR_ID, { terminalId: 'terminal-1', records }),
+    ).resolves.toMatchObject({
+      created: 1,
+      duplicates: 1,
+      unknownTimeTypes: [
+        {
+          personId: PERSON_ID,
+          startTime: '2026-07-14T08:00:00.000Z',
+          timeTypeCode: 'UNKNOWN',
+        },
+      ],
+      conflictFlags: [
+        {
+          personId: PERSON_ID,
+          startTime: '2026-07-14T11:00:00.000Z',
+          type: 'ABSENCE_CONFLICT',
+        },
+        {
+          personId: PERSON_ID,
+          startTime: '2026-07-14T13:00:00.000Z',
+          type: 'BOOKING_OVERLAP',
+        },
+        {
+          personId: PERSON_ID,
+          startTime: '2026-07-14T15:30:00.000Z',
+          type: 'BOOKING_OVERLAP',
+        },
+      ],
+    });
+
+    expect(tx.timeType.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.absence.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.booking.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.booking.createMany).toHaveBeenCalledTimes(1);
+    expect(tx.booking.findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          {
+            personId: { in: [PERSON_ID] },
+            startTime: { lt: new Date('2026-07-14T16:00:00.000Z') },
+            OR: [{ endTime: null }, { endTime: { gt: new Date('2026-07-14T09:00:00.000Z') } }],
+          },
+          {
+            personId: { in: [PERSON_ID] },
+            OR: [{ endTime: null }, { endTime: { gt: new Date('2026-07-14T15:30:00.000Z') } }],
+          },
+        ],
+      },
+      select: { personId: true, timeTypeId: true, startTime: true, endTime: true, source: true },
+    });
+  });
+
+  it('keeps booking preload predicates bounded for a large structured batch', async () => {
+    const { service, tx, auditHelper, closingLockHelper } = buildService();
+    const actualClosingLockHelper = new ClosingLockHelper({} as never, auditHelper as never);
+    closingLockHelper.assertClosingPeriodsUnlockedForRangesInTransaction.mockImplementation(
+      (attempts, client) =>
+        actualClosingLockHelper.assertClosingPeriodsUnlockedForRangesInTransaction(
+          attempts,
+          client as never,
+        ),
+    );
+    const records = Array.from({ length: 1_000 }, (_, index) => {
+      const startTime = new Date(Date.UTC(2026, 6, 1, 0, index * 2));
+      const endTime = new Date(startTime.getTime() + 60_000);
+      return {
+        personId: PERSON_ID,
+        timeTypeCode: 'WORK',
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+      };
+    });
+
+    await expect(
+      service.importBatch(user, ACTOR_ID, { terminalId: 'terminal-1', records }),
+    ).resolves.toMatchObject({ created: 1_000, duplicates: 0, conflictFlags: [] });
+
+    expect(tx.timeType.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.absence.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.booking.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.booking.findMany.mock.calls[0]?.[0].where.OR).toHaveLength(1);
+    expect(tx.closingPeriod.findMany).toHaveBeenCalledTimes(16);
+    expect(
+      tx.closingPeriod.findMany.mock.calls.every(([query]) => query.where.OR.length <= 128),
+    ).toBe(true);
+    expect(tx.booking.createMany).toHaveBeenCalledTimes(1);
+    expect(tx.booking.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({ personId: PERSON_ID, source: BookingSource.IMPORT }),
+      ]),
+    });
+    expect(tx.booking.createMany.mock.calls[0]?.[0].data).toHaveLength(1_000);
+    expect(
+      closingLockHelper.assertClosingPeriodsUnlockedForRangesInTransaction,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it('returns the stored receipt for an exact replay without repeating writes', async () => {
@@ -168,7 +359,7 @@ describe('TerminalGatewayService import atomicity', () => {
       duplicates: 1,
     });
     expect(tx.terminalDevice.findUnique).not.toHaveBeenCalled();
-    expect(tx.booking.create).not.toHaveBeenCalled();
+    expect(tx.booking.createMany).not.toHaveBeenCalled();
     expect(tx.terminalSyncBatch.create).not.toHaveBeenCalled();
     expect(auditHelper.appendAudit).not.toHaveBeenCalled();
   });
@@ -178,6 +369,72 @@ describe('TerminalGatewayService import atomicity', () => {
     auditHelper.appendAudit.mockRejectedValueOnce(new Error('audit unavailable'));
 
     await expect(service.importBatch(user, ACTOR_ID, payload)).rejects.toThrow('audit unavailable');
+  });
+
+  it('does not create a receipt or report success when the bulk booking write fails', async () => {
+    const { service, tx, auditHelper } = buildService();
+    tx.booking.createMany.mockRejectedValueOnce(new Error('bulk booking write unavailable'));
+
+    await expect(service.importBatch(user, ACTOR_ID, payload)).rejects.toThrow(
+      'bulk booking write unavailable',
+    );
+
+    expect(tx.booking.createMany).toHaveBeenCalledTimes(1);
+    expect(tx.terminalSyncBatch.create).not.toHaveBeenCalled();
+    expect(auditHelper.appendAudit).not.toHaveBeenCalled();
+  });
+
+  it('skips the bulk booking write when every canonical record is rejected', async () => {
+    const { service, tx } = buildService();
+    tx.timeType.findMany.mockResolvedValueOnce([]);
+
+    await expect(
+      service.importBatch(user, ACTOR_ID, {
+        terminalId: 'terminal-1',
+        records: [{ ...payload.records[0]!, timeTypeCode: 'UNKNOWN' }],
+      }),
+    ).resolves.toMatchObject({ created: 0, unknownTimeTypes: [expect.any(Object)] });
+
+    expect(tx.booking.createMany).not.toHaveBeenCalled();
+  });
+
+  it('uses the exact blocked canonical record for the durable closing audit', async () => {
+    const { service, closingLockHelper } = buildService();
+    const blockedAttempt = {
+      actorId: ACTOR_ID,
+      organizationUnitId: 'org-b',
+      from: new Date('2026-07-14T13:00:00.000Z'),
+      to: new Date('2026-07-14T14:00:00.000Z'),
+      attemptedAction: 'TERMINAL_BATCH_IMPORT',
+      entityType: 'TerminalSyncBatch',
+      entityId: 'terminal-1:checksum',
+    };
+    const locked = Object.assign(new ConflictException({ code: 'CLOSING_PERIOD_LOCKED' }), {
+      closingBlockedAttempt: blockedAttempt,
+    });
+    closingLockHelper.assertClosingPeriodsUnlockedForRangesInTransaction.mockRejectedValueOnce(
+      locked,
+    );
+
+    await expect(
+      service.importBatch(user, ACTOR_ID, {
+        terminalId: 'terminal-1',
+        records: [
+          payload.records[0]!,
+          {
+            ...payload.records[0]!,
+            personId: 'cm0000000000000000000003',
+            startTime: '2026-07-14T13:00:00.000Z',
+            endTime: '2026-07-14T14:00:00.000Z',
+          },
+        ],
+      }),
+    ).rejects.toBe(locked);
+
+    expect(closingLockHelper.rethrowWithDurableClosingAudit).toHaveBeenCalledWith(
+      locked,
+      blockedAttempt,
+    );
   });
 
   it('uses the same ingestion identity when equal-time records arrive in another order', async () => {
@@ -229,6 +486,14 @@ describe('TerminalGatewayService heartbeat integrity', () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(tx.terminalHeartbeat.create).toHaveBeenCalledTimes(1);
     expect(auditHelper.appendAudit).toHaveBeenCalledWith(expect.any(Object), tx);
+  });
+
+  it('checks the integration token before parsing a heartbeat or touching persistence', async () => {
+    const { service, prisma } = buildService();
+
+    await expect(service.recordHeartbeat(undefined, { malformed: true })).rejects.toThrow();
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('records a delayed heartbeat without regressing the device last-seen state', async () => {

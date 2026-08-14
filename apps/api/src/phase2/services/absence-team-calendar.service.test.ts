@@ -62,6 +62,8 @@ describe('AbsenceDomainService team calendar privacy', () => {
           where: expect.objectContaining({
             person: { organizationUnitId: ORGANIZATION_UNIT_ID },
             status: { in: [AbsenceStatus.APPROVED] },
+            startDate: { lte: new Date('2026-07-31T23:59:59.999Z') },
+            endDate: { gte: new Date('2026-07-01T00:00:00.000Z') },
           }),
         }),
       );

@@ -1,11 +1,5 @@
 /** Owns employee booking reads and guarded booking mutations. */
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { BookingSource, type Prisma } from '@cueq/database';
 import { CreateBookingSchema } from '@cueq/shared';
 import { PrismaService } from '../../persistence/prisma.service.js';
@@ -15,8 +9,7 @@ import { AuditHelper } from '../helpers/audit.helper.js';
 import { ClosingLockHelper } from '../helpers/closing-lock.helper.js';
 import { EventOutboxHelper } from '../helpers/event-outbox.helper.js';
 import { assertCanActForPerson } from '../helpers/role-constants.js';
-import { bookingOverlapWhere } from '../helpers/booking-overlap.helper.js';
-import { lockPersonWrites } from '../helpers/transaction-lock.helper.js';
+import { writeBookingCreation } from './booking-create.writer.js';
 
 /**
  * Owns employee booking reads and writes outside controlled closing corrections or integrations.
@@ -97,90 +90,27 @@ export class BookingDomainService {
     await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
 
     const booking = await this.prisma
-      .$transaction(async (tx) => {
-        await this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
-          {
-            organizationUnitId: targetPerson.organizationUnitId,
-            from,
-            to,
-          },
-          tx,
-        );
-        await lockPersonWrites(tx, [parsed.personId]);
-        const currentTargetPerson = await tx.person.findUnique({
-          where: { id: parsed.personId },
-          select: { organizationUnitId: true },
-        });
-        if (!currentTargetPerson) {
-          throw new NotFoundException('Person not found.');
-        }
-        if (currentTargetPerson.organizationUnitId !== targetPerson.organizationUnitId) {
-          throw new ConflictException({
-            code: 'PERSON_IDENTITY_CHANGED',
-            message: 'Person organization assignment changed; retry the booking request.',
-            retryable: true,
-          });
-        }
-
-        const overlap = await tx.booking.findFirst({
-          where: bookingOverlapWhere({
-            personId: parsed.personId,
-            startTime: from,
-            endTime,
-          }),
-        });
-        if (overlap) {
-          throw new ConflictException('Booking overlaps with existing booking.');
-        }
-
-        const booking = await tx.booking.create({
-          data: {
-            personId: parsed.personId,
-            timeTypeId: parsed.timeTypeId,
-            startTime,
-            endTime,
-            source: parsed.source as BookingSource,
-            note: parsed.note,
-            shiftId: parsed.shiftId,
-          },
-          include: {
-            timeType: true,
-          },
-        });
-
-        await this.auditHelper.appendAudit(
-          {
-            actorId: actor.id,
-            action: 'BOOKING_CREATED',
-            entityType: 'Booking',
-            entityId: booking.id,
-            after: {
-              personId: booking.personId,
-              timeTypeId: booking.timeTypeId,
-              startTime: booking.startTime.toISOString(),
-              endTime: booking.endTime?.toISOString() ?? null,
-              source: booking.source,
-            },
-          },
-          tx,
-        );
-
-        await this.eventOutboxHelper.enqueueDomainEvent(
-          {
-            eventType: 'booking.created',
-            aggregateType: 'Booking',
-            aggregateId: booking.id,
-            payload: {
-              personId: booking.personId,
-              timeTypeCode: booking.timeType.code,
-              source: booking.source,
-            },
-          },
-          tx,
-        );
-
-        return booking;
-      })
+      .$transaction((tx) =>
+        writeBookingCreation(tx, {
+          actorId: actor.id,
+          parsed,
+          targetPerson,
+          startTime,
+          endTime,
+          from,
+          assertClosingUnlocked: (transaction) =>
+            this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
+              {
+                organizationUnitId: targetPerson.organizationUnitId,
+                from,
+                to,
+              },
+              transaction,
+            ),
+          auditHelper: this.auditHelper,
+          eventOutboxHelper: this.eventOutboxHelper,
+        }),
+      )
       .catch((error: unknown) =>
         this.closingLockHelper.rethrowWithDurableClosingAudit(error, closingAttempt),
       );

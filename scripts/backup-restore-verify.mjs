@@ -5,33 +5,6 @@
  * resolvable. The drill uses isolated schemas and exits non-zero when restored
  * counts, checksums, or audit continuity differ from the source snapshot.
  */
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { runDatabaseWorkspaceScript } from './lib/database-cli-delegation.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const databasePackageDir = resolve(__dirname, '..', 'packages', 'database');
-const pnpmScript = resolve(__dirname, 'pnpm.sh');
-const result = spawnSync(
-  pnpmScript,
-  ['exec', 'node', 'scripts/backup-restore-verify.mjs', ...process.argv.slice(2)],
-  {
-    cwd: databasePackageDir,
-    env: {
-      ...process.env,
-    },
-    encoding: 'utf8',
-  },
-);
-
-if (result.stdout) {
-  process.stdout.write(result.stdout);
-}
-
-if (result.stderr) {
-  process.stderr.write(result.stderr);
-}
-
-process.exit(result.status ?? 1);
+process.exit(runDatabaseWorkspaceScript('backup-restore-verify.mjs'));
