@@ -73,13 +73,10 @@ id_ed25519*
 .serena/
 .impeccable/
 openclaw.json
-.codacy/generated/
-.codacy/logs/
-.codacy/tools-configs/
-.codacy/cli-config.yaml
-.codacy/codacy.config.json
-.codacy/codacy.yaml
-.codacy/configure-codacy-summary.json
+/.codacy/*
+!/.codacy/codacy.config.json
+!/.codacy/codacy.yaml
+!/.codacy/codacy.yml
 progress.md
 /plan.md
 /status.md
