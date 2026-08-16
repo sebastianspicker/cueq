@@ -77,6 +77,8 @@ openclaw.json
 !/.codacy/codacy.config.json
 !/.codacy/codacy.yaml
 !/.codacy/codacy.yml
+/.codacy/codacy.config.json
+/.codacy/codacy.yaml
 progress.md
 /plan.md
 /status.md
