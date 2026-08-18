@@ -1,7 +1,7 @@
 {
   "year": 2026,
   "region": "NRW",
-  "source": "Official NRW public holiday calendar (manually curated for tests)",
+  "source": "Manually curated test fixture; external source not recorded",
   "holidays": [
     { "date": "2026-01-01", "name": "Neujahr" },
     { "date": "2026-04-03", "name": "Karfreitag" },

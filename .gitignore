@@ -19,6 +19,7 @@ packages/database/generated/
 !.env.example
 
 # IDE
+/.mcp.json
 .vscode/
 .idea/
 .fleet/

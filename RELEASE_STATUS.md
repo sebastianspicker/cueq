@@ -24,10 +24,10 @@ entry stylesheet. The artifact's HTML, CSS, JavaScript, SVG, and screenshot
 routes returned HTTP 200 from a loopback server. The Markdown link check passed
 for 47 files.
 
-This does not designate a release candidate. The current host runs Node.js 26
-rather than the pinned Node.js 20.19.0, `node_modules` is absent, and the
-PostgreSQL, application build, coverage, acceptance, Chromium, CI, and hosted
-Pages lanes remain unverified in this checkout.
+This does not designate a release candidate. The required Node.js 20.19.0 and
+pnpm 9.15.0 environment, with its frozen dependency graph, has not been
+recorded as release evidence. The PostgreSQL, application build, coverage,
+acceptance, Chromium, CI, and hosted Pages lanes remain unverified.
 
 ## Required candidate evidence
 
