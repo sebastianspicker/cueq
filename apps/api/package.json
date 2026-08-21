@@ -21,7 +21,7 @@
     "@cueq/database": "workspace:*",
     "@cueq/policy": "workspace:*",
     "@cueq/shared": "workspace:*",
-    "@nestjs/common": "11.1.18",
+    "@nestjs/common": "11.2.1",
     "@nestjs/core": "11.1.18",
     "@nestjs/platform-express": "11.1.18",
     "@nestjs/schedule": "5.0.1",
