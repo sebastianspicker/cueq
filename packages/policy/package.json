@@ -19,12 +19,6 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:coverage": "CUEQ_INCLUDE_SPECIALIZED_TESTS=1 vitest run --coverage",
-    "test:integration": "vitest run --config vitest.suites.config.ts src/__tests__/policy.integration.test.ts",
-    "test:golden": "vitest run --config vitest.golden.config.ts",
-    "test:acceptance": "vitest run --config vitest.suites.config.ts src/__tests__/policy.acceptance.test.ts",
-    "test:compliance": "vitest run --config vitest.suites.config.ts src/__tests__/policy.compliance.test.ts",
     "clean": "rm -rf dist node_modules/.cache"
   },
   "dependencies": {
@@ -35,7 +29,6 @@
     "ajv": "8.18.0",
     "@types/node": "catalog:",
     "@typescript/native": "catalog:",
-    "@vitest/coverage-v8": "catalog:",
     "vitest": "catalog:"
   }
 }

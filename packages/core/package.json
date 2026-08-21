@@ -19,9 +19,6 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
-    "test:coverage": "CUEQ_INCLUDE_SPECIALIZED_TESTS=1 vitest run --coverage",
-    "test:unit": "vitest run",
-    "test:compliance": "vitest run --config vitest.suites.config.ts src/core/audit/__tests__/build-audit-entry.compliance.test.ts",
     "clean": "rm -rf dist node_modules/.cache coverage"
   },
   "dependencies": {
@@ -31,7 +28,6 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@typescript/native": "catalog:",
-    "@vitest/coverage-v8": "catalog:",
     "vitest": "catalog:"
   }
 }

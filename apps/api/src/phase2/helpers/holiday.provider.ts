@@ -1,19 +1,19 @@
-/** Loads deterministic NRW holiday fixtures for absence and roster calculations. */
+/** Loads curated NRW holiday data for absence and roster calculations. */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Injectable } from '@nestjs/common';
 
 const moduleDirectory = fileURLToPath(new URL('.', import.meta.url));
-const HOLIDAY_FIXTURE_PATHS = [
-  resolve(moduleDirectory, '../../../../../fixtures/calendars'),
-  resolve(process.cwd(), 'fixtures/calendars'),
-  resolve(process.cwd(), '../../fixtures/calendars'),
+const HOLIDAY_DATA_PATHS = [
+  resolve(moduleDirectory, '../../../../../data/holidays'),
+  resolve(process.cwd(), 'data/holidays'),
+  resolve(process.cwd(), '../../data/holidays'),
 ];
 
 /**
- * Loads and caches synthetic NRW holiday fixtures for deterministic absence and roster calculations.
- * Missing or unreadable fixture years deliberately resolve to an empty set.
+ * Loads and caches curated NRW holiday data. Missing or unreadable years
+ * deliberately resolve to an empty set.
  */
 @Injectable()
 export class HolidayProvider {
@@ -25,8 +25,8 @@ export class HolidayProvider {
       return cached;
     }
 
-    for (const basePath of HOLIDAY_FIXTURE_PATHS) {
-      const filePath = resolve(basePath, `nrw-holidays-${year}.json`);
+    for (const basePath of HOLIDAY_DATA_PATHS) {
+      const filePath = resolve(basePath, `nrw-${year}.json`);
       try {
         const raw = readFileSync(filePath, 'utf8');
         const parsed = JSON.parse(raw) as {

@@ -32,8 +32,7 @@ while IFS= read -r -d '' path; do
       */node_modules/* | .turbo/* | */.turbo/* | dist/* | */dist/* | .next/* | \
       */.next/* | out/* | coverage/* | */coverage/* | tmp/* | temp/* | \
       backups/* | exports/* | reports/* | \
-      docs/agent/* | apps/web/test-results/* | apps/web/playwright-report/* | \
-      apps/web/blob-report/* | */blob-report/* | \
+      docs/agent/* | \
       openclaw.json | */openclaw.json | plan.md | status.md | PLAN.md | STATUS.md | REMEDIATION.md | \
       REMEDIATION_PLAN.md | agent.md | agent-notes.md | AGENT_NOTES.md | AGENTS.md)
       violations+=("${path}")

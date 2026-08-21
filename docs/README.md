@@ -29,8 +29,8 @@ repository structure, testing, and operational limits.
 - [Release status](../RELEASE_STATUS.md): current candidate state and evidence
   requirements
 - [Roadmap](ROADMAP.md): work required before a production assessment
-- [Screenshot verification](assets/screenshots/README.md): capture commands,
-  expected files, and publication review
+- [Screenshot review](assets/screenshots/README.md): expected static files and
+  publication review
 
 ## Design and product behavior
 

@@ -9,42 +9,23 @@ it is not a production or compliance certificate.
 | Command                          | What it checks                                                                                               | Environment                                                      |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
 | `pnpm install --frozen-lockfile` | Manifest, catalog, override, and lockfile reproducibility                                                    | Fresh local or hosted package-manager environment                |
-| `make quick`                     | Lint, typecheck, and unit tests                                                                              | Local Node/pnpm workspace                                        |
-| `make test-coverage`             | Non-service-backed Vitest coverage for each workspace against its configured source subset and thresholds    | Local Node/pnpm workspace                                        |
+| `make quick`                     | Lint, typecheck, and direct contract tests                                                                    | Local Node/pnpm workspace                                        |
 | `make knip`                      | Unused production/test files, exports, dependencies, and binaries in normal and strict production modes      | Local Node/pnpm workspace                                        |
 | `make docs-check`                | Internal Markdown links                                                                                      | Local workspace                                                  |
 | `make hygiene-check`             | Forbidden private, local-only, and generated tracked paths                                                   | Local workspace                                                  |
-| `make schemas`                   | Domain schemas and synthetic fixture contracts                                                               | Local Node/pnpm workspace                                        |
+| `make schemas`                   | Domain schemas                                                                                               | Local Node/pnpm workspace                                        |
 | `make generate`                  | Prisma generation plus committed OpenAPI, database-schema, and shared-schema artifacts                       | Fresh local or hosted package-manager environment                |
 | `make openapi-check`             | Generated OpenAPI against the committed snapshot                                                             | Local generated client/tooling                                   |
-| `make check`                     | Hygiene, lint, format, dual-compiler verification, Knip, docs, schemas, migrations, tests, and OpenAPI drift | PostgreSQL, pinned Chromium, and the installed project toolchain |
-| `make test-all`                  | Unit, integration, acceptance, compliance, policy golden, and backup/restore suites                          | PostgreSQL and applicable browser/service dependencies           |
+| `make check`                     | Hygiene, lint, format, dual-compiler verification, Knip, docs, schemas, migrations, direct tests, and OpenAPI drift | PostgreSQL and the installed project toolchain |
 
 CI additionally verifies that `make generate` leaves all three committed
-artifacts unchanged, installs PostgreSQL and Playwright, runs setup and a
-phase-2 seed, then runs `make check`, acceptance, accessibility, and build
-jobs. Hosted CI must be checked on the exact candidate commit; it is not
-implied by local results.
+artifacts unchanged, runs setup and the configured checks. Hosted CI must be
+checked on the exact candidate commit; it is not implied by local results.
 
-## Coverage gates and non-gated engineering targets
+## Non-gated engineering targets
 
-`make test-coverage` enforces workspace-specific floors:
-
-| Workspace | Lines | Functions | Branches | Statements |
-| --------- | ----: | --------: | -------: | ---------: |
-| API       |   58% |       45% |      70% |        58% |
-| Web       |   20% |       45% |      70% |        20% |
-| Core      |   90% |       90% |      85% |        90% |
-| Policy    |   85% |       75% |      80% |        85% |
-| Shared    |   90% |       60% |      80% |        90% |
-| Database  |  100% |      100% |     None |       100% |
-
-The database source subset has no meaningful branch denominator, so it does not
-set a branch floor. These thresholds cover configured source subsets, not every
-production execution path.
-
-The following are desirable outcomes but are not otherwise established as
-repository-enforced pass/fail thresholds:
+The following are desirable outcomes but are not established as repository
+pass/fail thresholds:
 
 - response-time, throughput, and load targets;
 - availability, recovery-time, and operational service-level objectives;

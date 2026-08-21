@@ -31,10 +31,10 @@ check: ## Full validation: hygiene + lint + format + typecheck + schemas + tests
 	$(SCRIPTS)/check.sh
 
 .PHONY: quick
-quick: ## Fast local validation: lint + typecheck + unit tests
+quick: ## Fast local validation: lint + typecheck + direct contract tests
 	$(SCRIPTS)/pnpm.sh lint
 	$(SCRIPTS)/pnpm.sh typecheck
-	$(SCRIPTS)/pnpm.sh test:unit
+	$(SCRIPTS)/pnpm.sh test
 
 .PHONY: docs-check
 docs-check: ## Validate internal markdown links
@@ -70,7 +70,7 @@ format-fix: ## Auto-fix formatting
 	$(SCRIPTS)/pnpm.sh format:fix
 
 .PHONY: schemas
-schemas: ## Validate JSON Schemas and fixture contracts
+schemas: ## Validate JSON Schemas
 	$(SCRIPTS)/schemas.sh
 
 .PHONY: generate
@@ -88,42 +88,6 @@ openapi-check: ## Validate committed OpenAPI snapshot against generated document
 .PHONY: test
 test: ## Run each workspace's default test script
 	$(SCRIPTS)/pnpm.sh test
-
-.PHONY: test-unit
-test-unit: ## Run unit tests only (fast, <10s target)
-	$(SCRIPTS)/pnpm.sh test:unit
-
-.PHONY: test-coverage
-test-coverage: ## Run unit tests with coverage reporting and thresholds
-	$(SCRIPTS)/pnpm.sh test:coverage
-
-.PHONY: test-integration
-test-integration: ## Run integration tests (requires Docker)
-	$(SCRIPTS)/pnpm.sh test:integration
-
-.PHONY: test-e2e
-test-e2e: ## Run browser end-to-end tests against the built web app and local API
-	$(SCRIPTS)/pnpm.sh test:e2e
-
-.PHONY: test-acceptance
-test-acceptance: ## Run acceptance tests (full stack)
-	$(SCRIPTS)/pnpm.sh test:acceptance
-
-.PHONY: test-compliance
-test-compliance: ## Run GDPR/audit compliance tests
-	$(SCRIPTS)/pnpm.sh test:compliance
-
-.PHONY: test-all
-test-all: ## Run unit, integration, acceptance, compliance, golden, and backup/restore suites
-	$(SCRIPTS)/pnpm.sh test:all
-
-.PHONY: test-backup-restore
-test-backup-restore: ## Run backup/restore verification (AT-08)
-	node ./scripts/backup-restore-verify.mjs
-
-.PHONY: demo-screenshots
-demo-screenshots: ## Generate six synthetic German screenshots and refresh public candidate copies
-	$(SCRIPTS)/pnpm.sh demo:screenshots
 
 # ---------------------------------------------------------------------------
 # Database

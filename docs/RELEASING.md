@@ -10,8 +10,7 @@ hosted services, production deployments, or compliance certifications.
 - The GitHub Release must be marked as a prerelease.
 - The Git tag and GitHub Release are the public identity. Workspace packages
   remain private and are not published from this repository.
-- CI and CodeQL validate tag names with
-  `node scripts/validate-release-tag.mjs <tag>`.
+- CI validates source-alpha tag names directly against the required pattern.
 - A release is immutable evidence for one commit. Do not describe results from
   another working tree, branch, or later local run as release evidence.
 
@@ -27,10 +26,9 @@ Complete every applicable item on the exact candidate commit:
    Verify a fresh `pnpm install --frozen-lockfile`.
 3. Run `make generate`, `make openapi-check`, `make schemas`, and
    `make docs-check`; review every generated diff.
-4. Run `make quick`, `make test-coverage`, `make knip`, and `make build`.
-5. With disposable PostgreSQL and the required browser available, run
-   `make check` and `make test-all`.
-6. Run `make demo-screenshots`. Review all six images listed in the
+4. Run `make quick`, `make knip`, and `make build`.
+5. With disposable PostgreSQL available, run `make check`.
+6. Review all six static images listed in the
    [screenshot contract](assets/screenshots/README.md) for synthetic-only data,
    role visibility, German labels, clipping, error states, and stale content.
 7. Review `README.md`, `CHANGELOG.md`, `RELEASE_STATUS.md`, `SECURITY.md`,

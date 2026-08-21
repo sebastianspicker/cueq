@@ -15,7 +15,6 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.test.ts'],
     exclude: [
-      'src/**/__tests__/golden-cases{,-*}.test.ts',
       '**/dist/**',
       '**/node_modules/**',
       ...specializedTestExcludes,

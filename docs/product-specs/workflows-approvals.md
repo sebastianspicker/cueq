@@ -101,7 +101,7 @@ Decision actions additionally require current assignee authority.
 | Hourly escalation idempotency and assignee progression | API integration tests                        |
 | Type-based RBAC + assignee checks                      | compliance tests                             |
 | AT-02 delegation + escalation flow                     | acceptance tests                             |
-| approvals web action flow                              | Playwright acceptance tests                  |
+| approvals web action flow                              | manual release review                        |
 | OpenAPI path/schema drift                              | openapi contract test + `make openapi-check` |
 
 ## 7. Out of Scope

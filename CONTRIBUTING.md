@@ -1,7 +1,7 @@
 # Contributing
 
 cueq is a source alpha for workforce workflows that can contain sensitive data.
-Use synthetic fixtures and keep every change reviewable.
+Use inline test data and keep every change reviewable.
 
 ## Before changing code
 
@@ -42,7 +42,7 @@ make build
 ```
 
 `make check` is the full ordered gate and requires PostgreSQL. Browser checks
-require the Playwright Chromium revision. See
+require the declared Node and pnpm toolchain. See
 [docs/QUALITY_GATES.md](docs/QUALITY_GATES.md).
 
 ## Contracts and migrations

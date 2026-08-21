@@ -97,8 +97,8 @@ Reset and reload that data:
 pnpm --filter @cueq/database db:reset:phase2
 ```
 
-Additional phase-3 and screenshot seeds are available through the
-`@cueq/database` package scripts. They are test data, not migration fixtures.
+Additional phase-3 synthetic seed data is available through the
+`@cueq/database` package scripts. It is evaluation data, not a migration.
 
 ## Health checks
 
@@ -234,22 +234,9 @@ owners before deployment.
 
 ## Backup and restore verification
 
-Run:
-
-```bash
-make test-backup-restore
-```
-
-The verifier creates a custom-format PostgreSQL dump, restores it into an
-isolated temporary database, compares table counts and content checksums, and
-records successful verification in the audit table.
-
-The command requires a reachable PostgreSQL database and either local
-PostgreSQL client tools or the configured `POSTGRES_CLIENT_IMAGE`.
-
-The scheduled GitHub Actions workflow
-`.github/workflows/backup-restore-weekly.yml` runs the drill against synthetic
-data. It does not configure production backup retention, off-site storage, WAL
+Deployment owners must rehearse backup and restore against disposable
+infrastructure using their approved PostgreSQL tooling. The repository does not
+configure production backup retention, off-site storage, WAL
 archiving, or recovery objectives.
 
 ## Diagnostics

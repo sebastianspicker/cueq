@@ -61,7 +61,7 @@ cueq uses DDD-inspired patterns without the full ceremonial weight:
 1. Define the entity/contract in JSON Schema (`schemas/`)
 2. Generate TypeScript types (`make generate`)
 3. Implement logic using generated types
-4. Write tests against reference fixtures
+4. Write focused tests with minimal inline or programmatic cases
 
 Generated contracts must not be hand-edited. When a schema is the source of
 truth, update it first and regenerate the derived artifacts.

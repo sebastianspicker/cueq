@@ -1,7 +1,15 @@
 import { UnauthorizedException } from '@nestjs/common';
+import type { ExecutionContext } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthGuard } from './auth.guard.js';
-import { createContext } from './auth.guard-test-support.js';
+
+function createContext(request: { headers: Record<string, string | string[] | undefined> }): ExecutionContext {
+  return {
+    getClass: () => AuthGuard,
+    getHandler: () => AuthGuard,
+    switchToHttp: () => ({ getRequest: () => request }),
+  } as unknown as ExecutionContext;
+}
 
 describe('AuthGuard', () => {
   it('rejects oversized bearer tokens before verification', async () => {

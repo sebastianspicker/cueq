@@ -11,8 +11,8 @@ control is complete in the alpha. Current security limits are listed in
 
 The system deals with legally relevant data (working hours, leave quotas, payroll exports). Incorrect calculations are worse than slow calculations. Every arithmetic operation on time, leave, or surcharges must be:
 
-- Backed by a reference calculation fixture
-- Tested against the fixture in CI
+- Backed by a small, reviewable reference calculation
+- Tested with direct programmatic cases in CI
 - Versioned alongside the rule that governs it
 
 ## 2. Auditability Is Not Optional

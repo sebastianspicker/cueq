@@ -7,9 +7,7 @@
         "scripts/generate-core-schema-types.mjs",
         "scripts/generate-db-schema-doc.mjs",
         "scripts/hr-import.mjs!",
-        "scripts/validate-fixtures.mjs",
         "scripts/validate-schemas.mjs",
-        "scripts/**/*.test.mjs",
         "scripts/**/*.sh",
         "scripts/shims/*",
       ],
@@ -40,7 +38,6 @@
         "src/**/*.{test,spec}.{ts,tsx}",
         "tests/**/*.{test,spec}.ts",
         "vitest*.config.ts",
-        "playwright*.config.ts",
       ],
       "project": [
         "src/**/*.{ts,tsx}!",

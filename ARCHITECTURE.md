@@ -95,8 +95,7 @@ The repository has several contract layers:
   `packages/database/prisma/`
 - Runtime validation: Zod schemas in `packages/shared/src/schemas/`
 - Domain rules: `packages/core/src/core/` and `packages/policy/src/`
-- Fixture contracts: JSON Schemas in `schemas/fixtures/` and synthetic data in
-  `fixtures/`
+- Curated holiday data in `data/holidays/` for absence and roster calculations
 
 `make generate` refreshes the Prisma client, OpenAPI snapshot, database schema
 reference, and shared schema types. `make openapi-check` compares a newly

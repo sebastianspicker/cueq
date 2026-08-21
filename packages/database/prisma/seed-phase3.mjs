@@ -28,7 +28,7 @@ async function reset() {
   runPhase2('reset');
 }
 
-/** Rebuilds the Phase 2 dependency layer, then upserts Phase 3 fixtures and appends idempotent seed evidence. */
+/** Rebuilds the Phase 2 dependency layer, then appends Phase 3 seed evidence. */
 async function seed() {
   runPhase2('seed');
 
@@ -65,7 +65,7 @@ async function seed() {
     data: {
       id: IDs.hrImportRun,
       source: 'FILE',
-      sourceFile: 'fixtures/integrations/hr-master-phase3.csv',
+      sourceFile: 'phase3-seed',
       status: 'SUCCEEDED',
       totalRows: 3,
       createdRows: 1,

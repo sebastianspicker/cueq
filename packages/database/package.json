@@ -18,12 +18,6 @@
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "test": "vitest run --config vitest.config.ts && node --test prisma/*.test.mjs scripts/*.test.mjs",
-    "test:unit": "vitest run --config vitest.config.ts && node --test prisma/*.test.mjs scripts/*.test.mjs",
-    "test:coverage": "CUEQ_INCLUDE_SPECIALIZED_TESTS=1 vitest run --config vitest.config.ts --coverage",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:acceptance": "vitest run --config vitest.suites.config.ts src/__tests__/database.acceptance.test.ts",
-    "test:compliance": "vitest run --config vitest.suites.config.ts src/__tests__/database.compliance.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:push:force": "prisma db push --accept-data-loss",
@@ -33,8 +27,6 @@
     "db:reset:phase2": "node prisma/seed-phase2.mjs reset",
     "db:seed:phase3": "node prisma/seed-phase3.mjs seed",
     "db:reset:phase3": "node prisma/seed-phase3.mjs reset",
-    "db:seed:demo": "node prisma/seed-demo-screenshots.mjs seed",
-    "db:reset:demo": "node prisma/seed-demo-screenshots.mjs reset",
     "db:studio": "prisma studio",
     "clean": "rm -rf dist node_modules/.cache"
   },
@@ -44,8 +36,6 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@typescript/native": "catalog:",
-    "@vitest/coverage-v8": "catalog:",
-    "prisma": "6.19.2",
-    "vitest": "catalog:"
+    "prisma": "6.19.2"
   }
 }

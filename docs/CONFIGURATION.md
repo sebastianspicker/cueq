@@ -88,14 +88,8 @@ behavior:
 | Variable                               | Default              | Use                                                                                   |
 | -------------------------------------- | -------------------- | ------------------------------------------------------------------------------------- |
 | `SKIP_DOCKER`                          | `0`                  | Prevents `make setup` from starting Compose when set to `1`.                          |
-| `CI`                                   | unset                | Disables Playwright server reuse and identifies hosted execution to supporting tools. |
-| `PW_REUSE_EXISTING_SERVER`             | `false`              | Allows local Playwright acceptance runs to reuse existing servers. Disabled in CI.    |
 | `POSTGRES_CLIENT_IMAGE`                | `postgres:16-alpine` | PostgreSQL client image used by the backup and restore verifier.                      |
 | `WEBHOOK_SECRET_MAINTENANCE_CONFIRMED` | unset                | Required as `1` by the Make target that applies webhook-secret migration.             |
-| `CUEQ_DEMO_SCREENSHOT_DATA_SOURCE`     | fixture              | Selects the fixture or database screenshot lane.                                      |
-| `CUEQ_DEMO_SCREENSHOT_BROWSER_NAME`    | harness-specific     | Selects a Playwright browser by name for screenshot verification.                     |
-| `CUEQ_DEMO_SCREENSHOT_BROWSER_CHANNEL` | harness-specific     | Selects an installed browser channel.                                                 |
-| `CUEQ_DEMO_SCREENSHOT_EXECUTABLE_PATH` | harness-specific     | Uses an explicit browser executable.                                                  |
 
 ## Production requirements
 

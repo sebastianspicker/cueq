@@ -98,7 +98,7 @@ For each shift slot:
 | Publish shortfall validation + success transition | API integration tests (`apps/api/test/integration`)       |
 | Planner-only write access                         | Compliance tests (`apps/api/test/compliance`)             |
 | Plan-vs-actual deterministic metrics              | Acceptance test `AT-03` + core roster unit tests          |
-| Web roster planner flow                           | Playwright acceptance tests (`apps/web/tests/acceptance`) |
+| Web roster planner flow                           | manual release review                           |
 
 ## 6. Out of Scope
 

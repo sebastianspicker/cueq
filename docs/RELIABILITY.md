@@ -35,19 +35,9 @@ log shipping, or alert delivery.
 
 ## Backup and restore
 
-`make test-backup-restore` runs the PostgreSQL backup and restore verifier. It:
-
-1. captures a stable source snapshot;
-2. creates a custom-format dump in a temporary directory;
-3. restores it into an isolated temporary database;
-4. compares table counts and content checksums; and
-5. appends a `BACKUP_RESTORE_VERIFIED` audit entry after a successful
-   comparison.
-
-`.github/workflows/backup-restore-weekly.yml` schedules the same drill against a
-synthetic PostgreSQL service. The repository does not configure production
-backup retention, WAL archiving, off-site storage, recovery-time objectives,
-or recovery-point objectives.
+Backup and restore are deployment-owned operational exercises. The repository
+does not configure production backup retention, WAL archiving, off-site
+storage, recovery-time objectives, or recovery-point objectives.
 
 ## Integration recovery
 

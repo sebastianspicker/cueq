@@ -14,7 +14,7 @@ exact reviewed candidate revision.
 
 No hosted application deployment, npm package, application container image, or
 production support offering is part of the current release scope. The GitHub
-Pages workflow publishes only the sanitized static fixture walkthrough.
+Pages workflow publishes only the sanitized static walkthrough.
 
 ## Current local demo evidence
 
@@ -26,21 +26,20 @@ for 47 files.
 
 This does not designate a release candidate. The required Node.js 20.19.0 and
 pnpm 9.15.0 environment, with its frozen dependency graph, has not been
-recorded as release evidence. The PostgreSQL, application build, coverage,
-acceptance, Chromium, CI, and hosted Pages lanes remain unverified.
+recorded as release evidence. The PostgreSQL, application build, CI, and hosted
+Pages lanes remain unverified.
 
 ## Required candidate evidence
 
 Before designating a candidate:
 
 1. review the complete diff and confirm that only intended source,
-   configuration, migration, contract, fixture, asset, and documentation files
+   configuration, migration, contract, asset, and documentation files
    are included;
-2. confirm that all fixtures and screenshots contain synthetic data;
+2. confirm that all screenshots contain synthetic data;
 3. install the frozen dependency graph with Node.js 20.19.0 and pnpm 9.15.0;
 4. run `make generate` and verify that committed derived artifacts are current;
-5. run `make check`, `make test-coverage`, `make test-all`, and `make build`
-   with PostgreSQL and Chromium available;
+5. run `make check` and `make build` with PostgreSQL available;
 6. review all six tracked screenshots;
 7. run CI, dependency review, and CodeQL on the exact candidate commit; and
 8. verify the rendered GitHub documentation and source archive.

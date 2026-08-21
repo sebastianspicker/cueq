@@ -1,7 +1,7 @@
 # Frontend
 
 The cueq web application is a Next.js 15 App Router application using React 19,
-`next-intl`, shared CSS, Vitest, Playwright, and axe.
+`next-intl`, shared CSS, and direct runtime contracts.
 
 ## Routes
 
@@ -103,22 +103,7 @@ tokens are defined in `apps/web/src/app/globals.css`.
 Changes to reports, absence details, audit records, or team data require review
 against [SECURITY.md](SECURITY.md).
 
-## Tests
+## Verification
 
-```bash
-pnpm --filter @cueq/web test:unit
-pnpm --filter @cueq/web test:e2e
-pnpm --filter @cueq/web test:acceptance
-pnpm --filter @cueq/web test:coverage
-```
-
-`test:e2e` and `test:acceptance` are aliases for the same Playwright acceptance
-suite. The separate names support repository-wide end-to-end and acceptance
-commands without duplicating test source.
-
-The Playwright acceptance configuration starts an isolated database schema,
-builds the API and web application, seeds synthetic data, and serves the
-production web build. It requires PostgreSQL and Chromium.
-
-The screenshot fixture lane is intentionally narrower and is documented in
-[ALPHA.md](ALPHA.md) and [assets/screenshots/README.md](assets/screenshots/README.md).
+The web application is typechecked and built by the repository-wide commands.
+Direct API, schema, policy, and domain contracts run through `pnpm test`.

@@ -1,4 +1,4 @@
-/** Compiles every domain and fixture schema so invalid references fail before fixture checks. */
+/** Compiles every committed domain schema. */
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import Ajv2020 from 'ajv/dist/2020.js';
@@ -6,7 +6,6 @@ import addFormats from 'ajv-formats';
 
 const root = resolve(import.meta.dirname, '..');
 const domainRoot = resolve(root, 'schemas/domain');
-const fixtureRoot = resolve(root, 'schemas/fixtures');
 
 async function readJson(filePath) {
   const content = await readFile(filePath, 'utf8');
@@ -37,8 +36,7 @@ async function main() {
   addFormats(ajv);
 
   const domainFiles = await listJsonFiles(domainRoot);
-  const fixtureFiles = await listJsonFiles(fixtureRoot);
-  const schemaFiles = [...domainFiles, ...fixtureFiles];
+  const schemaFiles = domainFiles;
 
   for (const file of schemaFiles) {
     const schema = await readJson(file);

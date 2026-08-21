@@ -34,7 +34,6 @@ services:
     ports:
       - '127.0.0.1:8081:8080'
     volumes:
-      - ./fixtures/keycloak/cueq-realm.json:/opt/keycloak/data/import/cueq-realm.json:ro
     depends_on:
       postgres:
         condition: service_healthy

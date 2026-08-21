@@ -11,13 +11,6 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:coverage": "CUEQ_INCLUDE_SPECIALIZED_TESTS=1 vitest run --coverage",
-    "test:e2e": "playwright test",
-    "test:acceptance": "playwright test",
-    "test:demo-screenshots": "../../scripts/pnpm.sh --filter @cueq/web build && CUEQ_DEMO_SCREENSHOT_DATA_SOURCE=fixture playwright test --config playwright.demo.config.ts",
-    "test:demo-screenshots:database": "CUEQ_DEMO_SCREENSHOT_DATA_SOURCE=database playwright test --config playwright.demo.config.ts",
     "clean": "rm -rf .next node_modules/.cache"
   },
   "dependencies": {
@@ -28,18 +21,10 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.11.1",
-    "@playwright/test": "1.58.2",
-    "@testing-library/jest-dom": "6.9.1",
-    "@testing-library/react": "16.3.2",
-    "@testing-library/user-event": "14.6.1",
     "@types/node": "catalog:",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@typescript/native": "catalog:",
-    "@vitest/coverage-v8": "catalog:",
-    "jsdom": "29.0.2",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

@@ -7,7 +7,6 @@ legal interpretation, or compliance certification.
 ## Prerequisites
 
 Install Node.js 20.19.0 or later, pnpm 9.15.0, Docker with Compose, and GNU Make.
-For browser tests, install the Chromium revision required by Playwright 1.58.2.
 
 Create the local configuration:
 
@@ -79,34 +78,10 @@ The localized interface includes:
 Role-conditioned navigation is a usability control. The API remains the
 authorization boundary.
 
-## Screenshot checks
+## Screenshot review
 
-Create the six synthetic browser captures with:
-
-```bash
-make demo-screenshots
-```
-
-This command builds the web application and runs the fixture-backed Playwright
-lane. It validates the expected filenames before replacing the tracked images
-under `docs/assets/screenshots/alpha/`. It does not exercise the API,
-PostgreSQL, migrations, or CORS.
-
-Run the database-backed screenshot lane separately:
-
-```bash
-docker compose up -d postgres
-pnpm --filter @cueq/web test:demo-screenshots:database
-```
-
-That lane uses an isolated `web_demo_screenshots` schema and ports 3001 and 3310. It runs the built web server, API, Prisma, and synthetic seed, but uses
-`prisma db push` rather than committed migration deployment. It writes
-diagnostic output under `apps/web/test-results/demo-screenshots/database/` and
-does not replace tracked screenshots.
-
-Review the images for synthetic-only data, role visibility, stale labels,
-clipping, loading states, and error states before publication. The expected set
-is documented in [assets/screenshots/README.md](assets/screenshots/README.md).
+The tracked screenshots are static, sanitized examples. Review their data and
+role labels manually before publication; they do not provide runtime evidence.
 
 ## Verify the checkout
 
@@ -118,7 +93,7 @@ make docs-check
 make schemas
 ```
 
-With PostgreSQL and Chromium available, run:
+With PostgreSQL available, run:
 
 ```bash
 make check

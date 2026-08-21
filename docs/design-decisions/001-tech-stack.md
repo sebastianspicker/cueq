@@ -23,7 +23,7 @@ Use the following stack:
 | Validation        | Zod and JSON Schema                                                  |
 | HTTP contract     | NestJS Swagger decorators and a committed OpenAPI snapshot           |
 | Authentication    | `jose` with mock, OIDC, and SAML-bridge adapters                     |
-| Tests             | Vitest, Playwright, axe, and Node test runner                        |
+| Tests             | Vitest direct contract checks                                         |
 | Repository checks | ESLint, Prettier, Knip, schema validation, and contract drift checks |
 | Hosted checks     | GitHub Actions and CodeQL                                            |
 

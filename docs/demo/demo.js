@@ -122,7 +122,7 @@ function renderScreen(index, { focusTab = false } = {}) {
   image.alt = screen.alt;
   image.width = screen.width;
   image.height = screen.height;
-  caption.textContent = `${screen.title}. Captured from deterministic sanitized fixtures; controls shown in the image do not run.`;
+  caption.textContent = `${screen.title}. Captured from deterministic sanitized sample data; controls shown in the image do not run.`;
   position.textContent = `${currentScreen + 1} of ${screens.length}`;
   previous.disabled = currentScreen === 0;
   next.disabled = currentScreen === screens.length - 1;

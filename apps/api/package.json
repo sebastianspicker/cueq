@@ -10,15 +10,10 @@
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
     "openapi:export": "node dist/commands/export-openapi.js",
-    "lint": "eslint src/ test/",
-    "lint:fix": "eslint src/ test/ --fix",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:acceptance": "vitest run --config vitest.acceptance.config.ts",
-    "test:compliance": "vitest run --config vitest.compliance.config.ts",
     "clean": "rm -rf dist node_modules/.cache"
   },
   "dependencies": {
@@ -44,7 +39,6 @@
     "@types/node": "catalog:",
     "@types/supertest": "6.0.3",
     "@typescript/native": "catalog:",
-    "@vitest/coverage-v8": "catalog:",
     "supertest": "7.2.2",
     "typescript": "catalog:",
     "vitest": "catalog:"

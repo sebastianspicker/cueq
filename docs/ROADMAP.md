@@ -18,8 +18,8 @@ dependency, browser, database, privacy-review, or hosted gate remains open.
 ## Production-assessment prerequisites
 
 1. Candidate verification: freeze a candidate commit and pass `make check`
-   and `make test-all` in an authorized environment with PostgreSQL and
-   Playwright; verify generated contracts and hosted CI on that exact commit.
+   in an authorized environment with PostgreSQL; verify generated contracts
+   and hosted CI on that exact commit.
 2. Identity and authorization: validate production-grade identity,
    session, role, and privacy behavior with the institution's approved identity
    provider and least-privilege review.

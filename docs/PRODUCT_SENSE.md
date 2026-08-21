@@ -65,10 +65,10 @@ requirements are recorded in [RELEASE_STATUS.md](../RELEASE_STATUS.md).
 | Risk                                   | Required treatment                                                          |
 | -------------------------------------- | --------------------------------------------------------------------------- |
 | Payroll or terminal contract mismatch  | Validate the versioned contract with the target provider                    |
-| Incorrect role or organization scope   | Exercise API authorization and privacy tests on the release candidate       |
-| Rule interpretation mismatch           | Review policy configuration and golden cases with accountable domain owners |
+| Incorrect role or organization scope   | Run the focused authorization and privacy contracts on the candidate         |
+| Rule interpretation mismatch           | Review policy configuration and direct cases with accountable domain owners  |
 | Migration or recovery failure          | Rehearse migrations and backup/restore on disposable infrastructure         |
-| Browser or accessibility regression    | Run and review browser acceptance, accessibility, and screenshot checks     |
+| Browser or accessibility regression    | Perform manual candidate review across supported viewport and input modes   |
 | Unreviewed institutional data handling | Keep real-data use blocked pending the required private reviews             |
 
 ## References
