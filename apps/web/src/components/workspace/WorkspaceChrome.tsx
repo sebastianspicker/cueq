@@ -53,7 +53,7 @@ function TaskNavLink({
   const href = navItemHref(locale, item);
   const active = isNavItemActive(pathname, locale, item);
   const label = navItemLabel(item, messages);
-  // Dashboard visible label is the today section; keep nav.dashboard as accessible name for tests/a11y.
+  // Keep the dashboard's accessible name distinct from its shorter visible label.
   const accessibleName = item.key === 'dashboard' ? messages.nav.dashboard : undefined;
 
   return (
@@ -81,7 +81,6 @@ function SessionChip({
   messages: WorkspaceMessages;
 }) {
   const sessionLabel = sessionLabelFor(phase, messages);
-  // Single text node for name+role so getByText('First Last') stays unique to .cq-session-person.
   const identity = profile
     ? `${profile.firstName} ${profile.lastName} · ${messages.roles[profile.role]}`
     : sessionLabel;
@@ -171,10 +170,6 @@ function SessionPanel({
   );
 }
 
-/**
- * Rhein-Desk chrome: one task-nav tree (desktop top bar + mobile drawer via CSS),
- * session chip/actions, status mast, and main content.
- */
 export function WorkspaceChrome({
   children,
   locale,
@@ -253,10 +248,6 @@ export function WorkspaceChrome({
       />
 
       <div className="cq-app-shell" data-navigation-open={navigationOpen || undefined}>
-        {/*
-          Single navigation tree: cq-chrome for desktop top bar, cq-app-sidebar for
-          mobile off-canvas via CSS. Avoids duplicate links for role queries.
-        */}
         <header
           ref={navigationPanelRef}
           id="workspace-navigation"

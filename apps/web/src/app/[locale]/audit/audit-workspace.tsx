@@ -1,7 +1,5 @@
 'use client';
 
-/** Renders the audit workspace from its route-owned state. */
-
 import type { useTranslations } from 'next-intl';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
@@ -20,7 +18,6 @@ interface AuditWorkspaceProps {
   workspace: AuditWorkspaceState;
 }
 
-/** Hosts the unchanged audit shell and section ordering. */
 export function AuditWorkspace({ t, workspace }: AuditWorkspaceProps) {
   return (
     <PageShell title={t('title')} description={t('description')}>

@@ -1,13 +1,6 @@
-# Product Spec: Monthly Closing (FR-600)
+# Product Spec: Monthly Closing
 
-> Evidence: Source and contract surfaces are present; focused tests named in
-> related acceptance scenarios cover selected behaviour. Not audit certification,
-> service-backed evidence, or deployment approval.
-> Source: PRD FR-600
-
----
-
-## 1. Summary
+## Summary
 
 Monthly Closing is the audited end-of-month process for each organization unit (or global scope) that enforces:
 
@@ -16,7 +9,7 @@ Monthly Closing is the audited end-of-month process for each organization unit (
 - dual approval (team lead sign-off, then HR final approval)
 - lock-aware correction workflow for post-close adjustments
 
-## 2. State Model
+## State Model
 
 ```mermaid
 stateDiagram-v2
@@ -29,7 +22,7 @@ stateDiagram-v2
     Review --> Open: Reopen (HR only, audited)
 ```
 
-## 3. Roles and Permissions
+## Roles and Permissions
 
 | Action                      | Team Lead    | HR/Admin | Employee |
 | --------------------------- | ------------ | -------- | -------- |
@@ -40,7 +33,7 @@ stateDiagram-v2
 | Reopen                      | No           | Yes      | No       |
 | Post-close correction apply | No           | Yes      | No       |
 
-## 4. Lock Behavior
+## Lock Behavior
 
 - Any period in `REVIEW`, `APPROVED`, or `EXPORTED` is lock-protected.
 - Mutable flows (bookings, absences, leave adjustments, roster writes) must reject with `409` and code `CLOSING_PERIOD_LOCKED` when overlapping a locked period.
@@ -48,7 +41,7 @@ stateDiagram-v2
 - `lockedAt`
 - `lockSource` (`AUTO_CUTOFF`, `MANUAL_REVIEW_START`, `HR_CORRECTION`)
 
-## 5. Checklist Requirements
+## Checklist Requirements
 
 Checklist output remains deterministic for identical inputs. Minimum checks:
 
@@ -64,19 +57,19 @@ Approval gate:
 
 - HR final approval is blocked while unresolved `ERROR` checklist items exist.
 
-## 6. Dual Approval Gate
+## Dual Approval Gate
 
 - Team lead sign-off is mandatory for OU-scoped periods before HR final approval.
 - Global periods (`organizationUnitId = null`) can skip lead approval.
 - Reopen clears lead and HR approvals and returns period to `OPEN`.
 
-## 7. Post-Close Corrections
+## Post-Close Corrections
 
 - HR creates post-close correction workflow from exported period.
 - Approved correction workflows can apply controlled correction bookings in locked periods.
 - Corrections are fully audited (`POST_CLOSE_CORRECTION_APPLIED`) and force re-approval/re-export flow.
 
-## 8. Operational Defaults
+## Operational Defaults
 
 - `CLOSING_AUTO_CUTOFF_ENABLED=true`
 - `CLOSING_CUTOFF_DAY=3`
@@ -86,8 +79,8 @@ Approval gate:
 - `CLOSING_BALANCE_ANOMALY_HOURS=40`
 - `CLOSING_ALLOW_MANUAL_REVIEW_START=false`
 
-## 9. References
+## References
 
-- [docs/product-specs/phase-2-acceptance-scenarios.md](./phase-2-acceptance-scenarios.md)
-- [docs/product-specs/phase-3-acceptance-scenarios.md](./phase-3-acceptance-scenarios.md)
-- [docs/OPERATIONS_RUNBOOK.md](../OPERATIONS_RUNBOOK.md)
+- [Architecture](../../ARCHITECTURE.md)
+- [Operations runbook](../OPERATIONS_RUNBOOK.md)
+- [Closing module](../../apps/api/src/modules/closing/closing.module.ts)

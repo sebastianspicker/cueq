@@ -1,8 +1,6 @@
-/** Maps domain status values to a compact, consistently styled visual badge. */
 type BadgeVariant = 'ok' | 'error' | 'warn' | 'info' | 'muted' | 'neutral';
 
 const STATUS_MAP: Record<string, BadgeVariant> = {
-  // Approval / workflow statuses
   APPROVED: 'ok',
   PUBLISHED: 'ok',
   CLOSED: 'muted',
@@ -24,13 +22,11 @@ const STATUS_MAP: Record<string, BadgeVariant> = {
   OPEN: 'info',
   REQUESTED: 'info',
 
-  // Boolean / compliance
   true: 'ok',
   false: 'error',
   YES: 'ok',
   NO: 'error',
 
-  // Severity levels
   ERROR: 'error',
   WARNING: 'warn',
   INFO: 'info',
@@ -54,7 +50,6 @@ interface StatusBadgeProps {
   label?: string;
 }
 
-/** Renders an explicit or inferred badge variant for a domain status. */
 export function StatusBadge({ status, variant, label }: StatusBadgeProps) {
   const resolved = variant ?? STATUS_MAP[status.toUpperCase()] ?? 'neutral';
   return <span className={variantClass[resolved]}>{label ?? status}</span>;

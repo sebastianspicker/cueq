@@ -213,7 +213,6 @@ model Shift {
   id          String            @id @default(cuid())
   rosterId    String
   roster      Roster            @relation(fields: [rosterId], references: [id])
-  personId    String? /// Deprecated compatibility field (single assignee)
   startTime   DateTime
   endTime     DateTime
   shiftType   String /// e.g. "EARLY", "LATE", "NIGHT"

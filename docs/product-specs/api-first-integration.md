@@ -1,18 +1,13 @@
 # Product Spec: API Integration
 
-> Source and checked-in OpenAPI contract surfaces are present.
-> External-provider integration and deployment approval require separate evidence.
-
----
-
-## 1. Summary
+## Summary
 
 The API defines versioned integration boundaries for terminals, HR data,
 payroll export, webhooks, and related external systems. The committed OpenAPI
 snapshot covers the HTTP surface; provider compatibility must be verified in
 each deployment.
 
-## 2. OpenAPI Contract
+## OpenAPI Contract
 
 - Source: Generated from NestJS decorators via `@nestjs/swagger`
 - Location: Served at `/api/docs` (Swagger UI) in non-production environments; exported as JSON for CI validation
@@ -32,7 +27,7 @@ each deployment.
 
 OpenAPI snapshot comparison is implemented in `scripts/openapi-check.sh` and enforced in CI.
 
-## 3. Webhook / Event Patterns
+## Webhook and Event Patterns
 
 cueq's source defines domain-event payloads for key state changes; delivery to
 an external receiver is a separately configured deployment concern:
@@ -64,7 +59,7 @@ AES-256-GCM envelope, and signs deliveries with `X-Cueq-Signature`. Deployment
 key handling, migration application, receiver integration, and service-backed
 delivery remain separately verified concerns.
 
-## 4. Terminal Gateway
+## Terminal Gateway
 
 The Honeywell terminal integration is a dedicated adapter with:
 
@@ -85,7 +80,7 @@ Honeywell Terminal → [file/CSV] → Terminal Gateway Adapter → Booking API �
 Honeywell protocol baseline is now ratified as `HONEYWELL_CSV_V1` via
 `POST /v1/terminal/sync/batches/file`, while real-time protocols remain future roadmap work.
 
-## 5. References
+## References
 
 - [`ARCHITECTURE.md`](../../ARCHITECTURE.md) §6: Integration points
 - [`docs/SECURITY.md`](../SECURITY.md): API authentication requirements

@@ -1,15 +1,14 @@
 'use client';
 
-/** Owns workflow-inbox filters, detail selection, mutations, and refresh feedback. */
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { WorkflowInboxItemSchema, WorkflowInstanceSchema } from '@cueq/shared';
-import { useApiContext } from '../../../lib/api-context';
+import { WorkflowInboxItemSchema, WorkflowInstanceSchema } from '@cueq/contracts';
+import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
   refreshAfterMutation,
   type RefreshResult,
-} from '../../../lib/mutation-refresh';
+} from '../../../shared/workspace/mutation-refresh';
 import {
   type STATUS_FILTERS,
   type TYPE_FILTERS,

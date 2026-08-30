@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 
   // Transpile monorepo packages
-  transpilePackages: ['@cueq/shared'],
+  transpilePackages: ['@cueq/contracts'],
 
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];

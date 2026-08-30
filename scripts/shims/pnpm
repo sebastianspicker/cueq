@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PINNED_PNPM_VERSION="9.15.0"
+PINNED_PNPM_VERSION="11.24.0"
 
 if command -v corepack >/dev/null 2>&1 &&
   [[ "$(corepack pnpm --version 2>/dev/null || true)" == "${PINNED_PNPM_VERSION}" ]]; then

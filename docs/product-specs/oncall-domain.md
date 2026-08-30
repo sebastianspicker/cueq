@@ -1,11 +1,6 @@
 # Product Spec: On-Call Domain
 
-> Shared schemas and repository source surfaces are present;
-> service-backed and deployment evidence are not asserted.
-
----
-
-## 1. Summary
+## Summary
 
 cueq models on-call rotations and deployments as a dedicated subdomain with:
 
@@ -15,7 +10,7 @@ cueq models on-call rotations and deployments as a dedicated subdomain with:
 - Reporting data concepts (on-call hours and deployment count); operational
   reporting acceptance remains separate
 
-## 2. Data Model
+## Data Model
 
 ### On-Call Rotation
 
@@ -43,25 +38,25 @@ Automated check for rest periods after deployments:
 - After a night deployment, was the required 11h rest observed?
 - If not, generate a policy violation
 
-## 3. Key Use Cases
+## Key Use Cases
 
-| #    | Use Case                                              | Source                |
-| ---- | ----------------------------------------------------- | --------------------- |
-| UC-3 | System checks rest period compliance after deployment | Policy and core rules |
+| Use case                                              | Source                |
+| ----------------------------------------------------- | --------------------- |
+| System checks rest-period compliance after deployment | Policy and core rules |
 
-## 4. Zod Schemas
+## Zod Schemas
 
-Defined in [`packages/shared/src/schemas/oncall.ts`](../../packages/shared/src/schemas/oncall.ts):
+Defined in [`packages/contracts/src/schemas/oncall.ts`](../../packages/contracts/src/schemas/oncall.ts):
 
 - `OnCallRotationSchema`
 - `OnCallDeploymentSchema`
 - `CreateOnCallDeploymentSchema`
 - `OnCallComplianceCheckSchema`
 
-## 5. Policy Rules
+## Policy Rules
 
 On-call rest rules are defined in [`packages/policy/src/rules/rest-rules.ts`](../../packages/policy/src/rules/rest-rules.ts) with `onCallRestReduction` configuration.
 
-## 6. References
+## References
 
 - [`docs/SECURITY.md`](../SECURITY.md): Role-based visibility for on-call data

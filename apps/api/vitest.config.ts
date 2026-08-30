@@ -15,7 +15,25 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts'],
+      // Database-free boundary coverage: local auth claims, HTTP policy and
+      // validation, and deterministic integration protocol/security helpers.
+      // Storage orchestration requires the explicit PostgreSQL integration lane;
+      // test:coverage:all keeps the remaining full-source gap visible.
+      include: [
+        'src/platform/http/cors-options.ts',
+        'src/platform/http/development-listen-host.ts',
+        'src/platform/http/validation/**/*.ts',
+        'src/platform/auth/role-mapping.ts',
+        'src/platform/auth/mock-identity-provider.adapter.ts',
+        'src/modules/integrations/csv/**/*.ts',
+        'src/modules/integrations/credentials/**/*.ts',
+        'src/modules/integrations/terminal-contracts.ts',
+        'src/modules/integrations/terminal-csv-parser.ts',
+        'src/modules/integrations/terminal-import-normalization.ts',
+        'src/modules/integrations/webhook-dispatch-format.ts',
+        'src/modules/integrations/webhooks/webhook-secret-envelope.ts',
+        'src/modules/integrations/webhooks/webhook-url.ts',
+      ],
       exclude: [
         'src/**/__tests__/**',
         'src/**/*.test.ts',
@@ -31,10 +49,10 @@ export default defineConfig({
       ],
       reporter: ['text', 'json-summary'],
       thresholds: {
-        lines: 58,
-        functions: 45,
-        branches: 70,
-        statements: 58,
+        lines: 89,
+        functions: 94,
+        branches: 75,
+        statements: 89,
       },
     },
   },

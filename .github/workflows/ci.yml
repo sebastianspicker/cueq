@@ -27,7 +27,7 @@ env:
 
 jobs:
   validate:
-    name: Validation
+    name: Harness Validation
     runs-on: ubuntu-latest
     outputs:
       full: ${{ steps.scope.outputs.full }}
@@ -82,23 +82,19 @@ jobs:
       - name: Validate alpha tag
         if: steps.scope.outputs.full == 'true' && startsWith(github.ref, 'refs/tags/')
         shell: bash
-        run: |
-          if [[ ! "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-alpha\.[1-9][0-9]*$ ]]; then
-            echo "Invalid source-alpha tag: ${GITHUB_REF_NAME}" >&2
-            exit 1
-          fi
+        run: node ./scripts/validate-release-tag.mjs "${GITHUB_REF_NAME}"
 
       - name: Setup pnpm
         if: steps.scope.outputs.full == 'true'
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
-          version: 9.15.0
+          version: 11.24.0
 
       - name: Setup Node.js
         if: steps.scope.outputs.full == 'true'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 20.19.0
+          node-version: 22.13.0
           cache: pnpm
 
       - name: Cache turbo
@@ -119,7 +115,7 @@ jobs:
         if: steps.scope.outputs.full == 'true'
         run: |
           make generate
-          git diff --exit-code -- contracts/openapi/openapi.json docs/generated/db-schema.md packages/shared/src/generated/core-schema-types.ts
+          git diff --exit-code -- contracts/openapi/openapi.json docs/generated/db-schema.md packages/domain/src/generated/schema-contracts.ts
 
       - name: Audit dependencies
         if: steps.scope.outputs.full == 'true'
@@ -127,11 +123,11 @@ jobs:
 
       - name: Setup
         if: steps.scope.outputs.full == 'true'
-        run: make setup
+        run: SKIP_INSTALL=1 make setup
 
       - name: Seed verification data
         if: steps.scope.outputs.full == 'true'
-        run: pnpm --filter @cueq/database db:seed:phase2
+        run: pnpm --filter @cueq/database db:seed:baseline
 
       - name: Check
         if: steps.scope.outputs.full == 'true'
@@ -185,16 +181,16 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
-          version: 9.15.0
+          version: 11.24.0
 
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 20.19.0
+          node-version: 22.13.0
           cache: pnpm
 
       - name: Fresh clone setup and check
         run: |
           make setup
-          pnpm --filter @cueq/database db:seed:phase2
+          pnpm --filter @cueq/database db:seed:baseline
           make check

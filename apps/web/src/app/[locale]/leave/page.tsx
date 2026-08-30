@@ -11,19 +11,19 @@ import {
   UserIdentitySchema,
   type Absence,
   type LeaveBalance,
-} from '@cueq/shared';
+} from '@cueq/contracts';
 import { FormField } from '../../../components/FormField';
 import { LoadingSpinner } from '../../../components/LoadingSpinner';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { StatusBanner } from '../../../components/StatusBanner';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
   refreshAfterMutation,
   type RefreshResult,
-} from '../../../lib/mutation-refresh';
+} from '../../../shared/workspace/mutation-refresh';
 
 const ABSENCE_TYPES = [
   'ANNUAL_LEAVE',
@@ -37,7 +37,6 @@ const ABSENCE_TYPES = [
   'PARENTAL',
 ] as const;
 
-/** Hosts leave balance and request state for the current session. */
 export default function LeavePage() {
   const t = useTranslations('pages.leave');
   const absenceTypeLabels: Record<(typeof ABSENCE_TYPES)[number], string> = {

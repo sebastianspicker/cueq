@@ -1,7 +1,5 @@
 'use client';
 
-/** Renders the approvals workspace from its route-owned state and locale. */
-
 import type { useTranslations } from 'next-intl';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
@@ -19,7 +17,6 @@ interface ApprovalsWorkspaceProps {
   workspace: ApprovalsWorkspaceState;
 }
 
-/** Hosts the unchanged approvals shell and workflow interaction order. */
 export function ApprovalsWorkspace({ t, locale, workspace }: ApprovalsWorkspaceProps) {
   return (
     <PageShell

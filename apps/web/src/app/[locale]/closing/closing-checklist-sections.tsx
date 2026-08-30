@@ -10,7 +10,6 @@ import {
   type TranslationFn,
 } from './closing-types';
 
-/** Renders checklist evidence as compact, comparable operational rows. */
 export function ChecklistSection({
   t,
   checklist,
@@ -49,7 +48,6 @@ export function ChecklistSection({
   );
 }
 
-/** Renders the selected period's approval chain as a compact evidence timeline. */
 export function ApprovalChainSection({
   t,
   locale,

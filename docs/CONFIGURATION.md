@@ -22,15 +22,21 @@ environment files, credentials, tokens, or encryption keys.
 
 ## Authentication
 
-| Variable          | Default                                  | Use                                                                                    |
-| ----------------- | ---------------------------------------- | -------------------------------------------------------------------------------------- |
-| `AUTH_PROVIDER`   | compatibility selection described below  | Preferred provider selector: `mock`, `oidc`, or `saml`. Production rejects `mock`.     |
-| `AUTH_MODE`       | mock unless an OIDC issuer is configured | Compatibility selector supporting `mock` or `oidc` when `AUTH_PROVIDER` is unset.      |
-| `OIDC_ISSUER_URL` | unset                                    | OIDC issuer. The API reads signing keys from `<issuer>/protocol/openid-connect/certs`. |
-| `OIDC_CLIENT_ID`  | unset                                    | Required OIDC audience.                                                                |
-| `SAML_ISSUER`     | unset                                    | Required issuer for the SAML bridge JWT.                                               |
-| `SAML_AUDIENCE`   | unset                                    | Required audience for the SAML bridge JWT.                                             |
-| `SAML_JWT_SECRET` | unset                                    | Shared secret used to verify HS256, HS384, or HS512 bridge JWTs.                       |
+| Variable          | Default                                  | Use                                                                                                          |
+| ----------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `AUTH_PROVIDER`   | compatibility selection described below  | Preferred provider selector: `mock`, `oidc`, or `saml`. Production rejects `mock`.                           |
+| `AUTH_MODE`       | mock unless an OIDC issuer is configured | Compatibility selector supporting `mock` or `oidc` when `AUTH_PROVIDER` is unset.                            |
+| `OIDC_ISSUER_URL` | unset                                    | Separately configured OIDC issuer. The API reads signing keys from `<issuer>/protocol/openid-connect/certs`. |
+| `OIDC_CLIENT_ID`  | unset                                    | Required OIDC audience.                                                                                      |
+| `SAML_ISSUER`     | unset                                    | Required issuer for the SAML bridge JWT.                                                                     |
+| `SAML_AUDIENCE`   | unset                                    | Required audience for the SAML bridge JWT.                                                                   |
+| `SAML_JWT_SECRET` | unset                                    | Shared secret used to verify HS256, HS384, or HS512 bridge JWTs.                                             |
+
+The local Compose stack provides PostgreSQL only. It does not configure an
+OIDC issuer, realm, client, or users. Leave the OIDC variables unset with
+`AUTH_PROVIDER=mock` for local evaluation. To use OIDC, configure an issuer
+separately and set `AUTH_PROVIDER=oidc`, `OIDC_ISSUER_URL`, and
+`OIDC_CLIENT_ID` for that deployment.
 
 The current SAML adapter verifies a JWT produced by an external SAML bridge. It
 does not implement the SAML protocol in the API.
@@ -85,11 +91,12 @@ in [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md).
 These variables control repository tooling rather than normal application
 behavior:
 
-| Variable                               | Default              | Use                                                                                   |
-| -------------------------------------- | -------------------- | ------------------------------------------------------------------------------------- |
-| `SKIP_DOCKER`                          | `0`                  | Prevents `make setup` from starting Compose when set to `1`.                          |
-| `POSTGRES_CLIENT_IMAGE`                | `postgres:16-alpine` | PostgreSQL client image used by the backup and restore verifier.                      |
-| `WEBHOOK_SECRET_MAINTENANCE_CONFIRMED` | unset                | Required as `1` by the Make target that applies webhook-secret migration.             |
+| Variable                               | Default              | Use                                                                                       |
+| -------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
+| `SKIP_DOCKER`                          | `0`                  | Prevents `make setup` from starting the local PostgreSQL Compose service when set to `1`. |
+| `SKIP_INSTALL`                         | `0`                  | Skips setup's frozen install after CI has installed dependencies explicitly.              |
+| `POSTGRES_CLIENT_IMAGE`                | `postgres:16-alpine` | PostgreSQL client image used by the backup and restore verifier.                          |
+| `WEBHOOK_SECRET_MAINTENANCE_CONFIRMED` | unset                | Required as `1` by the Make target that applies webhook-secret migration.                 |
 
 ## Production requirements
 

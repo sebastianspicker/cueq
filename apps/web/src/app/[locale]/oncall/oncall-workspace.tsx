@@ -11,7 +11,6 @@ import type { useOnCallWorkspace } from './use-oncall-workspace';
 type TranslationFn = ReturnType<typeof useTranslations>;
 type OnCallWorkspaceState = ReturnType<typeof useOnCallWorkspace>;
 
-/** Renders on-call state and actions supplied by the route composition boundary. */
 export function OnCallWorkspace({
   t,
   workspace,

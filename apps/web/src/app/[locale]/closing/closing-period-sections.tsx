@@ -11,7 +11,6 @@ import {
   type TranslationFn,
 } from './closing-types';
 
-/** Renders period and organization scope controls in the page header. */
 export function PeriodQuerySection({
   t,
   locale,
@@ -97,7 +96,6 @@ export function PeriodQuerySection({
   );
 }
 
-/** Keeps multi-period selection available without adding a permanent card for the common single result. */
 export function PeriodListSection({
   t,
   locale,
@@ -141,7 +139,6 @@ export function PeriodListSection({
   );
 }
 
-/** Renders the shared-border readiness strip from selected-period state. */
 export function PeriodStateSection({
   t,
   period,

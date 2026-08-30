@@ -7,7 +7,6 @@ import type { RosterDetail } from './roster-types';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Renders roster lifecycle controls without acting as an authorization boundary. */
 export function RosterCommandBar({
   t,
   loading,
@@ -55,7 +54,6 @@ export function RosterCommandBar({
   );
 }
 
-/** Renders summary data for the currently selected roster. */
 export function RosterDetailSection({
   t,
   roster,
@@ -84,7 +82,6 @@ export function RosterDetailSection({
   );
 }
 
-/** Renders form controls for beginning a draft roster. */
 export function DraftRosterSection({
   t,
   draftOrganizationUnitId,

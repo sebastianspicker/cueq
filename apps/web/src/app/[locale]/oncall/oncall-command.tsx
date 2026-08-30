@@ -4,7 +4,6 @@ import type { useTranslations } from 'next-intl';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Renders command controls for the on-call workspace. */
 export function OnCallCommandBar({
   t,
   loading,

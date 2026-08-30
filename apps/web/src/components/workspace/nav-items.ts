@@ -76,7 +76,6 @@ export function getVisibleNavItems(
   return items.filter((item) => canView(item, profile));
 }
 
-/** Label for a nav item; dashboard uses the today section title. */
 export function navItemLabel(item: NavItem, messages: WorkspaceMessages): string {
   if (item.key === 'dashboard') {
     return messages.todaySection;
@@ -84,7 +83,6 @@ export function navItemLabel(item: NavItem, messages: WorkspaceMessages): string
   return messages.nav[item.key] ?? item.key;
 }
 
-/** Active section label for the status mast (settings included). */
 export function activeSectionLabel(
   pathname: string,
   locale: string,

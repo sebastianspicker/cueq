@@ -3,14 +3,13 @@
 import { useState } from 'react';
 import type { useTranslations } from 'next-intl';
 import { useSessionContext } from '../../../components/AppWorkspace';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 import type { RosterOperationContext } from './roster-operations';
 import type { PlanVsActual, RosterDetail } from './roster-types';
 
 const ROSTER_MANAGERS = new Set(['SHIFT_PLANNER', 'HR', 'ADMIN']);
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Owns roster selection, forms, permissions, and the operation context. */
 export function useRosterWorkspace(t: TranslationFn) {
   const { apiRequest } = useApiContext();
   const { profile } = useSessionContext();

@@ -10,8 +10,8 @@ service-level objective.
   operational health.
 - The web application requires the API for application data.
 - Scheduled closing, workflow, and webhook work runs inside the API process.
-- The local Compose file provides PostgreSQL and Keycloak on loopback-bound
-  ports.
+- The local Compose file provides PostgreSQL on a loopback-bound port. OIDC is
+  supplied by a separately configured identity provider.
 
 There is no load balancer, application process supervisor, high-availability
 database, deployment rollback controller, multi-region recovery, or

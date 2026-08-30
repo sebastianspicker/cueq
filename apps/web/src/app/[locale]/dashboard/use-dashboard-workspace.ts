@@ -6,21 +6,20 @@ import {
   ClosingPeriodLockedErrorSchema,
   DashboardSummarySchema,
   WorkflowInstanceSchema,
-} from '@cueq/shared';
+} from '@cueq/contracts';
 import type { useTranslations } from 'next-intl';
 import { useOptionalSessionContext } from '../../../components/AppWorkspace';
-import { ApiRequestError } from '../../../lib/api-client';
-import { useApiContext } from '../../../lib/api-context';
+import { ApiRequestError } from '../../../platform/http/api-client';
+import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
   refreshAfterMutation,
   type RefreshResult,
-} from '../../../lib/mutation-refresh';
+} from '../../../shared/workspace/mutation-refresh';
 import type { DashboardBooking, DashboardSummary } from './types';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Owns dashboard requests, mutation feedback, and local form state. */
 export function useDashboardWorkspace(t: TranslationFn, locale: string) {
   const { apiRequest } = useApiContext();
   const session = useOptionalSessionContext();

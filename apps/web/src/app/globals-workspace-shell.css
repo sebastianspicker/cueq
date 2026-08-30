@@ -1,4 +1,3 @@
-/* Rhein-Desk workspace: main column + sticky rail */
 .cq-dashboard-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 20rem;
@@ -92,7 +91,6 @@
   background: var(--cq-surface-subtle);
 }
 
-/* Day stage + vertical ledger */
 .cq-day-stage {
   overflow: hidden;
   padding: 0;
@@ -307,4 +305,3 @@
   align-items: center;
   gap: 0.5rem;
 }
-

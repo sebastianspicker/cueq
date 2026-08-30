@@ -1,7 +1,5 @@
 'use client';
 
-/** Owns policy administration state, requests, mutations, and local feedback. */
-
 import { useEffect, useState } from 'react';
 import {
   NullableWorkflowPolicySchema,
@@ -11,9 +9,9 @@ import {
   WorkflowPolicySchema,
   type PolicyBundle,
   type WorkflowPolicyHistory,
-} from '@cueq/shared';
+} from '@cueq/contracts';
 import type { useTranslations } from 'next-intl';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 
 const WORKFLOW_TYPES = [
   'LEAVE_REQUEST',
@@ -25,7 +23,6 @@ const WORKFLOW_TYPES = [
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Provides the state and actions consumed by the policy administration route composition. */
 export function usePolicyAdminWorkspace(t: TranslationFn) {
   const { apiBaseUrl, token, apiRequest } = useApiContext();
 

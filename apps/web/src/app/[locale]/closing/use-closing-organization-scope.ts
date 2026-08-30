@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 
-/** Derives the organization-unit field behavior for the current role without granting access. */
 export function useOrganizationUnitScope(
   role: string | undefined,
   profileOrganizationUnitId: string | undefined,

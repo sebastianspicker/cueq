@@ -4,11 +4,11 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { TimeRuleEvaluationResponseSchema } from '@cueq/shared';
+import { TimeRuleEvaluationResponseSchema } from '@cueq/contracts';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 
 const DEFAULT_PAYLOAD = JSON.stringify(
   {
@@ -47,7 +47,6 @@ interface TimeEngineResponse {
   surchargeMinutes: SurchargeLine[];
 }
 
-/** Hosts time-engine evaluation inputs and their API-calculated results. */
 export default function TimeEnginePage() {
   const t = useTranslations('pages.timeEngine');
   const { apiRequest } = useApiContext();

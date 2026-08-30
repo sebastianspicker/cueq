@@ -3,7 +3,7 @@ import { FormField } from '../../../components/FormField';
 import {
   isoInstantToLocalDateTimeInput,
   localDateTimeInputToIsoInstant,
-} from '../../../lib/datetime-local';
+} from '../../../shared/time/datetime-local';
 import type { DashboardSummary, TranslationFn } from './types';
 
 export function OrientationSection({

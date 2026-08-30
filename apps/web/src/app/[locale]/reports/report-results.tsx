@@ -1,4 +1,3 @@
-/** Typed report-result renderers, including suppression metadata for privacy-aware summaries. */
 import type { useTranslations } from 'next-intl';
 import { SectionCard } from '../../../components/SectionCard';
 
@@ -178,7 +177,6 @@ function ComplianceSummaryResult({
   );
 }
 
-/** Renders the selected report result while retaining any API-provided suppression notice. */
 export function ReportResults({
   t,
   loaded,

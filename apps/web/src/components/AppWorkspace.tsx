@@ -4,7 +4,7 @@
 
 import { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
-import { useApiContext } from '../lib/api-context';
+import { useApiContext } from '../platform/http/api-context';
 import { ErrorBoundary } from './ErrorBoundary';
 import {
   SessionContext,
@@ -20,7 +20,6 @@ import {
 export type { CueqRole, SessionState, AppWorkspaceProps };
 export { useSessionContext, useOptionalSessionContext };
 
-/** Provides session-aware navigation and resilient workspace chrome around localized pages. */
 export function AppWorkspace({ children, locale, altLocale, messages }: AppWorkspaceProps) {
   const pathname = usePathname();
   const { apiRequest, connectionKey } = useApiContext();

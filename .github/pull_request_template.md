@@ -33,7 +33,7 @@
 
 - [ ] No secrets committed
 - [ ] No external calls added in tests
-- [ ] No PII added in fixtures or docs
+- [ ] No personal data added to seeds, examples, screenshots, or docs
 - [ ] Role-based visibility and GDPR constraints reviewed
 - [ ] Audit trail, retention, and works-council impact reviewed
 

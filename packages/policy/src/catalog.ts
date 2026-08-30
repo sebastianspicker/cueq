@@ -1,5 +1,4 @@
 /** Resolves effective-dated policy bundles while retaining history for audit and replay. */
-import { parseDateOnlyToTimestamp } from '@cueq/shared';
 import { DEFAULT_BREAK_RULE, type BreakRule } from './rules/break-rules.js';
 import { DEFAULT_LEAVE_RULE, type LeaveRule } from './rules/leave-rules.js';
 import { DEFAULT_MAX_HOURS_RULE, type MaxHoursRule } from './rules/max-hours-rules.js';
@@ -14,6 +13,18 @@ export type PolicyRuleType =
   | 'SURCHARGE_RULE';
 
 export type PolicyCatalogRule = BreakRule | RestRule | MaxHoursRule | LeaveRule | SurchargeRule;
+
+/** Strictly parse a UTC date-only value for effective-date comparisons. */
+function parseDateOnlyToTimestamp(input: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(input)) {
+    throw new Error(`Invalid date: ${input}`);
+  }
+  const date = new Date(`${input}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== input) {
+    throw new Error(`Invalid date: ${input}`);
+  }
+  return date.getTime();
+}
 
 function inRange(asOf: string, effectiveFrom: string, effectiveTo: string | null): boolean {
   const asOfTs = parseDateOnlyToTimestamp(asOf);

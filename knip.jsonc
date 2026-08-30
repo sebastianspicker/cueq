@@ -4,7 +4,8 @@
     ".": {
       "entry": [
         "scripts/dev.mjs!",
-        "scripts/generate-core-schema-types.mjs",
+        "scripts/backup-restore-verify.mjs!",
+        "scripts/generate-domain-schema-types.mjs",
         "scripts/generate-db-schema-doc.mjs",
         "scripts/hr-import.mjs!",
         "scripts/validate-schemas.mjs",
@@ -24,10 +25,8 @@
       "project": [
         "src/**/*.ts!",
         "!src/**/*.test.ts!",
-        "!src/**/__tests__/**!",
         "!src/test-utils/**!",
         "src/**/*.test.ts",
-        "src/**/__tests__/**/*.ts",
         "test/**/*.ts",
         "vitest*.config.ts",
       ],
@@ -35,24 +34,18 @@
     "apps/web": {
       "entry": [
         "src/app/**/{page,layout,loading,error,not-found,route}.{ts,tsx}!",
-        "src/**/*.{test,spec}.{ts,tsx}",
-        "tests/**/*.{test,spec}.ts",
+        "test/**/*.test.ts",
         "vitest*.config.ts",
       ],
       "project": [
         "src/**/*.{ts,tsx}!",
         "!src/**/*.{test,spec}.{ts,tsx}!",
-        "src/**/*.{test,spec}.{ts,tsx}",
-        "tests/**/*.ts",
+        "test/**/*.ts",
         "*.{ts,tsx}",
       ],
     },
-    "packages/core": {
-      "entry": [
-        "src/index.ts!",
-        "src/**/*.test.ts",
-        "src/core/audit/build-audit-entry.typecheck.ts",
-      ],
+    "packages/domain": {
+      "entry": ["src/index.ts!", "src/**/*.test.ts", "src/audit/build-audit-entry.typecheck.ts"],
       "project": [
         "src/**/*.ts!",
         "!src/**/*.test.ts!",
@@ -68,17 +61,13 @@
         "src/index.ts!",
         "prisma/seed-*.mjs!",
         "scripts/*.mjs!",
-        "src/**/*.test.ts",
-        "prisma/*.test.mjs",
-        "scripts/*.test.mjs",
+        "test/**/*.ts",
         "vitest*.config.ts",
       ],
       "project": [
         "src/**/*.ts!",
         "!src/**/*.test.ts!",
-        "!src/**/__tests__/**!",
-        "src/**/*.test.ts",
-        "src/**/__tests__/**/*.ts",
+        "test/**/*.ts",
         "prisma/*.mjs",
         "scripts/*.mjs",
         "vitest*.config.ts",
@@ -95,7 +84,7 @@
         "vitest*.config.ts",
       ],
     },
-    "packages/shared": {
+    "packages/contracts": {
       "entry": ["src/index.ts!", "src/**/*.test.ts"],
       "project": [
         "src/**/*.ts!",

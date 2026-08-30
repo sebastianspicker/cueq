@@ -1,13 +1,11 @@
-# Core Beliefs: cueq Design Principles
+# Engineering principles
 
 These are normative engineering requirements, not a statement that every
 control is complete in the alpha. Current security limits are listed in
 [`../SECURITY.md`](../SECURITY.md), and candidate evidence requirements are in
 [`../../RELEASE_STATUS.md`](../../RELEASE_STATUS.md).
 
----
-
-## 1. Correctness Over Convenience
+## Correctness over convenience
 
 The system deals with legally relevant data (working hours, leave quotas, payroll exports). Incorrect calculations are worse than slow calculations. Every arithmetic operation on time, leave, or surcharges must be:
 
@@ -15,19 +13,19 @@ The system deals with legally relevant data (working hours, leave quotas, payrol
 - Tested with direct programmatic cases in CI
 - Versioned alongside the rule that governs it
 
-## 2. Auditability Is Not Optional
+## Auditability
 
 A German university under TV-L must demonstrate compliance to the Personalrat (works council), data protection officers, and external auditors. Therefore:
 
 - Audited state changes should append an entry containing who, what, when, and
-  why. Comprehensive state-change coverage is not yet established.
+  why. Coverage of state changes is not yet complete.
 - The candidate database migration rejects audit-row `UPDATE` and `DELETE` when
   applied. `TRUNCATE` protection, hash chains, signatures, and external
   witnessing are not implemented.
 - Workflow decisions (approval, rejection, delegation) are part of the audit trail
 - Rule changes are versioned (which rule set was active when a calculation was performed?)
 
-## 3. Privacy by Default
+## Privacy by default
 
 Data minimization is a legal requirement (GDPR / DSGVO) and an institutional expectation:
 
@@ -37,7 +35,7 @@ Data minimization is a legal requirement (GDPR / DSGVO) and an institutional exp
   and deletion schedules are not implemented in the alpha.
 - No telemetry. The system does not phone home, does not collect usage analytics, does not embed third-party trackers.
 
-## 4. Configuration Over Hard-Coding
+## Configuration over hard-coding
 
 The university has diverse employee groups (TV-L admin, shifts, student assistants, lecturers, potentially civil servants) and four distinct shift domains (Pforte, IT, Hausdienst, Veranstaltungstechnik). Rules differ across groups:
 
@@ -45,7 +43,7 @@ The university has diverse employee groups (TV-L admin, shifts, student assistan
 - Rule sets are assigned per employee group / organizational unit
 - Changes to rules take effect from a configurable date (not retroactively by default)
 
-## 5. Schema-Driven Contracts
+## Schema-driven contracts
 
 Every interface boundary is defined by a machine-readable schema:
 
@@ -58,7 +56,7 @@ Selected domain types and generated documents derive from schemas. Prisma,
 Zod, Nest DTO, and handwritten TypeScript contracts also exist; the owning
 source contract must be identified before changing an interface.
 
-## 6. Offline Resilience
+## Offline resilience
 
 Honeywell terminals can go offline. A complete deployment must:
 
@@ -71,18 +69,12 @@ The repository implements API-side batch ingestion and duplicate/conflict
 checks. Physical-terminal storage, device identity, and offline buffering are
 external assumptions, not alpha source capabilities.
 
-## 7. Small, Verifiable Changes
+## Reviewable changes
 
-Complexity kills correctness. Every change to cueq must be:
+Keep each change focused on one coherent concern. New behavior should include
+focused tests, and durable architectural decisions should be recorded as ADRs.
 
-- Small: Maximum 400 lines per PR, excluding generated files.
-- Reviewable: One concern per PR, using the conventional commit format.
-- Testable: New behavior includes focused tests.
-- Documented: Design decisions are recorded as ADRs.
-
----
-
-## Domain Glossary
+## Domain glossary
 
 > Canonical German → English mappings for the cueq domain. Use these terms consistently in code, comments, schemas, and documentation.
 
@@ -156,8 +148,6 @@ Complexity kills correctness. Every change to cueq must be:
 | NRW                        | NRW                   | Nordrhein-Westfalen (North Rhine-Westphalia)                             |
 | DSGVO                      | GDPR                  | General Data Protection Regulation (EU)                                  |
 | DSFA                       | DPIA                  | Data Protection Impact Assessment                                        |
-
----
 
 ## References
 

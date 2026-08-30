@@ -82,7 +82,6 @@ export function compactIdentifier(value: string): string {
   return value.length > 18 ? `…${value.slice(-14)}` : value;
 }
 
-/** Resolves the selected period from the latest list while preferring refreshed detail. */
 export function findSelectedPeriod(
   periods: ClosingPeriod[],
   selectedPeriodId: string | null,
@@ -92,7 +91,6 @@ export function findSelectedPeriod(
   return periods.find((period) => period.id === selectedPeriodId) ?? detail;
 }
 
-/** Returns checklist totals used by the readiness strip. */
 export function closingChecklistTotals(checklist: ClosingChecklistResponse | null) {
   const items = checklist?.items ?? [];
   const passed = items.filter((item) => checklistVariant(item) === 'ok').length;

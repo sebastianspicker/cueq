@@ -10,16 +10,23 @@ immutable release identity.
 
 - Source-only alpha evaluation, roadmap, quality-gate, support, conduct, and
   release-status documentation.
-- Separate deterministic frontend-fixture and PostgreSQL/API screenshot lanes,
-  with a declarative request whitelist, loaded-state assertions, and guarded
-  public-copy validation, plus six reviewed synthetic fixture screenshots.
+- A static GitHub Pages walkthrough built from six reviewed screenshots that
+  contain synthetic data.
 - GitHub dependency-update and generated-release-note configuration.
 - A documented source-alpha release process with tag identity, evidence gates,
   privacy review, screenshot manifest, and explicit publication approval.
+- Modular-monolith boundary enforcement for workspace dependencies, API public
+  surfaces, feature-module cycles, and cross-feature aggregate writes.
 
 ### Changed
 
-- Dependency overrides now live in the pnpm 9-supported root package manifest,
+- The historical `shared`, `core`, `common`, and `phase2` layout is replaced by
+  contracts, policy, pure domain, database, platform, and capability-owned API
+  modules.
+- Roster staffing now has one authority: `ShiftAssignment`. The deprecated
+  `Shift.personId` storage and response field is backfilled and removed by a
+  forward migration.
+- Dependency overrides now live in the workspace configuration consumed by pnpm,
   and the lockfile is synchronized with the declared toolchain.
 - Docker-published services and local development servers default to loopback
   interfaces. Non-loopback development binding requires `CUEQ_DEV_HOST`.
@@ -34,19 +41,17 @@ immutable release identity.
   timeouts, and avoid leaking upstream network details.
 - Machine integration authentication is represented in the generated OpenAPI
   contract.
-- Repository commands and nested Turbo/Playwright/database helpers consistently
-  use the pinned pnpm version.
+- Repository commands and database helpers consistently use the pinned pnpm
+  version.
 - OpenAPI and schema generation now builds the API's workspace dependencies, so
   `make generate` and `make openapi-check` work without pre-existing `dist`
   directories. CI checks the committed generated artifacts after generation.
 - Local development now loads the repository `.env` deterministically, while
-  service-backed browser launchers inject an explicit synthetic webhook-secret
-  encryption key and production startup remains fail-closed.
+  production startup remains fail-closed.
 - Team-calendar authorization excludes Admin, and service-level mapping redacts
   absence reasons for roles outside Team Lead and HR.
-- Screenshot fixtures match the current dashboard, absence, roster, and
-  workflow contracts; loaded-state locators ignore hidden responsive controls
-  and the empty Next.js route announcer.
+- The static walkthrough reflects the current dashboard, absence, roster, and
+  workflow surfaces.
 - Approval detail identifiers wrap within their grid instead of overlapping
   adjacent labels.
 - NestJS 11.1.18, `next-intl` 4.9.2, Vitest 3.2.6, Turbo 2.9.14, and compatible

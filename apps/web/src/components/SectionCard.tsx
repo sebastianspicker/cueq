@@ -1,4 +1,3 @@
-/** Structural card primitive for grouping related workspace content. */
 interface SectionCardProps {
   children: React.ReactNode;
   className?: string;

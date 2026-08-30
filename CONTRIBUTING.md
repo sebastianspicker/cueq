@@ -1,104 +1,59 @@
 # Contributing
 
-cueq is a source alpha for workforce workflows that can contain sensitive data.
-Use inline test data and keep every change reviewable.
+cueq is source-alpha software for synthetic local evaluation. Keep changes
+reviewable and never add real personal data, secrets, telemetry, or unapproved
+production dependencies.
 
 ## Before changing code
 
-- Read the affected source, tests, schemas, migrations, and public contracts.
-- Confirm the current behavior with the narrowest available test or
-  reproduction.
-- Keep the change focused on one behavior or documentation concern.
-- Do not add secrets, real personal data, telemetry, or production dependencies.
-- Discuss new production dependencies with the maintainer before adding them.
+- Read affected source, contracts, migrations, and existing tests.
+- Preserve package dependency direction: contracts and policy are leaf
+  packages; domain is pure and depends only on policy; API and web sit at the
+  edges; database owns Prisma.
+- Keep API feature internals private and import another feature only through
+  its `public.ts`. Use narrow ports for cross-feature aggregate mutation,
+  especially around workflows and closing.
+- Do not hand-edit generated OpenAPI or database documentation.
 
 ## Local setup
 
 ```bash
 cp .env.example .env
+openssl rand -base64 32
+# Set WEBHOOK_SECRET_ENCRYPTION_KEY in .env.
 make setup
-./scripts/pnpm.sh --filter @cueq/database db:seed:phase2
+pnpm --filter @cueq/database db:seed:demo
 ```
 
-Set a local `WEBHOOK_SECRET_ENCRYPTION_KEY` before starting the API. Setup and
-reset commands treat the local Compose database as disposable. Read
-[docs/ALPHA.md](docs/ALPHA.md) before using an existing local database.
+The local database is disposable. Read [docs/ALPHA.md](docs/ALPHA.md) before
+running setup, reset, cleanup, or database commands against anything you need
+to retain.
 
-## Development workflow
+## Verification
 
-Run a focused workspace test while editing, then:
+Run the narrowest relevant command while editing, then the broadest practical
+gate:
 
 ```bash
 make quick
-```
-
-Before submitting a broad change, run the applicable repository checks:
-
-```bash
 make docs-check
 make schemas
 make openapi-check
 make build
 ```
 
-`make check` is the full ordered gate and requires PostgreSQL. Browser checks
-require the declared Node and pnpm toolchain. See
-[docs/QUALITY_GATES.md](docs/QUALITY_GATES.md).
+`make check` needs PostgreSQL and the installed project toolchain. Add focused
+tests for changed behavior, including invalid input and role boundaries where
+appropriate. Database-backed transaction, migration, and concurrency behavior
+needs a real PostgreSQL lane; visible browser behavior needs a browser lane.
+Do not claim either lane passed when it was not run.
 
-## Contracts and migrations
+## Contracts, documentation, and pull requests
 
-For an API, JSON Schema, shared contract, or Prisma change:
+For API, contract, or Prisma changes, run `make generate`, `make schemas`, and
+`make openapi-check`; review derived artifacts rather than editing them by
+hand. Update documentation whenever paths, commands, environment variables,
+routes, or behavior change.
 
-```bash
-make generate
-make schemas
-make openapi-check
-```
-
-Review all derived artifacts. Do not hand-edit
-`contracts/openapi/openapi.json`, `docs/generated/db-schema.md`, or
-`packages/shared/src/generated/core-schema-types.ts` as a substitute for
-changing their source.
-
-Commit a Prisma migration for storage changes. `make db-push` is for
-development and does not replace migration review.
-
-## Tests
-
-- Add a focused test for changed behavior.
-- Test the reason the behavior matters, including invalid input and role
-  boundaries where applicable.
-- Use PostgreSQL-backed tests for transaction, constraint, migration, and
-  concurrency behavior.
-- Use browser tests for visible workflows, role visibility, loading, empty,
-  error, and keyboard states.
-- Do not describe an unavailable service-backed check as passed.
-
-## Documentation
-
-Update documentation when a command, path, environment variable, route,
-contract, operational boundary, or user-visible behavior changes.
-
-- Keep the root README usable as the GitHub entry point.
-- Add detailed runtime guidance to the appropriate maintained document under
-  `docs/`.
-- Update product specifications when behavior or entry points change.
-- Run `make docs-check` and `make format`.
-- Do not preserve outdated instructions as historical sections.
-
-## Pull requests
-
-A pull request should:
-
-- explain the user-visible or contract-level reason for the change;
-- identify affected source, schemas, migrations, and public contracts;
-- list commands run and their results;
-- name checks that were unavailable and why;
-- describe remaining uncertainty;
-- contain only intended files; and
-- use a Conventional Commit-style title such as
-  `fix(api): reject invalid booking ranges`.
-
-Follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Use [SUPPORT.md](SUPPORT.md)
-for setup questions and [SECURITY.md](SECURITY.md) for private vulnerability
-reporting.
+Pull requests should explain the behavior or contract change, affected modules
+and artifacts, checks run, unavailable checks, and remaining uncertainty.

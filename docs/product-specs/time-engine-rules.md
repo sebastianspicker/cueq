@@ -1,13 +1,8 @@
-# Product Spec: Time Engine Rules (FR-200)
+# Product Spec: Time Engine Rules
 
-> Evidence: Source and contract surfaces are present across Core, API, and
-> Web sandbox; the named tests are focused evidence, not deployment approval.
+## Summary
 
----
-
-## 1. Summary
-
-FR-200 provides deterministic rule evaluation for:
+The time engine provides deterministic rule evaluation for:
 
 - mandatory pauses (break deficits)
 - minimum rest periods
@@ -16,13 +11,13 @@ FR-200 provides deterministic rule evaluation for:
 
 The implementation is request-driven and policy-backed, with no DB migration requirement.
 
-## 2. Contracts and Entry Points
+## Contracts and Entry Points
 
 ### Core Contract
 
 - JSON Schema: [`schemas/domain/core-time-rule-evaluation.schema.json`](../../schemas/domain/core-time-rule-evaluation.schema.json)
 - Generated type: `CoreTimeRuleEvaluationContract`
-- Core function: `evaluateTimeRules(...)` in [`packages/core/src/core/time-engine/index.ts`](../../packages/core/src/core/time-engine/index.ts)
+- Domain function: `evaluateTimeRules(...)` in [`packages/domain/src/time-engine/index.ts`](../../packages/domain/src/time-engine/index.ts)
 
 ### Policy Rules
 
@@ -32,7 +27,7 @@ The implementation is request-driven and policy-backed, with no DB migration req
 ### API
 
 - Endpoint: `POST /v1/time-engine/evaluate`
-- Controller: [`apps/api/src/phase2/controllers/time-engine.controller.ts`](../../apps/api/src/phase2/controllers/time-engine.controller.ts)
+- Controller: [`apps/api/src/modules/attendance/time-engine.controller.ts`](../../apps/api/src/modules/attendance/time-engine.controller.ts)
 - Service guardrails:
   - roles allowed: `TEAM_LEAD`, `SHIFT_PLANNER`, `HR`, `ADMIN`
   - audit action: `TIME_RULES_EVALUATED`
@@ -42,7 +37,7 @@ The implementation is request-driven and policy-backed, with no DB migration req
 - Route: `/[locale]/time-engine`
 - UI: manual bearer token + editable JSON payload + structured result output
 
-## 3. Rule Defaults
+## Rule Defaults
 
 - Timezone default: `Europe/Berlin`
 - Worked time types: `WORK`, `DEPLOYMENT`
@@ -55,23 +50,19 @@ The implementation is request-driven and policy-backed, with no DB migration req
 - Tie-break precedence: `HOLIDAY > WEEKEND > NIGHT`
 - Output for surcharges: `category + minutes + ratePercent` (no monetary conversion)
 
-## 4. Acceptance Matrix
+## Evidence and Verification Limits
 
-| Case                                             | Coverage                                                                                      |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| Pause deficit after threshold                    | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
-| Rest deficit across adjacent work intervals      | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
-| Max daily warning and extended-limit violation   | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
-| Max weekly violation                             | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
-| Weekend/night overlap uses highest-only category | direct core contract test |
-| Holiday outranks weekend/night                   | direct core contract test |
-| Cross-midnight night classification              | `packages/core/src/core/time-engine/__tests__/time-engine.test.ts`                            |
-| API role restriction for endpoint                | `apps/api/test/compliance/report-audit-trail.compliance.test.ts`                              |
-| API endpoint behavior and surcharge response     | `apps/api/test/integration/phase3-policy-reports.integration.test.ts`                         |
-| OpenAPI includes endpoint path                   | `apps/api/test/integration/openapi.contract.test.ts`                                          |
-| Web route availability (`/de` + `/en`)           | `apps/web/tests/acceptance/phase2.acceptance.spec.ts`                                         |
+`packages/domain/src/time-engine/__tests__/time-engine.test.ts` is the current
+focused domain test location. API request handling is in
+`apps/api/src/modules/attendance/`; the web route is
+`apps/web/src/app/[locale]/time-engine/`; request and response DTOs are in
+`packages/contracts/src/schemas/time-engine.ts`.
 
-## 5. Out of Scope
+The current tree does not contain a committed PostgreSQL integration or browser
+acceptance suite for this endpoint and sandbox. Run those lanes separately when
+their behavior matters.
+
+## Out of Scope
 
 - Monetary payout calculation from surcharge minutes
 - Full TV-L tariff edge-case automation

@@ -2,8 +2,8 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
-import { Public } from '../common/decorators/public.decorator.js';
-import { Roles } from '../common/decorators/roles.decorator.js';
+import { Public } from '../platform/auth/decorators/public.decorator.js';
+import { Roles } from '../platform/auth/decorators/roles.decorator.js';
 import { PrismaService } from '../persistence/prisma.service.js';
 
 type TerminalHealth = { lastSeenAt: Date | null };

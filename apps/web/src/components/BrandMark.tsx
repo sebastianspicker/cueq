@@ -6,7 +6,6 @@ interface BrandMarkProps {
   variant?: 'sidebar' | 'compact';
 }
 
-/** Renders the canonical lowercase cueq identity as accessible, code-native UI. */
 export function BrandMark({ href, descriptor, variant = 'sidebar' }: BrandMarkProps) {
   return (
     <Link

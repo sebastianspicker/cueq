@@ -16,7 +16,7 @@ try {
     prisma,
     {
       year,
-      reason: args.get('--reason') ?? 'FR-400 initial leave-adjustment backfill',
+      reason: args.get('--reason') ?? 'Initial leave-adjustment backfill',
       createdBy: args.get('--created-by') ?? 'system:fr400-backfill',
       dryRun: args.get('--dry-run') === 'true',
     },

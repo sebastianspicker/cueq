@@ -105,8 +105,8 @@ There is no automated erasure or retention workflow. The audit immutability
 control also prevents in-place audit pseudonymization, so a future lifecycle
 design must reconcile both requirements.
 
-Only synthetic data belongs in fixtures, screenshots, logs, examples, issues,
-and repository verification.
+Only synthetic data belongs in seeds, screenshots, logs, examples, issues, and
+repository verification.
 
 ## Works-council and reporting constraints
 

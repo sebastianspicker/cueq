@@ -17,9 +17,7 @@
     display: none;
   }
 
-  .cq-task-link,
-  .cq-primary-nav-link,
-  .cq-nav-group-title {
+  .cq-task-link {
     padding-inline: 0.6rem;
     font-size: 0.8125rem;
   }
@@ -41,11 +39,6 @@
 
   .cq-dashboard-rail > .cq-panel:last-child {
     grid-column: 1 / -1;
-  }
-
-  .cq-dashboard-lower {
-    grid-template-columns: minmax(18rem, 0.85fr) minmax(24rem, 1.15fr);
-    gap: 2rem;
   }
 
   .cq-grid-3 {
@@ -198,8 +191,7 @@
     display: grid;
   }
 
-  .cq-task-nav,
-  .cq-primary-nav {
+  .cq-task-nav {
     display: grid;
     width: 100%;
     overflow: visible;
@@ -234,9 +226,7 @@
     margin-top: 0.5rem;
   }
 
-  .cq-task-link,
-  .cq-primary-nav-link,
-  .cq-nav-group-title {
+  .cq-task-link {
     height: auto;
     min-height: 2.75rem;
     justify-content: flex-start;
@@ -245,27 +235,9 @@
     text-align: left;
   }
 
-  .cq-app-nav {
-    position: static;
-    width: auto;
-    min-width: 0;
-    margin-left: 0.75rem;
-    padding: 0.25rem 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    transform: none;
-  }
-
-  .cq-chrome-actions,
-  .cq-nav-settings {
+  .cq-chrome-actions {
     display: block;
     margin-top: auto;
-  }
-
-  .cq-nav-settings .cq-nav-link {
-    justify-content: flex-start;
-    font-size: 0.9rem;
   }
 
   .cq-session-chip,
@@ -369,83 +341,8 @@
     flex: 1 1 auto;
   }
 
-  .cq-ledger-model {
-    margin-bottom: 0.75rem;
-  }
-
-  .cq-ledger-heading {
-    display: grid;
-    gap: 0.35rem;
-  }
-
-  .cq-ledger-scroll {
-    margin-right: -0.75rem;
-    padding-right: 0.75rem;
-  }
-
-  .cq-ledger-canvas {
-    min-width: 24rem;
-  }
-
-  .cq-ledger-axis span:nth-child(even) {
-    display: none;
-  }
-
-  .cq-ledger-track {
-    height: 6.5rem;
-  }
-
-  .cq-ledger-event[data-kind='out'] {
-    top: 2rem;
-  }
-
-  .cq-ledger-marker-now,
-  .cq-ledger-marker-target {
-    text-align: right;
-    transform: translateX(-100%);
-  }
-
-  .cq-ledger-marker-now::before,
-  .cq-ledger-marker-now::after,
-  .cq-ledger-marker-target::before,
-  .cq-ledger-marker-target::after {
-    left: 100%;
-  }
-
-  .cq-ledger-marker-now {
-    top: 2rem;
-  }
-
-  .cq-ledger-marker-target {
-    top: 3.5rem;
-  }
-
-  .cq-today-ledger {
-    max-width: none;
-  }
-
-  .cq-dashboard-lower {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .cq-overtime-workspace {
-    padding: 1.6rem 0 0;
-    border-top: 1px dashed var(--cq-border-strong);
-    border-left: 0;
-  }
-
   .cq-overtime-period {
     grid-template-columns: 1fr;
-  }
-
-  .cq-overtime-workspace > button {
-    width: 100%;
-    min-height: 3rem;
-  }
-
-  .cq-dashboard-footer {
-    text-align: center;
   }
 
   .cq-workspace-split {

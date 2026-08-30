@@ -1,4 +1,3 @@
-/** Public booking data consumed by the employee booking workspace. */
 export interface Booking {
   id: string;
   personId: string;

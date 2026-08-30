@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import type { useTranslations } from 'next-intl';
-import type { ApiFetch } from '../../../lib/api-client';
+import type { ApiFetch } from '../../../platform/http/api-client';
 import type { ClosingPeriod } from './closing-types';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Downloads API-produced closing artifacts while keeping browser download state local. */
 export function useArtifactDownload(
   t: TranslationFn,
   apiFetch: ApiFetch,

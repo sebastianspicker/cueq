@@ -1,21 +1,19 @@
 'use client';
 
-/** Owns on-call workspace state, requests, mutations, and local feedback. */
-
 import { useEffect, useState } from 'react';
 import {
   OnCallComplianceCheckSchema,
   OnCallDeploymentSchema,
   OnCallRotationSchema,
   UserProfileSchema,
-} from '@cueq/shared';
+} from '@cueq/contracts';
 import type { useTranslations } from 'next-intl';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
   refreshAfterMutation,
   type RefreshResult,
-} from '../../../lib/mutation-refresh';
+} from '../../../shared/workspace/mutation-refresh';
 import type {
   ComplianceResult,
   MeResponse,
@@ -27,7 +25,6 @@ const APPROVAL_ROLES = new Set(['TEAM_LEAD', 'SHIFT_PLANNER', 'HR', 'ADMIN']);
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Provides the state and actions consumed by the on-call route composition. */
 export function useOnCallWorkspace(t: TranslationFn) {
   const { token, apiRequest } = useApiContext();
 

@@ -1,6 +1,4 @@
-/** Private presentational sections for the policy administration workspace. */
-
-import type { PolicyBundle, WorkflowPolicyHistory } from '@cueq/shared';
+import type { PolicyBundle, WorkflowPolicyHistory } from '@cueq/contracts';
 import type { useTranslations } from 'next-intl';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
@@ -30,7 +28,6 @@ interface WorkflowPolicySectionProps {
   onSave: () => void;
 }
 
-/** Renders workflow policy editing controls with their existing client-side ranges. */
 export function WorkflowPolicySection({
   t,
   loading,
@@ -106,7 +103,6 @@ interface PolicyHistorySectionProps {
   onLoad: () => void;
 }
 
-/** Renders the existing workflow policy version history, including its literal active badge. */
 export function PolicyHistorySection({ t, loading, history, onLoad }: PolicyHistorySectionProps) {
   return (
     <SectionCard>
@@ -165,7 +161,6 @@ interface TimeThresholdsSectionProps {
   onSave: () => void;
 }
 
-/** Renders the ArbZG time threshold editor with unchanged minute ranges. */
 export function TimeThresholdsSection({
   t,
   loading,
@@ -222,7 +217,6 @@ interface PolicyBundleSectionProps {
   onLoad: () => void;
 }
 
-/** Renders the legacy policy bundle query and results. */
 export function PolicyBundleSection({
   t,
   loading,

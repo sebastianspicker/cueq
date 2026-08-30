@@ -15,7 +15,6 @@ interface RosterAssignment {
 interface RosterShift {
   id: string;
   rosterId: string;
-  personId: string | null;
   startTime: string;
   endTime: string;
   shiftType: string;

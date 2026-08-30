@@ -1,6 +1,5 @@
 import type { DashboardBooking, DashboardSummary } from './types';
 
-/** Europe/Berlin day-stage window for vertical ledger positions (08:00–17:00). */
 const LEDGER_START_MINUTE = 8 * 60;
 const LEDGER_END_MINUTE = 17 * 60;
 const LEDGER_HOUR_START = 8;
@@ -26,7 +25,6 @@ function minuteOfDay(value: string): number {
   return hour * 60 + minute;
 }
 
-/** Vertical % position within the ledger day window (0–100). */
 export function ledgerPosition(value: string): number {
   const span = LEDGER_END_MINUTE - LEDGER_START_MINUTE;
   return Math.min(100, Math.max(0, ((minuteOfDay(value) - LEDGER_START_MINUTE) / span) * 100));
@@ -45,7 +43,6 @@ export function workedHours(summary: DashboardSummary, bookings: DashboardBookin
   return workedMilliseconds(summary, bookings) / (60 * 60 * 1000);
 }
 
-/** Instant when today's target would be met if work continued from now. */
 export function targetInstant(summary: DashboardSummary, bookings: DashboardBooking[]): string {
   const now = new Date(summary.now).getTime();
   const remainingMilliseconds = Math.max(

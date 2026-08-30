@@ -1,23 +1,20 @@
 'use client';
 
-/** Local workspace-settings page for client preferences such as theme and page size. */
-
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { FormField } from '../../../components/FormField';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 import {
   applyThemePreference,
   getStoredPreference,
   PAGE_SIZE_PREFERENCE_SLOT,
   setStoredPreference,
   THEME_PREFERENCE_SLOT,
-} from '../../../lib/preferences';
+} from '../../../platform/browser/preferences';
 
-/** Hosts client-side workspace preference controls. */
 export default function SettingsPage() {
   const t = useTranslations('pages.settings');
   const { apiBaseUrl, setApiBaseUrl, token, setToken } = useApiContext();

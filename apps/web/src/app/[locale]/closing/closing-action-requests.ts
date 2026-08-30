@@ -3,14 +3,12 @@ import {
   ClosingExportResponseSchema,
   ClosingPeriodMutationResponseSchema,
   WorkflowInstanceSchema,
-} from '@cueq/shared';
-import type { ApiRequest, ApiResponseSchema } from '../../../lib/api-client';
+} from '@cueq/contracts';
+import type { ApiRequest, ApiResponseSchema } from '../../../platform/http/api-client';
 import type { ClosingActionId } from './closing-action-policy';
 import type { ApplyCorrectionPayload } from './closing-types';
 
-export function responseSchemaForClosingAction(
-  action: ClosingActionId,
-): ApiResponseSchema<unknown> {
+function responseSchemaForClosingAction(action: ClosingActionId): ApiResponseSchema<unknown> {
   switch (action) {
     case 'export':
       return ClosingExportResponseSchema;
@@ -23,7 +21,6 @@ export function responseSchemaForClosingAction(
   }
 }
 
-/** Runs a period mutation with the response schema and request shape required by that action. */
 export function requestClosingPeriodAction(
   apiRequest: ApiRequest,
   periodId: string,
@@ -40,7 +37,6 @@ export function requestClosingPeriodAction(
   );
 }
 
-/** Extracts the workflow created by a post-close correction request, if the API returned one. */
 export function createdCorrectionWorkflowId(
   action: ClosingActionId,
   result: unknown,
@@ -50,7 +46,6 @@ export function createdCorrectionWorkflowId(
   return (result as { id?: string }).id;
 }
 
-/** Submits an approval decision for the workflow that permits a correction booking. */
 export function requestWorkflowApproval(
   apiRequest: ApiRequest,
   workflowId: string,
@@ -62,7 +57,6 @@ export function requestWorkflowApproval(
   });
 }
 
-/** Applies a correction booking exactly as represented by the correction form. */
 export function requestClosingCorrection(
   apiRequest: ApiRequest,
   periodId: string,

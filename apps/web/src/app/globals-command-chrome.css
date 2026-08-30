@@ -1,6 +1,3 @@
-/* Top command chrome — Rhein-Desk
-   .cq-chrome.cq-app-sidebar is the sticky header shell.
-   .cq-chrome-top is the desktop task bar; brand/session/locale panels are mobile-drawer only. */
 .cq-chrome,
 .cq-app-sidebar {
   position: sticky;
@@ -142,4 +139,3 @@
 .cq-brand-mark[data-variant='compact'] .cq-brand-copy strong {
   font-size: 1.05rem;
 }
-

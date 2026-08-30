@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import type { useTranslations } from 'next-intl';
-import type { ApiRequest } from '../../../lib/api-client';
-import type { RefreshResult } from '../../../lib/mutation-refresh';
+import type { ApiRequest } from '../../../platform/http/api-client';
+import type { RefreshResult } from '../../../shared/workspace/mutation-refresh';
 import type { ClosingActionId } from './closing-action-policy';
 import { type ApplyCorrectionPayload, type ClosingPeriod } from './closing-types';
 import {

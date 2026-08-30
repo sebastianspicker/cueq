@@ -1,6 +1,5 @@
 'use client';
 
-/** Owns audit-report request state, filter state, and independent session-reset effects. */
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
@@ -8,9 +7,12 @@ import {
   AuditSummaryReportSchema,
   type AuditEntryItem,
   type AuditSummaryReport,
-} from '@cueq/shared';
-import { useApiContext } from '../../../lib/api-context';
-import { getStoredPreference, PAGE_SIZE_PREFERENCE_SLOT } from '../../../lib/preferences';
+} from '@cueq/contracts';
+import { useApiContext } from '../../../platform/http/api-context';
+import {
+  getStoredPreference,
+  PAGE_SIZE_PREFERENCE_SLOT,
+} from '../../../platform/browser/preferences';
 
 export function useAuditWorkspace() {
   const t = useTranslations('pages.audit');

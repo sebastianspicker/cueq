@@ -4,14 +4,13 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { TeamCalendarEntrySchema, type TeamCalendarEntry } from '@cueq/shared';
+import { TeamCalendarEntrySchema, type TeamCalendarEntry } from '@cueq/contracts';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { StatusBanner } from '../../../components/StatusBanner';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 
-/** Loads and renders the team calendar data authorized for the current session. */
 export default function TeamCalendarPage() {
   const t = useTranslations('pages.teamCalendar');
   const { apiRequest } = useApiContext();

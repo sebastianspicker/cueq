@@ -1,30 +1,23 @@
-# cueq: Standard Commands
-# ==========================
+# cueq development commands
 # Run `make help` for a list of all targets.
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
 SCRIPTS := ./scripts
 
-# ---------------------------------------------------------------------------
 # Setup
-# ---------------------------------------------------------------------------
 
 .PHONY: setup
 setup: ## Install dependencies, attempt Docker startup, generate Prisma, apply migrations
 	$(SCRIPTS)/setup.sh
 
-# ---------------------------------------------------------------------------
 # Development
-# ---------------------------------------------------------------------------
 
 .PHONY: dev
 dev: ## Start development servers (API + Web) with hot reload
 	$(SCRIPTS)/dev.sh
 
-# ---------------------------------------------------------------------------
 # Quality Checks
-# ---------------------------------------------------------------------------
 
 .PHONY: check
 check: ## Full validation: hygiene + lint + format + typecheck + schemas + tests + openapi-check
@@ -32,6 +25,7 @@ check: ## Full validation: hygiene + lint + format + typecheck + schemas + tests
 
 .PHONY: quick
 quick: ## Fast local validation: lint + typecheck + direct contract tests
+	$(SCRIPTS)/pnpm.sh architecture:check
 	$(SCRIPTS)/pnpm.sh lint
 	$(SCRIPTS)/pnpm.sh typecheck
 	$(SCRIPTS)/pnpm.sh test
@@ -81,17 +75,13 @@ generate: ## Generate Prisma client, OpenAPI snapshot, and generated docs
 openapi-check: ## Validate committed OpenAPI snapshot against generated document
 	$(SCRIPTS)/openapi-check.sh
 
-# ---------------------------------------------------------------------------
 # Tests
-# ---------------------------------------------------------------------------
 
 .PHONY: test
 test: ## Run each workspace's default test script
 	$(SCRIPTS)/pnpm.sh test
 
-# ---------------------------------------------------------------------------
 # Database
-# ---------------------------------------------------------------------------
 
 .PHONY: db-generate
 db-generate: ## Generate Prisma client from schema
@@ -114,23 +104,22 @@ webhook-secrets-migrate: ## Encrypt validated legacy webhook secrets in one tran
 	@test "$(WEBHOOK_SECRET_MAINTENANCE_CONFIRMED)" = "1" || { echo "Refusing webhook secret migration: stop every old API/dispatcher, then rerun with WEBHOOK_SECRET_MAINTENANCE_CONFIRMED=1." >&2; exit 1; }
 	$(SCRIPTS)/pnpm.sh migrate:webhook-envelopes --apply --maintenance-window-confirmed
 
-# ---------------------------------------------------------------------------
 # Build
-# ---------------------------------------------------------------------------
 
 .PHONY: build
 build: ## Build all packages and apps
 	$(SCRIPTS)/pnpm.sh build
 
-# ---------------------------------------------------------------------------
 # Cleanup
-# ---------------------------------------------------------------------------
 
 .PHONY: clean
-clean: ## Remove build artifacts, stop Docker, prune volumes
+clean: ## Remove generated build and tool artifacts
 	$(SCRIPTS)/pnpm.sh clean
+
+.PHONY: clean-local-data
+clean-local-data: ## Delete local Docker data only with CUEQ_DELETE_LOCAL_DATA=DELETE_LOCAL_DATA
+	@test "$(CUEQ_DELETE_LOCAL_DATA)" = "DELETE_LOCAL_DATA" || { echo "Refusing to delete local Docker data. Re-run with CUEQ_DELETE_LOCAL_DATA=DELETE_LOCAL_DATA." >&2; exit 1; }
 	$(if $(shell command -v docker-compose 2>/dev/null),docker-compose,docker compose) down -v
-	rm -rf node_modules .turbo
 
 # ---------------------------------------------------------------------------
 # Help

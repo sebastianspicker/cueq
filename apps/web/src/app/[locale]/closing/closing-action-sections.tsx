@@ -76,7 +76,6 @@ function ClosingPrimaryAction({
   );
 }
 
-/** Renders the sticky decision rail, including explicit prerequisite reasons. */
 export function ActionsSection(props: ActionsSectionProps) {
   if (!canManageClosingPeriod(props.role) || !props.period) return null;
 
@@ -193,7 +192,6 @@ function CorrectionPayloadFields({ form }: { form: CorrectionSectionProps }) {
   );
 }
 
-/** Keeps post-close correction tools available without competing with the current decision. */
 export function CorrectionSection(props: CorrectionSectionProps) {
   if (props.role !== 'HR' && props.role !== 'ADMIN') return null;
   const canApproveWorkflow = props.period?.status === 'REVIEW' && Boolean(props.workflowId);

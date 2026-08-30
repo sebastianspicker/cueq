@@ -3,7 +3,7 @@ import type {
   OnCallDeployment as SharedOnCallDeployment,
   OnCallRotation as SharedOnCallRotation,
   UserProfile,
-} from '@cueq/shared';
+} from '@cueq/contracts';
 
 export type OnCallRotation = SharedOnCallRotation;
 export type OnCallDeployment = SharedOnCallDeployment;

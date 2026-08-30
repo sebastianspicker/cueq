@@ -1,7 +1,6 @@
-/** Shared roster mutation orchestration that refreshes local state after API-authorized operations. */
 import type { Dispatch, SetStateAction } from 'react';
 import type { useTranslations } from 'next-intl';
-import type { ApiRequest } from '../../../lib/api-client';
+import type { ApiRequest } from '../../../platform/http/api-client';
 import {
   PlanVsActualResponseSchema,
   RosterDetailSchema,
@@ -10,8 +9,8 @@ import {
   RosterUnassignResponseSchema,
   ShiftAssignmentSchema,
   WorkflowInstanceSchema,
-} from '@cueq/shared';
-import { localDateTimeInputToIsoInstant } from '../../../lib/datetime-local';
+} from '@cueq/contracts';
+import { localDateTimeInputToIsoInstant } from '../../../shared/time/datetime-local';
 import type { PlanVsActual, RosterDetail } from './roster-types';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
@@ -65,7 +64,6 @@ async function runRosterOperation(context: RosterOperationContext, operation: ()
   }
 }
 
-/** Loads the currently selected roster and replaces stale detail state. */
 export function loadCurrentRoster(context: RosterOperationContext) {
   return runRosterOperation(context, async () => {
     const detail = await refreshRoster(context);
@@ -76,7 +74,6 @@ export function loadCurrentRoster(context: RosterOperationContext) {
   });
 }
 
-/** Creates a draft roster, then refreshes the local workspace from the API. */
 export function createDraftRoster(context: RosterOperationContext) {
   const organizationUnitId = context.draftOrganizationUnitId || context.roster?.organizationUnitId;
   if (!organizationUnitId) {
@@ -103,7 +100,6 @@ export function createDraftRoster(context: RosterOperationContext) {
   });
 }
 
-/** Creates a shift for the selected draft through the server-authorized roster workflow. */
 export function createShift(context: RosterOperationContext) {
   if (!context.roster) return Promise.resolve();
   const startTime = localDateTimeInputToIsoInstant(context.shiftStart);
@@ -127,7 +123,6 @@ export function createShift(context: RosterOperationContext) {
   });
 }
 
-/** Assigns the entered person to a shift and refreshes the affected roster state. */
 export function assignShift(context: RosterOperationContext, shiftId: string) {
   const personId = context.assignSelection[shiftId] ?? context.roster?.members[0]?.id;
   if (!context.roster || !personId) return Promise.resolve();
@@ -145,7 +140,6 @@ export function assignShift(context: RosterOperationContext, shiftId: string) {
   });
 }
 
-/** Removes an assignment through the API before refreshing the workspace state. */
 export function unassignShift(
   context: RosterOperationContext,
   shiftId: string,
@@ -163,7 +157,6 @@ export function unassignShift(
   });
 }
 
-/** Requests publication of the selected roster; server policy decides whether it can proceed. */
 export function publishRoster(context: RosterOperationContext) {
   if (!context.roster) return Promise.resolve();
   return runRosterOperation(context, async () => {
@@ -179,7 +172,6 @@ export function publishRoster(context: RosterOperationContext) {
   });
 }
 
-/** Submits a shift-swap workflow request and refreshes the selected roster afterward. */
 export function requestShiftSwap(context: RosterOperationContext) {
   const complete =
     context.roster && context.swapShiftId && context.swapFromPersonId && context.swapToPersonId;

@@ -1,7 +1,5 @@
 'use client';
 
-/** Booking correction form and booking-table sections for the employee workspace. */
-
 import type { useTranslations } from 'next-intl';
 import { FormField } from '../../../components/FormField';
 import { LoadingSpinner } from '../../../components/LoadingSpinner';
@@ -11,8 +9,6 @@ import { StatusBanner } from '../../../components/StatusBanner';
 import type { Booking } from './bookings-types';
 import type { useBookingsWorkspace } from './use-bookings-workspace';
 
-export type { Booking } from './bookings-types';
-
 type TranslationFn = ReturnType<typeof useTranslations>;
 type BookingsWorkspace = ReturnType<typeof useBookingsWorkspace>;
 
@@ -21,7 +17,6 @@ interface BookingsWorkspaceSectionsProps {
   workspace: BookingsWorkspace;
 }
 
-/** Renders booking actions, feedback, correction controls, and the booking table. */
 export function BookingsWorkspaceSections({ t, workspace }: BookingsWorkspaceSectionsProps) {
   return (
     <>
@@ -80,7 +75,6 @@ interface BookingCorrectionSectionProps {
   onRequestCorrection: () => void;
 }
 
-/** Renders the booking-correction request fields and local validation feedback. */
 function BookingCorrectionSection(props: BookingCorrectionSectionProps) {
   const {
     t,
@@ -131,7 +125,6 @@ function BookingCorrectionSection(props: BookingCorrectionSectionProps) {
   );
 }
 
-/** Renders the current user's API-filtered booking list. */
 function BookingsTableSection({ t, bookings }: { t: TranslationFn; bookings: Booking[] }) {
   return (
     <SectionCard>
