@@ -44,7 +44,10 @@ export function parseDateOnly(input: string): Date {
  * Parse either a full ISO datetime or a date-only string.
  * Detects format by the presence of "T" in the input.
  */
-export function parseDateOrDateTime(input: string): Date {
+export function parseDateOrDateTime(input: unknown): Date {
+  if (typeof input !== 'string') {
+    throw new Error('Invalid date: expected a string');
+  }
   return input.includes('T') ? parseIsoDateTime(input) : parseDateOnly(input);
 }
 

@@ -127,6 +127,10 @@ describe('calendar parsing contracts exported by the domain root', () => {
     expect(() => parseDateOnly(input)).toThrow('Invalid date');
   });
 
+  it('rejects non-string date values before format detection', () => {
+    expect(() => parseDateOrDateTime(['2026-02-28'])).toThrow('expected a string');
+  });
+
   it.each([
     ['2026-03-01T08:00:00.000Z', '2026-03-01T08:00:00.000Z'],
     ['2026-03-01T09:00:00+01:00', '2026-03-01T08:00:00.000Z'],
