@@ -27,7 +27,7 @@ env:
 
 jobs:
   validate:
-    name: Validation
+    name: Harness Validation
     runs-on: ubuntu-latest
     outputs:
       full: ${{ steps.scope.outputs.full }}
