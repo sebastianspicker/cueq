@@ -16,7 +16,7 @@ works-council, and payroll-provider review remain deployment responsibilities.
 
 ## User groups represented in source
 
-The role model and synthetic fixtures represent these groups:
+The role model and synthetic demo seed represent these groups:
 
 | Role            | Current source surface                                        |
 | --------------- | ------------------------------------------------------------- |
@@ -65,8 +65,8 @@ requirements are recorded in [RELEASE_STATUS.md](../RELEASE_STATUS.md).
 | Risk                                   | Required treatment                                                          |
 | -------------------------------------- | --------------------------------------------------------------------------- |
 | Payroll or terminal contract mismatch  | Validate the versioned contract with the target provider                    |
-| Incorrect role or organization scope   | Run the focused authorization and privacy contracts on the candidate         |
-| Rule interpretation mismatch           | Review policy configuration and direct cases with accountable domain owners  |
+| Incorrect role or organization scope   | Run the focused authorization and privacy contracts on the candidate        |
+| Rule interpretation mismatch           | Review policy configuration and direct cases with accountable domain owners |
 | Migration or recovery failure          | Rehearse migrations and backup/restore on disposable infrastructure         |
 | Browser or accessibility regression    | Perform manual candidate review across supported viewport and input modes   |
 | Unreviewed institutional data handling | Keep real-data use blocked pending the required private reviews             |

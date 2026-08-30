@@ -29,7 +29,7 @@ Complete every applicable item on the exact candidate commit:
 4. Run `make quick`, `make knip`, and `make build`.
 5. With disposable PostgreSQL available, run `make check`.
 6. Review all six static images listed in the
-   [screenshot contract](assets/screenshots/README.md) for synthetic-only data,
+   [screenshot notes](assets/screenshots/README.md) for synthetic-only data,
    role visibility, German labels, clipping, error states, and stale content.
 7. Review `README.md`, `CHANGELOG.md`, `RELEASE_STATUS.md`, `SECURITY.md`,
    `SUPPORT.md`, and `docs/ALPHA.md` as a first-time evaluator.

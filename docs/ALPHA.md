@@ -6,7 +6,7 @@ legal interpretation, or compliance certification.
 
 ## Prerequisites
 
-Install Node.js 20.19.0 or later, pnpm 9.15.0, Docker with Compose, and GNU Make.
+Install Node.js 20.19.0 or later, pnpm 11.24.0, Docker with Compose, and GNU Make.
 
 Create the local configuration:
 
@@ -22,18 +22,17 @@ Set the resulting value as `WEBHOOK_SECRET_ENCRYPTION_KEY` in `.env` and set
 
 ```bash
 make setup
-./scripts/pnpm.sh --filter @cueq/database db:seed:phase2
+./scripts/pnpm.sh --filter @cueq/database db:seed:demo
 ```
 
 `make setup` installs the frozen dependency graph, attempts to start PostgreSQL
-and Keycloak through Compose, generates the Prisma client, and applies committed
-migrations. If Compose cannot start, setup continues against the configured
-`DATABASE_URL`, and migration deployment must still succeed.
+through Compose, generates the Prisma client, and applies committed migrations.
+If Compose cannot start, setup continues against the configured `DATABASE_URL`,
+and migration deployment must still succeed.
 
-The local database is disposable. If this invocation starts Compose and
-migration deployment fails, the setup script removes the cueq Compose volumes,
-recreates the services, and retries once. `make clean` also removes the Compose
-volumes. Do not use either command with data you need to retain.
+Setup and normal cleanup never remove database volumes. `make clean` removes
+build artifacts only. Deleting local Compose data is a separate, explicitly
+confirmed maintenance operation; do not use it with data you need to retain.
 
 ## Start the applications
 
@@ -49,7 +48,7 @@ The settings page accepts an API base URL and bearer token. Keep the API base
 URL at `/api` to use the web server rewrite. The token is stored in JavaScript
 memory and is cleared when the page reloads.
 
-With the phase-2 seed and mock authentication, these named tokens are accepted:
+With the current synthetic seed and mock authentication, these named tokens are accepted:
 
 | Token            | Role            |
 | ---------------- | --------------- |
@@ -108,7 +107,7 @@ database, browser, or system tool is an unavailable check, not a pass. See
 
 Stop the evaluation if:
 
-- any fixture, screenshot, log, or export contains real personal data;
+- any seed data, screenshot, log, or export contains real personal data;
 - the API is reachable from an untrusted network while mock authentication is
   enabled;
 - a command would operate on a database or volume that must be retained;

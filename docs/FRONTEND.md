@@ -41,7 +41,8 @@ apps/web/src/
   components/
     workspace/
   i18n/
-  lib/
+  platform/
+    http/
   messages/
     de.json
     en.json
@@ -53,7 +54,8 @@ Feature-specific sections remain next to their route when they are not shared.
 
 ## API access
 
-Page code uses the shared API context and client in `apps/web/src/lib/`.
+Page code uses the shared API context and client in
+`apps/web/src/platform/http/`.
 
 - The browser token is held in React memory and is not persisted to local or
   session storage.
@@ -105,5 +107,6 @@ against [SECURITY.md](SECURITY.md).
 
 ## Verification
 
-The web application is typechecked and built by the repository-wide commands.
-Direct API, schema, policy, and domain contracts run through `pnpm test`.
+The web application is typechecked and built by repository-wide commands.
+There is no committed browser end-to-end suite in the current source tree;
+browser behavior needs a separately run browser, API, and PostgreSQL lane.

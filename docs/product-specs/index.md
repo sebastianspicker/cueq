@@ -1,43 +1,27 @@
-# Product Specifications: Index
+# Product Specifications
 
----
+These documents describe the behavior and constraints represented in the
+current source tree.
 
-## Capability specifications
+| Specification                                                   | Scope                                          | Primary source                   |
+| --------------------------------------------------------------- | ---------------------------------------------- | -------------------------------- |
+| [Policy as Code](policy-as-code.md)                             | Versioned workforce rules                      | `packages/policy`                |
+| [Closing Console](closing-console.md)                           | Traceable monthly-close workflow               | `apps/api` and `apps/web`        |
+| [On-Call Domain](oncall-domain.md)                              | On-call rotations and deployments              | Contracts, domain, API, and web  |
+| [API-First Integration](api-first-integration.md)               | OpenAPI, webhooks, HR, and terminal boundaries | `apps/api`                       |
+| [Privacy Reporting Guardrails](privacy-reporting-guardrails.md) | Aggregation and reporting constraints          | Reporting modules and contracts  |
+| [New User Onboarding](new-user-onboarding.md)                   | Manual alpha token to first booking            | People, session, and web modules |
+| [Time Engine Rules](time-engine-rules.md)                       | Pause, rest, hours, and surcharge evaluation   | Domain and policy packages       |
+| [Roster and Shift Planning](roster-shift-planning.md)           | Staffing and plan-versus-actual behavior       | Scheduling modules and domain    |
+| [Absence and Leave](absence-leave.md)                           | Leave, carry-over, and team calendar behavior  | Absence modules and domain       |
+| [Workflows and Approvals](workflows-approvals.md)               | State, delegation, and escalation              | Workflow modules and domain      |
+| [Monthly Closing](monthly-closing.md)                           | Cut-off, checklist, lock, and corrections      | Closing modules and domain       |
+| [Reports and Export](reports-export.md)                         | Payroll export and aggregate reporting         | Reporting and closing modules    |
 
-These specifications describe the current source surfaces that are specific to
-cueq's evaluated scope:
-
-| #   | Spec                                                            | Scope                                           | Package/Location        | Source status              |
-| --- | --------------------------------------------------------------- | ----------------------------------------------- | ----------------------- | -------------------------- |
-| A   | [Policy-as-Code](policy-as-code.md)                             | Versioned, testable, reviewable rules           | `@cueq/policy`          | Implemented in source      |
-| B   | [Closing Console](closing-console.md)                           | Traceable monthly-close workflow                | `apps/api` + `apps/web` | Implemented in source      |
-| C   | [On-Call Domain](oncall-domain.md)                              | First-class on-call rotations + deployments     | `@cueq/shared`          | Implemented in source      |
-| D   | [API-First Integration](api-first-integration.md)               | OpenAPI contract + webhooks + terminal gateway  | `apps/api`              | Implemented in source      |
-| E   | [Privacy Reporting Guardrails](privacy-reporting-guardrails.md) | Default aggregation; no accidental surveillance | Cross-cutting           | Reference controls present |
-
-## Supporting specifications
-
-These specifications describe the remaining time, leave, roster, export, and
-organization workflows:
-
-| Spec                                                            | Description                                          | Source       | Source status                    |
-| --------------------------------------------------------------- | ---------------------------------------------------- | ------------ | -------------------------------- |
-| [New User Onboarding](new-user-onboarding.md)                   | Manual alpha token → dashboard → first booking       | PRD §6 UJ1   | Source flow present; SSO absent  |
-| [Phase 2 Acceptance Scenarios](phase-2-acceptance-scenarios.md) | Canonical AT-01..AT-07 historical contract           | Phase 2 Plan | Historical scenario contract     |
-| [Phase 3 Acceptance Scenarios](phase-3-acceptance-scenarios.md) | Canonical AT-01..AT-08 release gate                  | Phase 3 Plan | Implemented; current run partial |
-| [Time Engine Rules](time-engine-rules.md)                       | Rule evaluation: pauses, rest, max-hours, surcharges | PRD FR-200   | Implemented in source            |
-| [Roster & Shift Planning](roster-shift-planning.md)             | Shift creation, min-staffing, plan-vs-actual         | PRD FR-300   | Implemented in source            |
-| [Absence & Leave](absence-leave.md)                             | Leave quotas, carry-over, forfeiture, team calendar  | PRD FR-400   | Implemented in source            |
-| [Workflows & Approvals](workflows-approvals.md)                 | State machine, delegation, escalation                | PRD FR-500   | Implemented in source            |
-| [Monthly Closing](monthly-closing.md)                           | Cut-off, checklists, lock, HR corrections            | PRD FR-600   | Implemented in source            |
-| [Reports & Export](reports-export.md)                           | Payroll export, audit reports, compliance reports    | PRD FR-700   | Implemented in source            |
-
-The status column records repository source or contract evidence only; it is not
-service-backed proof, deployment approval, audit certification, or GDPR/DSGVO
-compliance evidence. Candidate evidence requirements are recorded in
+Source and contract presence is not service-backed proof, deployment approval,
+audit certification, or GDPR/DSGVO compliance evidence. Candidate evidence
+requirements are recorded in
 [`../../RELEASE_STATUS.md`](../../RELEASE_STATUS.md).
 
-## Traceability
-
-The specifications retain references to the original requirement identifiers
-where those identifiers still help trace source and tests.
+The specifications do not imply database or browser coverage where the
+repository has none.

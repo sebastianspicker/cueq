@@ -15,7 +15,7 @@ Use the following stack:
 
 | Concern           | Current choice                                                       |
 | ----------------- | -------------------------------------------------------------------- |
-| Workspace         | pnpm 9.15.0 workspaces and Turborepo                                 |
+| Workspace         | pnpm 11.24.0 workspaces and Turborepo                                |
 | Language          | TypeScript                                                           |
 | API               | NestJS 11                                                            |
 | Web               | Next.js 15 App Router and React 19                                   |
@@ -23,7 +23,7 @@ Use the following stack:
 | Validation        | Zod and JSON Schema                                                  |
 | HTTP contract     | NestJS Swagger decorators and a committed OpenAPI snapshot           |
 | Authentication    | `jose` with mock, OIDC, and SAML-bridge adapters                     |
-| Tests             | Vitest direct contract checks                                         |
+| Tests             | Vitest direct contract checks                                        |
 | Repository checks | ESLint, Prettier, Knip, schema validation, and contract drift checks |
 | Hosted checks     | GitHub Actions and CodeQL                                            |
 

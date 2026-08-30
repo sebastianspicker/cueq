@@ -1,12 +1,6 @@
 # Product Spec: Policy as Code
 
-> Rules are versioned, testable, and reviewable in repository source.
-> Package source and focused tests are present; deployment rollback
-> and institutional policy approval require separate evidence.
-
----
-
-## 1. Summary
+## Summary
 
 cueq stores policy rules as typed repository artifacts:
 
@@ -15,7 +9,7 @@ cueq stores policy rules as typed repository artifacts:
 - Reviewable: Policy changes are ordinary source diffs.
 - Rollback-capable: Previous rule versions remain available as configuration data.
 
-## 2. Rule Categories
+## Rule Categories
 
 | Category        | Package Path                                   | Description                                                  |
 | --------------- | ---------------------------------------------- | ------------------------------------------------------------ |
@@ -25,34 +19,20 @@ cueq stores policy rules as typed repository artifacts:
 | Leave rules     | `packages/policy/src/rules/leave-rules.ts`     | TV-L §26: 30 days, pro-rata, carry-over, forfeiture          |
 | Surcharge rules | `packages/policy/src/rules/surcharge-rules.ts` | Night, weekend, and holiday surcharge windows and priorities |
 
-## 3. Golden-Case Test Suite
+## Current Test Evidence
 
-Located in the `packages/policy/src/__tests__/golden-cases-*.test.ts` shards.
-Together these suites:
+The live focused policy suite is
+`packages/policy/src/__tests__/policy-contracts.test.ts`. It provides local
+source-level evidence for the policy package. It is not a PostgreSQL,
+browser, deployment, or institutional-policy-approval lane.
 
-1. Validates all default rules against their Zod schemas
-2. Asserts specific legal minimums (e.g., 30min break after 6h, 11h rest)
-3. Exercises the current default rules against synthetic golden cases.
+## Current Scope
 
-CI runs the direct policy contract checks with the repository test command.
+- Additional rule categories are covered by the workflow, closing, and reporting specifications.
+- The active-policy UI is available at `/[locale]/policy-admin`, with `HR` and
+  `ADMIN` API role gates.
 
-## 4. Policy Changelog
-
-Policy changes should be documented in a CHANGELOG within the package:
-
-```
-packages/policy/CHANGELOG.md
-```
-
-Each entry includes: version number, effective date, what changed, why, and approval reference.
-
-## 5. Confirmed Scope
-
-- [x] Additional rule categories tracked and extended through workflow/closing/reporting specs.
-- [x] Policy changelog format standardized in `packages/policy/CHANGELOG.md`.
-- [x] Admin UI for active policy visibility: `web /[locale]/policy-admin` + API role gates (`HR`, `ADMIN`).
-
-## 6. References
+## References
 
 - [`packages/policy/`](../../packages/policy/): Package source
 - [`docs/design-docs/core-beliefs.md`](../design-docs/core-beliefs.md): "Configuration Over Hard-Coding" principle

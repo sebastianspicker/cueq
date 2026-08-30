@@ -1,13 +1,8 @@
-# Product Spec: Workflows & Approvals (FR-500)
+# Product Spec: Workflows & Approvals
 
-> Evidence: Source and contract surfaces are present across Core, API, and
-> Web; named tests are focused evidence, not service-backed or deployment proof.
+## Summary
 
----
-
-## 1. Summary
-
-FR-500 delivers a configurable workflow engine for approval-heavy operations with:
+The workflow engine supports approval-heavy operations with:
 
 - finite-state workflow transitions (`DRAFT -> SUBMITTED -> PENDING -> ESCALATED -> APPROVED/REJECTED`, plus `CANCELLED`)
 - DB-backed delegation rules with effective windows and cycle-safe traversal
@@ -24,15 +19,15 @@ Workflow types represented in repository source:
 - `SHIFT_SWAP`
 - `OVERTIME_APPROVAL`
 
-## 2. Contracts and Entry Points
+## Contracts and Entry Points
 
-### Core (`@cueq/core`)
+### Domain (`@cueq/domain`)
 
 - `transitionWorkflow(...)` FSM v2
 - `resolveDelegation(...)` with cycle guard + max depth
 - `shouldEscalate(...)`
 
-### Shared Schemas (`@cueq/shared`)
+### Runtime Contracts (`@cueq/contracts`)
 
 - workflow status includes `DRAFT`, `SUBMITTED`
 - decision command supports actions:
@@ -65,7 +60,7 @@ Workflow types represented in repository source:
   - approve/reject/delegate/cancel
   - overdue and escalation indicators
 
-## 3. Policy Defaults
+## Policy Defaults
 
 - `LEAVE_REQUEST`: deadline `48h`, escalation chain `HR -> ADMIN`
 - `BOOKING_CORRECTION`: deadline `48h`, escalation chain `HR -> ADMIN`
@@ -73,7 +68,7 @@ Workflow types represented in repository source:
 - delegation max depth: `5`
 - active window semantics: inclusive bounds (`activeFrom <= now <= activeTo`)
 
-## 4. Authorization Matrix
+## Authorization Matrix
 
 - `LEAVE_REQUEST`: `TEAM_LEAD` primary (OU-scoped), `HR`/`ADMIN` fallback
 - `BOOKING_CORRECTION`: `TEAM_LEAD` primary (OU-scoped), `HR`/`ADMIN` fallback
@@ -81,7 +76,7 @@ Workflow types represented in repository source:
 
 Decision actions additionally require current assignee authority.
 
-## 5. Escalation Semantics
+## Escalation Semantics
 
 - escalation is triggered by hourly scheduler
 - candidate set: overdue `PENDING` workflows (`dueAt <= now`)
@@ -90,21 +85,19 @@ Decision actions additionally require current assignee authority.
 - idempotent behavior: already escalated instances are skipped
 - every escalation append-writes a workflow audit entry
 
-## 6. Acceptance Coverage Targets
+## Evidence and Verification Limits
 
-| Case                                                   | Coverage Target                              |
-| ------------------------------------------------------ | -------------------------------------------- |
-| FSM v2 transition matrix                               | core workflow unit tests                     |
-| Delegation cycle/depth protection                      | core workflow unit tests                     |
-| Policy CRUD + Delegation CRUD                          | API integration tests                        |
-| Action command + legacy decision compatibility         | API integration tests                        |
-| Hourly escalation idempotency and assignee progression | API integration tests                        |
-| Type-based RBAC + assignee checks                      | compliance tests                             |
-| AT-02 delegation + escalation flow                     | acceptance tests                             |
-| approvals web action flow                              | manual release review                        |
-| OpenAPI path/schema drift                              | openapi contract test + `make openapi-check` |
+- State-machine source: `packages/domain/src/workflow/`.
+- Runtime DTOs: `packages/contracts/src/schemas/workflow.ts`.
+- API capability: `apps/api/src/modules/workflows/`.
+- Web capability: `apps/web/src/app/[locale]/approvals/`.
 
-## 7. Out of Scope
+The current tree has no committed feature-specific PostgreSQL integration or
+browser acceptance suite for policy, delegation, action, or escalation flows.
+Run those lanes against a disposable database and browser before reporting
+workflow behavior as verified.
+
+## Out of Scope
 
 - workflow admin UI for policies/delegations
 - cross-tenant/custom policy versioning beyond current DB model

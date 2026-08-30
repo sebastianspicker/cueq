@@ -8,7 +8,7 @@ data boundary.
 
 ## Local services
 
-Start PostgreSQL and Keycloak:
+Start the local PostgreSQL service:
 
 ```bash
 docker compose up -d
@@ -16,13 +16,13 @@ docker compose up -d
 
 The Compose ports are loopback-bound:
 
-| Service    | Address                 |
-| ---------- | ----------------------- |
-| PostgreSQL | `localhost:5433`        |
-| Keycloak   | `http://localhost:8081` |
+| Service    | Address          |
+| ---------- | ---------------- |
+| PostgreSQL | `localhost:5433` |
 
-The committed credentials and Keycloak realm are synthetic development values.
-Do not expose these services publicly or reuse their credentials.
+The committed PostgreSQL credentials are synthetic development values. Do not
+expose the service publicly or reuse them in a deployed environment. Compose
+does not provide an OIDC issuer, realm, client, or users.
 
 Stop the services without removing data:
 
@@ -85,20 +85,21 @@ a development schema synchronization command.
 
 ## Synthetic seeds
 
-Load the phase-2 evaluation data:
+Load the deterministic workforce baseline:
 
 ```bash
-pnpm --filter @cueq/database db:seed:phase2
+pnpm --filter @cueq/database db:seed:baseline
 ```
 
-Reset and reload that data:
+Reset and reload the workforce baseline:
 
 ```bash
-pnpm --filter @cueq/database db:reset:phase2
+pnpm --filter @cueq/database db:reset:baseline
 ```
 
-Additional phase-3 synthetic seed data is available through the
-`@cueq/database` package scripts. It is evaluation data, not a migration.
+Load or reset the integration-extended demo data with
+`db:seed:demo` or `db:reset:demo`. Both datasets are synthetic evaluation data,
+not migrations.
 
 ## Health checks
 
@@ -149,6 +150,11 @@ OIDC_ISSUER_URL=https://identity.example.invalid/realms/cueq
 OIDC_CLIENT_ID=cueq
 ```
 
+The OIDC issuer must be configured separately. The local Compose stack does
+not start or import an identity provider. The API expects the configured issuer
+to expose signing keys at `<issuer>/protocol/openid-connect/certs` and maps
+Keycloak-style realm roles.
+
 or a configured external SAML bridge:
 
 ```dotenv
@@ -169,7 +175,7 @@ values; production mode does not.
 
 Inject distinct random values through the deployment secret system. Rotate them
 with a coordinated client and server change. Do not put tokens in URLs, logs,
-fixtures, screenshots, issues, or command history.
+seed data, screenshots, issues, or command history.
 
 The terminal CSV protocol identifier in source is `HONEYWELL_CSV_V1`.
 
@@ -255,10 +261,10 @@ Confirm the host, port, credentials, database name, and schema in
 
 ### Migration failures during setup
 
-If `make setup` started Compose and migration deployment fails, it removes the
-cueq Compose volumes and retries once. Recover required data before rerunning.
-For a non-disposable database, run the migration command directly and inspect
-the Prisma error without invoking the setup reset path.
+`make setup` does not remove local database data when migration deployment
+fails. Inspect the Prisma error and migration state, then retry the migration
+explicitly. Treat `docker compose down -v` as a deliberate destructive action
+for the local PostgreSQL volume.
 
 ### API startup failure
 

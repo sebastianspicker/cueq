@@ -16,19 +16,6 @@ No hosted application deployment, npm package, application container image, or
 production support offering is part of the current release scope. The GitHub
 Pages workflow publishes only the sanitized static walkthrough.
 
-## Current local demo evidence
-
-On 2026-08-14, the dependency-free Pages builder and verifier passed, including
-all six screenshots and the eight stylesheets imported by the application
-entry stylesheet. The artifact's HTML, CSS, JavaScript, SVG, and screenshot
-routes returned HTTP 200 from a loopback server. The Markdown link check passed
-for 47 files.
-
-This does not designate a release candidate. The required Node.js 20.19.0 and
-pnpm 9.15.0 environment, with its frozen dependency graph, has not been
-recorded as release evidence. The PostgreSQL, application build, CI, and hosted
-Pages lanes remain unverified.
-
 ## Required candidate evidence
 
 Before designating a candidate:
@@ -37,11 +24,11 @@ Before designating a candidate:
    configuration, migration, contract, asset, and documentation files
    are included;
 2. confirm that all screenshots contain synthetic data;
-3. install the frozen dependency graph with Node.js 20.19.0 and pnpm 9.15.0;
+3. install the frozen dependency graph with Node.js 20.19.0 and pnpm 11.24.0;
 4. run `make generate` and verify that committed derived artifacts are current;
 5. run `make check` and `make build` with PostgreSQL available;
 6. review all six tracked screenshots;
-7. run CI, dependency review, and CodeQL on the exact candidate commit; and
+7. run CI, dependency review, and CodeQL on the exact candidate commit;
 8. verify the rendered GitHub documentation and source archive.
 
 Any failed or unavailable gate keeps the candidate in draft status. Record

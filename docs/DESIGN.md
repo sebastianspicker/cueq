@@ -1,10 +1,11 @@
-# DESIGN.md: Design Principles and Patterns
+# Design principles
 
-> This document describes the design philosophy and implementation patterns for cueq. For the system architecture, see [`ARCHITECTURE.md`](../ARCHITECTURE.md). For core beliefs and glossary, see [`design-docs/core-beliefs.md`](design-docs/core-beliefs.md).
+This document describes cueq's domain and implementation patterns. See
+[`ARCHITECTURE.md`](../ARCHITECTURE.md) for runtime structure and
+[`design-docs/core-beliefs.md`](design-docs/core-beliefs.md) for the domain
+glossary and engineering constraints.
 
----
-
-## 1. Design Philosophy
+## Product and domain design
 
 ### Brand identity
 
@@ -15,9 +16,9 @@ accent, structural borders, and a restrained active queue rail. Compact
 humanist interface type keeps page commands and dense records in one coherent
 operational hierarchy. See the [`BRAND.md`](BRAND.md) usage rules.
 
-### Domain-Driven Design (Lite)
+### Domain model
 
-cueq uses DDD-inspired patterns without the full ceremonial weight:
+cueq uses a small set of domain-driven design patterns:
 
 - Ubiquitous language: German domain terms have canonical English mappings (see [glossary](design-docs/core-beliefs.md#domain-glossary)). Use the English terms in code; German terms in user-facing text.
 - Bounded contexts: Time Engine, Roster, Absence, Workflow, Closing, and Audit are distinct contexts with clear boundaries.
@@ -26,37 +27,18 @@ cueq uses DDD-inspired patterns without the full ceremonial weight:
   integration delivery. Event and audit coverage is verified per write path; it
   is not claimed for every state change.
 
-### Hexagonal Architecture
+### Dependency direction
 
-```
-         ┌─────────────────┐
-         │   Adapters (I/O) │
-         │  DB, HTTP, SSO,  │
-         │  Terminals, Files │
-         └────────┬─────────┘
-                  │
-         ┌────────┴─────────┐
-         │   Core Domain     │
-         │  (pure logic,     │
-         │   no I/O deps)    │
-         └────────┬─────────┘
-                  │
-         ┌────────┴─────────┐
-         │   Adapters (I/O) │
-         │  Export, Calendar, │
-         │  Notifications    │
-         └──────────────────┘
-```
-
-- `packages/core/src/core/` is the pure domain boundary and does not import
+- `packages/domain/src/` is the pure domain boundary and does not import
   NestJS, Prisma, HTTP, or filesystem APIs.
 - `apps/api/` coordinates transport, authorization, transactions, persistence,
   audit, and integration side effects.
-- `apps/web/` consumes public contracts through the shared API client.
-- Pure core rules remain testable with plain unit tests; application services
+- `apps/web/` consumes public contracts through feature-owned routes and the
+  browser client in `apps/web/src/platform/http/`.
+- Domain rules remain testable with plain unit tests; application services
   use focused test doubles at their I/O boundaries.
 
-### Schema-First Development
+### Schema-first development
 
 1. Define the entity/contract in JSON Schema (`schemas/`)
 2. Generate TypeScript types (`make generate`)
@@ -66,11 +48,9 @@ cueq uses DDD-inspired patterns without the full ceremonial weight:
 Generated contracts must not be hand-edited. When a schema is the source of
 truth, update it first and regenerate the derived artifacts.
 
----
+## Runtime patterns
 
-## 2. Key Patterns
-
-### Rule Engine Pattern
+### Rule engine
 
 The time engine evaluates rules (pause enforcement, rest periods, max hours) using a configurable rule set:
 
@@ -82,7 +62,7 @@ RuleSet → [Rule] → evaluate(bookings, model) → [Violation | Warning]
 - Rules have effective dates: a rule change on March 1st doesn't retroactively affect February.
 - Rule evaluation is pure: given the same inputs, it produces the same outputs.
 
-### Workflow State Machine
+### Workflow state machine
 
 Approval workflows follow a finite state machine:
 
@@ -97,7 +77,7 @@ Draft → Submitted → Pending → Approved | Rejected
 - Delegation inserts a new approver into the chain without changing the state machine.
 - Escalation is time-triggered (configurable deadline per workflow type).
 
-### Append-Only Audit
+### Append-only audit
 
 The audit trail is an append-only log:
 
@@ -107,15 +87,13 @@ The audit trail is an append-only log:
   migration is applied. This is mutation resistance, not cryptographic tamper
   evidence.
 
-### Persistence Boundary
+### Persistence boundary
 
 Prisma access lives in `apps/api/src/persistence/` and application helpers and
 services. Core rules receive plain data and return decisions; they do not own a
 repository abstraction that does not exist in the current source tree.
 
----
-
-## 3. Error Handling Strategy
+## Error handling
 
 - Core decisions use structured violations and warnings where those domain
   contracts define them.
@@ -126,24 +104,20 @@ repository abstraction that does not exist in the current source tree.
 - Sensitive failures must not expose credentials, secrets, raw database
   exceptions, or upstream network details.
 
----
+## Test boundaries
 
-## 4. Testing Strategy
-
-| Layer                     | Type        | What it validates                                      |
-| ------------------------- | ----------- | ------------------------------------------------------ |
-| `packages/core/src/core/` | Unit        | Business logic, rule evaluation, calculations          |
-| `apps/api/src/`           | Focused/API | Services, controllers, adapters, and error boundaries  |
-| `apps/api/test/`          | Integration | PostgreSQL behavior and generated OpenAPI contracts    |
-| End-to-end                | Acceptance  | Browser workflows against the local API and PostgreSQL |
-| Cross-cutting             | Compliance  | Selected privacy, role, and audit invariants           |
+| Layer                         | Current check                                |
+| ----------------------------- | -------------------------------------------- |
+| Domain, contracts, and policy | Focused unit and contract tests              |
+| API platform and modules      | Focused service, adapter, and boundary tests |
+| Web platform                  | Focused HTTP and security-policy tests       |
+| Database                      | One PostgreSQL storage-invariant suite       |
+| Browser                       | No committed automated browser suite         |
 
 See [`QUALITY_GATES.md`](QUALITY_GATES.md) for enforced commands and explicitly
 non-enforced targets.
 
----
-
-## 5. References
+## References
 
 - [`ARCHITECTURE.md`](../ARCHITECTURE.md): System-level architecture
 - [`design-docs/core-beliefs.md`](design-docs/core-beliefs.md): Core beliefs and glossary

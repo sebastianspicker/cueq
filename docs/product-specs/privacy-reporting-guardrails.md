@@ -1,19 +1,13 @@
 # Product Spec: Privacy Reporting Guardrails
 
-> Repository source and contract guardrails are described here.
-> They are not proof of GDPR/DSGVO compliance, works-council approval,
-> service-backed enforcement, or deployment review.
-
----
-
-## 1. Summary
+## Summary
 
 Individual performance or behavior reporting can require works-council
 co-determination and additional data-protection review. cueq therefore treats
 report scope, role authorization, group-size suppression, and access logging as
 explicit reporting constraints.
 
-## 2. Design Principles
+## Design Principles
 
 ### Default: Aggregation
 
@@ -64,7 +58,7 @@ The following report types are prohibited unless explicitly approved by the work
 | Violation summary per OE       | Aggregated; individual drill-down only for HR           |
 | Export audit log               | System activity; no individual performance data         |
 
-## 3. Technical Guardrails
+## Technical Guardrails
 
 ### Query-level enforcement
 
@@ -85,9 +79,9 @@ The following report types are prohibited unless explicitly approved by the work
   API authorization remains authoritative.
 - Aggregate results include the API-provided suppression state and population.
 
-## 4. References
+## References
 
 - [`docs/SECURITY.md`](../SECURITY.md) §5: Works council compliance
 - [`docs/design-docs/core-beliefs.md`](../design-docs/core-beliefs.md): "Privacy by Default" principle
-- [`apps/api/src/phase2/helpers/reporting-analytics.helper.ts`](../../apps/api/src/phase2/helpers/reporting-analytics.helper.ts): Aggregate and suppression logic
+- [`apps/api/src/modules/reporting/reporting-analytics.helper.ts`](../../apps/api/src/modules/reporting/reporting-analytics.helper.ts): Aggregate and suppression logic
 - [`.github/pull_request_template.md`](../../.github/pull_request_template.md): Review checklist

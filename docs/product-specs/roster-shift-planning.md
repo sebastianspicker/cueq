@@ -1,13 +1,8 @@
-# Product Spec: Roster & Shift Planning (FR-300)
+# Product Spec: Roster & Shift Planning
 
-> Evidence: Source and contract surfaces are present across Core, API, and
-> Web; the named tests are focused evidence, not deployment approval.
+## Summary
 
----
-
-## 1. Summary
-
-FR-300 delivers operational roster planning for shift teams:
+Roster planning for shift teams includes:
 
 - draft roster creation and publication
 - shift creation/editing/deletion inside a roster period
@@ -17,15 +12,15 @@ FR-300 delivers operational roster planning for shift teams:
 
 The feature is intentionally manual-first: no optimization or auto-scheduling in this phase.
 
-## 2. Contracts and Entry Points
+## Contracts and Entry Points
 
 ### Database
 
 - `Roster` (`DRAFT | PUBLISHED | CLOSED`)
-- `Shift` (keeps legacy `personId` for compatibility)
-- `ShiftAssignment` (new join entity for multi-person staffing)
+- `Shift` (the staffing slot and its timing)
+- `ShiftAssignment` (the authoritative join entity for multi-person staffing)
 
-### Shared Schemas (`@cueq/shared`)
+### Runtime Contracts (`@cueq/contracts`)
 
 - `CreateRosterSchema`
 - `CreateShiftSchema`
@@ -49,7 +44,7 @@ The feature is intentionally manual-first: no optimization or auto-scheduling in
   - `DELETE /v1/rosters/{id}/shifts/{shiftId}/assignments/{assignmentId}`
   - `POST /v1/rosters/{id}/publish`
 
-## 3. RBAC and Lifecycle Rules
+## RBAC and Lifecycle Rules
 
 ### Write Permissions
 
@@ -69,7 +64,7 @@ The feature is intentionally manual-first: no optimization or auto-scheduling in
 3. Publish validates minimum staffing (`assignedHeadcount >= minStaffing` for every shift).
 4. On success: `DRAFT -> PUBLISHED` with an appended audit entry.
 
-## 4. Plan-vs-Actual Semantics
+## Plan-vs-Actual Semantics
 
 ### Per Slot Metrics
 
@@ -89,19 +84,21 @@ For each shift slot:
 - `understaffedSlots` (`actualHeadcount < minStaffing`)
 - `coverageRate` (`slots with actualHeadcount >= minStaffing` / `totalSlots`)
 
-## 5. Acceptance Matrix
+## Evidence and Verification Limits
 
-| Case                                              | Coverage                                                  |
-| ------------------------------------------------- | --------------------------------------------------------- |
-| Draft roster creation and shift CRUD              | API integration tests (`apps/api/test/integration`)       |
-| Assignment add/remove + overlap guard             | API integration tests (`apps/api/test/integration`)       |
-| Publish shortfall validation + success transition | API integration tests (`apps/api/test/integration`)       |
-| Planner-only write access                         | Compliance tests (`apps/api/test/compliance`)             |
-| Plan-vs-actual deterministic metrics              | Acceptance test `AT-03` + core roster unit tests          |
-| Web roster planner flow                           | manual release review                           |
+- Domain calculations: `packages/domain/src/roster/`.
+- Runtime contracts: `packages/contracts/src/schemas/roster.ts`.
+- API capability: `apps/api/src/modules/scheduling/`.
+- Web capability: `apps/web/src/app/[locale]/roster/`.
 
-## 6. Out of Scope
+The committed storage-invariant test verifies assignment backfill and
+deduplication against PostgreSQL. The source tree still has no browser
+acceptance suite or full feature-level database suite for roster planning.
+Validate mutation, OU scope, publish, assignment, and plan-versus-actual
+behavior against a disposable PostgreSQL instance and browser before declaring
+the whole flow verified.
+
+## Out of Scope
 
 - Shift swap workflows
 - Automatic scheduling/optimization
-- Removal of the legacy `Shift.personId` compatibility field

@@ -1,17 +1,12 @@
 # Product Spec: Closing Console
 
-> Source, schema, and focused-test references are present; this is
-> not audit certification, service-backed evidence, or deployment approval.
-
----
-
-## 1. Summary
+## Summary
 
 The Closing Console is cueq's structured end-of-month workflow. The repository
 contains dedicated UI and API
 surfaces; institutional audit acceptance remains external.
 
-## 2. Closing Workflow
+## Closing Workflow
 
 ```mermaid
 stateDiagram-v2
@@ -26,7 +21,7 @@ stateDiagram-v2
     Exported --> Review: Post-close correction (HR workflow)
 ```
 
-## 3. Checklist Items (auto-generated)
+## Checklist Items
 
 | Check                    | Severity | Description                                   |
 | ------------------------ | -------- | --------------------------------------------- |
@@ -38,14 +33,14 @@ stateDiagram-v2
 | Roster mismatches        | Warning  | Plan-vs-actual discrepancies not acknowledged |
 | Balance anomalies        | Warning  | Balance exceeding configured cap              |
 
-## 4. Approval Gates
+## Approval Gates
 
 1. Employee self-review (optional, configurable per OE): employee confirms their month
 2. Team lead approval: certifies team data is complete
 3. HR approval: final sign-off; triggers export eligibility
 4. Post-close correction: available only to HR role; creates audited correction entries
 
-## 5. Export Run Log
+## Export Run Log
 
 Each export produces an `ExportRun` record with:
 
@@ -53,7 +48,7 @@ Each export produces an `ExportRun` record with:
 - Idempotent: re-running with unchanged data produces identical output
 - Logged in audit trail with full metadata
 
-## 6. UI Surface
+## UI Surface
 
 The source contains a localized dedicated view at `/[locale]/closing` with:
 
@@ -66,6 +61,6 @@ The source contains a localized dedicated view at `/[locale]/closing` with:
 The UI and API routes are repository source surfaces. Their operation in a
 deployed environment requires service-backed and deployment evidence.
 
-## 7. References
+## References
 
 - [`packages/database/prisma/schema.prisma`](../../packages/database/prisma/schema.prisma): `ClosingPeriod`, `ExportRun` models

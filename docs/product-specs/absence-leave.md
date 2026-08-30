@@ -1,14 +1,8 @@
-# Product Spec: Absence & Leave (FR-400)
+# Product Spec: Absence & Leave
 
-> Evidence: Source and contract surfaces are present across Core, API, and
-> Web; the named focused tests cover selected behaviour. Not service-backed or
-> deployment evidence.
+## Summary
 
----
-
-## 1. Summary
-
-FR-400 delivers absence and leave management with:
+Absence and leave management includes:
 
 - working-day leave counting (weekday + NRW-holiday aware)
 - quota computation from policy and work-time model weekly hours
@@ -18,9 +12,9 @@ FR-400 delivers absence and leave management with:
 - team-calendar role-aware visibility (pending for leads/HR, approved-only for employees)
 - HR leave-adjustment ledger with explicit audit trail
 
-## 2. Contracts and Entry Points
+## Contracts and Entry Points
 
-### Core
+### Domain
 
 - `calculateAbsenceWorkingDays(...)`
 - `calculateLeaveLedger(...)`
@@ -41,7 +35,7 @@ FR-400 delivers absence and leave management with:
 - `/[locale]/leave` (request + balance + own absences)
 - `/[locale]/team-calendar` (date-range + role-aware status rendering)
 
-## 3. Policy Defaults
+## Policy Defaults
 
 - Approval-required absence types:
   - `ANNUAL_LEAVE`, `SPECIAL_LEAVE`, `TRAINING`, `TRAVEL`, `COMP_TIME`, `FLEX_DAY`, `UNPAID`
@@ -52,13 +46,13 @@ FR-400 delivers absence and leave management with:
   - max days from leave policy
   - forfeiture deadline from leave policy (default `03-31`)
 
-## 4. Semantics
+## Semantics
 
 ### Day Counting
 
 - Requested absence `days` uses working days only.
 - Weekends are excluded.
-- NRW holiday dates from fixture datasets are excluded.
+- Curated NRW holiday dates are excluded.
 
 ### Leave Balance
 
@@ -79,21 +73,20 @@ FR-400 delivers absence and leave management with:
   - `status` (workflow-relevant state)
   - `visibilityStatus = "ABSENT"` (privacy-safe display hint)
 
-## 5. Acceptance Coverage
+## Evidence and Verification Limits
 
-| Case                                               | Coverage                                                                  |
-| -------------------------------------------------- | ------------------------------------------------------------------------- |
-| Working-day counting with holidays                 | `packages/core/src/core/absence/__tests__/absence-working-days.test.ts`   |
-| Carry-over-first consumption + forfeiture boundary | `packages/core/src/core/absence/__tests__/absence-leave-ledger.test.ts`   |
-| Request → workflow approval/rejection              | `apps/api/test/integration/fr400.integration.test.ts`                     |
-| Cancellation semantics                             | `apps/api/test/integration/fr400.integration.test.ts`                     |
-| Leave-adjustment HR APIs + balance projection      | `apps/api/test/integration/fr400.integration.test.ts`                     |
-| AT-04 carry-over + forfeiture assertions           | `apps/api/test/acceptance/phase2-roster-target-oncall.acceptance.test.ts` |
-| AT-07 pending visibility split by role             | `apps/api/test/acceptance/phase2-calendar.acceptance.test.ts`             |
-| Employee redaction compliance                      | `apps/api/test/compliance/gdpr-edge-cases.compliance.test.ts`             |
-| Web leave request + role visibility flow           | `apps/web/tests/acceptance/phase2.acceptance.spec.ts`                     |
+- Pure calculation source: `packages/domain/src/absence/`.
+- API feature source: `apps/api/src/modules/absence/`.
+- Runtime contracts: `packages/contracts/src/schemas/absence.ts`.
+- Web surfaces: `apps/web/src/app/[locale]/leave/` and
+  `apps/web/src/app/[locale]/team-calendar/`.
 
-## 6. Out of Scope
+The current tree does not contain a feature-specific PostgreSQL integration
+suite or browser acceptance suite for absence. Exercise request, cancellation,
+role visibility, adjustment, and calendar behavior against a disposable
+PostgreSQL instance and browser before treating those paths as verified.
+
+## Out of Scope
 
 - Per-person weekday calendars beyond Monday-Friday baseline
 - eAU external integration
