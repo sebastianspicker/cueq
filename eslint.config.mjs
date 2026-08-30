@@ -1,15 +1,18 @@
 import tsParser from '@typescript-eslint/parser';
 import tsEslintPlugin from '@typescript-eslint/eslint-plugin';
+import nextPlugin from '@next/eslint-plugin-next';
+import { fileURLToPath } from 'node:url';
 
 const typescriptFiles = ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'];
+const webRootDirectory = fileURLToPath(new URL('./apps/web/', import.meta.url));
 
 const productionSourceFiles = [
   'apps/api/src/**/*.{ts,mts,cts}',
   'apps/web/src/**/*.{ts,tsx,mts,cts}',
-  'packages/core/src/**/*.{ts,mts,cts}',
+  'packages/domain/src/**/*.{ts,mts,cts}',
   'packages/database/src/**/*.{ts,mts,cts}',
   'packages/policy/src/**/*.{ts,mts,cts}',
-  'packages/shared/src/**/*.{ts,mts,cts}',
+  'packages/contracts/src/**/*.{ts,mts,cts}',
 ];
 
 const nonProductionSourceFiles = [
@@ -32,7 +35,7 @@ const cueqPlugin = {
         type: 'problem',
         docs: {
           description:
-            'Prevent manual schema shape types in shared schema files; prefer zod schemas + z.infer.',
+            'Prevent manual schema shape types in contract schema files; prefer zod schemas + z.infer.',
         },
         schema: [],
       },
@@ -81,6 +84,16 @@ export default [
     ],
   },
   {
+    plugins: {
+      '@next/next': nextPlugin,
+    },
+    // Next 15 inspects the root flat config during `next build`; keeping one
+    // disabled rule here makes the plugin visible while web rules stay scoped.
+    rules: {
+      '@next/next/no-html-link-for-pages': 'off',
+    },
+  },
+  {
     files: typescriptFiles,
     languageOptions: {
       parser: tsParser,
@@ -94,6 +107,18 @@ export default [
     },
     rules: {
       'no-console': ['warn', { allow: ['log', 'warn', 'error'] }],
+    },
+  },
+  {
+    files: ['apps/web/src/**/*.{js,jsx,ts,tsx}'],
+    settings: {
+      next: {
+        rootDir: webRootDirectory,
+      },
+    },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs['core-web-vitals'].rules,
     },
   },
   {
@@ -111,7 +136,7 @@ export default [
     },
   },
   {
-    files: ['packages/core/src/core/**/*.ts'],
+    files: ['packages/domain/src/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -149,7 +174,7 @@ export default [
     },
   },
   {
-    files: ['packages/shared/src/schemas/**/*.ts'],
+    files: ['packages/contracts/src/schemas/**/*.ts'],
     plugins: {
       cueq: cueqPlugin,
     },

@@ -9,15 +9,17 @@ source "${SCRIPT_DIR}/lib.sh"
 
 export DATABASE_URL="${DATABASE_URL:-postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public}"
 COMPOSE_CMD="$(docker_compose_cmd)"
-STARTED_DOCKER=0
 
 echo "Installing dependencies from pnpm-lock.yaml..."
-run_pnpm install --frozen-lockfile
+if [[ "${SKIP_INSTALL:-0}" == "1" ]]; then
+  echo "Skipping dependency installation because SKIP_INSTALL=1."
+else
+  run_pnpm install --frozen-lockfile
+fi
 
 if [[ "${SKIP_DOCKER:-0}" != "1" ]]; then
   echo "Starting Docker services..."
   if ${COMPOSE_CMD} up -d; then
-    STARTED_DOCKER=1
     echo "Waiting for PostgreSQL..."
     sleep 3
   else
@@ -30,15 +32,8 @@ run_pnpm db:generate
 
 echo "Applying migrations to database..."
 if ! run_pnpm --filter @cueq/database db:migrate:deploy; then
-  if [[ "${STARTED_DOCKER}" == "1" ]]; then
-    echo "Warning: Database migration failed. Recreating the local PostgreSQL volume and retrying once..."
-    ${COMPOSE_CMD} down -v
-    ${COMPOSE_CMD} up -d
-    sleep 3
-    run_pnpm --filter @cueq/database db:migrate:deploy
-  else
-    exit 1
-  fi
+  echo "Database migration failed. Local Docker data was not deleted; inspect the migration state and retry explicitly." >&2
+  exit 1
 fi
 
 echo "Setup complete. Run 'make dev' to start development."

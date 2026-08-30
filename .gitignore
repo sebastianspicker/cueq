@@ -1,57 +1,65 @@
-# Dependencies
+# Dependencies and package-manager state
 node_modules/
 .pnpm-store/
 
-# Build outputs
+# Build and generated output
 dist/
 .next/
 out/
-contracts/openapi/openapi.generated.json
-
-# Turbo
 .turbo/
-
-# Prisma
 packages/database/generated/
+contracts/openapi/openapi.generated.json
+*.tsbuildinfo
 
-# Environment (only the synthetic template is public)
-.env*
-!.env.example
+# Test and coverage output
+coverage/
+.nyc_output/
+test-results/
+junit*.xml
+*.lcov
 
-# IDE
-/.mcp.json
+# Tool caches
+.cache/
+.eslintcache
+.stylelintcache
+.parcel-cache/
+.swc/
+.vite/
+.vitest/
+
+# Logs and temporary files
+*.log
+*.pid
+*.pid.lock
+*.tmp
+*.temp
+*.old
+*.bak
+*.backup
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+
+# Editors and operating systems
 .vscode/
 .idea/
 .fleet/
 .history/
 .zed/
-*.swp
-*.swo
-*~
-
-# OS
 .DS_Store
 ._*
 .Spotlight-V100/
 .Trashes/
 Thumbs.db
 
-# Test coverage
-coverage/
-.nyc_output/
-test-results/
-playwright-report/
-blob-report/
-
-# Logs
-*.log
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
-
-# Secrets & credentials
+# Local environment and credentials
+.env*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.template
 *.pem
 *.key
 *.p12
@@ -65,135 +73,96 @@ credentials.json
 service-account*.json
 id_rsa*
 id_ed25519*
-
-# Local tooling artifacts
-.claude/
-.codex/
-.agents/
-.codegraph/
-.serena/
-.impeccable/
-openclaw.json
-/.codacy/*
-!/.codacy/codacy.config.json
-!/.codacy/codacy.yaml
-!/.codacy/codacy.yml
-/.codacy/codacy.config.json
-/.codacy/codacy.yaml
-progress.md
-/plan.md
-/status.md
-/PLAN.md
-/STATUS.md
-/REMEDIATION.md
-/REMEDIATION_PLAN.md
-/agent.md
-/agent-notes.md
-/AGENT_NOTES.md
-/AGENTS.md
-/docs/code-index.md
-docs/agent/
-
-# Local reports, traces, dumps, and editor leftovers
-*.sarif
-*.har
-/*.dump
-/*.backup
-/*.sqlite
-/*.sqlite3
-/*.db
-/*.sqlite-shm
-/*.sqlite-wal
-/*.db-shm
-/*.db-wal
-*.tmp
-*.orig
-*.rej
-/.eslintcache
-**/.eslintcache
-/.stylelintcache
-**/.stylelintcache
-/.parcel-cache/
-/.swc/
-/.vite/
-/.vitest/
-/.cache/
-**/.cache/
-/tmp/
-/temp/
-/backups/
-/exports/
-/reports/
-*.lcov
-*.pid
-*.pid.lock
-
-# Misc
-*.tsbuildinfo
-
-# Shared local indexes and operator records
-.repowise/
-/.kilo/
-/.cursor/
-/CLAUDE.md
-/GEMINI.md
-/AUDIT_LEDGER.md
-/remediation-ledger.md
-
-# Public environment templates
-!.env.*.example
-!.env.sample
-!.env.template
-
-# Local-only credentials
 secrets.local.*
 credentials.local.*
 .npmrc.local
-*.local.pem
-*.local.key
 
-# Python caches and test reports
-__pycache__/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.pyright/
-.hypothesis/
-.tox/
-.nox/
-.coverage
-.coverage.*
-coverage.xml
-htmlcov/
-junit*.xml
+# Local database and operator output
+/*.dump
+/*.sqlite
+/*.sqlite3
+/*.db
+/*.db-shm
+/*.db-wal
+/*.sqlite-shm
+/*.sqlite-wal
+/*.sqlite3-shm
+/*.sqlite3-wal
+/artifacts/
+/backups/
+/exports/
+/reports/
+/temp/
+/tmp/
 *.sarif
+*.har
 
-# Shared build output
-target/
-.build/
-DerivedData/
-xcuserdata/
+# Local analysis and development assistants
+/.codacy/
+/.codegraph/
+/.repowise/
+/.serena/
+/.mcp.json
+.agent/
+.agents/
+.ai/
+.claude/
+.codex/
+.cursor/
+.impeccable/
+.kilo/
+.cursorrules
+prompt/
+prompts/
+agent-prompts/
+ai-prompts/
+/docs/agent/
+/docs/archive/
+/archive/
+/openclaw.json
 
-# Local database sidecars
-*.local.db
-*.local.sqlite
-*.local.sqlite3
-*.db-shm
-*.db-wal
-*.sqlite-shm
-*.sqlite-wal
-*.sqlite3-shm
-*.sqlite3-wal
-
-# Generated test and coverage output (local only)
-/coverage/
-/htmlcov/
-/.coverage
-/.coverage.*
-/.pytest_cache/
-/test-results/
-/playwright-report/
-/blob-report/
-/coverage.xml
-/junit.xml
-/junit-*.xml
+# Local agent instructions, notes, and reports
+AGENT.md
+AGENTS.md
+agent.md
+agents.md
+CLAUDE.md
+CODEX.md
+GEMINI.md
+/.github/copilot-instructions.md
+/copilot-instructions.md
+agent-context*
+agent-memory*
+agent-notes*
+agent-output*
+agent-report*
+AI_AUDIT*
+AI_NOTES*
+AI_REPORT*
+AI_SUMMARY*
+LLM_NOTES*
+GPT_NOTES*
+CHATGPT_NOTES*
+/plan.md
+/PLAN.md
+/progress.md
+/status.md
+/STATUS.md
+/scratchpad*
+/worklog*
+/work-log*
+/devlog*
+/development-log*
+/handoff*
+/handover*
+/implementation-notes*
+/REMEDIATION.md
+/REMEDIATION_PLAN.md
+/*-ledger.md
+/*_ledger.md
+/*-LEDGER.md
+/*_LEDGER.md
+/*-audit.md
+/*_audit.md
+/*-status.md
+/*_status.md
