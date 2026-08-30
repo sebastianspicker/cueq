@@ -11,7 +11,6 @@ import type { useDashboardWorkspace } from './use-dashboard-workspace';
 
 type DashboardWorkspaceState = ReturnType<typeof useDashboardWorkspace>;
 
-/** Renders dashboard state and actions supplied by the route composition boundary. */
 export function DashboardWorkspace({
   t,
   locale,

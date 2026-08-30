@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl';
 import { PolicyAdminWorkspace } from './policy-admin-workspace';
 import { usePolicyAdminWorkspace } from './use-policy-admin-workspace';
 
-/** Composes the policy administration route from its hook and workspace view. */
 export default function PolicyAdminPage() {
   const t = useTranslations('pages.policyAdmin');
   const workspace = usePolicyAdminWorkspace(t);

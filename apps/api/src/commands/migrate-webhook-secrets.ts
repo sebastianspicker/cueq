@@ -3,7 +3,7 @@ import { prisma } from '@cueq/database';
 import {
   runWebhookSecretMigration,
   type WebhookSecretMigrationDatabase,
-} from '../common/integrations/webhook-secret-migration.js';
+} from '../modules/integrations/public.js';
 import { parseWebhookSecretMigrationMode } from './webhook-secret-migration-args.js';
 
 async function main(): Promise<void> {

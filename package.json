@@ -20,9 +20,11 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
+    "architecture:check": "node ./scripts/check-architecture.mjs",
     "toolchain:verify": "node ./scripts/verify-typescript-toolchain.mjs",
     "typecheck": "node ./scripts/verify-typescript-toolchain.mjs && turbo run typecheck",
     "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
     "backfill:leave-adjustments": "node ./scripts/backfill-leave-adjustments.mjs",
     "backfill:workflow-fields": "node ./scripts/backfill-workflow-fields.mjs",
     "migrate:webhook-envelopes": "bash ./scripts/migrate-webhook-secrets.sh",
@@ -38,9 +40,10 @@
     "db:generate": "turbo run db:generate",
     "db:push": "turbo run db:push",
     "db:migrate": "turbo run db:migrate",
-    "clean": "turbo run clean && rm -rf node_modules .turbo"
+    "clean": "turbo run clean && rm -rf .turbo"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "15.5.21",
     "@typescript/native": "catalog:",
     "husky": "9.1.7",
     "ajv": "8.18.0",
@@ -53,38 +56,9 @@
     "turbo": "2.9.14",
     "typescript": "catalog:"
   },
-  "pnpm": {
-    "overrides": {
-      "@nestjs/cli>typescript": "npm:@typescript/typescript6@6.0.2",
-      "effect": "3.21.4",
-      "lodash": "4.18.1",
-      "multer": "2.2.0",
-      "path-to-regexp": "8.4.2",
-      "file-type": "21.3.4",
-      "flatted": "3.4.2",
-      "picomatch": "4.0.4",
-      "defu": "6.1.7",
-      "body-parser": "2.3.0",
-      "fast-uri": "3.1.5",
-      "js-yaml": "4.3.1",
-      "nanoid": "3.3.18",
-      "postcss": "8.5.23",
-      "qs": "6.15.3",
-      "@angular-devkit/core>ajv": "8.18.0",
-      "ajv-formats>ajv": "8.18.0",
-      "esbuild": "0.28.1",
-      "form-data": "4.0.6",
-      "sharp": "0.35.0",
-      "undici": "7.29.0",
-      "vite": "7.3.5",
-      "minimatch@3.1.5>brace-expansion": "1.1.18",
-      "minimatch@9.0.9>brace-expansion": "2.1.4",
-      "minimatch@10.2.4>brace-expansion": "5.0.9"
-    }
-  },
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.24.0",
   "engines": {
     "node": ">=20.19.0",
-    "pnpm": "9.15.0"
+    "pnpm": "11.24.0"
   }
 }

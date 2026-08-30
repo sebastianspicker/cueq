@@ -7,7 +7,6 @@ import { statusLabel, typeLabel } from './approvals-utils';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Renders inbox filters and their load action. */
 export function FiltersSection({
   t,
   loading,

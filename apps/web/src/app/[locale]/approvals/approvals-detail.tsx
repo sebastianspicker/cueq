@@ -9,7 +9,6 @@ import { actionLabel, displayOptional, statusLabel } from './approvals-utils';
 type TranslationFn = ReturnType<typeof useTranslations>;
 const EMPTY_VALUE = '-';
 
-/** Renders the selected workflow and its API-provided available actions. */
 export function WorkflowDetailSection({
   t,
   loading,

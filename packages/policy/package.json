@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Policy-as-Code: versioned, testable, reviewable rules for time models, leave, compliance, and closing",
+  "description": "Versioned workforce policy definitions for cueq",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -19,14 +19,14 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist node_modules/.cache"
   },
   "dependencies": {
-    "@cueq/shared": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "ajv": "8.18.0",
+    "@vitest/coverage-v8": "catalog:",
     "@types/node": "catalog:",
     "@typescript/native": "catalog:",
     "vitest": "catalog:"

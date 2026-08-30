@@ -1,21 +1,18 @@
 'use client';
 
-/** Owns booking retrieval, correction-workflow state, and feedback. */
-
 import { useState } from 'react';
-import { BookingSchema, WorkflowInstanceSchema } from '@cueq/shared';
+import { BookingSchema, WorkflowInstanceSchema } from '@cueq/contracts';
 import type { useTranslations } from 'next-intl';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
   refreshAfterMutation,
   type RefreshResult,
-} from '../../../lib/mutation-refresh';
+} from '../../../shared/workspace/mutation-refresh';
 import type { Booking } from './bookings-types';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Provides the state and actions consumed by the bookings route composition. */
 export function useBookingsWorkspace(t: TranslationFn) {
   const { apiRequest } = useApiContext();
   const [loading, setLoading] = useState(false);

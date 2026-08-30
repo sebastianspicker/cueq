@@ -1,14 +1,13 @@
-/** API process bootstrap that applies transport-wide security, validation, and OpenAPI configuration. */
 import { NestFactory } from '@nestjs/core';
 import { HttpAdapterHost } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
-import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter.js';
-import { ZodExceptionFilter } from './common/filters/zod-exception.filter.js';
-import { buildCorsOptions } from './common/http/cors-options.js';
-import { resolveDevelopmentListenHost } from './common/http/development-listen-host.js';
-import { assertWebhookSecretEncryptionKey } from './common/integrations/webhook-secret-envelope.js';
+import { PrismaExceptionFilter } from './platform/http/filters/prisma-exception.filter.js';
+import { ZodExceptionFilter } from './platform/http/filters/zod-exception.filter.js';
+import { buildCorsOptions } from './platform/http/cors-options.js';
+import { resolveDevelopmentListenHost } from './platform/http/development-listen-host.js';
+import { assertWebhookSecretEncryptionKey } from './modules/integrations/public.js';
 import { buildOpenApiDocument } from './openapi.js';
 
 async function bootstrap() {
@@ -19,12 +18,7 @@ async function bootstrap() {
   const httpAdapterHost = app.get(HttpAdapterHost);
   app.useGlobalFilters(new PrismaExceptionFilter(), new ZodExceptionFilter(httpAdapterHost));
 
-  // ---------------------------------------------------------------------------
-  // OpenAPI / Swagger setup
-  // Only served in non-production environments. In production, the spec is
-  // generated for CI validation (openapi:check) but never mounted on the server.
-  // SwaggerModule routes bypass the APP_GUARD, so they must not be exposed in prod.
-  // ---------------------------------------------------------------------------
+  // Swagger routes bypass APP_GUARD, so documentation must never be mounted in production.
   if (process.env.NODE_ENV !== 'production') {
     const document = buildOpenApiDocument(app);
     SwaggerModule.setup('api/docs', app, document);

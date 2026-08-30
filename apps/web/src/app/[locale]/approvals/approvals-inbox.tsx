@@ -8,7 +8,6 @@ import { statusLabel, typeLabel } from './approvals-utils';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Renders the filtered workflow inbox and selection controls. */
 export function InboxSection({
   t,
   items,

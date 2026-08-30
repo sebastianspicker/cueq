@@ -1,18 +1,15 @@
 'use client';
 
-/** Composes the monthly-closing workspace from query, action, export, and correction state. */
-
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useSessionContext } from '../../../components/AppWorkspace';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 import { ClosingWorkspace } from './closing-workspace';
 import { useArtifactDownload } from './use-closing-artifact-download';
 import { useClosingActions } from './use-closing-actions';
 import { useClosingPeriods } from './use-closing-periods';
 import { useOrganizationUnitScope } from './use-closing-organization-scope';
 
-/** Connects the closing hooks to the localized closing workspace. */
 export default function ClosingPage() {
   const t = useTranslations('pages.closing');
   const params = useParams<{ locale: string }>();

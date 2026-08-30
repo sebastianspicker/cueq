@@ -1,13 +1,12 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { UserProfileSchema } from '@cueq/shared';
-import type { useApiContext } from '../../lib/api-context';
+import { UserProfileSchema } from '@cueq/contracts';
+import type { useApiContext } from '../../platform/http/api-context';
 import type { MeProfile, SessionPhase, SessionState, WorkspaceMessages } from './types';
 
 export const SessionContext = createContext<SessionState | null>(null);
 
-/** Reads the current workspace session state and its explicit refresh action. */
 export function useSessionContext(): SessionState {
   const value = useContext(SessionContext);
   if (!value) {
@@ -16,7 +15,6 @@ export function useSessionContext(): SessionState {
   return value;
 }
 
-/** Reads workspace identity when present without requiring the shell in focused component tests. */
 export function useOptionalSessionContext(): SessionState | null {
   return useContext(SessionContext);
 }

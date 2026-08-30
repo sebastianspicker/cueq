@@ -23,7 +23,6 @@ import type { RosterWorkspaceState } from './use-roster-workspace';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Renders the roster sections from hook-owned state and actions. */
 export function RosterWorkspace({
   t,
   workspace,

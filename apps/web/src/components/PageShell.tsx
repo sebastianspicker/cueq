@@ -1,4 +1,3 @@
-/** Shared page frame with title, optional breadcrumbs, and a semantic content region. */
 import Link from 'next/link';
 
 interface BreadcrumbItem {
@@ -15,7 +14,6 @@ interface PageShellProps {
   children: React.ReactNode;
 }
 
-/** Renders consistent page heading and breadcrumb landmarks for workspace routes. */
 export function PageShell({
   title,
   description,

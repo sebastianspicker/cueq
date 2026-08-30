@@ -1,6 +1,5 @@
-/** Stateless sections that preserve the audit workspace's existing labels, structure, and actions. */
 import type { useTranslations } from 'next-intl';
-import type { AuditEntryItem, AuditSummaryReport } from '@cueq/shared';
+import type { AuditEntryItem, AuditSummaryReport } from '@cueq/contracts';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
 

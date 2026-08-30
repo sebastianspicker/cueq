@@ -22,7 +22,6 @@ interface ShiftSwapSectionProps {
   onRequestShiftSwap: () => void;
 }
 
-/** Renders a shift-swap workflow request form. */
 export function ShiftSwapSection(props: ShiftSwapSectionProps) {
   const {
     t,
@@ -77,7 +76,6 @@ export function ShiftSwapSection(props: ShiftSwapSectionProps) {
   );
 }
 
-/** Renders plan-versus-actual comparison data returned by the API. */
 export function PlanVsActualSection({
   t,
   planVsActual,

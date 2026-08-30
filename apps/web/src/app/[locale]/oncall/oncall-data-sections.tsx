@@ -7,7 +7,6 @@ import type { ComplianceResult, OnCallDeployment, OnCallRotation } from './oncal
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Renders the API-filtered on-call rotation list. */
 export function RotationsSection({
   t,
   rotations,
@@ -45,7 +44,6 @@ export function RotationsSection({
   );
 }
 
-/** Renders deployments associated with the selected rotation. */
 export function DeploymentsSection({
   t,
   deployments,
@@ -83,7 +81,6 @@ export function DeploymentsSection({
   );
 }
 
-/** Renders API-calculated on-call compliance results. */
 export function ComplianceSection({
   t,
   compliance,

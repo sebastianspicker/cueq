@@ -1,4 +1,3 @@
-/* Progress strip */
 .cq-progress-strip {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -35,7 +34,6 @@
   background: var(--cq-accent);
 }
 
-/* Vertical day ledger: hours | timeline (inside day stage — no second card chrome) */
 .cq-day-ledger {
   display: grid;
   grid-template-columns: 3.5rem minmax(0, 1fr);
@@ -53,8 +51,6 @@
   color: var(--cq-text-muted);
 }
 
-.cq-day-ledger > .cq-ledger-model,
-.cq-day-ledger > .cq-ledger-heading,
 .cq-day-ledger > .cq-day-toolbar,
 .cq-day-ledger > .cq-progress-strip,
 .cq-day-ledger > .cq-ledger-legend {
@@ -195,196 +191,9 @@
   background: var(--cq-accent-soft);
 }
 
-/* Legacy horizontal-ledger helpers (scoped, non-dominant) */
-.cq-ledger-model {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  margin: 0.75rem 0 0.5rem;
-}
-
-.cq-ledger-model > span:first-child {
-  width: 1rem;
-  height: 1rem;
-  border: 1.5px solid var(--cq-text);
-  border-radius: 50%;
-}
-
-.cq-ledger-model > span:last-child {
-  display: grid;
-  gap: 0.05rem;
-}
-
-.cq-ledger-model small {
-  color: var(--cq-text-muted);
-  font-size: 0.7rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-}
-
-.cq-ledger-model strong {
-  font-size: 0.9rem;
-  font-weight: 650;
-}
-
-.cq-ledger-heading,
-.cq-ledger-section-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.cq-ledger-heading {
-  margin-bottom: 0.75rem;
-}
-
-.cq-ledger-heading h2,
-.cq-ledger-section-heading h2,
-.cq-overtime-workspace h2 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-
-.cq-ledger-heading > span {
-  color: var(--cq-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.75rem;
-}
-
-/* Horizontal track only when canvas is present */
-.cq-ledger-scroll {
-  grid-column: 1 / -1;
-  padding: 0.35rem 0 0.6rem;
-  overflow-x: auto;
-  scrollbar-color: var(--cq-border) transparent;
-}
-
-.cq-ledger-canvas {
-  position: relative;
-  min-width: 32rem;
-  padding: 0 0.4rem;
-}
-
-.cq-ledger-axis {
-  position: relative;
-  height: 2rem;
-  border-bottom: 1px solid var(--cq-border-strong);
-}
-
-.cq-ledger-axis span {
-  position: absolute;
-  bottom: 0.55rem;
-  color: var(--cq-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.7rem;
-  transform: translateX(-50%);
-}
-
-.cq-ledger-axis span:first-child {
-  transform: none;
-}
-
-.cq-ledger-axis span:last-child {
-  transform: translateX(-100%);
-}
-
-.cq-ledger-track {
-  position: relative;
-  height: 6.5rem;
-  margin-top: 0.75rem;
-}
-
-.cq-ledger-interval {
-  position: absolute;
-  top: 0;
-  height: 1.5rem;
-  border-radius: var(--cq-radius-sm);
-  background: var(--cq-work);
-}
-
-.cq-ledger-event,
-.cq-ledger-marker {
-  position: absolute;
-  top: 2rem;
-  max-width: 8rem;
-  color: var(--cq-text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  transform: translateX(-50%);
-  white-space: pre-line;
-}
-
-.cq-ledger-event::before,
-.cq-ledger-marker::before {
-  position: absolute;
-  bottom: calc(100% + 0.3rem);
-  left: 50%;
-  width: 1px;
-  height: 1.75rem;
-  background: currentcolor;
-  content: '';
-}
-
-.cq-ledger-event::after,
-.cq-ledger-marker::after {
-  position: absolute;
-  bottom: calc(100% + 1.85rem);
-  left: 50%;
-  width: 0.4rem;
-  height: 0.4rem;
-  border-radius: 50%;
-  background: currentcolor;
-  content: '';
-  transform: translate(-50%, 50%);
-}
-
-.cq-ledger-event[data-kind='in'] {
-  color: var(--cq-ok);
-  transform: none;
-}
-
-.cq-ledger-event[data-kind='in']::before,
-.cq-ledger-event[data-kind='in']::after {
-  left: 0;
-}
-
-.cq-ledger-event[data-kind='out'] {
-  text-align: right;
-  transform: translateX(-100%);
-}
-
-.cq-ledger-event[data-kind='out']::before,
-.cq-ledger-event[data-kind='out']::after {
-  left: 100%;
-}
-
-.cq-ledger-marker-now {
-  top: 2rem;
-  color: var(--cq-current);
-}
-
-.cq-ledger-marker-now::before {
-  height: 4.25rem;
-}
-
-.cq-ledger-marker-now::after {
-  bottom: calc(100% + 4.35rem);
-}
-
-.cq-ledger-marker-target {
-  top: 3.5rem;
-  padding-top: 0.2rem;
-  border-top: 1px dashed currentcolor;
-}
-
 .cq-ledger-empty {
   grid-column: 1 / -1;
   padding: 1.5rem 0;
   border-block: 1px solid var(--cq-border);
   color: var(--cq-text-muted);
 }
-

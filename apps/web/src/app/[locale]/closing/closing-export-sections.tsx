@@ -9,7 +9,6 @@ import {
   type TranslationFn,
 } from './closing-types';
 
-/** Renders the latest export as a compact evidence card with provenance. */
 export function ExportsSection({
   t,
   locale,

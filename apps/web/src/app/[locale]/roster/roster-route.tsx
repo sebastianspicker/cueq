@@ -7,7 +7,6 @@ import { PageShell } from '../../../components/PageShell';
 import { RosterWorkspace } from './roster-workspace';
 import { useRosterWorkspace } from './use-roster-workspace';
 
-/** Composes locale-aware route chrome around the roster workspace. */
 export default function RosterPage() {
   const t = useTranslations('pages.roster');
   const params = useParams<{ locale: string }>();

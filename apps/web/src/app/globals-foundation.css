@@ -1,7 +1,6 @@
 :root {
   color-scheme: light;
 
-  /* Rhein-Desk mineral canvas + Rhine teal */
   --cq-bg: rgb(238 242 243);
   --cq-surface: rgb(255 255 255);
   --cq-surface-solid: rgb(255 255 255);
@@ -285,4 +284,3 @@ p {
 .cq-app-shell {
   min-height: 100vh;
 }
-

@@ -126,7 +126,6 @@ function OnCallFormFields({ form }: { form: OnCallFormSectionProps }) {
   );
 }
 
-/** Renders fields for creating or editing on-call planning data. */
 export function OnCallFormSection(props: OnCallFormSectionProps) {
   return (
     <SectionCard>

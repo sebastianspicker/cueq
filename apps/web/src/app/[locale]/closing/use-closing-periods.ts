@@ -2,9 +2,9 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { useTranslations } from 'next-intl';
-import { ClosingPeriodSchema } from '@cueq/shared';
-import type { ApiRequest } from '../../../lib/api-client';
-import type { RefreshResult } from '../../../lib/mutation-refresh';
+import { ClosingPeriodSchema } from '@cueq/contracts';
+import type { ApiRequest } from '../../../platform/http/api-client';
+import type { RefreshResult } from '../../../shared/workspace/mutation-refresh';
 import {
   findSelectedPeriod,
   type ClosingChecklistResponse,
@@ -21,7 +21,6 @@ import {
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 
-/** Manages closing-period query state and refreshes selected-period detail from the API. */
 export function useClosingPeriods(t: TranslationFn, apiRequest: ApiRequest) {
   const [fromMonth, setFromMonth] = useState('2026-03');
   const [toMonth, setToMonth] = useState('2026-03');

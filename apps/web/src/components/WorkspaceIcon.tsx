@@ -99,7 +99,6 @@ function IconPaths({ name }: { name: WorkspaceIconName }) {
   return ICON_PATHS[name];
 }
 
-/** Provides a consistent dependency-free outline icon for workspace chrome. */
 export function WorkspaceIcon({ name }: { name: WorkspaceIconName }) {
   return (
     <svg

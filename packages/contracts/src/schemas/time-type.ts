@@ -1,0 +1,37 @@
+/** Runtime contracts for configured time categories and booking-source metadata. */
+import { z } from 'zod';
+import { DateTimeSchema } from './common.js';
+
+export const TimeTypeCategorySchema = z.enum([
+  'WORK',
+  'PAUSE',
+  'ON_CALL',
+  'DEPLOYMENT',
+  'ERRAND',
+  'HOME_OFFICE',
+  'TRAINING',
+  'TRAVEL',
+]);
+export type TimeTypeCategory = z.infer<typeof TimeTypeCategorySchema>;
+
+export const BookingSourceSchema = z.enum([
+  'TERMINAL',
+  'WEB',
+  'MOBILE',
+  'IMPORT',
+  'MANUAL',
+  'CORRECTION',
+]);
+export type BookingSource = z.infer<typeof BookingSourceSchema>;
+
+export const TimeTypeSchema = z.object({
+  id: z.string(),
+  code: z.string(),
+  name: z.string(),
+  nameEn: z.string().nullable().optional(),
+  category: TimeTypeCategorySchema,
+  isActive: z.boolean(),
+  createdAt: DateTimeSchema,
+  updatedAt: DateTimeSchema,
+});
+export type TimeType = z.infer<typeof TimeTypeSchema>;

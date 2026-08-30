@@ -11,7 +11,6 @@ interface LocaleSwitchLinkProps {
   label: string;
 }
 
-/** Links to the equivalent route in another supported locale. */
 export function LocaleSwitchLink({ locale, targetLocale, label }: LocaleSwitchLinkProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();

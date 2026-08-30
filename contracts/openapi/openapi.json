@@ -130,6 +130,42 @@
         ]
       }
     },
+    "/v1/persons/{id}": {
+      "get": {
+        "operationId": "PersonsController_getById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a person by ID (HR/Admin only)",
+        "tags": [
+          "persons"
+        ]
+      }
+    },
     "/v1/me": {
       "get": {
         "operationId": "MeController_getMe",
@@ -154,33 +190,6 @@
         "summary": "Get current authenticated user profile",
         "tags": [
           "auth"
-        ]
-      }
-    },
-    "/v1/dashboard/me": {
-      "get": {
-        "operationId": "DashboardController_getDashboard",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get dashboard summary for the authenticated employee",
-        "tags": [
-          "dashboard"
         ]
       }
     },
@@ -271,6 +280,60 @@
         "summary": "Create booking",
         "tags": [
           "bookings"
+        ]
+      }
+    },
+    "/v1/dashboard/me": {
+      "get": {
+        "operationId": "DashboardController_getDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get dashboard summary for the authenticated employee",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/v1/time-engine/evaluate": {
+      "post": {
+        "operationId": "TimeEngineController_evaluate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Evaluate time rules (break, rest, max-hours, surcharges)",
+        "tags": [
+          "time-engine"
         ]
       }
     },
@@ -440,48 +503,12 @@
         ]
       }
     },
-    "/v1/persons/{id}": {
+    "/v1/calendar/team": {
       "get": {
-        "operationId": "PersonsController_getById",
+        "operationId": "CalendarController_teamCalendar",
         "parameters": [
           {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get a person by ID (HR/Admin only)",
-        "tags": [
-          "persons"
-        ]
-      }
-    },
-    "/v1/leave-balance/me": {
-      "get": {
-        "operationId": "LeaveBalanceController_getMe",
-        "parameters": [
-          {
-            "name": "year",
+            "name": "end",
             "required": false,
             "in": "query",
             "schema": {
@@ -489,7 +516,7 @@
             }
           },
           {
-            "name": "asOfDate",
+            "name": "start",
             "required": false,
             "in": "query",
             "schema": {
@@ -503,7 +530,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LeaveBalanceDto"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TeamCalendarEntryDto"
+                  }
                 }
               }
             }
@@ -514,9 +544,9 @@
             "bearer": []
           }
         ],
-        "summary": "Get leave balance for the authenticated user",
+        "summary": "Get team absence calendar with role-based redaction",
         "tags": [
-          "absences"
+          "calendar"
         ]
       }
     },
@@ -602,12 +632,12 @@
         ]
       }
     },
-    "/v1/calendar/team": {
+    "/v1/leave-balance/me": {
       "get": {
-        "operationId": "CalendarController_teamCalendar",
+        "operationId": "LeaveBalanceController_getMe",
         "parameters": [
           {
-            "name": "end",
+            "name": "year",
             "required": false,
             "in": "query",
             "schema": {
@@ -615,7 +645,7 @@
             }
           },
           {
-            "name": "start",
+            "name": "asOfDate",
             "required": false,
             "in": "query",
             "schema": {
@@ -629,10 +659,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TeamCalendarEntryDto"
-                  }
+                  "$ref": "#/components/schemas/LeaveBalanceDto"
                 }
               }
             }
@@ -643,9 +670,486 @@
             "bearer": []
           }
         ],
-        "summary": "Get team absence calendar with role-based redaction",
+        "summary": "Get leave balance for the authenticated user",
         "tags": [
-          "calendar"
+          "absences"
+        ]
+      }
+    },
+    "/v1/oncall/rotations": {
+      "post": {
+        "operationId": "OncallController_createRotation",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create on-call rotation entry",
+        "tags": [
+          "oncall"
+        ]
+      },
+      "get": {
+        "operationId": "OncallController_listRotations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List on-call rotations",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/oncall/rotations/{id}": {
+      "patch": {
+        "operationId": "OncallController_updateRotation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update on-call rotation entry",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/oncall/deployments": {
+      "post": {
+        "operationId": "OncallController_createDeployment",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create on-call deployment entry",
+        "tags": [
+          "oncall"
+        ]
+      },
+      "get": {
+        "operationId": "OncallController_listDeployments",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List on-call deployments",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/oncall/compliance": {
+      "get": {
+        "operationId": "OncallController_compliance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Evaluate on-call rest compliance",
+        "tags": [
+          "oncall"
+        ]
+      }
+    },
+    "/v1/rosters": {
+      "post": {
+        "operationId": "RostersController_createRoster",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/current": {
+      "get": {
+        "operationId": "RostersController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get currently active roster for authenticated user organization unit",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}": {
+      "get": {
+        "operationId": "RostersController_byId",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get roster detail with shifts and assignments",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts": {
+      "post": {
+        "operationId": "RostersController_createShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts/{shiftId}": {
+      "patch": {
+        "operationId": "RostersController_updateShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      },
+      "delete": {
+        "operationId": "RostersController_deleteShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete shift from draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts/{shiftId}/assignments": {
+      "post": {
+        "operationId": "RostersController_assignShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign person to shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/shifts/{shiftId}/assignments/{assignmentId}": {
+      "delete": {
+        "operationId": "RostersController_unassignShift",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assignmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove person assignment from shift in draft roster",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/publish": {
+      "post": {
+        "operationId": "RostersController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Publish draft roster after min-staffing checks",
+        "tags": [
+          "roster"
+        ]
+      }
+    },
+    "/v1/rosters/{id}/plan-vs-actual": {
+      "get": {
+        "operationId": "RostersController_planVsActual",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Compute plan-vs-actual compliance for roster",
+        "tags": [
+          "roster"
         ]
       }
     },
@@ -1081,483 +1585,6 @@
         "summary": "Apply workflow action (approve/reject/delegate/cancel)",
         "tags": [
           "workflows"
-        ]
-      }
-    },
-    "/v1/rosters": {
-      "post": {
-        "operationId": "RostersController_createRoster",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Create draft roster",
-        "tags": [
-          "roster"
-        ]
-      }
-    },
-    "/v1/rosters/current": {
-      "get": {
-        "operationId": "RostersController_current",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get currently active roster for authenticated user organization unit",
-        "tags": [
-          "roster"
-        ]
-      }
-    },
-    "/v1/rosters/{id}": {
-      "get": {
-        "operationId": "RostersController_byId",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get roster detail with shifts and assignments",
-        "tags": [
-          "roster"
-        ]
-      }
-    },
-    "/v1/rosters/{id}/shifts": {
-      "post": {
-        "operationId": "RostersController_createShift",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Create shift in draft roster",
-        "tags": [
-          "roster"
-        ]
-      }
-    },
-    "/v1/rosters/{id}/shifts/{shiftId}": {
-      "patch": {
-        "operationId": "RostersController_updateShift",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "shiftId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Update shift in draft roster",
-        "tags": [
-          "roster"
-        ]
-      },
-      "delete": {
-        "operationId": "RostersController_deleteShift",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "shiftId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Delete shift from draft roster",
-        "tags": [
-          "roster"
-        ]
-      }
-    },
-    "/v1/rosters/{id}/shifts/{shiftId}/assignments": {
-      "post": {
-        "operationId": "RostersController_assignShift",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "shiftId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Assign person to shift in draft roster",
-        "tags": [
-          "roster"
-        ]
-      }
-    },
-    "/v1/rosters/{id}/shifts/{shiftId}/assignments/{assignmentId}": {
-      "delete": {
-        "operationId": "RostersController_unassignShift",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "shiftId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "assignmentId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Remove person assignment from shift in draft roster",
-        "tags": [
-          "roster"
-        ]
-      }
-    },
-    "/v1/rosters/{id}/publish": {
-      "post": {
-        "operationId": "RostersController_publish",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Publish draft roster after min-staffing checks",
-        "tags": [
-          "roster"
-        ]
-      }
-    },
-    "/v1/rosters/{id}/plan-vs-actual": {
-      "get": {
-        "operationId": "RostersController_planVsActual",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Compute plan-vs-actual compliance for roster",
-        "tags": [
-          "roster"
-        ]
-      }
-    },
-    "/v1/oncall/rotations": {
-      "post": {
-        "operationId": "OncallController_createRotation",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Create on-call rotation entry",
-        "tags": [
-          "oncall"
-        ]
-      },
-      "get": {
-        "operationId": "OncallController_listRotations",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "List on-call rotations",
-        "tags": [
-          "oncall"
-        ]
-      }
-    },
-    "/v1/oncall/rotations/{id}": {
-      "patch": {
-        "operationId": "OncallController_updateRotation",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Update on-call rotation entry",
-        "tags": [
-          "oncall"
-        ]
-      }
-    },
-    "/v1/oncall/deployments": {
-      "post": {
-        "operationId": "OncallController_createDeployment",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Create on-call deployment entry",
-        "tags": [
-          "oncall"
-        ]
-      },
-      "get": {
-        "operationId": "OncallController_listDeployments",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "List on-call deployments",
-        "tags": [
-          "oncall"
-        ]
-      }
-    },
-    "/v1/oncall/compliance": {
-      "get": {
-        "operationId": "OncallController_compliance",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Evaluate on-call rest compliance",
-        "tags": [
-          "oncall"
         ]
       }
     },
@@ -2024,196 +2051,6 @@
         ]
       }
     },
-    "/v1/terminal/sync/batches": {
-      "post": {
-        "operationId": "TerminalSyncController_importBatch",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Import terminal offline-sync batch (CSV adapter v0)",
-        "tags": [
-          "terminal-sync"
-        ]
-      }
-    },
-    "/v1/terminal/sync/batches/file": {
-      "post": {
-        "operationId": "TerminalSyncController_importBatchFile",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Import terminal offline-sync file batch (HONEYWELL_CSV_V1)",
-        "tags": [
-          "terminal-sync"
-        ]
-      }
-    },
-    "/v1/terminal/sync/batches/{id}": {
-      "get": {
-        "operationId": "TerminalSyncController_getBatch",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get imported terminal batch by id",
-        "tags": [
-          "terminal-sync"
-        ]
-      }
-    },
-    "/v1/terminal/heartbeats": {
-      "post": {
-        "operationId": "TerminalIntegrationController_recordHeartbeat",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "integration-token": []
-          }
-        ],
-        "summary": "Record terminal heartbeat (integration token required)",
-        "tags": [
-          "terminal-sync"
-        ]
-      }
-    },
-    "/v1/terminal/health": {
-      "get": {
-        "operationId": "TerminalIntegrationController_health",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "integration-token": []
-          }
-        ],
-        "summary": "Read terminal health snapshot (integration token required)",
-        "tags": [
-          "terminal-sync"
-        ]
-      }
-    },
-    "/v1/hr/import-runs": {
-      "post": {
-        "operationId": "HrImportController_runImport",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": "HR import accepted and completed successfully"
-          },
-          "400": {
-            "description": "CSV or pre-acceptance validation failed; no run created"
-          },
-          "409": {
-            "description": "Another import holds the advisory lock; retry with the same payload",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "statusCode": 409,
-                    "code": "HR_IMPORT_IN_PROGRESS",
-                    "message": "Another HR import is already in progress.",
-                    "retryable": true
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "integration-token": []
-          }
-        ],
-        "summary": "Run HR master data import (file/API, integration token required)",
-        "tags": [
-          "hr-import"
-        ]
-      }
-    },
-    "/v1/hr/import-runs/{id}": {
-      "get": {
-        "operationId": "HrImportController_getImportRun",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "integration-token": []
-          }
-        ],
-        "summary": "Get HR import run by id (integration token required)",
-        "tags": [
-          "hr-import"
-        ]
-      }
-    },
     "/v1/policies": {
       "get": {
         "operationId": "PoliciesController_bundle",
@@ -2254,13 +2091,20 @@
         ]
       }
     },
-    "/v1/integrations/webhooks/endpoints": {
-      "post": {
-        "operationId": "IntegrationsController_createEndpoint",
+    "/v1/time-thresholds": {
+      "get": {
+        "operationId": "TimeThresholdsController_getThresholds",
         "parameters": [],
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2268,33 +2112,13 @@
             "bearer": []
           }
         ],
-        "summary": "Register a webhook endpoint",
+        "summary": "Get active ArbZG time thresholds (HR/Admin)",
         "tags": [
-          "integrations"
+          "time-thresholds"
         ]
       },
-      "get": {
-        "operationId": "IntegrationsController_listEndpoints",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "List webhook endpoints",
-        "tags": [
-          "integrations"
-        ]
-      }
-    },
-    "/v1/integrations/events/outbox": {
-      "get": {
-        "operationId": "IntegrationsController_outbox",
+      "put": {
+        "operationId": "TimeThresholdsController_upsertThresholds",
         "parameters": [],
         "responses": {
           "200": {
@@ -2313,56 +2137,9 @@
             "bearer": []
           }
         ],
-        "summary": "List outbox domain events",
+        "summary": "Upsert ArbZG time thresholds: creates a new policy version (HR/Admin)",
         "tags": [
-          "integrations"
-        ]
-      }
-    },
-    "/v1/integrations/webhooks/dispatch": {
-      "post": {
-        "operationId": "IntegrationsController_dispatch",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Dispatch pending outbox events to subscribed endpoints",
-        "tags": [
-          "integrations"
-        ]
-      }
-    },
-    "/v1/integrations/webhooks/deliveries": {
-      "get": {
-        "operationId": "IntegrationsController_deliveries",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "List webhook delivery attempts",
-        "tags": [
-          "integrations"
+          "time-thresholds"
         ]
       }
     },
@@ -2650,17 +2427,28 @@
         ]
       }
     },
-    "/v1/time-engine/evaluate": {
+    "/v1/hr/import-runs": {
       "post": {
-        "operationId": "TimeEngineController_evaluate",
+        "operationId": "HrImportController_runImport",
         "parameters": [],
         "responses": {
           "201": {
-            "description": "",
+            "description": "HR import accepted and completed successfully"
+          },
+          "400": {
+            "description": "CSV or pre-acceptance validation failed; no run created"
+          },
+          "409": {
+            "description": "Another import holds the advisory lock; retry with the same payload",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "example": {
+                    "statusCode": 409,
+                    "code": "HR_IMPORT_IN_PROGRESS",
+                    "message": "Another HR import is already in progress.",
+                    "retryable": true
+                  }
                 }
               }
             }
@@ -2668,19 +2456,28 @@
         },
         "security": [
           {
-            "bearer": []
+            "integration-token": []
           }
         ],
-        "summary": "Evaluate time rules (break, rest, max-hours, surcharges)",
+        "summary": "Run HR master data import (file/API, integration token required)",
         "tags": [
-          "time-engine"
+          "hr-import"
         ]
       }
     },
-    "/v1/time-thresholds": {
+    "/v1/hr/import-runs/{id}": {
       "get": {
-        "operationId": "TimeThresholdsController_getThresholds",
-        "parameters": [],
+        "operationId": "HrImportController_getImportRun",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -2695,16 +2492,56 @@
         },
         "security": [
           {
+            "integration-token": []
+          }
+        ],
+        "summary": "Get HR import run by id (integration token required)",
+        "tags": [
+          "hr-import"
+        ]
+      }
+    },
+    "/v1/integrations/webhooks/endpoints": {
+      "post": {
+        "operationId": "IntegrationsController_createEndpoint",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
             "bearer": []
           }
         ],
-        "summary": "Get active ArbZG time thresholds (HR/Admin)",
+        "summary": "Register a webhook endpoint",
         "tags": [
-          "time-thresholds"
+          "integrations"
         ]
       },
-      "put": {
-        "operationId": "TimeThresholdsController_upsertThresholds",
+      "get": {
+        "operationId": "IntegrationsController_listEndpoints",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List webhook endpoints",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/events/outbox": {
+      "get": {
+        "operationId": "IntegrationsController_outbox",
         "parameters": [],
         "responses": {
           "200": {
@@ -2723,9 +2560,172 @@
             "bearer": []
           }
         ],
-        "summary": "Upsert ArbZG time thresholds: creates a new policy version (HR/Admin)",
+        "summary": "List outbox domain events",
         "tags": [
-          "time-thresholds"
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/webhooks/dispatch": {
+      "post": {
+        "operationId": "IntegrationsController_dispatch",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Dispatch pending outbox events to subscribed endpoints",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/webhooks/deliveries": {
+      "get": {
+        "operationId": "IntegrationsController_deliveries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List webhook delivery attempts",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/terminal/heartbeats": {
+      "post": {
+        "operationId": "TerminalIntegrationController_recordHeartbeat",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "integration-token": []
+          }
+        ],
+        "summary": "Record terminal heartbeat (integration token required)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/health": {
+      "get": {
+        "operationId": "TerminalIntegrationController_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "integration-token": []
+          }
+        ],
+        "summary": "Read terminal health snapshot (integration token required)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/sync/batches": {
+      "post": {
+        "operationId": "TerminalSyncController_importBatch",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import terminal offline-sync batch (CSV adapter v0)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/sync/batches/file": {
+      "post": {
+        "operationId": "TerminalSyncController_importBatchFile",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import terminal offline-sync file batch (HONEYWELL_CSV_V1)",
+        "tags": [
+          "terminal-sync"
+        ]
+      }
+    },
+    "/v1/terminal/sync/batches/{id}": {
+      "get": {
+        "operationId": "TerminalSyncController_getBatch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get imported terminal batch by id",
+        "tags": [
+          "terminal-sync"
         ]
       }
     }
@@ -2925,113 +2925,6 @@
           "updatedAt"
         ]
       },
-      "LeaveBalanceDto": {
-        "type": "object",
-        "properties": {
-          "personId": {
-            "type": "string"
-          },
-          "year": {
-            "type": "number"
-          },
-          "asOfDate": {
-            "type": "string",
-            "format": "date"
-          },
-          "entitlement": {
-            "type": "number"
-          },
-          "used": {
-            "type": "number"
-          },
-          "remaining": {
-            "type": "number"
-          },
-          "carriedOver": {
-            "type": "number"
-          },
-          "carriedOverUsed": {
-            "type": "number"
-          },
-          "forfeited": {
-            "type": "number"
-          },
-          "adjustments": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "personId",
-          "year",
-          "asOfDate",
-          "entitlement",
-          "used",
-          "remaining",
-          "carriedOver",
-          "carriedOverUsed",
-          "forfeited",
-          "adjustments"
-        ]
-      },
-      "CreateLeaveAdjustmentDto": {
-        "type": "object",
-        "properties": {
-          "personId": {
-            "type": "string"
-          },
-          "year": {
-            "type": "number"
-          },
-          "deltaDays": {
-            "type": "number"
-          },
-          "reason": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "personId",
-          "year",
-          "deltaDays",
-          "reason"
-        ]
-      },
-      "LeaveAdjustmentDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "personId": {
-            "type": "string"
-          },
-          "year": {
-            "type": "number"
-          },
-          "deltaDays": {
-            "type": "number"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "createdBy": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "personId",
-          "year",
-          "deltaDays",
-          "reason",
-          "createdBy",
-          "createdAt"
-        ]
-      },
       "TeamCalendarEntryDto": {
         "type": "object",
         "properties": {
@@ -3094,6 +2987,113 @@
           "endDate",
           "status",
           "visibilityStatus"
+        ]
+      },
+      "CreateLeaveAdjustmentDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "deltaDays": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "personId",
+          "year",
+          "deltaDays",
+          "reason"
+        ]
+      },
+      "LeaveAdjustmentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "deltaDays": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "personId",
+          "year",
+          "deltaDays",
+          "reason",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "LeaveBalanceDto": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string"
+          },
+          "year": {
+            "type": "number"
+          },
+          "asOfDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "entitlement": {
+            "type": "number"
+          },
+          "used": {
+            "type": "number"
+          },
+          "remaining": {
+            "type": "number"
+          },
+          "carriedOver": {
+            "type": "number"
+          },
+          "carriedOverUsed": {
+            "type": "number"
+          },
+          "forfeited": {
+            "type": "number"
+          },
+          "adjustments": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "personId",
+          "year",
+          "asOfDate",
+          "entitlement",
+          "used",
+          "remaining",
+          "carriedOver",
+          "carriedOverUsed",
+          "forfeited",
+          "adjustments"
         ]
       },
       "ExportRunDto": {

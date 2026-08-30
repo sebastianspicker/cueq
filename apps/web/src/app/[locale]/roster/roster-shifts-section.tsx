@@ -3,13 +3,12 @@
 import type { useTranslations } from 'next-intl';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
-import { isoInstantToLocalDateTimeInput } from '../../../lib/datetime-local';
+import { isoInstantToLocalDateTimeInput } from '../../../shared/time/datetime-local';
 import type { RosterDetail } from './roster-types';
 
 type TranslationFn = ReturnType<typeof useTranslations>;
 type RosterShift = RosterDetail['shifts'][number];
 
-/** Renders shifts and assignment controls for the selected roster. */
 export function ShiftsSection({
   t,
   loading,

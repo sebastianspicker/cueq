@@ -1,7 +1,5 @@
 'use client';
 
-/** Renders the policy administration workspace from its route-owned state. */
-
 import type { useTranslations } from 'next-intl';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
@@ -21,7 +19,6 @@ interface PolicyAdminWorkspaceProps {
   workspace: PolicyAdminWorkspaceState;
 }
 
-/** Hosts the unchanged policy administration shell and section ordering. */
 export function PolicyAdminWorkspace({ t, workspace }: PolicyAdminWorkspaceProps) {
   return (
     <PageShell title={t('title')} description={t('description')}>

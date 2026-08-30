@@ -1,4 +1,3 @@
-/** Locale route entry that exposes the layout implementation and metadata hooks. */
 import '../globals.css';
 
 // A request-scoped CSP nonce requires every localized document to render dynamically.

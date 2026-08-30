@@ -22,7 +22,6 @@ interface CreateShiftSectionProps {
   canEdit: boolean;
 }
 
-/** Renders fields used to create a shift in the selected roster. */
 export function CreateShiftSection(props: CreateShiftSectionProps) {
   const {
     t,

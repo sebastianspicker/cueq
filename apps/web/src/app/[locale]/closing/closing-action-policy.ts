@@ -31,12 +31,10 @@ interface ClosingActionPolicyInput {
   workflowReason: string;
 }
 
-/** Returns whether the UI should expose period-management affordances for this role. */
 export function canManageClosingPeriod(role: CueqRole | null): boolean {
   return role === 'TEAM_LEAD' || role === 'HR' || role === 'ADMIN';
 }
 
-/** Returns whether the UI should expose HR-only closing affordances for this role. */
 export function hasHrClosingAuthority(role: CueqRole | null): boolean {
   return role === 'HR' || role === 'ADMIN';
 }

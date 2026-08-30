@@ -21,7 +21,6 @@ function formatFreshness(lastSuccessfulAt: number, locale: string): string {
   }).format(new Date(lastSuccessfulAt));
 }
 
-/** Compact status strip: institution · section | phase | timezone | optional freshness. */
 export function WorkspaceStatusMast({
   locale,
   pathname,

@@ -3,7 +3,7 @@
 # Compose command so nested scripts use one reproducible execution boundary.
 set -euo pipefail
 
-PINNED_PNPM_VERSION="9.15.0"
+PINNED_PNPM_VERSION="11.24.0"
 PNPM_SHIM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/shims"
 
 run_pnpm() {

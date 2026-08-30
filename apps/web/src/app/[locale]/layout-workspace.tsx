@@ -1,11 +1,9 @@
-/** Locale layout implementation that wires translated messages and client providers. */
-
 import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { AppClientEffects } from '../../components/AppClientEffects';
 import { AppWorkspace } from '../../components/AppWorkspace';
-import { ApiProvider } from '../../lib/api-context';
+import { ApiProvider } from '../../platform/http/api-context';
 
 const locales = ['de', 'en'] as const;
 
@@ -27,7 +25,6 @@ const localizedMetadata: Record<Locale, { title: string; description: string }> 
   },
 };
 
-/** Supplies locale-specific product identity without changing route behavior. */
 export async function generateMetadata({
   params,
 }: Pick<LocaleLayoutProps, 'params'>): Promise<Metadata> {
@@ -41,7 +38,6 @@ export async function generateMetadata({
   };
 }
 
-/** Renders a validated locale shell around all localized application routes. */
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
   const { locale: rawLocale } = await params;
   const locale = locales.includes(rawLocale as Locale) ? (rawLocale as Locale) : 'de';

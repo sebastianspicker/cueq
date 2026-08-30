@@ -1,5 +1,5 @@
-import { ClosingChecklistResponseSchema, ClosingPeriodSchema } from '@cueq/shared';
-import type { ApiRequest } from '../../../lib/api-client';
+import { ClosingChecklistResponseSchema, ClosingPeriodSchema } from '@cueq/contracts';
+import type { ApiRequest } from '../../../platform/http/api-client';
 import type { ClosingChecklistResponse, ClosingPeriod } from './closing-types';
 
 export interface ClosingPeriodQuery {
@@ -14,7 +14,6 @@ export interface ClosingPeriodSelection {
   checklist: ClosingChecklistResponse | null;
 }
 
-/** Builds the closing-period list endpoint without including empty query values. */
 export function closingPeriodsPath({
   fromMonth,
   toMonth,
@@ -27,7 +26,6 @@ export function closingPeriodsPath({
   return `/v1/closing-periods?${query.toString()}`;
 }
 
-/** Keeps the current selection when present, otherwise selects the first returned period. */
 export function nextSelectedPeriodId(
   periods: ClosingPeriod[],
   selectedPeriodId: string | null,
@@ -37,7 +35,6 @@ export function nextSelectedPeriodId(
     : (periods[0]?.id ?? null);
 }
 
-/** Represents a selected period after its detail and checklist have both refreshed. */
 export function createPeriodSelection(
   selectedPeriodId: string,
   detail: ClosingPeriod,
@@ -46,12 +43,10 @@ export function createPeriodSelection(
   return { selectedPeriodId, detail, checklist };
 }
 
-/** Clears all detail that belongs to a previously selected period. */
 export function clearPeriodSelection(): ClosingPeriodSelection {
   return { selectedPeriodId: null, detail: null, checklist: null };
 }
 
-/** Fetches the two detail resources together so displayed period state remains coherent. */
 export async function fetchPeriodSelection(apiRequest: ApiRequest, periodId: string) {
   return Promise.all([
     apiRequest(`/v1/closing-periods/${periodId}`, ClosingPeriodSchema),

@@ -8,7 +8,6 @@ import { PageShell } from '../../../components/PageShell';
 import { BookingsWorkspaceSections } from './bookings-sections';
 import { useBookingsWorkspace } from './use-bookings-workspace';
 
-/** Hosts booking retrieval and correction-request mutation state. */
 export default function BookingsPage() {
   const t = useTranslations('pages.bookings');
   const params = useParams<{ locale: string }>();

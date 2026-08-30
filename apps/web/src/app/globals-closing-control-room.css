@@ -1,4 +1,3 @@
-/* Monthly closing control room: measured from the supplied 1440 x 900 reference. */
 .cq-closing-page .cq-page-header {
   grid-template-columns: minmax(18rem, 1fr) minmax(22rem, auto);
   align-items: start;
@@ -497,4 +496,3 @@
   white-space: nowrap;
   border: 0;
 }
-

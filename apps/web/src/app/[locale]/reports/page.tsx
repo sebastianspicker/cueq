@@ -12,12 +12,12 @@ import {
   CustomReportPreviewSchema,
   OeOvertimeReportSchema,
   TeamAbsenceReportSchema,
-} from '@cueq/shared';
+} from '@cueq/contracts';
 import { useSessionContext } from '../../../components/AppWorkspace';
 import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBanner } from '../../../components/StatusBanner';
-import { useApiContext } from '../../../lib/api-context';
+import { useApiContext } from '../../../platform/http/api-context';
 import { canLoadSensitiveReportSummaries } from './report-access';
 import {
   ReportResults,
@@ -47,7 +47,6 @@ interface CustomReportPreview {
   rows: CustomReportPreviewRow[];
 }
 
-/** Hosts report selection, request, and privacy-aware result state. */
 export default function ReportsPage() {
   const t = useTranslations('pages.reports');
   const { apiBaseUrl, token, apiRequest } = useApiContext();

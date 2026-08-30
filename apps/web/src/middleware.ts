@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import {
   createContentSecurityPolicy,
   createContentSecurityPolicyNonce,
-} from './lib/content-security-policy';
+} from './platform/security/content-security-policy';
 
 const handleI18nRouting = createMiddleware({
   locales: ['de', 'en'],
