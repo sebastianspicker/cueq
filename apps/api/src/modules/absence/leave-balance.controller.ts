@@ -29,10 +29,13 @@ export class LeaveBalanceController {
   getMe(
     @CurrentUser() user: AuthenticatedIdentity,
     @Query('year') year?: string,
-    @Query('asOfDate') asOfDate?: string,
+    @Query('asOfDate') asOfDate?: unknown,
   ) {
     if (year !== undefined && !YEAR_PATTERN.test(year)) {
       throw new BadRequestException('year must be a 4-digit year (e.g. 2025).');
+    }
+    if (asOfDate !== undefined && typeof asOfDate !== 'string') {
+      throw new BadRequestException('asOfDate must be a single ISO-8601 date.');
     }
     if (asOfDate !== undefined && !DATE_PATTERN.test(asOfDate)) {
       throw new BadRequestException('asOfDate must be ISO-8601 date (YYYY-MM-DD).');
