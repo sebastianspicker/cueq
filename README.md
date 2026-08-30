@@ -28,7 +28,7 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) for the dependency direction and
 
 ## Local evaluation
 
-Requirements: Node 20.19+, pnpm 11.24, Docker Compose, and GNU Make.
+Requirements: Node 22.13+, pnpm 11.24, Docker Compose, and GNU Make.
 
 The local Compose file provides PostgreSQL only at `localhost:5433`. Local
 evaluation uses mock authentication; it does not start or configure an OIDC

@@ -94,7 +94,7 @@ jobs:
         if: steps.scope.outputs.full == 'true'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 20.19.0
+          node-version: 22.13.0
           cache: pnpm
 
       - name: Cache turbo
@@ -186,7 +186,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: 20.19.0
+          node-version: 22.13.0
           cache: pnpm
 
       - name: Fresh clone setup and check

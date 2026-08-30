@@ -6,7 +6,7 @@ legal interpretation, or compliance certification.
 
 ## Prerequisites
 
-Install Node.js 20.19.0 or later, pnpm 11.24.0, Docker with Compose, and GNU Make.
+Install Node.js 22.13.0 or later, pnpm 11.24.0, Docker with Compose, and GNU Make.
 
 Create the local configuration:
 
