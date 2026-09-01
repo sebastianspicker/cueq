@@ -23,7 +23,7 @@
     "@cueq/database": "workspace:*",
     "@cueq/domain": "workspace:*",
     "@cueq/policy": "workspace:*",
-    "@nestjs/common": "11.1.18",
+    "@nestjs/common": "12.0.1",
     "@nestjs/core": "11.1.18",
     "@nestjs/platform-express": "11.1.18",
     "@nestjs/schedule": "5.0.1",
