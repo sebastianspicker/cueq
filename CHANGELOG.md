@@ -56,3 +56,5 @@ limitations and the checks required before release.
 - `.node-version` matches the Node.js version used in CI.
 - Updated NestJS to 11.1.18, `next-intl` to 4.9.2, Vitest to 3.2.6, Turbo to
   2.9.14, and transitive overrides to address reported dependency advisories.
+- Updated Next.js and its ESLint plugin to 15.5.24, Sharp to 0.35.4, js-yaml
+  to 4.3.2, and Multer to 2.3.0 to address dependency security advisories.
