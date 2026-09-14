@@ -1,3 +1,4 @@
+import { CursorQuerySchema, CursorPageSchema } from './common.js';
 /** Runtime contracts for booking creation, correction, and read responses across API and web. */
 import { z } from 'zod';
 import {
@@ -11,6 +12,7 @@ import { BookingSourceSchema, TimeTypeCategorySchema } from './time-type.js';
 export const CreateBookingSchema = z
   .object({
     personId: IdSchema,
+    assignmentId: IdSchema.optional(),
     timeTypeId: IdSchema,
     startTime: DateTimeSchema,
     endTime: DateTimeSchema.optional(),
@@ -27,6 +29,7 @@ export type CreateBooking = z.infer<typeof CreateBookingSchema>;
 export const BookingCorrectionSchema = z
   .object({
     bookingId: IdSchema,
+    assignmentId: IdSchema.optional(),
     startTime: DateTimeSchema.optional(),
     endTime: DateTimeSchema.optional(),
     timeTypeId: IdSchema.optional(),
@@ -40,6 +43,7 @@ export type BookingCorrection = z.infer<typeof BookingCorrectionSchema>;
 export const BookingSchema = z.object({
   id: IdSchema,
   personId: IdSchema,
+  assignmentId: IdSchema,
   timeTypeId: IdSchema,
   timeTypeCode: z.string(),
   timeTypeCategory: TimeTypeCategorySchema,
@@ -52,3 +56,12 @@ export const BookingSchema = z.object({
   updatedAt: DateTimeSchema,
 });
 export type Booking = z.infer<typeof BookingSchema>;
+
+export const BookingPageSchema = CursorPageSchema(BookingSchema);
+export const BookingQuerySchema = CursorQuerySchema.extend({
+  assignmentId: IdSchema.optional(),
+  from: DateTimeSchema.optional(),
+  to: DateTimeSchema.optional(),
+}).refine((value) => !value.from || !value.to || Date.parse(value.from) <= Date.parse(value.to), {
+  message: 'Invalid date range',
+});

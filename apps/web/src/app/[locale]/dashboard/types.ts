@@ -1,7 +1,11 @@
 import type { useTranslations } from 'next-intl';
 
 export interface DashboardSummary {
+  assignmentId: string;
   personId: string;
+  dayStart: string;
+  dayEnd: string;
+  todayWorkedMilliseconds: number;
   modelName: string;
   todayTargetHours: number;
   currentBalanceHours: number;
@@ -15,6 +19,7 @@ export interface DashboardSummary {
 }
 
 export interface DashboardBooking {
+  assignmentId: string;
   id: string;
   startTime: string;
   endTime: string | null;

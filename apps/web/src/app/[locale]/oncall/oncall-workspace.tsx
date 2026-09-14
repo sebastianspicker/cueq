@@ -65,7 +65,25 @@ export function OnCallWorkspace({
         onUpdateRotation={() => void workspace.updateRotation()}
       />
       <RotationsSection t={t} rotations={workspace.rotations} />
+      {workspace.rotationsCursor ? (
+        <button
+          type="button"
+          disabled={workspace.loading}
+          onClick={() => void workspace.loadMoreRotations()}
+        >
+          {t('loadMoreRotations')}
+        </button>
+      ) : null}
       <DeploymentsSection t={t} deployments={workspace.deployments} />
+      {workspace.deploymentsCursor ? (
+        <button
+          type="button"
+          disabled={workspace.loading}
+          onClick={() => void workspace.loadMoreDeployments()}
+        >
+          {t('loadMoreDeployments')}
+        </button>
+      ) : null}
       <ComplianceSection t={t} compliance={workspace.compliance} />
     </PageShell>
   );

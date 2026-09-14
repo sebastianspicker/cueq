@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
-import { PersonHelper } from '../people/public.js';
+import { AssignmentHelper, PersonHelper } from '../people/public.js';
 import { WorkflowCreationHelper } from './workflow-creation.helper.js';
 import { WorkflowDecisionService } from './workflow-decision.service.js';
 import { WorkflowSideEffectsHelper } from './workflow-side-effects.helper.js';
@@ -17,6 +17,7 @@ export class WorkflowsDomainService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper) private readonly assignmentHelper: AssignmentHelper,
     @Inject(WorkflowRuntimeService)
     private readonly workflowRuntimeService: WorkflowRuntimeService,
     @Inject(WorkflowCreationHelper) private readonly creationHelper: WorkflowCreationHelper,
@@ -46,8 +47,12 @@ export class WorkflowsDomainService {
     return queries.workflowInboxQuery(this.collaborators(), user, query);
   }
 
-  async workflowDetail(user: AuthenticatedIdentity, workflowId: string): Promise<unknown> {
-    return queries.workflowDetailQuery(this.collaborators(), user, workflowId);
+  async workflowDetail(
+    user: AuthenticatedIdentity,
+    workflowId: string,
+    actorAssignmentId?: string,
+  ): Promise<unknown> {
+    return queries.workflowDetailQuery(this.collaborators(), user, workflowId, actorAssignmentId);
   }
 
   async listWorkflowPolicies(user: AuthenticatedIdentity): Promise<unknown> {
@@ -97,14 +102,22 @@ export class WorkflowsDomainService {
     user: AuthenticatedIdentity,
     workflowId: string,
     payload: unknown,
+    actorAssignmentId?: string,
   ): Promise<unknown> {
-    return decideWorkflowSubmission(this.collaborators(), user, workflowId, payload);
+    return decideWorkflowSubmission(
+      this.collaborators(),
+      user,
+      workflowId,
+      payload,
+      actorAssignmentId,
+    );
   }
 
   private collaborators(): WorkflowDomainCollaborators {
     return {
       prisma: this.prisma,
       personHelper: this.personHelper,
+      assignmentHelper: this.assignmentHelper,
       workflowRuntimeService: this.workflowRuntimeService,
       workflowDecisionService: this.workflowDecisionService,
       sideEffectsHelper: this.sideEffectsHelper,
@@ -116,6 +129,7 @@ export class WorkflowsDomainService {
 type WorkflowDomainCollaborators = {
   prisma: PrismaService;
   personHelper: PersonHelper;
+  assignmentHelper: AssignmentHelper;
   workflowRuntimeService: WorkflowRuntimeService;
   workflowDecisionService: WorkflowDecisionService;
   sideEffectsHelper: WorkflowSideEffectsHelper;

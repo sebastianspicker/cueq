@@ -8,12 +8,14 @@ import {
 } from '@cueq/contracts';
 import type { ClosingBlockedAttemptInput } from '../../platform/transactions/closing-lock.helper.js';
 import type { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
+import type { AssignmentHelper, ResolvedEmployment } from '../people/public.js';
 import {
   lockPersonWrites,
   lockRosterWrites,
 } from '../../platform/transactions/transaction-lock.helper.js';
 
 type DecisionWorkflowScope = {
+  assignmentId: string | null;
   type: WorkflowType;
   entityType: string;
   entityId: string;
@@ -33,6 +35,7 @@ export type WorkflowDecisionGuardContext = {
   requestedAction: string;
   actorId: string;
   closingLockHelper: GuardDependencies;
+  assignmentHelper: AssignmentHelper;
   recordBlockedAttempt: (attempt: ClosingBlockedAttemptInput) => void;
 };
 
@@ -42,9 +45,9 @@ type ScopedGuardContext = Omit<WorkflowDecisionGuardContext, 'workflowId'> & {
 
 type BookingForCorrection = {
   personId: string;
+  assignmentId: string;
   startTime: Date;
   endTime: Date | null;
-  person: { organizationUnitId: string };
 };
 
 /**
@@ -56,7 +59,13 @@ export async function prepareDecisionGuards(
 ): Promise<ClosingBlockedAttemptInput | null> {
   const workflowScope = await context.tx.workflowInstance.findUnique({
     where: { id: context.workflowId },
-    select: { type: true, entityType: true, entityId: true, requestPayload: true },
+    select: {
+      assignmentId: true,
+      type: true,
+      entityType: true,
+      entityId: true,
+      requestPayload: true,
+    },
   });
   if (!workflowScope) return null;
 
@@ -80,16 +89,38 @@ async function guardBookingCorrection(
 
   const correction = BookingCorrectionSchema.parse(scope.requestPayload ?? {});
   const booking = await loadBookingForCorrection(context.tx, scope.entityId);
+  if (!scope.assignmentId || scope.assignmentId !== booking.assignmentId) {
+    throw new BadRequestException('Booking appointment does not match its workflow.');
+  }
   assertCorrectionMatchesBooking(correction, booking, scope.entityId);
   const ranges = correctionRanges(booking, correction);
+  const resolvedRanges = await Promise.all(
+    ranges.map(async (range) => ({
+      range,
+      resolved: await context.assignmentHelper.resolveInterval(
+        booking.personId,
+        range.from,
+        range.to > range.from ? range.to : undefined,
+        booking.assignmentId,
+        context.tx,
+      ),
+    })),
+  );
   const blockedAttempt = await guardBookingRanges({
     ...context,
-    organizationUnitId: booking.person.organizationUnitId,
     bookingId: scope.entityId,
-    ranges,
+    ranges: resolvedRanges,
   });
   await lockPersonWrites(context.tx, [booking.personId]);
   await assertBookingUnchanged(context.tx, scope.entityId, booking);
+  for (const resolvedRange of resolvedRanges) {
+    await context.assignmentHelper.assertUnchanged(
+      context.tx,
+      resolvedRange.resolved,
+      resolvedRange.range.from,
+      resolvedRange.range.to > resolvedRange.range.from ? resolvedRange.range.to : undefined,
+    );
+  }
   return blockedAttempt;
 }
 
@@ -109,9 +140,9 @@ async function loadBookingForCorrection(
     where: { id },
     select: {
       personId: true,
+      assignmentId: true,
       startTime: true,
       endTime: true,
-      person: { select: { organizationUnitId: true } },
     },
   });
   if (!booking) throw new NotFoundException('Booking not found for approved correction.');
@@ -119,12 +150,15 @@ async function loadBookingForCorrection(
 }
 
 function assertCorrectionMatchesBooking(
-  correction: { bookingId: string; startTime?: string; endTime?: string },
-  booking: Pick<BookingForCorrection, 'startTime' | 'endTime'>,
+  correction: { bookingId: string; assignmentId?: string; startTime?: string; endTime?: string },
+  booking: Pick<BookingForCorrection, 'assignmentId' | 'startTime' | 'endTime'>,
   bookingId: string,
 ): void {
   if (correction.bookingId !== bookingId) {
     throw new BadRequestException('Booking correction payload does not match its workflow target.');
+  }
+  if (correction.assignmentId && correction.assignmentId !== booking.assignmentId) {
+    throw new BadRequestException('Booking correction appointment does not match its booking.');
   }
   const startTime = correction.startTime ? new Date(correction.startTime) : booking.startTime;
   const endTime = correction.endTime ? new Date(correction.endTime) : booking.endTime;
@@ -155,16 +189,16 @@ function correctionRanges(
 
 async function guardBookingRanges(
   context: ScopedGuardContext & {
-    organizationUnitId: string;
     bookingId: string;
-    ranges: GuardedRange[];
+    ranges: Array<{ range: GuardedRange; resolved: ResolvedEmployment }>;
   },
 ): Promise<ClosingBlockedAttemptInput> {
   let latestAttempt: ClosingBlockedAttemptInput | null = null;
-  for (const range of context.ranges) {
+  for (const item of context.ranges) {
+    const range = item.range;
     latestAttempt = blockedAttempt({
       actorId: context.actorId,
-      organizationUnitId: context.organizationUnitId,
+      organizationUnitId: item.resolved.organizationUnitId,
       range,
       attemptedAction: 'WORKFLOW_BOOKING_CORRECTION_APPROVE',
       entityType: 'Booking',
@@ -172,7 +206,7 @@ async function guardBookingRanges(
     });
     context.recordBlockedAttempt(latestAttempt);
     await context.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
-      { organizationUnitId: context.organizationUnitId, ...range },
+      { organizationUnitId: item.resolved.organizationUnitId, ...range },
       context.tx,
     );
   }
@@ -200,7 +234,7 @@ async function assertBookingUnchanged(
 function bookingsMatch(current: BookingForCorrection, expected: BookingForCorrection): boolean {
   return (
     current.personId === expected.personId &&
-    current.person.organizationUnitId === expected.person.organizationUnitId &&
+    current.assignmentId === expected.assignmentId &&
     current.startTime.getTime() === expected.startTime.getTime() &&
     current.endTime?.getTime() === expected.endTime?.getTime()
   );
@@ -220,17 +254,27 @@ async function guardAbsence(
     where: { id: scope.entityId },
     select: {
       personId: true,
+      assignmentId: true,
       startDate: true,
       endDate: true,
-      person: { select: { organizationUnitId: true } },
     },
   });
   if (!absence) return null;
+  if (!scope.assignmentId || scope.assignmentId !== absence.assignmentId) {
+    throw new BadRequestException('Absence appointment does not match its workflow.');
+  }
 
   const range = { from: absence.startDate, to: absence.endDate };
+  const resolved = await context.assignmentHelper.resolveInterval(
+    absence.personId,
+    absence.startDate,
+    new Date(absence.endDate.getTime() + 86_400_000),
+    absence.assignmentId,
+    context.tx,
+  );
   const attempt = blockedAttempt({
     actorId: context.actorId,
-    organizationUnitId: absence.person.organizationUnitId,
+    organizationUnitId: resolved.organizationUnitId,
     range,
     attemptedAction: `WORKFLOW_ABSENCE_${context.requestedAction}`,
     entityType: 'Absence',
@@ -240,7 +284,8 @@ async function guardAbsence(
   await guardPersonRange({
     ...context,
     personId: absence.personId,
-    organizationUnitId: absence.person.organizationUnitId,
+    resolved,
+    resolvedTo: new Date(absence.endDate.getTime() + 86_400_000),
     range,
   });
   return attempt;
@@ -258,6 +303,9 @@ async function guardShiftSwap(
     return null;
   }
   const swap = ShiftSwapRequestSchema.parse(scope.requestPayload ?? {});
+  if (!scope.assignmentId || (swap.assignmentId && swap.assignmentId !== scope.assignmentId)) {
+    throw new BadRequestException('Shift-swap appointment does not match its workflow.');
+  }
   const shiftId = swap.shiftId || scope.entityId;
   const shift = await context.tx.shift.findUnique({
     where: { id: shiftId },
@@ -286,6 +334,38 @@ async function guardShiftSwap(
   );
   await lockRosterWrites(context.tx, [shift.rosterId]);
   await lockPersonWrites(context.tx, [swap.fromPersonId, swap.toPersonId]);
+  const sourceAssignment = await context.tx.shiftAssignment.findUnique({
+    where: { shiftId_personId: { shiftId, personId: swap.fromPersonId } },
+  });
+  if (!sourceAssignment || sourceAssignment.assignmentId !== scope.assignmentId) {
+    throw new ConflictException({
+      code: 'SHIFT_SWAP_SOURCE_CHANGED',
+      message: 'Shift-swap source appointment changed; retry the workflow decision.',
+      retryable: true,
+    });
+  }
+  const [sourceEmployment, targetEmployment] = await Promise.all([
+    context.assignmentHelper.resolveInterval(
+      swap.fromPersonId,
+      shift.startTime,
+      shift.endTime,
+      sourceAssignment.assignmentId,
+      context.tx,
+    ),
+    context.assignmentHelper.resolveInterval(
+      swap.toPersonId,
+      shift.startTime,
+      shift.endTime,
+      swap.toAssignmentId,
+      context.tx,
+    ),
+  ]);
+  if (
+    sourceEmployment.organizationUnitId !== shift.roster.organizationUnitId ||
+    targetEmployment.organizationUnitId !== shift.roster.organizationUnitId
+  ) {
+    throw new BadRequestException('Shift-swap appointments do not match the roster unit.');
+  }
   return attempt;
 }
 
@@ -301,16 +381,24 @@ async function guardOvertime(
     return null;
   }
   const overtime = OvertimeApprovalRequestSchema.parse(scope.requestPayload ?? {});
-  const person = await context.tx.person.findUnique({
-    where: { id: overtime.personId },
-    select: { organizationUnitId: true },
-  });
-  if (!person) return null;
+  if (
+    !scope.assignmentId ||
+    (overtime.assignmentId && overtime.assignmentId !== scope.assignmentId)
+  ) {
+    throw new BadRequestException('Overtime appointment does not match its workflow.');
+  }
 
   const range = { from: new Date(overtime.periodStart), to: new Date(overtime.periodEnd) };
+  const resolved = await context.assignmentHelper.resolveInterval(
+    overtime.personId,
+    range.from,
+    range.to,
+    scope.assignmentId,
+    context.tx,
+  );
   const attempt = blockedAttempt({
     actorId: context.actorId,
-    organizationUnitId: person.organizationUnitId,
+    organizationUnitId: resolved.organizationUnitId,
     range,
     attemptedAction: 'WORKFLOW_OVERTIME_APPROVE',
     entityType: 'TimeAccount',
@@ -320,7 +408,8 @@ async function guardOvertime(
   await guardPersonRange({
     ...context,
     personId: overtime.personId,
-    organizationUnitId: person.organizationUnitId,
+    resolved,
+    resolvedTo: range.to,
     range,
   });
   return attempt;
@@ -341,39 +430,20 @@ function blockedAttempt(input: {
 async function guardPersonRange(
   context: ScopedGuardContext & {
     personId: string;
-    organizationUnitId: string;
+    resolved: ResolvedEmployment;
+    resolvedTo: Date;
     range: GuardedRange;
   },
 ): Promise<void> {
   await context.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
-    { organizationUnitId: context.organizationUnitId, ...context.range },
+    { organizationUnitId: context.resolved.organizationUnitId, ...context.range },
     context.tx,
   );
   await lockPersonWrites(context.tx, [context.personId]);
-  await assertLockedPersonOrganizationUnit(
+  await context.assignmentHelper.assertUnchanged(
     context.tx,
-    context.personId,
-    context.organizationUnitId,
+    context.resolved,
+    context.range.from,
+    context.resolvedTo,
   );
-}
-
-async function assertLockedPersonOrganizationUnit(
-  tx: Prisma.TransactionClient,
-  personId: string,
-  expectedOrganizationUnitId: string,
-): Promise<void> {
-  const person = await tx.person.findUnique({
-    where: { id: personId },
-    select: { organizationUnitId: true },
-  });
-  if (!person) {
-    throw new NotFoundException('Person not found.');
-  }
-  if (person.organizationUnitId !== expectedOrganizationUnitId) {
-    throw new ConflictException({
-      code: 'PERSON_IDENTITY_CHANGED',
-      message: 'Person organization assignment changed; retry the workflow decision.',
-      retryable: true,
-    });
-  }
 }

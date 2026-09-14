@@ -3,7 +3,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { AssignShiftSchema } from '@cueq/contracts';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
-import { PersonHelper } from '../people/public.js';
+import { AssignmentHelper, PersonHelper } from '../people/public.js';
 import { AuditHelper } from '../audit/public.js';
 import { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
 import { assertRosterClosingGuardIsCurrent, RosterShiftHelper } from './roster-shift.helper.js';
@@ -21,6 +21,7 @@ export class RosterAssignmentHelper {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper) private readonly employmentAssignmentHelper: AssignmentHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
     @Inject(ClosingLockHelper) private readonly closingLockHelper: ClosingLockHelper,
     @Inject(RosterShiftHelper) private readonly shiftHelper: RosterShiftHelper,
@@ -64,6 +65,17 @@ export class RosterAssignmentHelper {
       entityId: shift.id,
     };
     await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
+    const resolved = await this.employmentAssignmentHelper.resolveInterval(
+      parsed.personId,
+      shift.startTime,
+      shift.endTime,
+      parsed.assignmentId,
+    );
+    if (resolved.organizationUnitId !== shift.roster.organizationUnitId) {
+      throw new BadRequestException(
+        'Selected appointment must belong to the roster organization unit.',
+      );
+    }
 
     const { assignment, person } = await this.prisma
       .$transaction(async (tx) => {
@@ -106,16 +118,21 @@ export class RosterAssignmentHelper {
             id: true,
             firstName: true,
             lastName: true,
-            organizationUnitId: true,
           },
         });
 
         if (!assignedPerson) {
           throw new NotFoundException('Person not found.');
         }
-        if (assignedPerson.organizationUnitId !== currentShift.roster.organizationUnitId) {
+        const currentEmployment = await this.employmentAssignmentHelper.assertUnchanged(
+          tx,
+          resolved,
+          currentShift.startTime,
+          currentShift.endTime,
+        );
+        if (currentEmployment.organizationUnitId !== currentShift.roster.organizationUnitId) {
           throw new BadRequestException(
-            'Assigned person must belong to the roster organization unit.',
+            'Selected appointment must belong to the roster organization unit.',
           );
         }
 
@@ -136,7 +153,11 @@ export class RosterAssignmentHelper {
         }
 
         const created = await tx.shiftAssignment.create({
-          data: { shiftId: currentShift.id, personId: parsed.personId },
+          data: {
+            shiftId: currentShift.id,
+            personId: parsed.personId,
+            assignmentId: currentEmployment.assignment.id,
+          },
         });
 
         await this.auditHelper.appendAudit(
@@ -145,7 +166,11 @@ export class RosterAssignmentHelper {
             action: 'SHIFT_ASSIGNED',
             entityType: 'ShiftAssignment',
             entityId: created.id,
-            after: { shiftId: created.shiftId, personId: created.personId },
+            after: {
+              shiftId: created.shiftId,
+              personId: created.personId,
+              assignmentId: created.assignmentId,
+            },
           },
           tx,
         );
@@ -160,6 +185,7 @@ export class RosterAssignmentHelper {
       id: assignment.id,
       shiftId: assignment.shiftId,
       personId: assignment.personId,
+      assignmentId: assignment.assignmentId,
       firstName: person.firstName,
       lastName: person.lastName,
       createdAt: assignment.createdAt.toISOString(),
@@ -172,6 +198,7 @@ export class RosterAssignmentHelper {
     rosterId: string,
     shiftId: string,
     assignmentId: string,
+    employmentAssignmentId?: string,
   ) {
     const actor = await this.personHelper.personForUser(user);
     const assignment = await this.prisma.shiftAssignment.findFirst({
@@ -197,6 +224,15 @@ export class RosterAssignmentHelper {
     if (!assignment) {
       throw new NotFoundException('Shift assignment not found.');
     }
+    if (employmentAssignmentId && employmentAssignmentId !== assignment.assignmentId) {
+      throw new BadRequestException('Shift assignment appointment does not match the request.');
+    }
+    const resolved = await this.employmentAssignmentHelper.resolveInterval(
+      assignment.personId,
+      assignment.shift.startTime,
+      assignment.shift.endTime,
+      assignment.assignmentId,
+    );
 
     this.shiftHelper.assertCanWriteRoster(
       user,
@@ -259,6 +295,15 @@ export class RosterAssignmentHelper {
           tx,
           current.shift.assignments.map((assignment) => assignment.personId),
         );
+        const currentEmployment = await this.employmentAssignmentHelper.assertUnchanged(
+          tx,
+          resolved,
+          current.shift.startTime,
+          current.shift.endTime,
+        );
+        if (currentEmployment.assignment.id !== current.assignmentId) {
+          throw new BadRequestException('Shift assignment appointment changed; retry removal.');
+        }
 
         await tx.shiftAssignment.delete({ where: { id: current.id } });
 

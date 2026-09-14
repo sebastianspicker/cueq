@@ -1,5 +1,5 @@
 /** Performs one fully transaction-local absence creation in its established serial order. */
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { type Absence, AbsenceStatus, type Prisma, WorkflowType } from '@cueq/database';
 import type { CreateAbsence } from '@cueq/contracts';
 import { lockPersonWrites } from '../../platform/transactions/transaction-lock.helper.js';
@@ -7,6 +7,7 @@ import type {
   WorkflowAssignmentRequest,
   WorkflowAssignment,
 } from '../../application/ports/workflow-runtime.port.js';
+import type { AssignmentHelper, ResolvedEmployment } from '../people/public.js';
 
 type AuditWriter = {
   appendAudit: (
@@ -35,12 +36,14 @@ export async function writeAbsenceCreation(
   input: {
     actorId: string;
     parsed: CreateAbsence;
-    targetPerson: { id: string; organizationUnitId: string; supervisorId: string | null };
+    resolved: ResolvedEmployment;
     start: Date;
     end: Date;
+    endExclusive: Date;
     daySpan: number;
     status: AbsenceStatus;
     requiresApproval: boolean;
+    assignmentHelper: Pick<AssignmentHelper, 'assertUnchanged'>;
     assertClosingUnlocked: (tx: Prisma.TransactionClient) => Promise<void>;
     workflowRuntimeService: WorkflowAssignmentBuilder;
     auditHelper: AuditWriter;
@@ -49,12 +52,14 @@ export async function writeAbsenceCreation(
   const {
     actorId,
     parsed,
-    targetPerson,
+    resolved,
     start,
     end,
+    endExclusive,
     daySpan,
     status,
     requiresApproval,
+    assignmentHelper,
     assertClosingUnlocked,
     workflowRuntimeService,
     auditHelper,
@@ -64,35 +69,20 @@ export async function writeAbsenceCreation(
     ? await workflowRuntimeService.buildWorkflowAssignment(
         {
           type: WorkflowType.LEAVE_REQUEST,
-          requesterId: targetPerson.id,
-          requesterOrganizationUnitId: targetPerson.organizationUnitId,
-          preferredApproverId: targetPerson.supervisorId ?? undefined,
+          requesterId: parsed.personId,
+          requesterOrganizationUnitId: resolved.organizationUnitId,
+          preferredApproverId: resolved.supervisorId ?? undefined,
         },
         tx,
       )
     : undefined;
   await lockPersonWrites(tx, [parsed.personId]);
-  const currentTargetPerson = await tx.person.findUnique({
-    where: { id: parsed.personId },
-    select: { organizationUnitId: true, supervisorId: true },
-  });
-  if (!currentTargetPerson) {
-    throw new NotFoundException('Person not found.');
-  }
-  if (
-    currentTargetPerson.organizationUnitId !== targetPerson.organizationUnitId ||
-    currentTargetPerson.supervisorId !== targetPerson.supervisorId
-  ) {
-    throw new ConflictException({
-      code: 'PERSON_IDENTITY_CHANGED',
-      message: 'Person assignment changed; retry the absence request.',
-      retryable: true,
-    });
-  }
+  const current = await assignmentHelper.assertUnchanged(tx, resolved, start, endExclusive);
 
   const overlappingAbsence = await tx.absence.findFirst({
     where: {
       personId: parsed.personId,
+      assignmentId: current.assignment.id,
       status: { in: [AbsenceStatus.REQUESTED, AbsenceStatus.APPROVED] },
       startDate: { lte: end },
       endDate: { gte: start },
@@ -105,6 +95,7 @@ export async function writeAbsenceCreation(
   const absence = await tx.absence.create({
     data: {
       personId: parsed.personId,
+      assignmentId: current.assignment.id,
       type: parsed.type,
       startDate: start,
       endDate: end,
@@ -119,12 +110,14 @@ export async function writeAbsenceCreation(
       data: {
         type: WorkflowType.LEAVE_REQUEST,
         status: assignment.status,
-        requesterId: targetPerson.id,
+        requesterId: parsed.personId,
+        assignmentId: current.assignment.id,
         approverId: assignment.approverId,
         entityType: 'Absence',
         entityId: absence.id,
         reason: parsed.note,
         requestPayload: {
+          assignmentId: current.assignment.id,
           type: parsed.type,
           startDate: parsed.startDate,
           endDate: parsed.endDate,
@@ -164,6 +157,7 @@ export async function writeAbsenceCreation(
       entityId: absence.id,
       after: {
         personId: absence.personId,
+        assignmentId: absence.assignmentId,
         type: absence.type,
         startDate: absence.startDate.toISOString(),
         endDate: absence.endDate.toISOString(),

@@ -1,5 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import { OutboxStatus } from '@cueq/database';
+import { type Prisma, OutboxStatus } from '@cueq/database';
 import type { PrismaService } from '../../persistence/prisma.service.js';
 import type { DeliveryRecord } from './webhook-delivery.mapper.js';
 
@@ -129,6 +129,7 @@ export async function finalizeWebhookDeliveries(
   claimUntil: Date,
   delivery: { eventFailed: boolean; lastError: string | null; records: DeliveryRecord[] },
   maxAttempts: number,
+  finalize?: (tx: Prisma.TransactionClient) => Promise<void>,
 ): Promise<void> {
   const attempt = event.attempts + 1;
   const data = delivery.eventFailed
@@ -147,6 +148,7 @@ export async function finalizeWebhookDeliveries(
         nextAttemptAt: null,
       };
   await prisma.$transaction(async (tx) => {
+    if (finalize) await finalize(tx);
     await finalizeWebhookEvent(tx, event, claimUntil, data);
     if (delivery.records.length > 0) {
       await tx.webhookDelivery.createMany({ data: delivery.records });

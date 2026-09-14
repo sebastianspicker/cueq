@@ -15,16 +15,21 @@ const ids = {
   assignment: 'c00000000000000000000005',
   workflow: 'c00000000000000000000006',
   unit: 'c00000000000000000000007',
+  sourceEmployment: 'c00000000000000000000008',
+  targetEmployment: 'c00000000000000000000009',
 };
 
 function decision(): WorkflowEffectInput['decision'] {
   return {
     id: ids.workflow,
+    assignmentId: ids.sourceEmployment,
     type: WorkflowType.SHIFT_SWAP,
     entityType: 'Shift',
     entityId: ids.shift,
     requestPayload: {
       shiftId: ids.shift,
+      assignmentId: ids.sourceEmployment,
+      toAssignmentId: ids.targetEmployment,
       fromPersonId: ids.fromPerson,
       toPersonId: ids.toPerson,
       reason: 'The incoming colleague can cover this scheduled shift.',
@@ -37,7 +42,9 @@ function shift() {
     id: ids.shift,
     startTime: new Date('2026-08-21T08:00:00.000Z'),
     endTime: new Date('2026-08-21T16:00:00.000Z'),
-    assignments: [{ id: ids.assignment, personId: ids.fromPerson }],
+    assignments: [
+      { id: ids.assignment, personId: ids.fromPerson, assignmentId: ids.sourceEmployment },
+    ],
     roster: { organizationUnitId: ids.unit },
   };
 }
@@ -47,16 +54,19 @@ describe('WorkflowSchedulingEffectsService', () => {
     const audit = { appendAudit: vi.fn().mockResolvedValue(undefined) };
     const tx = {
       shift: { findUnique: vi.fn().mockResolvedValue(shift()) },
-      person: {
-        findUnique: vi.fn().mockResolvedValue({ id: ids.toPerson, organizationUnitId: ids.unit }),
-      },
       shiftAssignment: {
         findFirst: vi.fn().mockResolvedValue(null),
         delete: vi.fn().mockResolvedValue(undefined),
         create: vi.fn().mockResolvedValue(undefined),
       },
     };
-    const service = new WorkflowSchedulingEffectsService(audit as never);
+    const assignments = {
+      resolveInterval: vi.fn().mockResolvedValue({
+        assignment: { id: ids.targetEmployment },
+        organizationUnitId: ids.unit,
+      }),
+    };
+    const service = new WorkflowSchedulingEffectsService(audit as never, assignments as never);
 
     await service.applyWorkflowEffect({
       actorId: ids.actor,
@@ -68,7 +78,11 @@ describe('WorkflowSchedulingEffectsService', () => {
 
     expect(tx.shiftAssignment.delete).toHaveBeenCalledWith({ where: { id: ids.assignment } });
     expect(tx.shiftAssignment.create).toHaveBeenCalledWith({
-      data: { shiftId: ids.shift, personId: ids.toPerson },
+      data: {
+        shiftId: ids.shift,
+        personId: ids.toPerson,
+        assignmentId: ids.targetEmployment,
+      },
     });
     expect(audit.appendAudit).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'SHIFT_SWAP_APPLIED', entityId: ids.shift }),
@@ -81,15 +95,23 @@ describe('WorkflowSchedulingEffectsService', () => {
       shift: {
         findUnique: vi.fn().mockResolvedValue({
           ...shift(),
-          assignments: [{ id: ids.assignment, personId: ids.toPerson }],
+          assignments: [
+            { id: ids.assignment, personId: ids.fromPerson, assignmentId: ids.sourceEmployment },
+            { id: 'target-row', personId: ids.toPerson, assignmentId: ids.targetEmployment },
+          ],
         }),
-      },
-      person: {
-        findUnique: vi.fn().mockResolvedValue({ id: ids.toPerson, organizationUnitId: ids.unit }),
       },
       shiftAssignment: { delete: vi.fn(), create: vi.fn() },
     };
-    const service = new WorkflowSchedulingEffectsService({ appendAudit: vi.fn() } as never);
+    const service = new WorkflowSchedulingEffectsService(
+      { appendAudit: vi.fn() } as never,
+      {
+        resolveInterval: vi.fn().mockResolvedValue({
+          assignment: { id: ids.targetEmployment },
+          organizationUnitId: ids.unit,
+        }),
+      } as never,
+    );
 
     await expect(
       service.validateWorkflowPreApproval({

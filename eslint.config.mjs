@@ -94,6 +94,40 @@ export default [
     },
   },
   {
+    files: [
+      'scripts/**/*.{js,mjs,cjs}',
+      'packages/database/{scripts,prisma}/**/*.{js,mjs,cjs}',
+      'eslint.config.mjs',
+    ],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: Object.fromEntries(
+        [
+          'process',
+          'console',
+          'Buffer',
+          'URL',
+          'URLSearchParams',
+          'fetch',
+          'setTimeout',
+          'clearTimeout',
+          'setInterval',
+          'clearInterval',
+          'AbortController',
+          'AbortSignal',
+          'TextEncoder',
+          'TextDecoder',
+          'structuredClone',
+        ].map((name) => [name, 'readonly']),
+      ),
+    },
+    rules: {
+      'no-undef': 'error',
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+    },
+  },
+  {
     files: typescriptFiles,
     languageOptions: {
       parser: tsParser,

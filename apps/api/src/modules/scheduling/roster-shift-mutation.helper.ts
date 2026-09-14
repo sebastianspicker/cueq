@@ -6,6 +6,7 @@ import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import type { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuditHelper } from '../audit/public.js';
 import type { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
+import type { AssignmentHelper } from '../people/public.js';
 import {
   lockPersonWrites,
   lockRosterWrites,
@@ -27,6 +28,7 @@ type RosterShiftMutationDependencies = {
     | 'assertClosingPeriodUnlockedForRangeInTransaction'
     | 'rethrowWithDurableClosingAudit'
   >;
+  assignmentHelper: AssignmentHelper;
   assertCanWriteRoster: (
     user: AuthenticatedIdentity,
     actorOrganizationUnitId: string,
@@ -62,6 +64,7 @@ function toRosterShiftDto(shift: ShiftWithAssignmentPeople) {
     assignments: shift.assignments.map((assignment) => ({
       id: assignment.id,
       personId: assignment.personId,
+      assignmentId: assignment.assignmentId,
       firstName: assignment.person.firstName,
       lastName: assignment.person.lastName,
     })),
@@ -326,9 +329,21 @@ export async function updateRosterShiftMutation(
       await lockPersonWrites(tx, assignedPersonIds);
       dependencies.assertShiftInsideRoster(current.roster, currentStartTime, currentEndTime);
 
-      for (const personId of assignedPersonIds) {
+      for (const assignment of current.assignments) {
+        const resolved = await dependencies.assignmentHelper.resolveInterval(
+          assignment.personId,
+          currentStartTime,
+          currentEndTime,
+          assignment.assignmentId,
+          tx,
+        );
+        if (resolved.organizationUnitId !== current.roster.organizationUnitId) {
+          throw new BadRequestException(
+            'Assigned appointment does not cover the updated shift in the roster unit.',
+          );
+        }
         await dependencies.ensureNoOverlappingAssignedShift(
-          personId,
+          assignment.personId,
           currentStartTime,
           currentEndTime,
           current.id,

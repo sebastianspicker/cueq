@@ -118,8 +118,8 @@ export function AuditEntriesSection({
   filterActorId,
   filterEntityId,
   entries,
-  entriesTotal,
-  entriesSkip,
+  hasMore,
+  loaded,
   onFilterActionChange,
   onFilterEntityTypeChange,
   onFilterActorIdChange,
@@ -135,8 +135,8 @@ export function AuditEntriesSection({
   filterActorId: string;
   filterEntityId: string;
   entries: AuditEntryItem[];
-  entriesTotal: number | null;
-  entriesSkip: number;
+  hasMore: boolean;
+  loaded: boolean;
   onFilterActionChange: (value: string) => void;
   onFilterEntityTypeChange: (value: string) => void;
   onFilterActorIdChange: (value: string) => void;
@@ -191,7 +191,7 @@ export function AuditEntriesSection({
         {loading ? t('loading') : t('loadEntries')}
       </button>
 
-      {entriesTotal !== null && <p>{t('totalEntries', { count: entriesTotal })}</p>}
+      {loaded && <p>{t('loadedEntries', { count: entries.length })}</p>}
 
       {entries.length > 0 ? (
         <>
@@ -215,13 +215,13 @@ export function AuditEntriesSection({
             ))}
           </ul>
 
-          {entriesTotal !== null && entriesSkip < entriesTotal ? (
+          {hasMore ? (
             <button type="button" disabled={loading} onClick={onLoadMore}>
               {loading ? t('loading') : t('loadMoreEntries')}
             </button>
           ) : null}
         </>
-      ) : !loading && entriesTotal === 0 ? (
+      ) : !loading && loaded ? (
         <p>{t('noEntries')}</p>
       ) : null}
     </SectionCard>

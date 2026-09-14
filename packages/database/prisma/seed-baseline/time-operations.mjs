@@ -1,3 +1,4 @@
+import { legacyAssignmentId } from './employment.mjs';
 /** Seeds deterministic time types, rostering, bookings, on-call, and absence data. */
 import {
   AbsenceStatus,
@@ -68,6 +69,8 @@ export async function seedTimeOperations(prisma, IDs) {
     data: {
       shiftId: IDs.shiftNight,
       personId: IDs.personPlanner,
+
+      assignmentId: legacyAssignmentId(IDs.personPlanner),
     },
   });
 
@@ -76,6 +79,8 @@ export async function seedTimeOperations(prisma, IDs) {
       {
         id: IDs.bookingEmployeeIn,
         personId: IDs.personEmployee,
+
+        assignmentId: legacyAssignmentId(IDs.personEmployee),
         timeTypeId: IDs.timeTypeWork,
         startTime: new Date('2026-03-02T08:00:00.000Z'),
         endTime: new Date('2026-03-02T12:00:00.000Z'),
@@ -84,6 +89,8 @@ export async function seedTimeOperations(prisma, IDs) {
       {
         id: IDs.bookingEmployeeOut,
         personId: IDs.personEmployee,
+
+        assignmentId: legacyAssignmentId(IDs.personEmployee),
         timeTypeId: IDs.timeTypeWork,
         startTime: new Date('2026-03-02T13:00:00.000Z'),
         endTime: new Date('2026-03-02T17:00:00.000Z'),
@@ -92,6 +99,8 @@ export async function seedTimeOperations(prisma, IDs) {
       {
         id: IDs.bookingOncallDeployment,
         personId: IDs.personItOncall,
+
+        assignmentId: legacyAssignmentId(IDs.personItOncall),
         timeTypeId: IDs.timeTypeDeployment,
         startTime: new Date('2026-03-14T01:10:00.000Z'),
         endTime: new Date('2026-03-14T02:20:00.000Z'),
@@ -104,6 +113,8 @@ export async function seedTimeOperations(prisma, IDs) {
     data: {
       id: IDs.onCallRotation,
       personId: IDs.personItOncall,
+
+      assignmentId: legacyAssignmentId(IDs.personItOncall),
       organizationUnitId: IDs.ouIt,
       startTime: new Date('2026-03-09T00:00:00.000Z'),
       endTime: new Date('2026-03-15T23:59:59.000Z'),
@@ -116,6 +127,8 @@ export async function seedTimeOperations(prisma, IDs) {
     data: {
       id: IDs.onCallDeployment,
       personId: IDs.personItOncall,
+
+      assignmentId: legacyAssignmentId(IDs.personItOncall),
       rotationId: IDs.onCallRotation,
       startTime: new Date('2026-03-14T01:10:00.000Z'),
       endTime: new Date('2026-03-14T02:20:00.000Z'),
@@ -131,6 +144,8 @@ export async function seedTimeOperations(prisma, IDs) {
       {
         id: IDs.absenceAnnual,
         personId: IDs.personEmployee,
+
+        assignmentId: legacyAssignmentId(IDs.personEmployee),
         type: AbsenceType.ANNUAL_LEAVE,
         startDate: new Date('2026-04-10T00:00:00.000Z'),
         endDate: new Date('2026-04-12T00:00:00.000Z'),
@@ -141,6 +156,8 @@ export async function seedTimeOperations(prisma, IDs) {
       {
         id: IDs.absenceSick,
         personId: IDs.personPlanner,
+
+        assignmentId: legacyAssignmentId(IDs.personPlanner),
         type: AbsenceType.SICK,
         startDate: new Date('2026-03-11T00:00:00.000Z'),
         endDate: new Date('2026-03-12T00:00:00.000Z'),

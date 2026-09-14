@@ -113,3 +113,33 @@ export async function lockPolicyWrites(
     message: 'Another version of this policy is being written.',
   });
 }
+
+/** Serializes external record identities before acquiring individual person locks. */
+export async function lockHrSourceWrites(
+  tx: TransactionLockClient,
+  sourceSystemId: string,
+): Promise<void> {
+  await acquireTransactionLock(tx, `cueq:hr-source-write:${sourceSystemId}`, {
+    code: 'HR_RECONCILIATION_IN_PROGRESS',
+    message: 'This source is already being reconciled.',
+  });
+}
+
+/** Serializes project archival, membership and allocations after person locks. */
+export async function lockProjectWrites(
+  tx: TransactionLockClient,
+  projectId: string,
+): Promise<void> {
+  await acquireTransactionLock(tx, `cueq:project-write:${projectId}`, {
+    code: 'PROJECT_WRITE_IN_PROGRESS',
+    message: 'This project is already being updated.',
+  });
+}
+
+/** Fences appointment membership while a closing population is checked and exported. */
+export async function lockEmploymentPopulationWrites(tx: TransactionLockClient): Promise<void> {
+  await acquireTransactionLock(tx, 'cueq:employment-population', {
+    code: 'EMPLOYMENT_POPULATION_WRITE_IN_PROGRESS',
+    message: 'Employment population is being changed or checked for closing.',
+  });
+}

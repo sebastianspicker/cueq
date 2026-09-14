@@ -1,112 +1,112 @@
 # Frontend
 
-The cueq web application is a Next.js 15 App Router application using React 19,
-`next-intl`, shared CSS, and direct runtime contracts.
+The cueq web application uses the Next.js 15 App Router, React 19,
+`next-intl`, shared CSS, and runtime schemas from `@cueq/contracts`. It is built
+and started separately from the API, but needs the API for application data.
 
-## Routes
+## Routes and navigation
 
-The root route redirects into the locale segment. German is the default locale
-and English is also available.
+The root route redirects to a locale-prefixed route. German is the default;
+English is also available. The current feature routes are:
 
-Current localized routes under `apps/web/src/app/[locale]/`:
+| Route                     | Purpose                           |
+| ------------------------- | --------------------------------- |
+| `/[locale]/dashboard`     | Daily status and time totals      |
+| `/[locale]/bookings`      | Time bookings                     |
+| `/[locale]/leave`         | Leave balances and requests       |
+| `/[locale]/team-calendar` | Team absence calendar             |
+| `/[locale]/roster`        | Roster and shift planning         |
+| `/[locale]/oncall`        | On-call rotations and deployments |
+| `/[locale]/approvals`     | Workflow inbox and decisions      |
+| `/[locale]/time-engine`   | Rule evaluation                   |
+| `/[locale]/closing`       | Monthly closing                   |
+| `/[locale]/reports`       | Aggregate and compliance reports  |
+| `/[locale]/policy-admin`  | Policy administration             |
+| `/[locale]/audit`         | Audit records                     |
+| `/[locale]/personnel`     | Personnel records and changes     |
+| `/[locale]/employment`    | Employment appointments and terms |
+| `/[locale]/hr-admin`      | HR sources and capability grants  |
+| `/[locale]/projects`      | Projects and time allocation      |
+| `/[locale]/lifecycle`     | Onboarding and offboarding plans  |
+| `/[locale]/tasks`         | Assigned lifecycle tasks          |
+| `/[locale]/documents`     | Private document records          |
+| `/[locale]/inbox`         | Notifications                     |
+| `/[locale]/settings`      | API connection and preferences    |
 
-| Route                     | Surface                                |
-| ------------------------- | -------------------------------------- |
-| `/[locale]`               | Localized entry page                   |
-| `/[locale]/dashboard`     | Employee status and daily ledger       |
-| `/[locale]/bookings`      | Time bookings                          |
-| `/[locale]/team-calendar` | Team absence calendar                  |
-| `/[locale]/leave`         | Leave balances and requests            |
-| `/[locale]/roster`        | Roster and shift planning              |
-| `/[locale]/approvals`     | Workflow inbox                         |
-| `/[locale]/time-engine`   | Rule evaluation                        |
-| `/[locale]/closing`       | Monthly closing workspace              |
-| `/[locale]/reports`       | Aggregate and compliance reports       |
-| `/[locale]/oncall`        | On-call rotations and deployments      |
-| `/[locale]/policy-admin`  | Policy administration                  |
-| `/[locale]/audit`         | Audit records                          |
-| `/[locale]/settings`      | API connection and display preferences |
-
-Navigation is conditioned on the role returned by `/v1/me`. The API remains the
-authorization boundary.
+The localized root, `/[locale]`, is the entry page for this route set.
+Navigation follows the role returned by `/v1/me`, but the API makes every
+authorization decision.
 
 ## Source layout
 
 ```text
 apps/web/src/
   app/
-    (redirect)/
-    [locale]/
-    globals.css
-  components/
-    workspace/
-  i18n/
-  platform/
-    http/
-  messages/
-    de.json
-    en.json
+    (redirect)/            root-to-locale redirect
+    [locale]/              routes and route-specific components
+    globals.css            shared stylesheet entry point
+    globals-*.css          tokens, layout, features, and responsive rules
+  components/              reusable controls and application shell
+  i18n/                    locale request setup
+  messages/de.json         German copy
+  messages/en.json         English copy
+  platform/browser/        browser preferences
+  platform/http/           API context, requests, schemas, and URL policy
 ```
 
-`AppWorkspace` owns the shared application shell and API connection. Reusable
-status, form, page, and workspace components live under `components/`.
-Feature-specific sections remain next to their route when they are not shared.
+Keep a component beside its route when only that feature uses it. Move it to
+`components` when several routes share the same behavior and semantics.
 
-## API access
+## API connection
 
-Page code uses the shared API context and client in
-`apps/web/src/platform/http/`.
+The HTTP code under `platform/http` owns the browser-to-API boundary:
 
-- The browser token is held in React memory and is not persisted to local or
-  session storage.
-- The client adds `Authorization: Bearer <token>` only when a token is set.
-- `AppWorkspace` requests `/v1/me` to resolve the current identity and role.
-- During local development, the Next.js rewrite forwards `/api/:path*` to
-  `http://localhost:3001/:path*`.
-- Direct browser access to the API must use an origin allowed by
-  `CORS_ORIGINS`.
+- the API base URL defaults to `/api` and is stored for the current browser
+  session when changed;
+- the bearer token stays in React state and is cleared when the endpoint
+  changes;
+- requests add an `Authorization` header only when a token is present;
+- `/v1/me` resolves the current person, role, and organization context;
+- response bodies use shared runtime schemas where a schema is defined;
+- Next.js rewrites local `/api/:path*` requests to
+  `http://localhost:3001/:path*`; and
+- a direct browser connection must satisfy the API CORS policy and same-origin
+  URL checks in the client.
 
-The current browser connection is suitable for local evaluation, not a complete
-SSO or session implementation.
+This is a manual connection flow for local evaluation. It has no login
+redirect, token refresh, logout, revocation, or server-managed browser session.
 
-## Localization
+## Language, time, and styling
 
-User-visible copy belongs in `apps/web/src/messages/de.json` and
-`apps/web/src/messages/en.json`. Keep message keys aligned between the two
-files. German terminology is the primary product vocabulary.
+Put user-visible text in both message catalogs and keep their keys aligned.
+German is the primary product vocabulary; the English catalog should preserve
+the same meaning.
 
-Dates and times must use explicit locale and time-zone handling. Operational
-closing defaults use `Europe/Berlin`; do not rely on the browser's implicit
-zone for domain calculations.
+Always format dates and times with an explicit locale and the relevant time
+zone. Closing defaults to `Europe/Berlin`, and domain calculations must not
+silently depend on the browser's local zone.
 
-## Styling
+`globals.css` and its imported `globals-*.css` files define the visual tokens,
+typography, layout, focus treatment, themes, and responsive behavior.
+[PRODUCT.md](../PRODUCT.md) describes the intended product character. Reuse
+existing components and tokens when they fit the interaction.
 
-`apps/web/src/app/globals.css` is the shared token and layout authority.
-Feature-local classes should represent a feature state, interaction, or
-responsive requirement rather than duplicate global tokens.
-
-The reusable component set includes page shells, cards, form fields, status
-banners, status badges, loading indicators, icons, and workspace navigation.
-Use an existing component when it represents the same behavior and semantics.
-
-The visual terminology is documented in [BRAND.md](BRAND.md). The implemented
-tokens are defined in `apps/web/src/app/globals.css`.
+The static demo under `docs/demo` reuses parts of the visual system, but it is a
+separate HTML and JavaScript application with deterministic data. It does not
+exercise the Next.js application or API.
 
 ## Accessibility and privacy
 
-- Use semantic labels and programmatic names for controls.
-- Preserve keyboard access and visible focus states.
-- Represent loading, empty, error, disabled, and success states explicitly.
-- Keep restricted values out of rendered markup, not only out of visible
-  layout.
-- Preserve role visibility rules in navigation and page content.
-- Treat axe checks as one gate, not complete accessibility evidence.
+Frontend changes should preserve semantic labels, keyboard access, visible
+focus, reduced-motion preferences, zoom, narrow-screen layouts, and status cues
+that do not depend on color alone. Loading, empty, stale, error, disabled, and
+success states should be explicit.
 
-Changes to reports, absence details, audit records, or team data require review
-against [SECURITY.md](SECURITY.md).
+Do not render restricted data and hide it with CSS. Navigation and page content
+should follow role and organization scope, while the API remains authoritative.
+Review reports, absence reasons, audit data, and team information against
+[SECURITY.md](SECURITY.md).
 
-## Verification
-
-The web application is typechecked and built by repository-wide commands.
-There is no committed browser end-to-end suite in the current source tree;
-browser behavior needs a separately run browser, API, and PostgreSQL lane.
+The repository has focused frontend tests but no committed browser end-to-end
+suite. Browser behavior and WCAG conformance still require a running web client,
+API, and PostgreSQL database, plus manual or automated browser checks.

@@ -21,30 +21,42 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model Person {
-  id                  String             @id @default(cuid())
-  externalId          String?            @unique /// HR/IdM external identifier
-  firstName           String
-  lastName            String
-  email               String             @unique
-  role                Role               @default(EMPLOYEE)
-  employmentStartDate DateTime?
-  employmentEndDate   DateTime?
-  organizationUnitId  String
-  organizationUnit    OrganizationUnit   @relation(fields: [organizationUnitId], references: [id])
-  supervisorId        String?
-  supervisor          Person?            @relation("SupervisorRelation", fields: [supervisorId], references: [id])
-  subordinates        Person[]           @relation("SupervisorRelation")
-  workTimeModelId     String?
-  workTimeModel       WorkTimeModel?     @relation(fields: [workTimeModelId], references: [id])
-  bookings            Booking[]
-  absences            Absence[]
-  timeAccounts        TimeAccount[]
-  shiftAssignments    ShiftAssignment[]
-  onCallRotations     OnCallRotation[]
-  onCallDeployments   OnCallDeployment[]
-  leaveAdjustments    LeaveAdjustment[]
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  id                            String                  @id @default(cuid())
+  externalId                    String?                 @unique /// HR/IdM external identifier
+  firstName                     String
+  lastName                      String
+  email                         String                  @unique
+  role                          Role                    @default(EMPLOYEE)
+  employmentStartDate           DateTime?
+  employmentEndDate             DateTime?
+  organizationUnitId            String
+  organizationUnit              OrganizationUnit        @relation(fields: [organizationUnitId], references: [id])
+  supervisorId                  String?
+  supervisor                    Person?                 @relation("SupervisorRelation", fields: [supervisorId], references: [id])
+  subordinates                  Person[]                @relation("SupervisorRelation")
+  workTimeModelId               String?
+  workTimeModel                 WorkTimeModel?          @relation(fields: [workTimeModelId], references: [id])
+  bookings                      Booking[]
+  absences                      Absence[]
+  timeAccounts                  TimeAccount[]
+  shiftAssignments              ShiftAssignment[]
+  onCallRotations               OnCallRotation[]
+  onCallDeployments             OnCallDeployment[]
+  leaveAdjustments              LeaveAdjustment[]
+  employmentAssignments         EmploymentAssignment[]
+  supervisedEmploymentTerms     EmploymentTerm[]        @relation("EmploymentSupervisor")
+  taskGroupMemberships          TaskGroupMember[]
+  responsibleLifecycleTasks     LifecycleTask[]
+  inboxNotifications            InboxNotification[]
+  managedProjects               Project[]               @relation("ProjectManager")
+  capabilityGrants              CapabilityGrant[]
+  personnelFields               PersonnelField[]
+  profileChanges                ProfileChangeRequest[]
+  externalHrRecords             ExternalHrRecord[]
+  personnelRelationships        PersonnelRelationship[] @relation("PersonnelRelationshipSubject")
+  relatedPersonnelRelationships PersonnelRelationship[] @relation("PersonnelRelationshipRelated")
+  createdAt                     DateTime                @default(now())
+  updatedAt                     DateTime                @updatedAt
 
   @@index([organizationUnitId])
   @@index([supervisorId])
@@ -63,16 +75,21 @@ enum Role {
 }
 
 model OrganizationUnit {
-  id              String             @id @default(cuid())
-  name            String
-  parentId        String?
-  parent          OrganizationUnit?  @relation("OUHierarchy", fields: [parentId], references: [id])
-  children        OrganizationUnit[] @relation("OUHierarchy")
-  persons         Person[]
-  rosters         Roster[]
-  onCallRotations OnCallRotation[]
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id                       String                    @id @default(cuid())
+  name                     String
+  parentId                 String?
+  parent                   OrganizationUnit?         @relation("OUHierarchy", fields: [parentId], references: [id])
+  children                 OrganizationUnit[]        @relation("OUHierarchy")
+  persons                  Person[]
+  rosters                  Roster[]
+  onCallRotations          OnCallRotation[]
+  projects                 Project[]
+  employmentTerms          EmploymentTerm[]
+  personnelDocuments       PersonnelDocument[]
+  lifecycleInstances       LifecycleInstance[]
+  lifecycleAutomationRules LifecycleAutomationRule[]
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
 
   @@map("organization_units")
 }
@@ -92,6 +109,7 @@ model WorkTimeModel {
   effectiveFrom    DateTime
   effectiveTo      DateTime?
   persons          Person[]
+  employmentTerms  EmploymentTerm[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -109,22 +127,28 @@ enum WorkTimeModelType {
 // ---------------------------------------------------------------------------
 
 model Booking {
-  id         String        @id @default(cuid())
-  personId   String
-  person     Person        @relation(fields: [personId], references: [id])
-  timeTypeId String
-  timeType   TimeType      @relation(fields: [timeTypeId], references: [id])
-  startTime  DateTime
-  endTime    DateTime?
-  source     BookingSource
-  note       String? /// Required for corrections/manual entries
-  shiftId    String?
-  shift      Shift?        @relation(fields: [shiftId], references: [id])
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id           String               @id @default(cuid())
+  personId     String
+  person       Person               @relation(fields: [personId], references: [id])
+  assignmentId String
+  assignment   EmploymentAssignment @relation(fields: [assignmentId, personId], references: [id, personId])
+  timeTypeId   String
+  timeType     TimeType             @relation(fields: [timeTypeId], references: [id])
+  startTime    DateTime
+  endTime      DateTime?
+  source       BookingSource
+  note         String? /// Required for corrections/manual entries
+  shiftId      String?
+  shift        Shift?               @relation(fields: [shiftId], references: [id])
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 
+  projectAllocations ProjectTimeAllocation[]
+
+  @@unique([id, assignmentId, personId])
   @@index([personId, startTime])
   @@index([timeTypeId])
+  @@index([assignmentId, startTime, id])
   @@map("bookings")
 }
 
@@ -167,19 +191,22 @@ enum TimeTypeCategory {
 // ---------------------------------------------------------------------------
 
 model TimeAccount {
-  id            String   @id @default(cuid())
+  id            String               @id @default(cuid())
   personId      String
-  person        Person   @relation(fields: [personId], references: [id])
+  person        Person               @relation(fields: [personId], references: [id])
+  assignmentId  String
+  assignment    EmploymentAssignment @relation(fields: [assignmentId, personId], references: [id, personId])
   periodStart   DateTime /// Start of accounting period (e.g. month start)
   periodEnd     DateTime /// End of accounting period
-  targetHours   Decimal  @db.Decimal(10, 2) /// Sollzeit for the period
-  actualHours   Decimal  @db.Decimal(10, 2) /// Istzeit for the period
-  balance       Decimal  @db.Decimal(10, 2) /// actualHours - targetHours
-  overtimeHours Decimal  @default(0) @db.Decimal(10, 2)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  targetHours   Decimal              @db.Decimal(10, 2) /// Sollzeit for the period
+  actualHours   Decimal              @db.Decimal(10, 2) /// Istzeit for the period
+  balance       Decimal              @db.Decimal(10, 2) /// actualHours - targetHours
+  overtimeHours Decimal              @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
-  @@unique([personId, periodStart])
+  @@unique([assignmentId, periodStart])
+  @@index([personId, periodStart])
   @@map("time_accounts")
 }
 
@@ -227,16 +254,19 @@ model Shift {
 }
 
 model ShiftAssignment {
-  id        String   @id @default(cuid())
-  shiftId   String
-  shift     Shift    @relation(fields: [shiftId], references: [id])
-  personId  String
-  person    Person   @relation(fields: [personId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String               @id @default(cuid())
+  shiftId      String
+  shift        Shift                @relation(fields: [shiftId], references: [id])
+  personId     String
+  person       Person               @relation(fields: [personId], references: [id])
+  assignmentId String
+  assignment   EmploymentAssignment @relation(fields: [assignmentId, personId], references: [id, personId])
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 
   @@unique([shiftId, personId])
   @@index([personId, shiftId])
+  @@index([assignmentId, shiftId])
   @@map("shift_assignments")
 }
 
@@ -245,54 +275,64 @@ model ShiftAssignment {
 // ---------------------------------------------------------------------------
 
 model Absence {
-  id        String        @id @default(cuid())
-  personId  String
-  person    Person        @relation(fields: [personId], references: [id])
-  type      AbsenceType
-  startDate DateTime
-  endDate   DateTime
-  days      Decimal       @db.Decimal(10, 2) /// Number of working days
-  status    AbsenceStatus @default(REQUESTED)
-  note      String?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id           String               @id @default(cuid())
+  personId     String
+  person       Person               @relation(fields: [personId], references: [id])
+  assignmentId String
+  assignment   EmploymentAssignment @relation(fields: [assignmentId, personId], references: [id, personId])
+  type         AbsenceType
+  startDate    DateTime
+  endDate      DateTime
+  days         Decimal              @db.Decimal(10, 2) /// Number of working days
+  status       AbsenceStatus        @default(REQUESTED)
+  note         String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 
   @@index([personId, startDate])
   @@index([personId, status])
+  @@index([assignmentId, startDate, id])
   @@map("absences")
 }
 
 model LeaveAdjustment {
-  id        String   @id @default(cuid())
-  personId  String
-  person    Person   @relation(fields: [personId], references: [id])
-  year      Int
-  deltaDays Decimal  @db.Decimal(10, 2)
-  reason    String
-  createdBy String
-  createdAt DateTime @default(now())
+  id           String               @id @default(cuid())
+  personId     String
+  person       Person               @relation(fields: [personId], references: [id])
+  assignmentId String
+  assignment   EmploymentAssignment @relation(fields: [assignmentId, personId], references: [id, personId])
+  year         Int
+  deltaDays    Decimal              @db.Decimal(10, 2)
+  reason       String
+  createdBy    String
+  createdAt    DateTime             @default(now())
 
   @@index([personId, year])
   @@index([createdBy, createdAt])
+  @@index([assignmentId, year, id])
   @@map("leave_adjustments")
 }
 
 model OnCallRotation {
-  id                 String             @id @default(cuid())
+  id                 String               @id @default(cuid())
   personId           String
-  person             Person             @relation(fields: [personId], references: [id])
+  person             Person               @relation(fields: [personId], references: [id])
+  assignmentId       String
+  assignment         EmploymentAssignment @relation(fields: [assignmentId, personId], references: [id, personId])
   organizationUnitId String
-  organizationUnit   OrganizationUnit   @relation(fields: [organizationUnitId], references: [id])
+  organizationUnit   OrganizationUnit     @relation(fields: [organizationUnitId], references: [id])
   startTime          DateTime
   endTime            DateTime
   rotationType       OnCallRotationType
   note               String?
   deployments        OnCallDeployment[]
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
+  @@unique([id, assignmentId, personId])
   @@index([personId, startTime])
   @@index([organizationUnitId, startTime])
+  @@index([assignmentId, startTime, id])
   @@map("oncall_rotations")
 }
 
@@ -303,22 +343,25 @@ enum OnCallRotationType {
 }
 
 model OnCallDeployment {
-  id              String         @id @default(cuid())
+  id              String               @id @default(cuid())
   personId        String
-  person          Person         @relation(fields: [personId], references: [id])
+  person          Person               @relation(fields: [personId], references: [id])
+  assignmentId    String
+  assignment      EmploymentAssignment @relation(fields: [assignmentId, personId], references: [id, personId])
   rotationId      String
-  rotation        OnCallRotation @relation(fields: [rotationId], references: [id])
+  rotation        OnCallRotation       @relation(fields: [rotationId, assignmentId, personId], references: [id, assignmentId, personId])
   startTime       DateTime
   endTime         DateTime
-  remote          Boolean        @default(true)
+  remote          Boolean              @default(true)
   ticketReference String?
   eventReference  String?
   description     String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   @@index([personId, startTime])
   @@index([rotationId])
+  @@index([assignmentId, startTime, id])
   @@map("oncall_deployments")
 }
 
@@ -346,10 +389,12 @@ enum AbsenceStatus {
 // ---------------------------------------------------------------------------
 
 model WorkflowInstance {
-  id              String         @id @default(cuid())
+  id              String                @id @default(cuid())
   type            WorkflowType
-  status          WorkflowStatus @default(PENDING)
+  status          WorkflowStatus        @default(PENDING)
   requesterId     String /// Person who initiated the request
+  assignmentId    String?
+  assignment      EmploymentAssignment? @relation(fields: [assignmentId], references: [id])
   approverId      String? /// Current/final approver
   entityType      String /// e.g. "Absence", "Booking"
   entityId        String /// ID of the related entity
@@ -360,15 +405,16 @@ model WorkflowInstance {
   submittedAt     DateTime?
   dueAt           DateTime?
   escalatedAt     DateTime?
-  escalationLevel Int            @default(0)
+  escalationLevel Int                   @default(0)
   decidedAt       DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 
   @@index([status, dueAt])
   @@index([type, status])
   @@index([approverId, status])
   @@index([requesterId, status])
+  @@index([assignmentId, createdAt, id])
   @@map("workflow_instances")
 }
 
@@ -482,18 +528,19 @@ model ExportRun {
 }
 
 model DomainEventOutbox {
-  id            String            @id @default(cuid())
+  id            String                   @id @default(cuid())
   eventType     String
   aggregateType String
   aggregateId   String
   payload       Json
-  status        OutboxStatus      @default(PENDING)
-  attempts      Int               @default(0)
+  status        OutboxStatus             @default(PENDING)
+  attempts      Int                      @default(0)
   nextAttemptAt DateTime?
   lastError     String?
   processedAt   DateTime?
-  createdAt     DateTime          @default(now())
+  createdAt     DateTime                 @default(now())
   deliveries    WebhookDelivery[]
+  dispatchItems WebhookDispatchJobItem[]
 
   @@index([status, nextAttemptAt, createdAt])
   @@map("domain_event_outbox")
@@ -650,4 +697,528 @@ model AuditEntry {
   @@index([entityType, entityId])
   @@index([actorId, timestamp])
   @@map("audit_entries")
+}
+
+/// Stable appointment identity. Unknown legacy employment dates remain null.
+model EmploymentAssignment {
+  id                    String              @id @default(cuid())
+  personId              String
+  person                Person              @relation(fields: [personId], references: [id])
+  sourceSystem          String
+  externalAppointmentId String?
+  label                 String
+  legacy                Boolean             @default(false)
+  employmentStartDate   DateTime?
+  employmentEndDate     DateTime?
+  terms                 EmploymentTerm[]
+  bookings              Booking[]
+  absences              Absence[]
+  leaveAdjustments      LeaveAdjustment[]
+  timeAccounts          TimeAccount[]
+  shiftAssignments      ShiftAssignment[]
+  onCallRotations       OnCallRotation[]
+  onCallDeployments     OnCallDeployment[]
+  workflows             WorkflowInstance[]
+  projectMemberships    ProjectMembership[]
+  documents             PersonnelDocument[]
+  lifecycleInstances    LifecycleInstance[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@unique([id, personId])
+  @@unique([sourceSystem, externalAppointmentId])
+  @@index([personId, createdAt, id])
+  @@map("employment_assignments")
+}
+
+/// Effective intervals are half-open. Null legacy bounds mean unknown/unbounded.
+model EmploymentTerm {
+  id                 String               @id @default(cuid())
+  assignmentId       String
+  assignment         EmploymentAssignment @relation(fields: [assignmentId], references: [id])
+  effectiveFrom      DateTime?
+  effectiveTo        DateTime?
+  organizationUnitId String
+  organizationUnit   OrganizationUnit     @relation(fields: [organizationUnitId], references: [id])
+  supervisorId       String?
+  supervisor         Person?              @relation("EmploymentSupervisor", fields: [supervisorId], references: [id])
+  workTimeModelId    String?
+  workTimeModel      WorkTimeModel?       @relation(fields: [workTimeModelId], references: [id])
+  weeklyHours        Decimal?             @db.Decimal(10, 2)
+  dailyTargetHours   Decimal?             @db.Decimal(10, 2)
+  workingDays        Int[]
+  employmentGroupId  String
+  employmentGroup    EmploymentGroup      @relation(fields: [employmentGroupId], references: [id])
+  holidayCalendarId  String
+  holidayCalendar    HolidayCalendar      @relation(fields: [holidayCalendarId], references: [id])
+  policyReferences   Json
+  createdAt          DateTime             @default(now())
+
+  @@index([assignmentId, effectiveFrom, id])
+  @@index([organizationUnitId, effectiveFrom])
+  @@map("employment_terms")
+}
+
+/// Configuration versions are immutable; new rules require a new version.
+model EmploymentGroup {
+  id              String           @id @default(cuid())
+  code            String
+  version         Int
+  name            String
+  legacyReference Boolean          @default(false)
+  leavePolicy     Json
+  terms           EmploymentTerm[]
+  createdAt       DateTime         @default(now())
+
+  @@unique([code, version])
+  @@map("employment_groups")
+}
+
+model HolidayCalendar {
+  id              String           @id @default(cuid())
+  code            String
+  version         Int
+  name            String
+  holidayDates    String[]
+  legacyReference Boolean          @default(false)
+  terms           EmploymentTerm[]
+  createdAt       DateTime         @default(now())
+
+  @@unique([code, version])
+  @@map("holiday_calendars")
+}
+
+/// New HR capabilities are explicitly granted, independent of organizational membership.
+model CapabilityGrant {
+  id          String    @id @default(cuid())
+  granteeId   String
+  grantee     Person    @relation(fields: [granteeId], references: [id])
+  capability  String
+  scope       String
+  targetId    String?
+  activeFrom  DateTime  @default(now())
+  activeTo    DateTime?
+  grantedById String
+  reason      String
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([granteeId, capability, revokedAt])
+  @@map("capability_grants")
+}
+
+// An active key enforces one explicitly requested finite dispatch batch.
+model WebhookDispatchJob {
+  id                  String                   @id @default(cuid())
+  activeKey           String?                  @unique
+  status              String                   @default("PENDING")
+  requestedById       String
+  total               Int
+  processed           Int                      @default(0)
+  delivered           Int                      @default(0)
+  failed              Int                      @default(0)
+  skipped             Int                      @default(0)
+  configurationFaults Int                      @default(0)
+  owner               String?
+  generation          Int                      @default(0)
+  leaseUntil          DateTime?
+  failureCode         String?
+  settings            Json
+  createdAt           DateTime                 @default(now())
+  startedAt           DateTime?
+  completedAt         DateTime?
+  items               WebhookDispatchJobItem[]
+
+  @@index([status, leaseUntil])
+  @@map("webhook_dispatch_jobs")
+}
+
+model WebhookDispatchJobItem {
+  id          String             @id @default(cuid())
+  jobId       String
+  job         WebhookDispatchJob @relation(fields: [jobId], references: [id])
+  eventId     String
+  event       DomainEventOutbox  @relation(fields: [eventId], references: [id])
+  position    Int
+  outcome     String?
+  completedAt DateTime?
+
+  @@unique([jobId, eventId])
+  @@unique([jobId, position])
+  @@map("webhook_dispatch_job_items")
+}
+
+// Field ownership is fixed when a field is first registered. Source imports may
+// update only fields owned by that source, using explicit revision preconditions.
+model HrSourceSystem {
+  id               String                  @id @default(cuid())
+  code             String                  @unique
+  name             String
+  ownershipProfile Json
+  createdAt        DateTime                @default(now())
+  fields           PersonnelField[]
+  records          ExternalHrRecord[]
+  requests         ProfileChangeRequest[]
+  outboundChanges  PersonnelChangeOutbox[]
+
+  @@map("hr_source_systems")
+}
+
+model PersonnelField {
+  id             String          @id @default(cuid())
+  personId       String
+  person         Person          @relation(fields: [personId], references: [id])
+  key            String
+  value          Json
+  ownerSystemId  String?
+  ownerSystem    HrSourceSystem? @relation(fields: [ownerSystemId], references: [id], onDelete: Restrict)
+  revision       Int             @default(1)
+  sourceRevision String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([personId, key])
+  @@index([personId, createdAt, id])
+  @@map("personnel_fields")
+}
+
+model ExternalHrRecord {
+  id               String         @id @default(cuid())
+  sourceSystemId   String
+  sourceSystem     HrSourceSystem @relation(fields: [sourceSystemId], references: [id])
+  externalRecordId String
+  personId         String
+  person           Person         @relation(fields: [personId], references: [id])
+  revision         String
+  payloadHash      String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([sourceSystemId, externalRecordId])
+  @@unique([sourceSystemId, personId])
+  @@map("external_hr_records")
+}
+
+enum ProfileChangeStatus {
+  PENDING_APPROVAL
+  PENDING_SYNC
+  APPLIED
+  CONFLICT
+  REJECTED
+}
+
+model ProfileChangeRequest {
+  id               String                 @id @default(cuid())
+  personId         String
+  person           Person                 @relation(fields: [personId], references: [id])
+  fieldKey         String
+  requestedValue   Json
+  expectedRevision Int
+  ownerSystemId    String?
+  ownerSystem      HrSourceSystem?        @relation(fields: [ownerSystemId], references: [id], onDelete: Restrict)
+  status           ProfileChangeStatus    @default(PENDING_APPROVAL)
+  reviewerId       String?
+  reviewedAt       DateTime?
+  resolvedAt       DateTime?
+  reason           String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  outboundChange   PersonnelChangeOutbox?
+
+  @@index([personId, createdAt, id])
+  @@index([status, createdAt, id])
+  @@map("profile_change_requests")
+}
+
+model PersonnelChangeOutbox {
+  id                   String               @id @default(cuid())
+  requestId            String               @unique
+  request              ProfileChangeRequest @relation(fields: [requestId], references: [id])
+  sourceSystemId       String
+  sourceSystem         HrSourceSystem       @relation(fields: [sourceSystemId], references: [id])
+  status               ProfileChangeStatus  @default(PENDING_SYNC)
+  acknowledgedRevision String?
+  acknowledgedAt       DateTime?
+  createdAt            DateTime             @default(now())
+
+  @@index([sourceSystemId, createdAt, id])
+  @@map("personnel_change_outbox")
+}
+
+// Relationships are descriptive. Access always requires a separate scope grant.
+model PersonnelRelationship {
+  id              String    @id @default(cuid())
+  subjectPersonId String
+  subject         Person    @relation("PersonnelRelationshipSubject", fields: [subjectPersonId], references: [id])
+  relatedPersonId String
+  related         Person    @relation("PersonnelRelationshipRelated", fields: [relatedPersonId], references: [id])
+  kind            String
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([subjectPersonId, createdAt, id])
+  @@map("personnel_relationships")
+}
+
+model Project {
+  id                 String                  @id @default(cuid())
+  code               String                  @unique
+  name               String
+  parentId           String?
+  parent             Project?                @relation("ProjectHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  subprojects        Project[]               @relation("ProjectHierarchy")
+  organizationUnitId String
+  organizationUnit   OrganizationUnit        @relation(fields: [organizationUnitId], references: [id])
+  managerId          String
+  manager            Person                  @relation("ProjectManager", fields: [managerId], references: [id])
+  costCentre         String?
+  fundingReference   String?
+  budgetHours        Decimal?                @db.Decimal(12, 2)
+  archivedAt         DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  memberships        ProjectMembership[]
+  allocations        ProjectTimeAllocation[]
+
+  @@index([createdAt, id])
+  @@map("projects")
+}
+
+model ProjectMembership {
+  id            String               @id @default(cuid())
+  projectId     String
+  project       Project              @relation(fields: [projectId], references: [id])
+  assignmentId  String
+  personId      String
+  assignment    EmploymentAssignment @relation(fields: [assignmentId, personId], references: [id, personId])
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime             @default(now())
+
+  @@index([projectId, createdAt, id])
+  @@index([assignmentId, projectId, effectiveFrom])
+  @@map("project_memberships")
+}
+
+model ProjectTimeAllocation {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id])
+  bookingId    String
+  assignmentId String
+  personId     String
+  booking      Booking  @relation(fields: [bookingId, assignmentId, personId], references: [id, assignmentId, personId])
+  minutes      Int
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([bookingId, projectId])
+  @@index([assignmentId, createdAt, id])
+  @@index([projectId, createdAt, id])
+  @@map("project_time_allocations")
+}
+
+model PersonnelDocument {
+  id                 String                     @id @default(cuid())
+  personId           String
+  assignmentId       String
+  assignment         EmploymentAssignment       @relation(fields: [assignmentId, personId], references: [id, personId])
+  organizationUnitId String
+  organizationUnit   OrganizationUnit           @relation(fields: [organizationUnitId], references: [id], onDelete: Restrict)
+  title              String
+  expiresAt          DateTime?
+  retainUntil        DateTime?
+  createdById        String
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  uploads            DocumentUpload[]
+  versions           PersonnelDocumentVersion[]
+
+  @@index([personId, createdAt, id])
+  @@index([assignmentId, createdAt, id])
+  @@map("personnel_documents")
+}
+
+model PersonnelDocumentVersion {
+  id                String                    @id @default(cuid())
+  documentId        String
+  document          PersonnelDocument         @relation(fields: [documentId], references: [id])
+  version           Int
+  objectKey         String                    @unique
+  keyId             String
+  checksum          String
+  encryptedChecksum String
+  mimeType          String
+  sizeBytes         Int
+  uploadedById      String
+  createdAt         DateTime                  @default(now())
+  acknowledgements  DocumentAcknowledgement[]
+
+  @@unique([documentId, version])
+  @@index([documentId, createdAt, id])
+  @@map("personnel_document_versions")
+}
+
+model DocumentAcknowledgement {
+  id             String                   @id @default(cuid())
+  versionId      String
+  version        PersonnelDocumentVersion @relation(fields: [versionId], references: [id])
+  actorId        String
+  acknowledgedAt DateTime                 @default(now())
+
+  @@unique([versionId, actorId])
+  @@map("document_acknowledgements")
+}
+
+model TaskGroup {
+  id        String            @id @default(cuid())
+  name      String
+  createdAt DateTime          @default(now())
+  members   TaskGroupMember[]
+  tasks     LifecycleTask[]
+
+  @@map("task_groups")
+}
+
+model TaskGroupMember {
+  id        String    @id @default(cuid())
+  groupId   String
+  group     TaskGroup @relation(fields: [groupId], references: [id])
+  personId  String
+  person    Person    @relation(fields: [personId], references: [id])
+  createdAt DateTime  @default(now())
+
+  @@unique([groupId, personId])
+  @@index([groupId, createdAt, id])
+  @@map("task_group_members")
+}
+
+model LifecycleTemplate {
+  id              String                    @id @default(cuid())
+  code            String
+  version         Int
+  title           String
+  kind            String
+  status          String                    @default("DRAFT")
+  definition      Json
+  activatedAt     DateTime?
+  createdAt       DateTime                  @default(now())
+  instances       LifecycleInstance[]
+  automationRules LifecycleAutomationRule[]
+
+  @@unique([code, version])
+  @@index([createdAt, id])
+  @@map("lifecycle_templates")
+}
+
+model LifecycleInstance {
+  id                 String               @id @default(cuid())
+  templateId         String
+  template           LifecycleTemplate    @relation(fields: [templateId], references: [id])
+  assignmentId       String
+  personId           String
+  assignment         EmploymentAssignment @relation(fields: [assignmentId, personId], references: [id, personId])
+  organizationUnitId String
+  organizationUnit   OrganizationUnit     @relation(fields: [organizationUnitId], references: [id], onDelete: Restrict)
+  eventKey           String
+  snapshot           Json
+  baseDate           DateTime             @db.Date
+  status             String               @default("ACTIVE")
+  createdAt          DateTime             @default(now())
+  tasks              LifecycleTask[]
+
+  @@unique([templateId, assignmentId, eventKey])
+  @@index([assignmentId, createdAt, id])
+  @@map("lifecycle_instances")
+}
+
+model LifecycleTask {
+  id                  String                 @id @default(cuid())
+  instanceId          String
+  instance            LifecycleInstance      @relation(fields: [instanceId], references: [id])
+  key                 String
+  title               String
+  description         String
+  responsiblePersonId String?
+  responsiblePerson   Person?                @relation(fields: [responsiblePersonId], references: [id], onDelete: Restrict)
+  responsibleGroupId  String?
+  responsibleGroup    TaskGroup?             @relation(fields: [responsibleGroupId], references: [id], onDelete: Restrict)
+  dependsOn           String[]
+  blocking            Boolean
+  dueDate             DateTime               @db.Date
+  status              String                 @default("OPEN")
+  completedAt         DateTime?
+  completedById       String?
+  createdAt           DateTime               @default(now())
+  history             LifecycleTaskHistory[]
+
+  @@unique([instanceId, key])
+  @@index([responsiblePersonId, createdAt, id])
+  @@index([instanceId, createdAt, id])
+  @@map("lifecycle_tasks")
+}
+
+model LifecycleTaskHistory {
+  id        String        @id @default(cuid())
+  taskId    String
+  task      LifecycleTask @relation(fields: [taskId], references: [id])
+  actorId   String
+  action    String
+  reason    String
+  createdAt DateTime      @default(now())
+
+  @@index([taskId, createdAt, id])
+  @@map("lifecycle_task_history")
+}
+
+model LifecycleAutomationRule {
+  id                 String            @id @default(cuid())
+  name               String
+  templateId         String
+  template           LifecycleTemplate @relation(fields: [templateId], references: [id])
+  organizationUnitId String
+  organizationUnit   OrganizationUnit  @relation(fields: [organizationUnitId], references: [id], onDelete: Restrict)
+  trigger            String
+  triggerDate        DateTime?         @db.Date
+  offsetDays         Int
+  conditions         Json
+  enabled            Boolean           @default(true)
+  authorizedById     String
+  createdAt          DateTime          @default(now())
+
+  @@index([createdAt, id])
+  @@map("lifecycle_automation_rules")
+}
+
+model InboxNotification {
+  id           String    @id @default(cuid())
+  recipientId  String
+  recipient    Person    @relation(fields: [recipientId], references: [id])
+  resourceType String
+  resourceId   String
+  messageCode  String
+  dedupeKey    String
+  readAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([recipientId, dedupeKey])
+  @@index([recipientId, createdAt, id])
+  @@map("inbox_notifications")
+}
+
+model DocumentUpload {
+  id         String            @id @default(cuid())
+  documentId String
+  document   PersonnelDocument @relation(fields: [documentId], references: [id])
+  objectKey  String            @unique
+  actorId    String
+  status     String            @default("PENDING")
+  createdAt  DateTime          @default(now())
+  settledAt  DateTime?
+  cleanupAt  DateTime?
+
+  @@index([status, createdAt, id])
+  @@map("document_uploads")
 }

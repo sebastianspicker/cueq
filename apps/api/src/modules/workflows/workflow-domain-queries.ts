@@ -1,11 +1,12 @@
 import type { WorkflowType } from '@cueq/database';
 import { WorkflowInboxQuerySchema, WorkflowTypeSchema } from '@cueq/contracts';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
-import { assertHrLikeRole, type PersonHelper } from '../people/public.js';
+import { assertHrLikeRole, type AssignmentHelper, type PersonHelper } from '../people/public.js';
 import type { WorkflowRuntimeService } from './workflow-runtime.service.js';
 
 export type WorkflowDomainCollaborators = {
   personHelper: PersonHelper;
+  assignmentHelper: AssignmentHelper;
   workflowRuntimeService: WorkflowRuntimeService;
 };
 
@@ -14,11 +15,17 @@ export async function workflowInboxQuery(
   user: AuthenticatedIdentity,
   query?: unknown,
 ): Promise<unknown> {
-  const { personHelper, workflowRuntimeService: runtime } = collaborators;
+  const { personHelper, assignmentHelper, workflowRuntimeService: runtime } = collaborators;
   const person = await personHelper.personForUser(user);
   const parsed = WorkflowInboxQuerySchema.parse(query ?? {});
+  const actorAssignment = await assignmentHelper.resolveInterval(
+    person.id,
+    new Date(),
+    undefined,
+    parsed.actorAssignmentId,
+  );
   return runtime.listInbox(
-    { id: person.id, role: user.role, organizationUnitId: person.organizationUnitId },
+    { id: person.id, role: user.role, organizationUnitId: actorAssignment.organizationUnitId },
     parsed,
   );
 }
@@ -27,11 +34,18 @@ export async function workflowDetailQuery(
   collaborators: WorkflowDomainCollaborators,
   user: AuthenticatedIdentity,
   workflowId: string,
+  actorAssignmentId?: string,
 ): Promise<unknown> {
-  const { personHelper, workflowRuntimeService: runtime } = collaborators;
+  const { personHelper, assignmentHelper, workflowRuntimeService: runtime } = collaborators;
   const person = await personHelper.personForUser(user);
+  const actorAssignment = await assignmentHelper.resolveInterval(
+    person.id,
+    new Date(),
+    undefined,
+    actorAssignmentId,
+  );
   return runtime.getDetail(
-    { id: person.id, role: user.role, organizationUnitId: person.organizationUnitId },
+    { id: person.id, role: user.role, organizationUnitId: actorAssignment.organizationUnitId },
     workflowId,
   );
 }

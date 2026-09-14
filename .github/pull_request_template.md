@@ -1,58 +1,14 @@
-## Summary
+## What changed?
 
-<!-- What changed and why? -->
+<!-- Describe the problem and what the user or caller can do after this change. Link the related issue, if there is one. -->
 
-## Linked Roadmap / Issue
+## How was it checked?
 
-- Roadmap item or issue: <!-- e.g. docs/ROADMAP.md or #123 -->
+<!-- List the commands or browser flows you ran and their results. Note any relevant checks you could not run. Include screenshots for visible UI changes. -->
 
-## Release Note
+## Anything reviewers should know?
 
-<!-- Describe the user-visible change, or write "Not user-visible". -->
+<!-- Mention migrations, generated contracts, configuration changes, or effects on access, privacy, accessibility, and operations. Delete this section if it does not apply. -->
 
-## Change Type
-
-- [ ] feat
-- [ ] fix
-- [ ] docs
-- [ ] schema
-- [ ] test
-- [ ] ci
-- [ ] refactor
-- [ ] chore
-
-## Validation
-
-- [ ] `make check`
-- [ ] `make schemas`
-- [ ] `make openapi-check`
-- [ ] Tests added/updated for changed behavior
-- [ ] Targeted command output or reason for skipped checks documented
-
-## Security / Privacy
-
-- [ ] No secrets committed
-- [ ] No external calls added in tests
-- [ ] No personal data added to seeds, examples, screenshots, or docs
-- [ ] Role-based visibility and GDPR constraints reviewed
-- [ ] Audit trail, retention, and works-council impact reviewed
-
-## Privacy Impact (required for report changes)
-
-- [ ] Report defaults to aggregated view
-- [ ] Minimum group size enforced (>=5)
-- [ ] Role-based access check implemented
-- [ ] Audit logging for report access
-- [ ] No individual performance/behavior metrics exposed
-- [ ] Works-council impact status recorded as not applicable, pending, or privately evidenced
-- Private governance evidence reference, when required: <!-- Do not paste private minutes, names, or tickets. -->
-
-## Scope Guardrails
-
-- [ ] One concern per PR
-- [ ] Change is small enough to review as one coherent concern
-- [ ] Relevant docs updated
-- [ ] User-visible changes are described in `CHANGELOG.md`
-- [ ] Generated artifacts refreshed or explicitly not affected
-- [ ] OpenAPI, Prisma migrations, and schema contracts reviewed when touched
-- [ ] Release-facing changes follow `docs/RELEASING.md`
+- [ ] Examples, tests, screenshots, and documentation contain only invented data.
+- [ ] Documentation and changelog updated where needed.

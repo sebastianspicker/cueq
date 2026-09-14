@@ -5,6 +5,7 @@ import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import type { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuditHelper } from '../audit/public.js';
 import { lockPersonWrites } from '../../platform/transactions/transaction-lock.helper.js';
+import type { AssignmentHelper, ResolvedEmployment } from '../people/public.js';
 
 type OnCallRotationMutationDependencies = {
   prisma: PrismaService;
@@ -14,6 +15,7 @@ type OnCallRotationMutationDependencies = {
 type RotationMutationContext = OnCallRotationMutationDependencies & {
   user: AuthenticatedIdentity;
   actorId: string;
+  assignmentHelper: Pick<AssignmentHelper, 'assertUnchanged'>;
 };
 
 function assertRotationOrganizationScope(
@@ -40,10 +42,15 @@ export function assertCanCreateOnCallRotationInOrganization(
   assertRotationOrganizationScope(user, actorOrganizationUnitId, organizationUnitId, 'create');
 }
 
-async function createRotation(tx: Prisma.TransactionClient, parsed: CreateOnCallRotation) {
+async function createRotation(
+  tx: Prisma.TransactionClient,
+  parsed: CreateOnCallRotation,
+  assignmentId: string,
+) {
   return tx.onCallRotation.create({
     data: {
       personId: parsed.personId,
+      assignmentId,
       organizationUnitId: parsed.organizationUnitId,
       startTime: new Date(parsed.startTime),
       endTime: new Date(parsed.endTime),
@@ -59,6 +66,7 @@ async function appendRotationCreatedAudit(
   rotation: {
     id: string;
     personId: string;
+    assignmentId: string;
     organizationUnitId: string;
     startTime: Date;
     endTime: Date;
@@ -74,6 +82,7 @@ async function appendRotationCreatedAudit(
       entityId: rotation.id,
       after: {
         personId: rotation.personId,
+        assignmentId: rotation.assignmentId,
         organizationUnitId: rotation.organizationUnitId,
         startTime: rotation.startTime.toISOString(),
         endTime: rotation.endTime.toISOString(),
@@ -87,23 +96,23 @@ async function appendRotationCreatedAudit(
 export async function createOnCallRotationMutation(
   context: RotationMutationContext,
   parsed: CreateOnCallRotation,
+  resolved: ResolvedEmployment,
 ): Promise<unknown> {
   return context.prisma.$transaction(async (tx) => {
     await lockPersonWrites(tx, [parsed.personId]);
-    const person = await tx.person.findUnique({
-      where: { id: parsed.personId },
-      select: { id: true, organizationUnitId: true },
-    });
-    if (!person) {
-      throw new NotFoundException('Person for on-call rotation was not found.');
-    }
-    if (person.organizationUnitId !== parsed.organizationUnitId) {
+    const current = await context.assignmentHelper.assertUnchanged(
+      tx,
+      resolved,
+      new Date(parsed.startTime),
+      new Date(parsed.endTime),
+    );
+    if (current.organizationUnitId !== parsed.organizationUnitId) {
       throw new BadRequestException(
-        'On-call rotation organizationUnitId must match the person organization unit.',
+        'On-call rotation organizationUnitId must match the effective appointment term.',
       );
     }
 
-    const rotation = await createRotation(tx, parsed);
+    const rotation = await createRotation(tx, parsed, current.assignment.id);
     await appendRotationCreatedAudit(context.auditHelper, context.actorId, rotation, tx);
 
     return rotation;
@@ -178,12 +187,16 @@ export async function updateOnCallRotationMutation(
   existing: { personId: string },
   actorOrganizationUnitId: string | null,
   parsed: UpdateOnCallRotation,
+  resolved: ResolvedEmployment,
 ): Promise<unknown> {
   return context.prisma.$transaction(async (tx) => {
     await lockPersonWrites(tx, [existing.personId]);
     const current = await tx.onCallRotation.findUnique({ where: { id: rotationId } });
     if (!current) {
       throw new NotFoundException('On-call rotation not found.');
+    }
+    if (current.assignmentId !== resolved.assignment.id) {
+      throw new BadRequestException('On-call rotation appointment changed; retry the update.');
     }
 
     assertRotationOrganizationScope(
@@ -197,6 +210,17 @@ export async function updateOnCallRotationMutation(
     const nextEndTime = parsed.endTime ? new Date(parsed.endTime) : current.endTime;
     if (nextStartTime >= nextEndTime) {
       throw new BadRequestException('startTime must be before endTime.');
+    }
+    const currentEmployment = await context.assignmentHelper.assertUnchanged(
+      tx,
+      resolved,
+      nextStartTime,
+      nextEndTime,
+    );
+    if (currentEmployment.organizationUnitId !== current.organizationUnitId) {
+      throw new BadRequestException(
+        'Updated rotation window must remain within its appointment organization unit.',
+      );
     }
 
     await assertRotationStillContainsDeployments(tx, current.id, nextStartTime, nextEndTime);

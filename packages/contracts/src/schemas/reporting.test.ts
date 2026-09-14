@@ -85,9 +85,11 @@ describe('reporting schema public barrel', () => {
   });
 
   it('retains audit-entry defaults, coercion, and optional date-range validation', () => {
-    expect(reporting.AuditEntriesQuerySchema.parse({ skip: '2', take: '20' })).toMatchObject({
-      skip: 2,
-      take: 20,
+    expect(
+      reporting.AuditEntriesQuerySchema.parse({ limit: '20', cursor: 'continuation' }),
+    ).toMatchObject({
+      limit: 20,
+      cursor: 'continuation',
     });
     expect(() =>
       reporting.AuditEntriesQuerySchema.parse({

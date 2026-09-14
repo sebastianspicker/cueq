@@ -4,7 +4,7 @@
   "title": "Booking",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "personId", "timeTypeId", "startTime", "source"],
+  "required": ["id", "personId", "timeTypeId", "startTime", "source", "assignmentId"],
   "properties": {
     "id": {
       "$ref": "./_defs/common.schema.json#/$defs/id"
@@ -36,6 +36,9 @@
     },
     "updatedAt": {
       "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "assignmentId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
     }
   }
 }

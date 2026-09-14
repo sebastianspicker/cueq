@@ -8,6 +8,7 @@ export const SCHEDULING_WORKFLOW_EFFECTS_PORT = Symbol('SCHEDULING_WORKFLOW_EFFE
 
 interface WorkflowEffectDecision {
   id: string;
+  assignmentId: string | null;
   type: WorkflowType;
   entityType: string;
   entityId: string;

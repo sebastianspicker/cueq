@@ -12,6 +12,7 @@ import { getTerminalBatch, getTerminalHealth } from './terminal-health.js';
 import { recordTerminalHeartbeat } from './terminal-heartbeat.js';
 import { AuditHelper } from '../audit/public.js';
 import { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
+import { AssignmentHelper } from '../people/public.js';
 
 /** Keeps the established Nest provider and public API while delegating focused terminal operations. */
 @Injectable()
@@ -20,6 +21,7 @@ export class TerminalGatewayService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
     @Inject(ClosingLockHelper) private readonly closingLockHelper: ClosingLockHelper,
+    @Inject(AssignmentHelper) private readonly assignmentHelper: AssignmentHelper,
   ) {}
 
   private dependencies(): TerminalBatchImportDependencies {
@@ -27,6 +29,7 @@ export class TerminalGatewayService {
       prisma: this.prisma,
       auditHelper: this.auditHelper,
       closingLockHelper: this.closingLockHelper,
+      assignmentHelper: this.assignmentHelper,
     };
   }
 

@@ -145,6 +145,61 @@ describe('roster planning calculations through the public domain API', () => {
     expect(result.slots[0]).toMatchObject({ actualHeadcount: 0, delta: -2, compliant: false });
     expect(evaluatePlanVsActualCoverage([], [])).toMatchObject({ coverageRate: 1, slots: [] });
   });
+
+  it('uses inclusive union thresholds and counts eligible unassigned workers', () => {
+    const result = evaluatePlanVsActualCoverage(
+      [
+        {
+          shiftId: 'threshold',
+          startTime: '2026-03-03T08:00:00.000Z',
+          endTime: '2026-03-03T09:01:00.000Z',
+          shiftType: 'DAY',
+          minStaffing: 2,
+          assignedPersonIds: ['assigned', 'assigned'],
+        },
+      ],
+      [
+        {
+          personId: 'assigned',
+          startTime: '2026-03-03T08:00:00.000Z',
+          endTime: '2026-03-03T08:15:00.000Z',
+          timeTypeCategory: 'WORK',
+        },
+        {
+          personId: 'assigned',
+          startTime: '2026-03-03T08:15:00.000Z',
+          endTime: '2026-03-03T08:30:30.000Z',
+          timeTypeCategory: 'WORK',
+        },
+        {
+          personId: 'unassigned',
+          startTime: '2026-03-03T08:00:00.000Z',
+          endTime: '2026-03-03T09:01:00.000Z',
+          timeTypeCategory: 'DEPLOYMENT',
+        },
+        {
+          personId: 'ignored',
+          startTime: '2026-03-03T08:00:00.000Z',
+          endTime: '2026-03-03T09:01:00.000Z',
+          timeTypeCategory: 'PAUSE',
+        },
+      ],
+      { coverageThreshold: 0.5 },
+    );
+
+    expect(result).toMatchObject({
+      mismatchedSlots: 0,
+      durationCoverageRate: 0.75,
+    });
+    expect(result.slots[0]).toMatchObject({
+      assignedHeadcount: 1,
+      plannedHeadcount: 2,
+      actualHeadcount: 2,
+      actualCoveredMinutes: 91.5,
+      durationCoverageRatio: 0.75,
+      compliant: true,
+    });
+  });
 });
 
 describe('roster compliance and status invariants', () => {

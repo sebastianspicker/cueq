@@ -18,10 +18,15 @@ while IFS= read -r -d '' path; do
   fi
 
   case "${path}" in
-    .env.example | .env.*.example | .env.sample | .env.template)
+    .env.example | .env.*.example | .env.sample | .env.template | \
+      */.env.example | */.env.*.example | */.env.sample | */.env.template)
       ;;
     .DS_Store | */.DS_Store | .env | .env.* | */.env | */.env.* | \
       *.pem | *.key | *.p12 | *.pfx | *.cert | *.crt | *.cer | *.jks | *.keystore | \
+      *.dump | *.backup | *.sqlite | *.sqlite3 | *.db | *.db-shm | *.db-wal | \
+      *.sqlite-shm | *.sqlite-wal | *.sqlite3-shm | *.sqlite3-wal | \
+      secrets.local.* | */secrets.local.* | credentials.local.* | */credentials.local.* | \
+      .npmrc.local | */.npmrc.local | .mcp.json | \
       credentials.json | */credentials.json | service-account*.json | */service-account*.json | \
       id_rsa* | */id_rsa* | id_ed25519* | */id_ed25519* | \
       *.log | *.sarif | *.har | *.tmp | *.orig | *.rej | *.swp | *.swo | *.lcov | \
@@ -30,7 +35,7 @@ while IFS= read -r -d '' path; do
       .claude/* | */.claude/* | .codex/* | */.codex/* | .codegraph/* | */.codegraph/* | \
       .cursor/* | */.cursor/* | .impeccable/* | */.impeccable/* | .kilo/* | */.kilo/* | \
       .repowise/* | */.repowise/* | .serena/* | */.serena/* | .vscode/* | */.vscode/* | \
-      .codacy/codacy.config.json | .codacy/codacy.yaml | \
+      .codacy/* | packages/database/generated/* | contracts/openapi/openapi.generated.json | \
       .idea/* | .fleet/* | .history/* | .zed/* | .pnpm-store/* | .cache/* | */.cache/* | \
       .eslintcache | */.eslintcache | .stylelintcache | */.stylelintcache | node_modules/* | \
       */node_modules/* | .turbo/* | */.turbo/* | dist/* | */dist/* | .next/* | \

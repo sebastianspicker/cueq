@@ -12,16 +12,21 @@ import { ClosingPeriodMonthQuerySchema } from '@cueq/contracts';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import { AuditHelper } from '../audit/public.js';
-import { CLOSING_READ_ROLES, PersonHelper } from '../people/public.js';
+import { CLOSING_READ_ROLES, HR_LIKE_ROLES, PersonHelper } from '../people/public.js';
 import { ClosingChecklistHelper } from './closing-checklist.helper.js';
 import { ClosingCorrectionHelper } from './closing-correction.helper.js';
 import { ClosingExportHelper } from './closing-export.helper.js';
 import { ClosingLifecycleHelper } from './closing-lifecycle.helper.js';
 import { closingAutoCutoffEnabled } from './closing-config.js';
+import { scanOpenClosingPeriods } from './closing-cutoff-scan.js';
 import { cutoffAtForPeriod } from './closing-cutoff-time.js';
 import { mapClosingPeriodResponse } from './closing-mapping.js';
 import { parseMonthToRange } from './closing-period-range.js';
-import { lockClosingPeriodWrites } from '../../platform/transactions/transaction-lock.helper.js';
+import {
+  lockClosingPeriodWrites,
+  lockEmploymentPopulationWrites,
+} from '../../platform/transactions/transaction-lock.helper.js';
+import { TIME_ACCOUNTS_PORT, type TimeAccountsPort } from '../attendance/public.js';
 
 function isBusyClosingPeriod(error: unknown): boolean {
   if (!(error instanceof ConflictException)) return false;
@@ -47,6 +52,7 @@ export class ClosingDomainService {
     @Inject(ClosingExportHelper) private readonly exportHelper: ClosingExportHelper,
     @Inject(ClosingCorrectionHelper) private readonly correctionHelper: ClosingCorrectionHelper,
     @Inject(ClosingLifecycleHelper) private readonly lifecycleHelper: ClosingLifecycleHelper,
+    @Inject(TIME_ACCOUNTS_PORT) private readonly timeAccounts: TimeAccountsPort,
   ) {}
 
   async runClosingCutoff(now: Date = new Date()) {
@@ -59,36 +65,33 @@ export class ClosingDomainService {
       };
     }
 
-    const periods = await this.prisma.closingPeriod.findMany({
-      where: { status: ClosingStatus.OPEN },
-      select: { id: true, periodStart: true, periodEnd: true, organizationUnitId: true },
-      orderBy: { periodStart: 'asc' },
+    let actorId: string | undefined;
+    let transitioned = 0;
+    let busy = 0;
+    const evaluated = await scanOpenClosingPeriods(this.prisma, async (periods) => {
+      const duePeriods = periods
+        .map((period) => ({ period, cutoff: cutoffAtForPeriod(period) }))
+        .filter(({ cutoff }) => now >= cutoff);
+      if (duePeriods.length === 0) return;
+
+      if (!actorId) {
+        const resolvedActorId = await this.auditHelper.resolveSystemActorId();
+        if (!resolvedActorId) {
+          throw new ServiceUnavailableException({
+            code: 'CLOSING_SYSTEM_ACTOR_UNAVAILABLE',
+            message: 'Automatic closing cutoff requires an ADMIN or HR audit actor.',
+          });
+        }
+        actorId = resolvedActorId;
+      }
+      const outcome = await this.transitionDuePeriods(duePeriods, actorId, now);
+      transitioned += outcome.transitioned;
+      busy += outcome.busy;
     });
-
-    const duePeriods = periods
-      .map((period) => ({ period, cutoff: cutoffAtForPeriod(period) }))
-      .filter(({ cutoff }) => now >= cutoff);
-    if (duePeriods.length === 0) {
-      return {
-        enabled: true,
-        evaluated: periods.length,
-        transitioned: 0,
-        busy: 0,
-      };
-    }
-
-    const actorId = await this.auditHelper.resolveSystemActorId();
-    if (!actorId) {
-      throw new ServiceUnavailableException({
-        code: 'CLOSING_SYSTEM_ACTOR_UNAVAILABLE',
-        message: 'Automatic closing cutoff requires an ADMIN or HR audit actor.',
-      });
-    }
-    const { transitioned, busy } = await this.transitionDuePeriods(duePeriods, actorId, now);
 
     return {
       enabled: true,
-      evaluated: periods.length,
+      evaluated,
       transitioned,
       busy,
     };
@@ -115,6 +118,7 @@ export class ClosingDomainService {
     try {
       const didTransition = await this.prisma.$transaction(async (tx) => {
         await lockClosingPeriodWrites(tx, periodId);
+        await lockEmploymentPopulationWrites(tx);
         const current = await tx.closingPeriod.findUnique({ where: { id: periodId } });
         if (!current || current.status !== ClosingStatus.OPEN) return false;
 
@@ -268,5 +272,13 @@ export class ClosingDomainService {
     payload: unknown,
   ) {
     return this.correctionHelper.applyPostCloseBookingCorrection(user, closingPeriodId, payload);
+  }
+
+  async prepareTimeAccounts(user: AuthenticatedIdentity, closingPeriodId: string) {
+    if (!HR_LIKE_ROLES.has(user.role)) {
+      throw new ForbiddenException('Only HR/Admin can prepare time accounts.');
+    }
+    const actor = await this.personHelper.personForUser(user);
+    return this.timeAccounts.prepareClosingPeriod(actor.id, closingPeriodId);
   }
 }

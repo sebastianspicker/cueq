@@ -19,6 +19,9 @@ export class CreateAbsenceDto {
   @ApiProperty({ type: String })
   personId!: string;
 
+  @ApiPropertyOptional({ type: String })
+  assignmentId?: string;
+
   @ApiProperty({ type: String, enum: ABSENCE_TYPES })
   type!: (typeof ABSENCE_TYPES)[number];
 
@@ -38,6 +41,9 @@ export class AbsenceDto {
 
   @ApiProperty({ type: String })
   personId!: string;
+
+  @ApiProperty({ type: String })
+  assignmentId!: string;
 
   @ApiProperty({ type: String, enum: ABSENCE_TYPES })
   type!: (typeof ABSENCE_TYPES)[number];
@@ -67,6 +73,9 @@ export class AbsenceDto {
 export class LeaveBalanceDto {
   @ApiProperty({ type: String })
   personId!: string;
+
+  @ApiProperty({ type: String })
+  assignmentId!: string;
 
   @ApiProperty({ type: Number })
   year!: number;
@@ -100,6 +109,9 @@ export class CreateLeaveAdjustmentDto {
   @ApiProperty({ type: String })
   personId!: string;
 
+  @ApiPropertyOptional({ type: String })
+  assignmentId?: string;
+
   @ApiProperty({ type: Number })
   year!: number;
 
@@ -116,6 +128,9 @@ export class LeaveAdjustmentDto {
 
   @ApiProperty({ type: String })
   personId!: string;
+
+  @ApiProperty({ type: String })
+  assignmentId!: string;
 
   @ApiProperty({ type: Number })
   year!: number;
@@ -139,6 +154,9 @@ export class TeamCalendarEntryDto {
 
   @ApiProperty({ type: String })
   personId!: string;
+
+  @ApiProperty({ type: String })
+  assignmentId!: string;
 
   @ApiProperty({ type: String })
   personName!: string;

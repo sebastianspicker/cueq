@@ -87,20 +87,26 @@ export async function deliverWebhookTargets(input: {
   const records: DeliveryRecord[] = [];
   let lastError: string | null = null;
 
-  for (const endpoint of endpoints) {
+  for (let offset = 0; offset < endpoints.length; offset += 8) {
     claimUntil = await renewClaim(claimUntil);
-    const record = await deliverWebhookTarget({
-      event,
-      endpoint,
-      signingSecrets,
-      body,
-      attempt,
-      timeoutMs,
-      configurationError,
-      post,
-    });
-    records.push(record);
-    if (record.status === 'FAILED') lastError = record.error ?? 'Webhook delivery failed';
+    const wave = await Promise.all(
+      endpoints.slice(offset, offset + 8).map((endpoint) =>
+        deliverWebhookTarget({
+          event,
+          endpoint,
+          signingSecrets,
+          body,
+          attempt,
+          timeoutMs,
+          configurationError,
+          post,
+        }),
+      ),
+    );
+    for (const record of wave) {
+      records.push(record);
+      if (record.status === 'FAILED') lastError = record.error ?? 'Webhook delivery failed';
+    }
   }
 
   return { claimUntil, eventFailed: lastError !== null, lastError, records };

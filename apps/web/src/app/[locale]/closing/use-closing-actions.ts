@@ -1,7 +1,9 @@
 'use client';
 
+import { PrepareTimeAccountsResultSchema } from '@cueq/contracts';
 import { useState } from 'react';
 import type { useTranslations } from 'next-intl';
+import type { WorkspaceReadRequests } from '../../../shared/workspace/read-requests';
 import type { ApiRequest } from '../../../platform/http/api-client';
 import type { RefreshResult } from '../../../shared/workspace/mutation-refresh';
 import type { ClosingActionId } from './closing-action-policy';
@@ -22,11 +24,15 @@ export function useClosingActions(
   apiRequest: ApiRequest,
   period: ClosingPeriod | null,
   reload: (preserveFeedback?: boolean) => Promise<RefreshResult>,
+  reads: WorkspaceReadRequests,
 ) {
+  const [preparedAccounts, setPreparedAccounts] = useState<ReturnType<
+    typeof PrepareTimeAccountsResultSchema.parse
+  > | null>(null);
   const [workflowId, setWorkflowId] = useState('');
   const [workflowReason, setWorkflowReason] = useState(t('workflowReasonDefault'));
   const [workflowApproved, setWorkflowApproved] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'CSV_V1' | 'XML_V1'>('CSV_V1');
+  const [exportFormat, setExportFormat] = useState<'CSV_V2' | 'XML_V2'>('CSV_V2');
   const [correctionPayload, setCorrectionPayload] = useState<ApplyCorrectionPayload>({
     workflowId: '',
     personId: '',
@@ -36,8 +42,11 @@ export function useClosingActions(
     reason: t('correctionReasonDefault'),
     note: '',
   });
-  const { loading, message, error, setLoading, setMessage, setError, runSavedAction } =
-    useClosingActionFeedback(t, reload);
+  const { loading, message, error, setError, runSavedAction } = useClosingActionFeedback(
+    t,
+    reload,
+    reads,
+  );
 
   const runPeriodAction = async (pathSuffix: ClosingActionId, body?: unknown) => {
     if (!period) {
@@ -58,19 +67,30 @@ export function useClosingActions(
     );
   };
 
+  const prepareAccounts = async () => {
+    if (!period || period.status !== 'OPEN') return;
+    setPreparedAccounts(null);
+    await runSavedAction(
+      () =>
+        apiRequest(
+          `/v1/closing-periods/${period.id}/prepare-accounts`,
+          PrepareTimeAccountsResultSchema,
+          { method: 'POST' },
+        ),
+      t('actionApplied'),
+      (result) => setPreparedAccounts(PrepareTimeAccountsResultSchema.parse(result)),
+    );
+  };
+
   const approveWorkflow = async () => {
     if (!workflowId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await requestWorkflowApproval(apiRequest, workflowId, workflowReason);
-      setWorkflowApproved(true);
-      setMessage(t('workflowApproved'));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    } finally {
-      setLoading(false);
-    }
+    await runSavedAction(
+      () => requestWorkflowApproval(apiRequest, workflowId, workflowReason),
+      t('workflowApproved'),
+      () => setWorkflowApproved(true),
+      false,
+      false,
+    );
   };
 
   const applyCorrection = async () => {
@@ -84,6 +104,8 @@ export function useClosingActions(
   };
 
   return {
+    prepareAccounts,
+    preparedAccounts,
     workflowId,
     setWorkflowId,
     workflowReason,

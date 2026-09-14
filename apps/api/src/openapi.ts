@@ -1,3 +1,4 @@
+import { applyHrOpenApiContracts } from './platform/http/openapi/hr-contracts.js';
 /** Builds the committed public API description from Nest metadata and security scheme declarations. */
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -9,7 +10,7 @@ export function buildOpenApiDocument(app: INestApplication) {
     .setDescription(
       'Integrated time-tracking, absence-management, and shift-planning API for a German university (NRW / TV-L)',
     )
-    .setVersion('0.0.1')
+    .setVersion('0.0.2')
     .addTag('health', 'Health check endpoints')
     .addTag('auth', 'Authentication and identity endpoints')
     .addTag('dashboard', 'Employee dashboard endpoints')
@@ -38,5 +39,7 @@ export function buildOpenApiDocument(app: INestApplication) {
     )
     .build();
 
-  return SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config);
+  applyHrOpenApiContracts(document);
+  return document;
 }

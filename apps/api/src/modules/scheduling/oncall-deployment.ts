@@ -11,9 +11,11 @@ import type {
 } from '../../platform/transactions/closing-lock.helper.js';
 import { assertCanActForPerson } from '../people/public.js';
 import { lockPersonWrites } from '../../platform/transactions/transaction-lock.helper.js';
+import type { AssignmentHelper } from '../people/public.js';
 
 type RotationWindow = {
   personId: string;
+  assignmentId: string;
   organizationUnitId: string | null;
   startTime: Date;
   endTime: Date;
@@ -28,17 +30,22 @@ type OnCallDeploymentDependencies = {
 type DeploymentContext = OnCallDeploymentDependencies & {
   user: AuthenticatedIdentity;
   actorId: string;
+  assignmentHelper: AssignmentHelper;
 };
 
 function assertRotationMatchesDeployment(
   rotation: RotationWindow | null,
   personId: string,
+  assignmentId?: string,
 ): asserts rotation is RotationWindow {
   if (!rotation) {
     throw new BadRequestException('Referenced on-call rotation does not exist.');
   }
   if (rotation.personId !== personId) {
     throw new BadRequestException('Rotation personId does not match deployment personId.');
+  }
+  if (assignmentId && rotation.assignmentId !== assignmentId) {
+    throw new BadRequestException('Rotation appointment does not match deployment appointment.');
   }
 }
 
@@ -90,7 +97,7 @@ async function findRotationForDeployment(
   parsed: CreateOnCallDeployment,
 ): Promise<RotationWindow> {
   const rotation = await db.onCallRotation.findUnique({ where: { id: parsed.rotationId } });
-  assertRotationMatchesDeployment(rotation, parsed.personId);
+  assertRotationMatchesDeployment(rotation, parsed.personId, parsed.assignmentId);
   return rotation;
 }
 
@@ -99,10 +106,12 @@ async function assertNoDuplicateDeployment(
   parsed: CreateOnCallDeployment,
   deploymentStart: Date,
   endTime: Date,
+  assignmentId: string,
 ): Promise<void> {
   const duplicate = await tx.onCallDeployment.findFirst({
     where: {
       personId: parsed.personId,
+      assignmentId,
       rotationId: parsed.rotationId,
       startTime: deploymentStart,
       endTime,
@@ -143,10 +152,12 @@ async function createDeployment(
   tx: Prisma.TransactionClient,
   parsed: CreateOnCallDeployment,
   endTime: Date,
+  assignmentId: string,
 ) {
   return tx.onCallDeployment.create({
     data: {
       personId: parsed.personId,
+      assignmentId,
       rotationId: parsed.rotationId,
       startTime: new Date(parsed.startTime),
       endTime,
@@ -163,10 +174,12 @@ async function createDeploymentBooking(
   parsed: CreateOnCallDeployment,
   timeTypeId: string,
   endTime: Date,
+  assignmentId: string,
 ): Promise<void> {
   await tx.booking.create({
     data: {
       personId: parsed.personId,
+      assignmentId,
       timeTypeId,
       startTime: new Date(parsed.startTime),
       endTime,
@@ -179,7 +192,7 @@ async function createDeploymentBooking(
 async function appendDeploymentCreatedAudit(
   auditHelper: AuditHelper,
   actorId: string,
-  created: { id: string; personId: string; startTime: Date; endTime: Date },
+  created: { id: string; personId: string; assignmentId: string; startTime: Date; endTime: Date },
   tx: Prisma.TransactionClient,
 ): Promise<void> {
   await auditHelper.appendAudit(
@@ -190,6 +203,7 @@ async function appendDeploymentCreatedAudit(
       entityId: created.id,
       after: {
         personId: created.personId,
+        assignmentId: created.assignmentId,
         startTime: created.startTime.toISOString(),
         endTime: created.endTime.toISOString(),
       },
@@ -208,6 +222,17 @@ export async function createOnCallDeployment(
   assertDeploymentStartWithinRotation(rotation, deploymentStart);
   const endTime = deploymentEndTime(parsed, deploymentStart);
   assertDeploymentEndWithinRotation(rotation, endTime);
+  const resolved = await context.assignmentHelper.resolveInterval(
+    parsed.personId,
+    deploymentStart,
+    endTime,
+    rotation.assignmentId,
+  );
+  if (resolved.organizationUnitId !== rotation.organizationUnitId) {
+    throw new BadRequestException(
+      'Deployment interval must remain within the rotation appointment organization unit.',
+    );
+  }
   const closingAttempt = closingAttemptForDeployment(
     context.actorId,
     rotation,
@@ -231,17 +256,38 @@ export async function createOnCallDeployment(
       const currentRotation = await findRotationForDeployment(tx, parsed);
       assertDeploymentStartWithinRotation(currentRotation, deploymentStart);
       assertDeploymentEndWithinRotation(currentRotation, endTime);
-      await assertNoDuplicateDeployment(tx, parsed, deploymentStart, endTime);
+      const currentEmployment = await context.assignmentHelper.assertUnchanged(
+        tx,
+        resolved,
+        deploymentStart,
+        endTime,
+      );
+      if (currentEmployment.assignment.id !== currentRotation.assignmentId) {
+        throw new ConflictException('Rotation appointment changed; retry the deployment.');
+      }
+      await assertNoDuplicateDeployment(
+        tx,
+        parsed,
+        deploymentStart,
+        endTime,
+        currentRotation.assignmentId,
+      );
 
       const deploymentTimeType = await findDeploymentTimeType(tx);
       if (deploymentTimeType) {
         await assertDeploymentBookingDoesNotOverlap(tx, parsed, deploymentStart, endTime);
       }
 
-      const created = await createDeployment(tx, parsed, endTime);
+      const created = await createDeployment(tx, parsed, endTime, currentRotation.assignmentId);
 
       if (deploymentTimeType) {
-        await createDeploymentBooking(tx, parsed, deploymentTimeType.id, endTime);
+        await createDeploymentBooking(
+          tx,
+          parsed,
+          deploymentTimeType.id,
+          endTime,
+          currentRotation.assignmentId,
+        );
       }
 
       await appendDeploymentCreatedAudit(context.auditHelper, context.actorId, created, tx);

@@ -4,7 +4,9 @@
 
 import { useMemo } from 'react';
 import { usePathname } from 'next/navigation';
-import { useApiContext } from '../platform/http/api-context';
+import { ScopedApiProvider, useApiContext } from '../platform/http/api-context';
+import { createAssignmentRequest } from '../platform/http/assignment-request';
+import { useAssignmentContext } from './workspace/use-assignment-context';
 import { ErrorBoundary } from './ErrorBoundary';
 import {
   SessionContext,
@@ -28,9 +30,26 @@ export function AppWorkspace({ children, locale, altLocale, messages }: AppWorks
     connectionKey,
   );
 
+  const identity = `${connectionKey}|${profile?.id ?? ''}`;
+  const assignment = useAssignmentContext(
+    apiRequest,
+    identity,
+    phase === 'ready' && profile !== null,
+  );
+  const scopedRequest = useMemo(
+    () =>
+      createAssignmentRequest(
+        apiRequest,
+        assignment.selectedId,
+        profile?.id ?? null,
+        messages.assignmentRequired,
+      ),
+    [apiRequest, assignment.selectedId, profile?.id, messages.assignmentRequired],
+  );
+
   const session = useMemo<SessionState>(
-    () => ({ phase, profile, lastSuccessfulAt, refresh }),
-    [lastSuccessfulAt, phase, profile, refresh],
+    () => ({ phase, profile, lastSuccessfulAt, refresh, assignmentId: assignment.selectedId }),
+    [lastSuccessfulAt, phase, profile, refresh, assignment.selectedId],
   );
 
   return (
@@ -47,9 +66,18 @@ export function AppWorkspace({ children, locale, altLocale, messages }: AppWorks
         profile={profile}
         lastSuccessfulAt={lastSuccessfulAt}
         refresh={refresh}
+        assignment={assignment}
       >
-        <ErrorBoundary fallbackTitle={messages.errorTitle} fallbackAction={messages.errorRetry}>
-          {children}
+        <ErrorBoundary
+          key={
+            pathname === `/${locale}/settings`
+              ? 'settings'
+              : `${identity}|${assignment.selectedId ?? ''}`
+          }
+          fallbackTitle={messages.errorTitle}
+          fallbackAction={messages.errorRetry}
+        >
+          <ScopedApiProvider apiRequest={scopedRequest}>{children}</ScopedApiProvider>
         </ErrorBoundary>
       </WorkspaceChrome>
     </SessionContext.Provider>

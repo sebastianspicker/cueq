@@ -16,6 +16,8 @@ export type ValidatedHrImportRow = ParsedHrImportRow & {
   parsedDailyTargetHours: number;
   organizationUnitId: string;
   workTimeModelId: string;
+  parsedEmploymentStartDate: Date | null;
+  parsedEmploymentEndDate: Date | null;
 };
 
 function csvField(row: Record<string, string>, key: string, fallback: string): string {
@@ -24,6 +26,8 @@ function csvField(row: Record<string, string>, key: string, fallback: string): s
 
 function parsedRowFromCsv(row: Record<string, string>): ParsedHrImportRow {
   const supervisorExternalId = row['supervisorExternalId'];
+  const employmentStartDate = row['employmentStartDate'];
+  const employmentEndDate = row['employmentEndDate'];
   return {
     externalId: csvField(row, 'externalId', ''),
     firstName: csvField(row, 'firstName', ''),
@@ -35,6 +39,8 @@ function parsedRowFromCsv(row: Record<string, string>): ParsedHrImportRow {
     weeklyHours: csvField(row, 'weeklyHours', String(DEFAULT_WEEKLY_HOURS)),
     dailyTargetHours: csvField(row, 'dailyTargetHours', String(DEFAULT_DAILY_TARGET_HOURS)),
     supervisorExternalId: supervisorExternalId || undefined,
+    employmentStartDate: employmentStartDate || undefined,
+    employmentEndDate: employmentEndDate || undefined,
   };
 }
 
@@ -50,6 +56,15 @@ function parseNonnegativeHours(value: string, fallback: number): number | null {
 function toRole(input: string): Role | null {
   const normalized = input.toUpperCase();
   return normalized in Role ? Role[normalized as keyof typeof Role] : null;
+}
+
+function parseEmploymentDate(value: string | undefined): Date | null | false {
+  if (value === undefined) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value
+    ? false
+    : parsed;
 }
 
 function validateRow(
@@ -81,6 +96,22 @@ function validateRow(
   const parsedRole = toRole(row.role);
   if (parsedRole === null) return `Unsupported HR role: ${row.role}`;
 
+  const parsedEmploymentStartDate = parseEmploymentDate(row.employmentStartDate);
+  const parsedEmploymentEndDate = parseEmploymentDate(row.employmentEndDate);
+  if (parsedEmploymentStartDate === false) {
+    return `Invalid employmentStartDate for externalId="${row.externalId}".`;
+  }
+  if (parsedEmploymentEndDate === false) {
+    return `Invalid employmentEndDate for externalId="${row.externalId}".`;
+  }
+  if (
+    parsedEmploymentStartDate &&
+    parsedEmploymentEndDate &&
+    parsedEmploymentEndDate < parsedEmploymentStartDate
+  ) {
+    return `employmentEndDate precedes employmentStartDate for externalId="${row.externalId}".`;
+  }
+
   seenExternalIds.add(row.externalId);
   seenEmails.add(normalizedEmail);
   return {
@@ -90,6 +121,8 @@ function validateRow(
     parsedDailyTargetHours,
     organizationUnitId: `ou_${row.organizationUnit.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
     workTimeModelId: `wtm_${row.workTimeModel.toLowerCase().replace(/[^a-z0-9]+/giu, '_')}`,
+    parsedEmploymentStartDate,
+    parsedEmploymentEndDate,
   };
 }
 

@@ -14,6 +14,8 @@ const HrMasterApiRecordSchema = z.object({
   weeklyHours: z.string().min(1),
   dailyTargetHours: z.string().min(1),
   supervisorExternalId: z.string().min(1).optional(),
+  employmentStartDate: z.string().date().optional(),
+  employmentEndDate: z.string().date().optional(),
 });
 
 const HrMasterApiResponseSchema = z.union([
@@ -108,6 +110,8 @@ export class HttpHrMasterProvider implements HrMasterProviderPort {
         weeklyHours: record.weeklyHours,
         dailyTargetHours: record.dailyTargetHours,
         supervisorExternalId: record.supervisorExternalId,
+        employmentStartDate: record.employmentStartDate,
+        employmentEndDate: record.employmentEndDate,
       }));
     } catch (error) {
       if (error instanceof BadGatewayException || error instanceof ServiceUnavailableException) {

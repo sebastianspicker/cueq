@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   AbsenceSchema,
+  AbsencePageSchema,
   LeaveBalanceSchema,
   UserIdentitySchema,
   type Absence,
@@ -18,6 +19,9 @@ import { PageShell } from '../../../components/PageShell';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { StatusBanner } from '../../../components/StatusBanner';
+import type { ApiRequest } from '../../../platform/http/api-client';
+import { mergePage, pagePath } from '../../../shared/workspace/cursor-pages';
+import { useReadRequests } from '../../../shared/workspace/use-read-requests';
 import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
@@ -59,6 +63,7 @@ export default function LeavePage() {
   const params = useParams<{ locale: string }>();
   const locale = typeof params?.locale === 'string' ? params.locale : 'de';
   const { apiRequest } = useApiContext();
+  const reads = useReadRequests(apiRequest);
   const [year, setYear] = useState('2026');
   const [asOfDate, setAsOfDate] = useState('2026-12-31');
   const [requestType, setRequestType] = useState<(typeof ABSENCE_TYPES)[number]>('ANNUAL_LEAVE');
@@ -67,6 +72,7 @@ export default function LeavePage() {
   const [note, setNote] = useState('');
   const [personId, setPersonId] = useState<string | null>(null);
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -77,33 +83,45 @@ export default function LeavePage() {
       return personId;
     }
 
-    const me = await apiRequest('/v1/me', UserIdentitySchema);
-    setPersonId(me.id);
-    return me.id;
+    const read = reads.begin('person', true);
+    try {
+      const me = await read.request('/v1/me', UserIdentitySchema);
+      if (!read.isCurrent()) throw new DOMException('Request superseded', 'AbortError');
+      setPersonId(me.id);
+      return me.id;
+    } finally {
+      read.finish();
+    }
   }
 
   async function loadLeaveData<T>(
-    request: () => Promise<T>,
+    resource: string,
+    request: (apiRequest: ApiRequest) => Promise<T>,
     apply: (data: T) => void,
     preserveFeedback = false,
   ): Promise<RefreshResult> {
+    const read = reads.begin(resource, preserveFeedback);
     if (!preserveFeedback) setLoading(true);
     if (!preserveFeedback) setError(null);
     try {
-      const result = await loadAndApply(request, apply);
-      if (!preserveFeedback) {
+      const result = await loadAndApply(() => request(read.request), apply, read.isCurrent);
+      if (read.isCurrent() && !preserveFeedback) {
         if (result.ok) setMessage(null);
         else setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
       }
       return result;
     } finally {
-      if (!preserveFeedback) setLoading(false);
+      if (read.isCurrent()) {
+        read.finish();
+        if (!preserveFeedback) setLoading(reads.pending);
+      }
     }
   }
 
   async function loadBalance(preserveFeedback = false): Promise<RefreshResult> {
     return loadLeaveData(
-      () =>
+      'balance',
+      (apiRequest) =>
         apiRequest(
           `/v1/leave-balance/me?year=${encodeURIComponent(year)}&asOfDate=${encodeURIComponent(asOfDate)}`,
           LeaveBalanceSchema,
@@ -113,20 +131,29 @@ export default function LeavePage() {
     );
   }
 
-  async function loadAbsences(preserveFeedback = false): Promise<RefreshResult> {
+  async function loadAbsences(
+    preserveFeedback = false,
+    cursor?: string | null,
+  ): Promise<RefreshResult> {
     return loadLeaveData(
-      () => apiRequest('/v1/absences/me', AbsenceSchema.array()),
-      setAbsences,
+      'absences',
+      (apiRequest) => apiRequest(pagePath('/v1/absences/me', cursor), AbsencePageSchema),
+      (page) => {
+        setAbsences((previous) => (cursor ? mergePage(previous, page.items) : page.items));
+        setNextCursor(page.nextCursor);
+      },
       preserveFeedback,
     );
   }
 
   async function submitRequest() {
+    const operation = reads.begin('mutation');
     setLoading(true);
     setError(null);
     setMessage(null);
     try {
       const requesterId = await resolvePersonId();
+      if (!operation.isFeedbackCurrent()) return;
       const refresh = await refreshAfterMutation(
         () =>
           apiRequest('/v1/absences', AbsenceSchema, {
@@ -144,16 +171,22 @@ export default function LeavePage() {
           const failed = results.find((result) => !result.ok);
           return failed ?? { ok: true };
         },
+        operation.isFeedbackCurrent,
       );
+      if (!operation.isFeedbackCurrent()) return;
       if (refresh.ok) {
         setMessage(t('requestCreated'));
       } else {
         setError(t('savedRefreshFailed'));
       }
     } catch (cause) {
+      if (!operation.isFeedbackCurrent()) return;
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
-      setLoading(false);
+      if (operation.isCurrent()) {
+        operation.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
@@ -303,6 +336,15 @@ export default function LeavePage() {
             ))}
           </ul>
         )}
+        {nextCursor ? (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => void loadAbsences(false, nextCursor)}
+          >
+            {t('loadMore')}
+          </button>
+        ) : null}
       </SectionCard>
     </PageShell>
   );

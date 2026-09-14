@@ -22,9 +22,9 @@ interface ActionsSectionProps {
   locale: string;
   loading: boolean;
   period: ClosingPeriod | null;
-  exportFormat: 'CSV_V1' | 'XML_V1';
+  exportFormat: 'CSV_V2' | 'XML_V2';
   workflowReason: string;
-  onExportFormatChange: (format: 'CSV_V1' | 'XML_V1') => void;
+  onExportFormatChange: (format: 'CSV_V2' | 'XML_V2') => void;
   onRunPeriodAction: (pathSuffix: ClosingActionId, body?: unknown) => void;
   role: CueqRole | null;
   checklist: ClosingChecklistResponse | null;
@@ -94,11 +94,11 @@ export function ActionsSection(props: ActionsSectionProps) {
           <select
             value={props.exportFormat}
             onChange={(event) =>
-              props.onExportFormatChange(event.target.value as 'CSV_V1' | 'XML_V1')
+              props.onExportFormatChange(event.target.value as 'CSV_V2' | 'XML_V2')
             }
           >
-            <option value="CSV_V1">CSV_V1</option>
-            <option value="XML_V1">XML_V1</option>
+            <option value="CSV_V2">CSV_V2</option>
+            <option value="XML_V2">XML_V2</option>
           </select>
         </label>
       ) : null}

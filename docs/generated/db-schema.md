@@ -6,10 +6,10 @@
 
 | Entity | Source Schema | Property Count |
 |---|---|---|
-| `Absence` | `schemas/domain/absence.schema.json` | 10 |
+| `Absence` | `schemas/domain/absence.schema.json` | 11 |
 | `AuditEntry` | `schemas/domain/audit-entry.schema.json` | 10 |
 | `BackupRestoreReport` | `schemas/domain/backup-restore-report.schema.json` | 5 |
-| `Booking` | `schemas/domain/booking.schema.json` | 10 |
+| `Booking` | `schemas/domain/booking.schema.json` | 11 |
 | `CoreAuditEntryDraftContract` | `schemas/domain/core-audit-entry-draft.schema.json` | 2 |
 | `CoreClosingContract` | `schemas/domain/core-closing.schema.json` | 3 |
 | `CoreFlextimeCalculationContract` | `schemas/domain/core-flextime-calculation.schema.json` | 2 |
@@ -20,18 +20,18 @@
 | `CoreWorkflowTransitionContract` | `schemas/domain/core-workflow-transition.schema.json` | 2 |
 | `ExportRun` | `schemas/domain/export-run.schema.json` | 7 |
 | `HrImportRun` | `schemas/domain/hr-import-run.schema.json` | 12 |
-| `LeaveAdjustment` | `schemas/domain/leave-adjustment.schema.json` | 7 |
+| `LeaveAdjustment` | `schemas/domain/leave-adjustment.schema.json` | 8 |
 | `OrganizationUnit` | `schemas/domain/org-unit.schema.json` | 5 |
 | `PayrollCsvRow` | `schemas/domain/payroll-csv-row.schema.json` | 4 |
 | `Person` | `schemas/domain/person.schema.json` | 11 |
 | `ReportAuditSummary` | `schemas/domain/report-audit-summary.schema.json` | 5 |
 | `ReportComplianceSummary` | `schemas/domain/report-compliance-summary.schema.json` | 6 |
 | `Roster` | `schemas/domain/roster.schema.json` | 8 |
-| `ShiftAssignment` | `schemas/domain/shift-assignment.schema.json` | 5 |
+| `ShiftAssignment` | `schemas/domain/shift-assignment.schema.json` | 6 |
 | `Shift` | `schemas/domain/shift.schema.json` | 9 |
 | `TerminalHealth` | `schemas/domain/terminal-health.schema.json` | 2 |
 | `TerminalHeartbeat` | `schemas/domain/terminal-heartbeat.schema.json` | 5 |
-| `TimeAccount` | `schemas/domain/time-account.schema.json` | 10 |
+| `TimeAccount` | `schemas/domain/time-account.schema.json` | 11 |
 | `TimeType` | `schemas/domain/time-type.schema.json` | 8 |
 | `WorkTimeModel` | `schemas/domain/work-time-model.schema.json` | 11 |
 | `WorkflowDelegationRule` | `schemas/domain/workflow-delegation-rule.schema.json` | 12 |

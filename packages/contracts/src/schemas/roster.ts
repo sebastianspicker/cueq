@@ -49,6 +49,7 @@ export type UpdateShift = z.infer<typeof UpdateShiftSchema>;
 
 export const AssignShiftSchema = z.object({
   personId: IdSchema,
+  assignmentId: IdSchema.optional(),
 });
 export type AssignShift = z.infer<typeof AssignShiftSchema>;
 
@@ -56,6 +57,7 @@ export const ShiftAssignmentSchema = z.object({
   id: IdSchema,
   shiftId: IdSchema,
   personId: IdSchema,
+  assignmentId: IdSchema,
   firstName: z.string(),
   lastName: z.string(),
   createdAt: DateTimeSchema,
@@ -66,6 +68,7 @@ export type ShiftAssignment = z.infer<typeof ShiftAssignmentSchema>;
 export const RosterAssignmentDetailSchema = z.object({
   id: IdSchema,
   personId: IdSchema,
+  assignmentId: IdSchema,
   firstName: z.string(),
   lastName: z.string(),
 });

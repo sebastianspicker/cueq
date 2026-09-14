@@ -1,70 +1,59 @@
-name: Bug Report
-description: Report a reproducible defect in cueq
+name: Bug report
+description: Report something that does not work as expected
 labels: ['type:bug']
 body:
+  - type: markdown
+    attributes:
+      value: |
+        For suspected vulnerabilities, follow our [security policy](https://github.com/sebastianspicker/cueq/blob/main/SECURITY.md) instead of opening a public issue.
   - type: textarea
     id: summary
     attributes:
-      label: Summary
-      description: What is broken and why it matters?
-      placeholder: A short description of the defect.
+      label: What went wrong?
+      description: Describe the problem and what you expected to happen.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Reproduction Steps
-      description: Provide deterministic steps from a clean state.
+      label: Steps to reproduce
       placeholder: |
-        1. Run ...
-        2. Open ...
-        3. Observe ...
-    validations:
-      required: true
-  - type: textarea
-    id: expected
-    attributes:
-      label: Expected vs Actual
-      description: Describe expected behavior and what happened instead.
+        1. Open ...
+        2. Select ...
+        3. The page shows ...
     validations:
       required: true
   - type: dropdown
     id: affected_area
     attributes:
-      label: Affected Area
-      description: Choose the primary area where the defect appears.
+      label: Where does this happen?
       options:
-        - Web UI
+        - Web application
+        - GitHub Pages demo
         - API
-        - Domain rules
+        - Working-time or leave rules
         - Database or migrations
-        - Terminal/HR/payroll integration
+        - Integrations
         - Reporting or audit
         - Documentation or CI
+        - Not sure
     validations:
       required: true
   - type: textarea
     id: environment
     attributes:
-      label: Environment and Verification
-      description: Include branch/commit, commands run, and relevant logs or screenshots.
+      label: Environment
+      description: Include your commit or release, browser, operating system, and relevant commands. Use synthetic data in logs and screenshots.
       placeholder: |
-        Commit:
-        Command:
-        Result:
-        Logs/screenshots:
+        Commit or release:
+        Browser / OS:
+        Command and output (if relevant):
     validations:
       required: true
   - type: checkboxes
-    id: compliance
+    id: privacy
     attributes:
-      label: Compliance and Privacy Checks
+      label: Before submitting
       options:
-        - label: No secrets or credentials are included.
-          required: true
-        - label: No PII is included (or all data is synthetic/redacted).
-          required: true
-        - label: Security/privacy impact has been assessed.
-          required: true
-        - label: The issue does not disclose a suspected vulnerability publicly.
+        - label: This report contains no credentials, real personal data, or private operational records.
           required: true

@@ -1,3 +1,4 @@
+import { CursorQuerySchema, CursorPageSchema } from './common.js';
 /** Runtime contracts for on-call rotations, deployments, and rest-compliance evaluation. */
 import { z } from 'zod';
 import {
@@ -12,6 +13,7 @@ import { RuleViolationSchema } from './time-engine.js';
 export const OnCallRotationSchema = z.object({
   id: IdSchema,
   personId: IdSchema,
+  assignmentId: IdSchema,
   organizationUnitId: IdSchema,
   startTime: DateTimeSchema,
   endTime: DateTimeSchema,
@@ -23,6 +25,7 @@ export type OnCallRotation = z.infer<typeof OnCallRotationSchema>;
 export const CreateOnCallRotationSchema = z
   .object({
     personId: IdSchema,
+    assignmentId: IdSchema.optional(),
     organizationUnitId: IdSchema,
     startTime: DateTimeSchema,
     endTime: DateTimeSchema,
@@ -37,6 +40,7 @@ export type CreateOnCallRotation = z.infer<typeof CreateOnCallRotationSchema>;
 
 export const UpdateOnCallRotationSchema = z
   .object({
+    assignmentId: IdSchema.optional(),
     startTime: DateTimeSchema.optional(),
     endTime: DateTimeSchema.optional(),
     rotationType: z.enum(['WEEKLY', 'DAILY', 'CUSTOM']).optional(),
@@ -47,16 +51,15 @@ export const UpdateOnCallRotationSchema = z
   );
 export type UpdateOnCallRotation = z.infer<typeof UpdateOnCallRotationSchema>;
 
-const ListOnCallQuerySchema = z
-  .object({
-    personId: IdSchema.optional(),
-    organizationUnitId: IdSchema.optional(),
-    from: DateTimeSchema.optional(),
-    to: DateTimeSchema.optional(),
-  })
-  .superRefine((input, ctx) =>
-    validateOptionalDateTimeQueryRange(input, ctx, 'from must be on or before to'),
-  );
+const ListOnCallQuerySchema = CursorQuerySchema.extend({
+  assignmentId: IdSchema.optional(),
+  personId: IdSchema.optional(),
+  organizationUnitId: IdSchema.optional(),
+  from: DateTimeSchema.optional(),
+  to: DateTimeSchema.optional(),
+}).superRefine((input, ctx) =>
+  validateOptionalDateTimeQueryRange(input, ctx, 'from must be on or before to'),
+);
 
 export const ListOnCallRotationsQuerySchema = ListOnCallQuerySchema;
 export type ListOnCallRotationsQuery = z.infer<typeof ListOnCallRotationsQuerySchema>;
@@ -68,6 +71,7 @@ export const OnCallDeploymentSchema = z.object({
   id: IdSchema,
   rotationId: IdSchema,
   personId: IdSchema,
+  assignmentId: IdSchema,
   startTime: DateTimeSchema,
   endTime: DateTimeSchema.nullable(),
   remote: z.boolean().default(true),
@@ -81,6 +85,7 @@ export const CreateOnCallDeploymentSchema = z
   .object({
     rotationId: IdSchema,
     personId: IdSchema,
+    assignmentId: IdSchema.optional(),
     startTime: DateTimeSchema,
     endTime: DateTimeSchema.optional(),
     remote: z.boolean().default(true),
@@ -109,3 +114,6 @@ export const OnCallComplianceQuerySchema = z.object({
   nextShiftStart: DateTimeSchema.optional(),
 });
 export type OnCallComplianceQuery = z.infer<typeof OnCallComplianceQuerySchema>;
+
+export const OnCallRotationPageSchema = CursorPageSchema(OnCallRotationSchema);
+export const OnCallDeploymentPageSchema = CursorPageSchema(OnCallDeploymentSchema);

@@ -87,3 +87,22 @@ export const DeliveryQuerySchema = z.object({
   eventId: IdSchema.optional(),
 });
 export type DeliveryQuery = z.infer<typeof DeliveryQuerySchema>;
+
+export const WebhookDispatchAcceptedSchema = z.object({
+  jobId: IdSchema,
+  status: z.enum(['PENDING', 'RUNNING', 'SUCCEEDED']),
+});
+export const WebhookDispatchJobSchema = z.object({
+  id: IdSchema,
+  status: z.enum(['PENDING', 'RUNNING', 'SUCCEEDED']),
+  total: z.number().int().nonnegative(),
+  processed: z.number().int().nonnegative(),
+  delivered: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+  configurationFaults: z.number().int().nonnegative(),
+  createdAt: DateTimeSchema,
+  startedAt: DateTimeSchema.nullable(),
+  completedAt: DateTimeSchema.nullable(),
+  failureCode: z.enum(['WORKER_INTERRUPTED']).nullable(),
+});

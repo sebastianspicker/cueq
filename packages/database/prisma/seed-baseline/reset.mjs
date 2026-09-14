@@ -1,5 +1,7 @@
 /** Removes dependent baseline seed data in foreign-key-safe order; this is destructive for the connected database. */
 export async function resetBaseline(prisma) {
+  await prisma.webhookDispatchJobItem.deleteMany();
+  await prisma.webhookDispatchJob.deleteMany();
   await prisma.webhookDelivery.deleteMany();
   await prisma.webhookEndpoint.deleteMany();
   await prisma.domainEventOutbox.deleteMany();
@@ -13,11 +15,38 @@ export async function resetBaseline(prisma) {
   await prisma.onCallRotation.deleteMany();
   await prisma.leaveAdjustment.deleteMany();
   await prisma.absence.deleteMany();
+  await prisma.projectTimeAllocation.deleteMany();
+  await prisma.projectMembership.deleteMany();
+  await prisma.project.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.shiftAssignment.deleteMany();
   await prisma.shift.deleteMany();
   await prisma.roster.deleteMany();
   await prisma.timeAccount.deleteMany();
+  await prisma.inboxNotification.deleteMany();
+  // The explicitly destructive synthetic reset uses TRUNCATE for append-only task history.
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "lifecycle_task_history"');
+  await prisma.lifecycleTask.deleteMany();
+  await prisma.lifecycleInstance.deleteMany();
+  await prisma.lifecycleAutomationRule.deleteMany();
+  await prisma.lifecycleTemplate.deleteMany();
+  await prisma.taskGroupMember.deleteMany();
+  await prisma.taskGroup.deleteMany();
+  await prisma.documentAcknowledgement.deleteMany();
+  await prisma.personnelDocumentVersion.deleteMany();
+  await prisma.documentUpload.deleteMany();
+  await prisma.personnelDocument.deleteMany();
+  await prisma.personnelChangeOutbox.deleteMany();
+  await prisma.profileChangeRequest.deleteMany();
+  await prisma.personnelField.deleteMany();
+  await prisma.externalHrRecord.deleteMany();
+  await prisma.personnelRelationship.deleteMany();
+  await prisma.hrSourceSystem.deleteMany();
+  await prisma.capabilityGrant.deleteMany();
+  await prisma.employmentTerm.deleteMany();
+  await prisma.employmentAssignment.deleteMany();
+  await prisma.employmentGroup.deleteMany();
+  await prisma.holidayCalendar.deleteMany();
   await prisma.timeType.deleteMany();
   await prisma.person.deleteMany();
   await prisma.workTimeModel.deleteMany();

@@ -16,6 +16,7 @@ function parseHoneywellRows(rows: Array<Record<string, string>>): TerminalRecord
   for (const raw of rows) {
     const parsed = TerminalRecordSchema.safeParse({
       personId: raw.personId,
+      assignmentId: raw.assignmentId || undefined,
       timeTypeCode: raw.timeTypeCode,
       startTime: raw.startTime,
       endTime: raw.endTime || undefined,

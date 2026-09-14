@@ -1,11 +1,3 @@
-export type WebhookDispatchCounters = {
-  processed: number;
-  delivered: number;
-  failed: number;
-  skipped: number;
-  configurationFaults: number;
-};
-
 export type WebhookDispatchOutcome =
   | 'UNCLAIMED'
   | 'DELIVERED'
@@ -39,22 +31,6 @@ type WebhookDeliveryListRecord = {
   deliveredAt: Date | null;
   createdAt: Date;
 };
-
-export function emptyWebhookDispatchCounters(): WebhookDispatchCounters {
-  return { processed: 0, delivered: 0, failed: 0, skipped: 0, configurationFaults: 0 };
-}
-
-export function recordWebhookDispatchOutcome(
-  counters: WebhookDispatchCounters,
-  outcome: WebhookDispatchOutcome,
-): void {
-  if (outcome === 'UNCLAIMED') return;
-  counters.processed += 1;
-  if (outcome === 'DELIVERED') counters.delivered += 1;
-  if (outcome === 'FAILED') counters.failed += 1;
-  if (outcome === 'SKIPPED') counters.skipped += 1;
-  if (outcome === 'CONFIGURATION_FAULT') counters.configurationFaults += 1;
-}
 
 export function mapOutboxEvents(events: OutboxListEvent[]) {
   return events.map((event) => ({

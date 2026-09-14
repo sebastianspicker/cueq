@@ -9,7 +9,7 @@ import {
 import { Role } from '@cueq/database';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
-import { PersonHelper } from '../people/public.js';
+import { AssignmentHelper, PersonHelper } from '../people/public.js';
 import { AuditHelper } from '../audit/public.js';
 import { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
 import {
@@ -49,6 +49,7 @@ export class RosterShiftHelper {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper) private readonly assignmentHelper: AssignmentHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
     @Inject(ClosingLockHelper) private readonly closingLockHelper: ClosingLockHelper,
   ) {}
@@ -141,6 +142,7 @@ export class RosterShiftHelper {
       personForUser: (user: AuthenticatedIdentity) => this.personHelper.personForUser(user),
       appendAudit: this.auditHelper.appendAudit.bind(this.auditHelper),
       closingLockHelper: this.closingLockHelper,
+      assignmentHelper: this.assignmentHelper,
       assertCanWriteRoster: this.assertCanWriteRoster.bind(this),
       assertRosterIsDraft: this.assertRosterIsDraft.bind(this),
       assertShiftInsideRoster: this.assertShiftInsideRoster.bind(this),

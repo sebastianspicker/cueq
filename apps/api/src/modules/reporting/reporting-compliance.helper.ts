@@ -1,13 +1,18 @@
+import { nativeAuditVisibilitySql } from '../../application/audit/native-audit-visibility.js';
 /** Supplies the group threshold and builds role-gated audit and compliance summaries. */
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { ClosingStatus } from '@cueq/database';
+import type { ClosingStatus } from '@cueq/database';
 import { AuditSummaryQuerySchema, ComplianceSummaryQuerySchema } from '@cueq/contracts';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import { AuditHelper } from '../audit/public.js';
 import { PersonHelper, SENSITIVE_REPORT_ALLOWED_ROLES } from '../people/public.js';
+import {
+  closingCompletionTotalsFromGroups,
+  databaseNumber,
+} from './reporting-analytics-aggregation.helper.js';
 
-const GOVERNANCE_MIN_GROUP_SIZE = 5;
+import { reportingPrivacyThreshold } from '../../application/reporting/privacy-threshold.js';
 
 /**
  * Provides the minimum-group threshold used by operational analytics and builds
@@ -22,12 +27,7 @@ export class ReportingComplianceHelper {
   ) {}
 
   minGroupSize(): number {
-    const parsed = Math.trunc(
-      Number(process.env.REPORT_MIN_GROUP_SIZE ?? GOVERNANCE_MIN_GROUP_SIZE),
-    );
-    return Number.isFinite(parsed) && parsed >= GOVERNANCE_MIN_GROUP_SIZE
-      ? parsed
-      : GOVERNANCE_MIN_GROUP_SIZE;
+    return reportingPrivacyThreshold();
   }
 
   private assertCanReadSensitiveReports(user: AuthenticatedIdentity) {
@@ -61,32 +61,39 @@ export class ReportingComplianceHelper {
     const from = new Date(`${parsed.from}T00:00:00.000Z`);
     const to = new Date(`${parsed.to}T23:59:59.999Z`);
 
-    const where = { timestamp: { gte: from, lte: to } };
-    const [entries, uniqueActors, actionGroups, entityTypeGroups] = await Promise.all([
-      this.prisma.auditEntry.count({ where }),
-      this.prisma.auditEntry.groupBy({
-        by: ['actorId'],
-        where,
-      }),
-      this.prisma.auditEntry.groupBy({
-        by: ['action'],
-        where,
-        _count: { _all: true },
-      }),
-      this.prisma.auditEntry.groupBy({
-        by: ['entityType'],
-        where,
-        _count: { _all: true },
-      }),
+    const [summaryRows, actionGroups, entityTypeGroups] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ entries: number | bigint; uniqueActors: number | bigint }>>`
+        SELECT COUNT(*)::integer AS "entries",
+               COUNT(DISTINCT "actorId")::integer AS "uniqueActors"
+        FROM "audit_entries"
+        WHERE "timestamp" >= ${from} AND "timestamp" <= ${to} AND ${nativeAuditVisibilitySql(actor.id)}
+      `,
+      this.prisma.$queryRaw<Array<{ action: string; count: number | bigint }>>`
+        SELECT "action", COUNT(*)::integer AS "count"
+        FROM "audit_entries"
+        WHERE "timestamp" >= ${from} AND "timestamp" <= ${to} AND ${nativeAuditVisibilitySql(actor.id)}
+        GROUP BY "action"
+        ORDER BY "action" ASC
+      `,
+      this.prisma.$queryRaw<Array<{ entityType: string; count: number | bigint }>>`
+        SELECT "entityType", COUNT(*)::integer AS "count"
+        FROM "audit_entries"
+        WHERE "timestamp" >= ${from} AND "timestamp" <= ${to} AND ${nativeAuditVisibilitySql(actor.id)}
+        GROUP BY "entityType"
+        ORDER BY "entityType" ASC
+      `,
     ]);
 
-    const byAction = actionGroups
-      .map((group) => ({ action: group.action, count: group._count._all }))
-      .sort((left, right) => left.action.localeCompare(right.action));
-    const byEntityType = entityTypeGroups
-      .map((group) => ({ entityType: group.entityType, count: group._count._all }))
-      .sort((left, right) => left.entityType.localeCompare(right.entityType));
+    const byAction = actionGroups.map((group) => ({
+      action: group.action,
+      count: databaseNumber(group.count),
+    }));
+    const byEntityType = entityTypeGroups.map((group) => ({
+      entityType: group.entityType,
+      count: databaseNumber(group.count),
+    }));
     const actionCounts = new Map(byAction.map(({ action, count }) => [action, count]));
+    const summary = summaryRows[0];
 
     const reportAccesses = actionCounts.get('REPORT_ACCESSED') ?? 0;
     const exportsTriggered = actionCounts.get('CLOSING_EXPORTED') ?? 0;
@@ -98,8 +105,8 @@ export class ReportingComplianceHelper {
       from: parsed.from,
       to: parsed.to,
       totals: {
-        entries,
-        uniqueActors: uniqueActors.length,
+        entries: databaseNumber(summary?.entries),
+        uniqueActors: databaseNumber(summary?.uniqueActors),
         reportAccesses,
         exportsTriggered,
         lockBlocks,
@@ -116,74 +123,63 @@ export class ReportingComplianceHelper {
     const from = new Date(`${parsed.from}T00:00:00.000Z`);
     const to = new Date(`${parsed.to}T23:59:59.999Z`);
 
-    const [reportAccessEntries, lockBlocks, postCloseCorrections, periods, exportRuns, backupRun] =
-      await Promise.all([
-        this.prisma.auditEntry.findMany({
-          where: {
-            action: 'REPORT_ACCESSED',
-            timestamp: { gte: from, lte: to },
-          },
-          select: { after: true },
-        }),
-        this.prisma.auditEntry.count({
-          where: {
-            action: 'CLOSING_LOCK_BLOCKED',
-            timestamp: { gte: from, lte: to },
-          },
-        }),
-        this.prisma.auditEntry.count({
-          where: {
-            action: 'POST_CLOSE_CORRECTION_APPLIED',
-            timestamp: { gte: from, lte: to },
-          },
-        }),
-        this.prisma.closingPeriod.findMany({
-          where: {
-            periodStart: { lte: to },
-            periodEnd: { gte: from },
-          },
-          select: { status: true },
-        }),
-        this.prisma.exportRun.findMany({
-          where: {
-            exportedAt: { gte: from, lte: to },
-          },
-          orderBy: { exportedAt: 'desc' },
-          select: { checksum: true, exportedAt: true },
-        }),
-        this.prisma.auditEntry.findFirst({
-          where: {
-            action: 'BACKUP_RESTORE_VERIFIED',
-            timestamp: { gte: from, lte: to },
-          },
-          orderBy: { timestamp: 'desc' },
-        }),
-      ]);
+    const [auditRows, periodGroups, exportRows] = await Promise.all([
+      this.prisma.$queryRaw<
+        Array<{
+          reportAccesses: number | bigint;
+          suppressedReportAccesses: number | bigint;
+          lockBlocks: number | bigint;
+          postCloseCorrections: number | bigint;
+          lastBackupRestoreVerifiedAt: Date | null;
+        }>
+      >`
+        SELECT
+          COUNT(*) FILTER (WHERE "action" = 'REPORT_ACCESSED')::integer AS "reportAccesses",
+          COUNT(*) FILTER (
+            WHERE "action" = 'REPORT_ACCESSED'
+              AND "after" @> '{"suppressed": true}'::jsonb
+          )::integer AS "suppressedReportAccesses",
+          COUNT(*) FILTER (WHERE "action" = 'CLOSING_LOCK_BLOCKED')::integer AS "lockBlocks",
+          COUNT(*) FILTER (
+            WHERE "action" = 'POST_CLOSE_CORRECTION_APPLIED'
+          )::integer AS "postCloseCorrections",
+          MAX("timestamp") FILTER (
+            WHERE "action" = 'BACKUP_RESTORE_VERIFIED'
+          ) AS "lastBackupRestoreVerifiedAt"
+        FROM "audit_entries"
+        WHERE "timestamp" >= ${from} AND "timestamp" <= ${to} AND ${nativeAuditVisibilitySql(actor.id)}
+      `,
+      this.prisma.$queryRaw<Array<{ status: ClosingStatus; count: number | bigint }>>`
+        SELECT "status"::text AS "status", COUNT(*)::integer AS "count"
+        FROM "closing_periods"
+        WHERE "periodStart" <= ${to} AND "periodEnd" >= ${from}
+        GROUP BY "status"
+        ORDER BY "status" ASC
+      `,
+      this.prisma.$queryRaw<
+        Array<{
+          runs: number | bigint;
+          uniqueChecksums: number | bigint;
+          lastRunAt: Date | null;
+        }>
+      >`
+        SELECT COUNT(*)::integer AS "runs",
+               COUNT(DISTINCT "checksum")::integer AS "uniqueChecksums",
+               MAX("exportedAt") AS "lastRunAt"
+        FROM "export_runs"
+        WHERE "exportedAt" >= ${from} AND "exportedAt" <= ${to}
+      `,
+    ]);
 
-    const reportAccesses = reportAccessEntries.length;
-    const suppressedReportAccesses = reportAccessEntries.reduce((total, entry) => {
-      if (
-        entry.after &&
-        typeof entry.after === 'object' &&
-        !Array.isArray(entry.after) &&
-        (entry.after as Record<string, unknown>).suppressed === true
-      ) {
-        return total + 1;
-      }
-      return total;
-    }, 0);
+    const audit = auditRows[0];
+    const reportAccesses = databaseNumber(audit?.reportAccesses);
+    const suppressedReportAccesses = databaseNumber(audit?.suppressedReportAccesses);
     const suppressionRate =
       reportAccesses === 0 ? 0 : Number((suppressedReportAccesses / reportAccesses).toFixed(4));
 
-    const periodsTotal = periods.length;
-    const periodsExported = periods.filter(
-      (period) => period.status === ClosingStatus.EXPORTED,
-    ).length;
-    const completionRate =
-      periodsTotal === 0 ? 0 : Number((periodsExported / periodsTotal).toFixed(4));
-
-    const runs = exportRuns.length;
-    const uniqueChecksums = new Set(exportRuns.map((run) => run.checksum)).size;
+    const closingTotals = closingCompletionTotalsFromGroups(periodGroups);
+    const runs = databaseNumber(exportRows[0]?.runs);
+    const uniqueChecksums = databaseNumber(exportRows[0]?.uniqueChecksums);
     const duplicateChecksums = runs - uniqueChecksums;
 
     await this.appendReportAccessAudit(actor.id, 'compliance-summary', parsed.from, parsed.to);
@@ -198,20 +194,20 @@ export class ReportingComplianceHelper {
         suppressionRate,
       },
       closing: {
-        periods: periodsTotal,
-        exported: periodsExported,
-        completionRate,
-        lockBlocks,
-        postCloseCorrections,
+        periods: closingTotals.periods,
+        exported: closingTotals.exported,
+        completionRate: closingTotals.completionRate,
+        lockBlocks: databaseNumber(audit?.lockBlocks),
+        postCloseCorrections: databaseNumber(audit?.postCloseCorrections),
       },
       payrollExport: {
         runs,
         uniqueChecksums,
         duplicateChecksums,
-        lastRunAt: exportRuns[0]?.exportedAt.toISOString() ?? null,
+        lastRunAt: exportRows[0]?.lastRunAt?.toISOString() ?? null,
       },
       operations: {
-        lastBackupRestoreVerifiedAt: backupRun?.timestamp.toISOString() ?? null,
+        lastBackupRestoreVerifiedAt: audit?.lastBackupRestoreVerifiedAt?.toISOString() ?? null,
       },
     };
   }

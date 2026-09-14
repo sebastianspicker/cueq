@@ -8,6 +8,7 @@ type ClosingRuleTimeType = 'WORK' | 'DEPLOYMENT' | 'PAUSE';
 
 export type ClosingChecklistBooking = {
   personId: string;
+  assignmentId: string;
   startTime: Date;
   endTime: Date | null;
   timeType: { category: TimeTypeCategory };
@@ -120,20 +121,21 @@ function ruleViolationCount(
 }
 
 export function calculateClosingBookingMetrics(
-  bookings: ClosingChecklistBooking[],
-  approvedAbsences: Array<{ personId: string }>,
-  personCount: number,
+  ruleBookings: ClosingChecklistBooking[],
+  coverageBookings: ClosingChecklistBooking[],
+  approvedAbsences: Array<{ assignmentId: string }>,
+  appointmentCount: number,
   periodId: string,
   timeThresholds: ClosingTimeThresholds,
 ) {
-  const coveredPersonIds = new Set([
-    ...bookings.filter(isCompletedWorkBooking).map((booking) => booking.personId),
-    ...approvedAbsences.map((absence) => absence.personId),
+  const coveredAssignmentIds = new Set([
+    ...coverageBookings.filter(isCompletedWorkBooking).map((booking) => booking.assignmentId),
+    ...approvedAbsences.map((absence) => absence.assignmentId),
   ]);
-  const ruleBookings = ruleBookingsByPerson(bookings);
+  const bookingsByPerson = ruleBookingsByPerson(ruleBookings);
   return {
-    missingBookings: Math.max(personCount - coveredPersonIds.size, 0),
-    bookingGaps: bookingGapCount(ruleBookings),
-    ruleViolations: ruleViolationCount(bookings, ruleBookings, periodId, timeThresholds),
+    missingBookings: Math.max(appointmentCount - coveredAssignmentIds.size, 0),
+    bookingGaps: bookingGapCount(bookingsByPerson),
+    ruleViolations: ruleViolationCount(ruleBookings, bookingsByPerson, periodId, timeThresholds),
   };
 }

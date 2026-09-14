@@ -1,3 +1,4 @@
+import { cursorPage, cursorWhere } from '../../persistence/queries/cursor-page.js';
 import { NotFoundException } from '@nestjs/common';
 import type { Prisma, WorkflowInstance } from '@cueq/database';
 import type { WorkflowAction, WorkflowInboxQuery } from '@cueq/contracts';
@@ -35,21 +36,36 @@ export async function listWorkflowInbox(
   prisma: Pick<PrismaService, 'workflowInstance'>,
   actor: WorkflowActor,
   query: WorkflowInboxQuery,
-): Promise<VisibleWorkflow[]> {
+) {
   const now = new Date();
   const where: Prisma.WorkflowInstanceWhereInput = HR_LIKE_ROLES.has(actor.role)
-    ? { status: query.status, type: query.type }
+    ? { assignmentId: query.assignmentId, status: query.status, type: query.type }
     : {
+        assignmentId: query.assignmentId,
         status: query.status,
         type: query.type,
         OR: [{ requesterId: actor.id }, { approverId: actor.id }],
       };
   const workflows = await prisma.workflowInstance.findMany({
-    where,
-    orderBy: { createdAt: 'asc' },
+    where: {
+      AND: [
+        where,
+        cursorWhere('createdAt', query.cursor),
+        ...(query.overdueOnly
+          ? [{ dueAt: { lte: now }, status: { in: ['PENDING' as const, 'ESCALATED' as const] } }]
+          : []),
+      ],
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    take: query.limit + 1,
   });
-  const visible = workflows.map((workflow) => withVisibility(workflow, actor, now));
-  return query.overdueOnly ? visible.filter((workflow) => workflow.isOverdue) : visible;
+  return cursorPage(
+    workflows,
+    query.limit,
+    'createdAt',
+    (row) => row.createdAt,
+    (workflow) => withVisibility(workflow, actor, now),
+  );
 }
 
 export async function getWorkflowDetail(

@@ -15,7 +15,10 @@ import { AuditHelper, EventOutboxHelper } from '../audit/public.js';
 import { toCoreClosingStatus } from '../../platform/transactions/closing-lock.helper.js';
 import { HR_LIKE_ROLES, PersonHelper } from '../people/public.js';
 import { ClosingChecklistHelper } from './closing-checklist.helper.js';
-import { lockClosingPeriodWrites } from '../../platform/transactions/transaction-lock.helper.js';
+import {
+  lockClosingPeriodWrites,
+  lockEmploymentPopulationWrites,
+} from '../../platform/transactions/transaction-lock.helper.js';
 import { allowManualReviewStart } from './closing-config.js';
 import { toClosingActorRole, toPersistenceClosingStatus } from './closing-mapping.js';
 
@@ -105,6 +108,7 @@ export class ClosingLifecycleHelper {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await lockClosingPeriodWrites(tx, closingPeriodId);
+      await lockEmploymentPopulationWrites(tx);
       const period = await tx.closingPeriod.findUnique({ where: { id: closingPeriodId } });
       if (!period) {
         throw new NotFoundException('Closing period not found.');

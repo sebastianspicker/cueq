@@ -1,6 +1,7 @@
 'use client';
 
 import type { useTranslations } from 'next-intl';
+import { RosterMemberAppointments } from './roster-member-appointments';
 import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { isoInstantToLocalDateTimeInput } from '../../../shared/time/datetime-local';
@@ -24,7 +25,7 @@ export function ShiftsSection({
   roster: RosterDetail | null;
   assignSelection: Record<string, string>;
   onAssignSelectionChange: (shiftId: string, personId: string) => void;
-  onAssignShift: (shiftId: string) => void;
+  onAssignShift: (shiftId: string, assignmentId: string) => void;
   onUnassignShift: (shiftId: string, assignmentId: string) => void;
   canEdit: boolean;
 }) {
@@ -63,13 +64,14 @@ interface ShiftRowProps {
   selectedPerson: string;
   canEdit: boolean;
   onAssignSelectionChange: (shiftId: string, personId: string) => void;
-  onAssignShift: (shiftId: string) => void;
+  onAssignShift: (shiftId: string, assignmentId: string) => void;
   onUnassignShift: (shiftId: string, assignmentId: string) => void;
 }
 
 function ShiftRow(props: ShiftRowProps) {
   const { t, shift, canEdit } = props;
-  const isUnderstaffed = shift.assignments.length < shift.minStaffing;
+  const assignedPeople = new Set(shift.assignments.map((item) => item.personId)).size;
+  const isUnderstaffed = assignedPeople < shift.minStaffing;
   return (
     <li className="cq-list-item">
       <div className="cq-list-item-header">
@@ -87,7 +89,7 @@ function ShiftRow(props: ShiftRowProps) {
             }
           />
           <span>
-            {t('assigned')}: {shift.assignments.length} / {shift.minStaffing}
+            {t('assigned')}: {assignedPeople} / {shift.minStaffing}
           </span>
         </div>
       </div>
@@ -112,14 +114,15 @@ function ShiftAssignmentControls({ row }: { row: ShiftRowProps }) {
           </option>
         ))}
       </select>
-      <button
-        type="button"
-        className="cq-btn-sm"
+      <RosterMemberAppointments
+        key={`${row.roster.id}:${row.shift.id}:${row.selectedPerson}:${row.shift.startTime}:${row.shift.endTime}`}
+        rosterId={row.roster.id}
+        personId={row.selectedPerson}
+        from={row.shift.startTime}
+        to={row.shift.endTime}
         disabled={row.loading}
-        onClick={() => row.onAssignShift(row.shift.id)}
-      >
-        {row.t('assign')}
-      </button>
+        onAssign={(assignmentId) => row.onAssignShift(row.shift.id, assignmentId)}
+      />
     </div>
   );
 }

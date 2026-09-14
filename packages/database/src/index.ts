@@ -23,3 +23,12 @@ if (process.env.NODE_ENV !== 'production') {
 
 export { PrismaClient };
 export * from '@prisma/client';
+
+export { reconcileLegacyEmployment, EmploymentImportConflict } from './legacy-employment.js';
+
+export {
+  DocumentObjectStorage,
+  validateDocumentContent,
+  type DocumentMimeType,
+  type DocumentObjectManifest,
+} from './document-storage.js';

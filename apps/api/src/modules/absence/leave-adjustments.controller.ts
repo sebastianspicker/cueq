@@ -43,11 +43,12 @@ export class LeaveAdjustmentsController {
   @ApiOperation({ summary: 'List leave adjustments' })
   @ApiOkResponse({ type: LeaveAdjustmentDto, isArray: true })
   @ApiQuery({ name: 'personId', required: false, type: String })
+  @ApiQuery({ name: 'assignmentId', required: false, type: String })
   @ApiQuery({ name: 'year', required: false, type: String })
   list(
     @CurrentUser() user: AuthenticatedIdentity,
     @Query(new ZodValidationPipe(LeaveAdjustmentQuerySchema))
-    query: { personId?: string; year?: string },
+    query: { personId?: string; assignmentId?: string; year?: string },
   ) {
     return this.absenceService.listLeaveAdjustments(user, query);
   }

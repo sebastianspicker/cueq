@@ -1,5 +1,8 @@
 /** Root NestJS composition boundary; wires infrastructure and feature modules without domain logic. */
 import 'reflect-metadata';
+import { LifecycleModule } from './modules/lifecycle/public.js';
+import { ProjectsModule } from './modules/projects/public.js';
+import { DocumentsModule } from './modules/documents/public.js';
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { HealthController } from './health/health.controller.js';
@@ -41,6 +44,9 @@ import { TransactionsModule } from './platform/transactions/transactions.module.
     PolicyModule,
     ReportingModule,
     IntegrationsModule,
+    DocumentsModule,
+    ProjectsModule,
+    LifecycleModule,
   ],
   controllers: [HealthController],
   providers: [],

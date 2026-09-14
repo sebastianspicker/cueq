@@ -19,13 +19,38 @@
         "balanceAnomalies"
       ],
       "properties": {
-        "missingBookings": { "type": "integer", "minimum": 0 },
-        "bookingGaps": { "type": "integer", "minimum": 0 },
-        "openCorrectionRequests": { "type": "integer", "minimum": 0 },
-        "openLeaveRequests": { "type": "integer", "minimum": 0 },
-        "ruleViolations": { "type": "integer", "minimum": 0 },
-        "rosterMismatches": { "type": "integer", "minimum": 0 },
-        "balanceAnomalies": { "type": "integer", "minimum": 0 }
+        "missingBookings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bookingGaps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "openCorrectionRequests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "openLeaveRequests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ruleViolations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rosterMismatches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "balanceAnomalies": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missingTimeAccounts": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "checklistOutput": {
@@ -40,7 +65,9 @@
             "additionalProperties": true
           }
         },
-        "hasErrors": { "type": "boolean" }
+        "hasErrors": {
+          "type": "boolean"
+        }
       }
     },
     "cutoffTransition": {

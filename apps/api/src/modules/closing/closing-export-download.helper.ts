@@ -20,7 +20,7 @@ export class ClosingExportDownloadHelper {
     }
     const { actor, exportRun } = await this.loadScopedExportRun(user, closingPeriodId, runId);
 
-    if (!exportRun.artifact || exportRun.format !== 'CSV_V1') {
+    if (!exportRun.artifact || !exportRun.format.startsWith('CSV_')) {
       throw new BadRequestException('CSV artifact is unavailable for this export run.');
     }
 
@@ -43,9 +43,10 @@ export class ClosingExportDownloadHelper {
       throw new BadRequestException('Artifact is unavailable for this export run.');
     }
 
-    const extension = exportRun.format === 'XML_V1' ? 'xml' : 'csv';
+    const extension = exportRun.format.startsWith('XML_') ? 'xml' : 'csv';
     const contentType =
-      exportRun.contentType ?? (exportRun.format === 'XML_V1' ? 'application/xml' : 'text/csv');
+      exportRun.contentType ??
+      (exportRun.format.startsWith('XML_') ? 'application/xml' : 'text/csv');
 
     await this.appendDownloadAudit(actor.id, exportRun, closingPeriodId, 'artifact');
 

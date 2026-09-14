@@ -1,3 +1,4 @@
+import { CursorQuerySchema, CursorPageSchema } from './common.js';
 /** Runtime contracts for absence requests, leave balances, adjustments, and calendar redaction. */
 import { z } from 'zod';
 import { DateSchema, DateTimeSchema, IdSchema, PositiveDecimalSchema } from './common.js';
@@ -21,6 +22,7 @@ export type AbsenceStatus = z.infer<typeof AbsenceStatusSchema>;
 export const CreateAbsenceSchema = z
   .object({
     personId: IdSchema,
+    assignmentId: IdSchema.optional(),
     type: AbsenceTypeSchema,
     startDate: DateSchema,
     endDate: DateSchema,
@@ -35,6 +37,7 @@ export type CreateAbsence = z.infer<typeof CreateAbsenceSchema>;
 export const AbsenceSchema = z.object({
   id: IdSchema,
   personId: IdSchema,
+  assignmentId: IdSchema,
   type: AbsenceTypeSchema,
   startDate: DateSchema,
   endDate: DateSchema,
@@ -48,6 +51,7 @@ export type Absence = z.infer<typeof AbsenceSchema>;
 
 export const LeaveBalanceSchema = z.object({
   personId: IdSchema,
+  assignmentId: IdSchema,
   year: z.number().int(),
   asOfDate: DateSchema,
   entitlement: PositiveDecimalSchema,
@@ -63,6 +67,7 @@ export type LeaveBalance = z.infer<typeof LeaveBalanceSchema>;
 export const LeaveAdjustmentSchema = z.object({
   id: IdSchema,
   personId: IdSchema,
+  assignmentId: IdSchema,
   year: z.number().int(),
   deltaDays: z.number(),
   reason: z.string(),
@@ -73,6 +78,7 @@ export type LeaveAdjustment = z.infer<typeof LeaveAdjustmentSchema>;
 
 export const CreateLeaveAdjustmentSchema = z.object({
   personId: IdSchema,
+  assignmentId: IdSchema.optional(),
   year: z.number().int().min(1970).max(2200),
   deltaDays: z.number(),
   reason: z.string().min(1).max(1000),
@@ -81,6 +87,7 @@ export type CreateLeaveAdjustment = z.infer<typeof CreateLeaveAdjustmentSchema>;
 
 export const LeaveAdjustmentQuerySchema = z.object({
   personId: IdSchema.optional(),
+  assignmentId: IdSchema.optional(),
   year: z.coerce.number().int().min(1970).max(2200).optional(),
 });
 export type LeaveAdjustmentQuery = z.infer<typeof LeaveAdjustmentQuerySchema>;
@@ -95,6 +102,7 @@ export type TeamCalendarQuery = z.infer<typeof TeamCalendarQuerySchema>;
 export const TeamCalendarEntrySchema = z.object({
   id: IdSchema,
   personId: IdSchema,
+  assignmentId: IdSchema,
   personName: z.string(),
   startDate: DateSchema,
   endDate: DateSchema,
@@ -104,3 +112,13 @@ export const TeamCalendarEntrySchema = z.object({
   note: z.string().nullable().optional(),
 });
 export type TeamCalendarEntry = z.infer<typeof TeamCalendarEntrySchema>;
+
+export const AbsencePageSchema = CursorPageSchema(AbsenceSchema);
+export const AbsenceQuerySchema = CursorQuerySchema.extend({
+  assignmentId: IdSchema.optional(),
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
+  status: AbsenceStatusSchema.optional(),
+}).refine((value) => !value.from || !value.to || value.from <= value.to, {
+  message: 'Invalid date range',
+});

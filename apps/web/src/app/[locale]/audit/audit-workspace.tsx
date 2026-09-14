@@ -46,14 +46,14 @@ export function AuditWorkspace({ t, workspace }: AuditWorkspaceProps) {
         filterActorId={workspace.filterActorId}
         filterEntityId={workspace.filterEntityId}
         entries={workspace.entries}
-        entriesTotal={workspace.entriesTotal}
-        entriesSkip={workspace.entriesSkip}
+        hasMore={Boolean(workspace.entriesCursor)}
+        loaded={workspace.entriesLoaded}
         onFilterActionChange={workspace.setFilterAction}
         onFilterEntityTypeChange={workspace.setFilterEntityType}
         onFilterActorIdChange={workspace.setFilterActorId}
         onFilterEntityIdChange={workspace.setFilterEntityId}
         onLoad={() => void workspace.loadEntriesFromStart()}
-        onLoadMore={() => void workspace.loadEntries(workspace.entriesSkip)}
+        onLoadMore={() => void workspace.loadMore()}
       />
     </PageShell>
   );

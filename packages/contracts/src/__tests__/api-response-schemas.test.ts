@@ -83,6 +83,7 @@ describe('API response schemas', () => {
       ClosingBookingCorrectionResponseSchema.parse({
         id: IDS.entity,
         closingPeriodId: IDS.period,
+        assignmentId: IDS.actor,
         workflowId: IDS.workflow,
         personId: IDS.actor,
         timeTypeId: IDS.timeType,
@@ -123,8 +124,20 @@ describe('API response schemas', () => {
       shiftType: 'EARLY',
       minStaffing: 2,
       assignments: [
-        { id: IDS.actor, personId: IDS.actor, firstName: 'Ada', lastName: 'Lovelace' },
-        { id: IDS.period, personId: IDS.period, firstName: 'Grace', lastName: 'Hopper' },
+        {
+          id: IDS.actor,
+          personId: IDS.actor,
+          assignmentId: IDS.actor,
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+        },
+        {
+          id: IDS.period,
+          personId: IDS.period,
+          assignmentId: IDS.period,
+          firstName: 'Grace',
+          lastName: 'Hopper',
+        },
       ],
     });
 
@@ -161,6 +174,7 @@ describe('API response schemas', () => {
     expect(
       WorkflowInstanceSchema.parse({
         id: IDS.workflow,
+        assignmentId: IDS.actor,
         type: 'LEAVE_REQUEST',
         status: 'APPROVED',
         requesterId: IDS.actor,

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import {
   BookingSchema,
+  BookingPageSchema,
   ClosingPeriodLockedErrorSchema,
   DashboardSummarySchema,
   WorkflowInstanceSchema,
@@ -10,6 +11,8 @@ import {
 import type { useTranslations } from 'next-intl';
 import { useOptionalSessionContext } from '../../../components/AppWorkspace';
 import { ApiRequestError } from '../../../platform/http/api-client';
+import { mergePage, pagePath } from '../../../shared/workspace/cursor-pages';
+import { useReadRequests } from '../../../shared/workspace/use-read-requests';
 import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
@@ -22,8 +25,10 @@ type TranslationFn = ReturnType<typeof useTranslations>;
 
 export function useDashboardWorkspace(t: TranslationFn, locale: string) {
   const { apiRequest } = useApiContext();
+  const reads = useReadRequests(apiRequest);
   const session = useOptionalSessionContext();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [bookings, setBookings] = useState<DashboardBooking[]>([]);
   const [overtimeHours, setOvertimeHours] = useState('2');
   const [overtimePeriodStart, setOvertimePeriodStart] = useState('2026-03-01T00:00:00.000Z');
@@ -34,6 +39,8 @@ export function useDashboardWorkspace(t: TranslationFn, locale: string) {
   const [error, setError] = useState<string | null>(null);
 
   async function loadSummary(preserveFeedback = false): Promise<RefreshResult> {
+    const read = reads.begin('today', preserveFeedback);
+    const apiRequest = read.request;
     setLoading(true);
     if (!preserveFeedback) {
       setError(null);
@@ -41,32 +48,48 @@ export function useDashboardWorkspace(t: TranslationFn, locale: string) {
     }
     try {
       const result = await loadAndApply(
-        () =>
-          Promise.all([
-            apiRequest('/v1/dashboard/me', DashboardSummarySchema),
-            apiRequest('/v1/bookings/me', BookingSchema.array()),
-          ]),
-        ([nextSummary, nextBookings]) => {
-          const dayKey = new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Europe/Berlin',
-          }).format(new Date(nextSummary.now));
+        () => apiRequest('/v1/dashboard/me', DashboardSummarySchema),
+        (nextSummary) => {
           setSummary(nextSummary);
-          setBookings(
-            nextBookings.filter(
-              (booking) =>
-                new Intl.DateTimeFormat('en-CA', {
-                  timeZone: 'Europe/Berlin',
-                }).format(new Date(booking.startTime)) === dayKey,
-            ),
-          );
+          setBookings(nextSummary.todayBookings.items);
+          setNextCursor(nextSummary.todayBookings.nextCursor);
         },
+        read.isCurrent,
       );
+      if (!read.isCurrent()) return result;
       if (!result.ok && !preserveFeedback) {
         setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
       }
       return result;
     } finally {
-      setLoading(false);
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(reads.pending);
+      }
+    }
+  }
+
+  async function loadMoreBookings() {
+    if (!summary || !nextCursor) return;
+    const read = reads.begin('today');
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ from: summary.dayStart, to: summary.dayEnd });
+      const page = await read.request(
+        pagePath(`/v1/bookings/me?${params}`, nextCursor),
+        BookingPageSchema,
+      );
+      if (!read.isCurrent()) return;
+      setBookings((previous) => mergePage(previous, page.items));
+      setNextCursor(page.nextCursor);
+    } catch (cause) {
+      if (read.isCurrent()) setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
@@ -88,6 +111,7 @@ export function useDashboardWorkspace(t: TranslationFn, locale: string) {
       return;
     }
 
+    const operation = reads.begin('mutation');
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -103,10 +127,13 @@ export function useDashboardWorkspace(t: TranslationFn, locale: string) {
           await createClockInBooking(bookingPayload);
         },
         async () => loadSummary(true),
+        operation.isFeedbackCurrent,
       );
+      if (!operation.isFeedbackCurrent()) return;
       if (refresh.ok) setMessage(t('clockInSuccess'));
       else setError(t('savedRefreshFailed'));
     } catch (cause) {
+      if (!operation.isFeedbackCurrent()) return;
       const lockedError =
         cause instanceof ApiRequestError && cause.status === 409
           ? ClosingPeriodLockedErrorSchema.safeParse(cause.payload)
@@ -119,7 +146,10 @@ export function useDashboardWorkspace(t: TranslationFn, locale: string) {
             : t('requestFailed'),
       );
     } finally {
-      setLoading(false);
+      if (operation.isCurrent()) {
+        operation.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
@@ -129,6 +159,7 @@ export function useDashboardWorkspace(t: TranslationFn, locale: string) {
       return;
     }
 
+    const operation = reads.begin('mutation');
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -143,11 +174,15 @@ export function useDashboardWorkspace(t: TranslationFn, locale: string) {
           reason: overtimeReason,
         }),
       });
-      setMessage(t('overtimeRequested'));
+      if (operation.isFeedbackCurrent()) setMessage(t('overtimeRequested'));
     } catch (cause) {
+      if (!operation.isFeedbackCurrent()) return;
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
-      setLoading(false);
+      if (operation.isCurrent()) {
+        operation.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
@@ -174,6 +209,8 @@ export function useDashboardWorkspace(t: TranslationFn, locale: string) {
     setOvertimePeriodEnd,
     setOvertimeReason,
     loadSummary,
+    nextCursor,
+    loadMoreBookings,
     clockIn,
     requestOvertimeApproval,
     formatHours,

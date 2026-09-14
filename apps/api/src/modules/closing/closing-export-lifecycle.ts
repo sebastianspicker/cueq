@@ -4,6 +4,7 @@ import { ClosingStatus, type Prisma } from '@cueq/database';
 import { applyCutoffLock } from '@cueq/domain';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import type { AuditHelper, EventOutboxHelper } from '../audit/public.js';
+import type { AssignmentHelper } from '../people/public.js';
 import {
   buildClosingExportArtifact,
   closingExportResponse,
@@ -13,6 +14,7 @@ import {
 import { toCoreClosingStatus } from '../../platform/transactions/closing-lock.helper.js';
 import { lockClosingPeriodWrites } from '../../platform/transactions/transaction-lock.helper.js';
 import { toClosingActorRole, toPersistenceClosingStatus } from './closing-mapping.js';
+import type { TimeAccountsPort } from '../attendance/public.js';
 
 type ClosingExportActor = {
   id: string;
@@ -20,8 +22,10 @@ type ClosingExportActor = {
 };
 
 type ClosingExportLifecycleDependencies = {
+  assignmentHelper: Pick<AssignmentHelper, 'resolveInterval'>;
   auditHelper: Pick<AuditHelper, 'appendAudit'>;
   eventOutboxHelper: Pick<EventOutboxHelper, 'enqueueDomainEvent'>;
+  timeAccounts: Pick<TimeAccountsPort, 'assertCompleteForClosing'>;
 };
 
 export async function runClosingExportLifecycle(
@@ -34,8 +38,15 @@ export async function runClosingExportLifecycle(
   await lockClosingPeriodWrites(tx, closingPeriodId);
   const period = await tx.closingPeriod.findUnique({ where: { id: closingPeriodId } });
   if (!period) throw new NotFoundException('Closing period not found.');
+  await dependencies.timeAccounts.assertCompleteForClosing(tx, period);
 
-  const exportArtifact = await buildExportArtifact(tx, period, format, closingPeriodId);
+  const exportArtifact = await buildExportArtifact(
+    tx,
+    period,
+    format,
+    closingPeriodId,
+    dependencies.assignmentHelper,
+  );
   const existingRun = await findExistingExportRun(
     tx,
     closingPeriodId,
@@ -70,17 +81,79 @@ async function buildExportArtifact(
   period: { organizationUnitId: string | null; periodStart: Date; periodEnd: Date },
   format: string,
   closingPeriodId: string,
+  assignmentHelper: Pick<AssignmentHelper, 'resolveInterval'>,
 ): Promise<ClosingExportArtifact> {
-  const accounts = await tx.timeAccount.findMany({
-    where: {
-      person: period.organizationUnitId
-        ? { organizationUnitId: period.organizationUnitId }
-        : undefined,
-      periodStart: { gte: period.periodStart },
-      periodEnd: { lte: period.periodEnd },
-    },
-    orderBy: { personId: 'asc' },
-  });
+  const accounts: Array<{
+    personId: string;
+    assignmentId: string;
+    periodStart: Date;
+    periodEnd: Date;
+    targetHours: Prisma.Decimal;
+    actualHours: Prisma.Decimal;
+    balance: Prisma.Decimal;
+  }> = [];
+  let cursor: string | undefined;
+  for (;;) {
+    const page = await tx.timeAccount.findMany({
+      where: {
+        ...(cursor ? { id: { gt: cursor } } : {}),
+        ...(period.organizationUnitId
+          ? {
+              assignment: {
+                terms: {
+                  some: {
+                    organizationUnitId: period.organizationUnitId,
+                    AND: [
+                      {
+                        OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: period.periodEnd } }],
+                      },
+                      { OR: [{ effectiveTo: null }, { effectiveTo: { gt: period.periodStart } }] },
+                    ],
+                  },
+                },
+              },
+            }
+          : {}),
+        periodStart: { gte: period.periodStart },
+        periodEnd: { lte: period.periodEnd },
+      },
+      select: {
+        id: true,
+        personId: true,
+        assignmentId: true,
+        periodStart: true,
+        periodEnd: true,
+        targetHours: true,
+        actualHours: true,
+        balance: true,
+      },
+      orderBy: { id: 'asc' },
+      take: 500,
+    });
+    if (!page.length) break;
+    for (const account of page) {
+      // A stored account must already be split at incompatible term boundaries.
+      // Never invent proportional allocation of its approved overtime/balance.
+      const employment = await assignmentHelper.resolveInterval(
+        account.personId,
+        account.periodStart,
+        account.periodEnd,
+        account.assignmentId,
+        tx,
+      );
+      if (!period.organizationUnitId || employment.organizationUnitId === period.organizationUnitId)
+        accounts.push(account);
+    }
+    const lastAccount = page.at(-1);
+    if (!lastAccount) break;
+    cursor = lastAccount.id;
+  }
+  accounts.sort(
+    (left, right) =>
+      left.personId.localeCompare(right.personId) ||
+      left.assignmentId.localeCompare(right.assignmentId) ||
+      left.periodStart.getTime() - right.periodStart.getTime(),
+  );
   return buildClosingExportArtifact(accounts, format, closingPeriodId);
 }
 

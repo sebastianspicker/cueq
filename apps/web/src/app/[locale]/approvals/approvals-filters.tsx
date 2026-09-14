@@ -1,7 +1,6 @@
 'use client';
 
 import type { useTranslations } from 'next-intl';
-import { SectionCard } from '../../../components/SectionCard';
 import { STATUS_FILTERS, TYPE_FILTERS } from './approvals-types';
 import { statusLabel, typeLabel } from './approvals-utils';
 
@@ -29,8 +28,13 @@ export function FiltersSection({
   onLoadInbox: () => void;
 }) {
   return (
-    <SectionCard>
-      <h2>{t('filtersTitle')}</h2>
+    <section
+      className="cq-approval-filters cq-ledger-section"
+      aria-labelledby="cq-approval-filters-title"
+    >
+      <div className="cq-ledger-section-head">
+        <h2 id="cq-approval-filters-title">{t('filtersTitle')}</h2>
+      </div>
       <div className="cq-grid-3">
         <label className="cq-form-field">
           <span>{t('statusFilter')}</span>
@@ -78,6 +82,6 @@ export function FiltersSection({
           {loading ? t('loading') : t('loadInbox')}
         </button>
       </div>
-    </SectionCard>
+    </section>
   );
 }

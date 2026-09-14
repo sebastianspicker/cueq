@@ -1,7 +1,6 @@
 'use client';
 
 import type { useTranslations } from 'next-intl';
-import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 import type { WorkflowAction, WorkflowInboxItem } from './approvals-types';
 import { actionLabel, displayOptional, statusLabel } from './approvals-utils';
@@ -30,20 +29,30 @@ export function WorkflowDetailSection({
   onActionChange: (value: WorkflowAction) => void;
   onDelegateToIdChange: (value: string) => void;
   onReasonChange: (value: string) => void;
-  onApplyAction: () => void;
+  onApplyAction: (action?: WorkflowAction) => void;
 }) {
   if (!detail) {
     return (
-      <SectionCard>
-        <h2>{t('details')}</h2>
-        <p>{t('selectWorkflow')}</p>
-      </SectionCard>
+      <section
+        className="cq-approval-detail cq-ledger-section"
+        aria-labelledby="cq-approval-detail-title"
+      >
+        <div className="cq-ledger-section-head">
+          <h2 id="cq-approval-detail-title">{t('details')}</h2>
+        </div>
+        <p className="cq-ledger-empty">{t('selectWorkflow')}</p>
+      </section>
     );
   }
 
   return (
-    <SectionCard>
-      <h2>{t('details')}</h2>
+    <section
+      className="cq-approval-detail cq-ledger-section"
+      aria-labelledby="cq-approval-detail-title"
+    >
+      <div className="cq-ledger-section-head">
+        <h2 id="cq-approval-detail-title">{t('details')}</h2>
+      </div>
       <div className="cq-list-stack">
         <WorkflowFacts t={t} detail={detail} />
         <hr className="cq-separator" />
@@ -60,7 +69,7 @@ export function WorkflowDetailSection({
           onApplyAction={onApplyAction}
         />
       </div>
-    </SectionCard>
+    </section>
   );
 }
 
@@ -73,6 +82,8 @@ function WorkflowFacts({ t, detail }: { t: TranslationFn; detail: WorkflowInboxI
       <dd>
         <StatusBadge status={detail.status} label={statusLabel(t, detail.status)} />
       </dd>
+      <dt>{t('assignmentId')}</dt>
+      <dd>{displayOptional(detail.assignmentId)}</dd>
       <dt>{t('requesterId')}</dt>
       <dd>{detail.requesterId}</dd>
       <dt>{t('approverId')}</dt>
@@ -128,7 +139,7 @@ function WorkflowActionForm({
   onActionChange: (value: WorkflowAction) => void;
   onDelegateToIdChange: (value: string) => void;
   onReasonChange: (value: string) => void;
-  onApplyAction: () => void;
+  onApplyAction: (action?: WorkflowAction) => void;
 }) {
   const hasActions = detail.availableActions.length > 0;
   return (
@@ -165,9 +176,31 @@ function WorkflowActionForm({
         <span>{t('reasonInput')}</span>
         <input value={reason} onChange={(event) => onReasonChange(event.target.value)} />
       </label>
-      <button type="button" disabled={loading || !hasActions} onClick={onApplyAction}>
-        {loading ? t('loading') : actionLabel(t, action)}
-      </button>
+      <div className="cq-approval-actions">
+        {detail.availableActions.includes('REJECT') ? (
+          <button
+            type="button"
+            className="cq-btn-secondary"
+            disabled={loading}
+            onClick={() => onApplyAction('REJECT')}
+          >
+            {actionLabel(t, 'REJECT')}
+          </button>
+        ) : null}
+        {detail.availableActions.includes('APPROVE') ? (
+          <button type="button" disabled={loading} onClick={() => onApplyAction('APPROVE')}>
+            {actionLabel(t, 'APPROVE')}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="cq-btn-ghost"
+          disabled={loading || !hasActions}
+          onClick={() => onApplyAction()}
+        >
+          {loading ? t('loading') : actionLabel(t, action)}
+        </button>
+      </div>
       {!hasActions ? <p className="cq-form-hint">{t('noAvailableAction')}</p> : null}
     </>
   );

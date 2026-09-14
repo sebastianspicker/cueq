@@ -36,10 +36,32 @@ export function teamCalendarStatuses(role: Role): AbsenceStatus[] {
     : [AbsenceStatus.APPROVED];
 }
 
+export function absenceBelongsToOrganization(
+  absence: {
+    startDate: Date;
+    assignment: {
+      terms: Array<{
+        effectiveFrom: Date | null;
+        effectiveTo: Date | null;
+        organizationUnitId: string;
+      }>;
+    };
+  },
+  organizationUnitId: string,
+): boolean {
+  const effective = absence.assignment.terms.filter(
+    (term) =>
+      (!term.effectiveFrom || term.effectiveFrom <= absence.startDate) &&
+      (!term.effectiveTo || absence.startDate < term.effectiveTo),
+  );
+  return effective.length === 1 && effective[0]?.organizationUnitId === organizationUnitId;
+}
+
 export function toTeamCalendarEntry(
   absence: {
     id: string;
     personId: string;
+    assignmentId: string;
     type: string;
     startDate: Date;
     endDate: Date;
@@ -52,6 +74,7 @@ export function toTeamCalendarEntry(
   return {
     id: absence.id,
     personId: absence.personId,
+    assignmentId: absence.assignmentId,
     personName: `${absence.person.firstName} ${absence.person.lastName}`,
     startDate: absence.startDate.toISOString().slice(0, 10),
     endDate: absence.endDate.toISOString().slice(0, 10),

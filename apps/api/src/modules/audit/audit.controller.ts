@@ -1,3 +1,6 @@
+import { nativeAuditVisibilityWhere } from '../../application/audit/native-audit-visibility.js';
+import { resolveAuthenticatedPerson } from '../../platform/auth/resolve-authenticated-person.js';
+import { cursorPage, cursorWhere } from '../../persistence/queries/cursor-page.js';
 /** Exposes authorized, filtered reads of immutable audit entries. */
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
@@ -71,54 +74,49 @@ export class AuditController {
   @ApiQuery({ name: 'actorId', required: false, type: String, description: 'Actor person ID' })
   @ApiQuery({ name: 'entityId', required: false, type: String, description: 'Entity ID' })
   @ApiQuery({
-    name: 'skip',
+    name: 'cursor',
     required: false,
-    type: Number,
-    description: 'Pagination offset (default: 0)',
+    type: String,
+    description: 'Continuation cursor from the previous response',
   })
   @ApiQuery({
-    name: 'take',
+    name: 'limit',
     required: false,
     type: Number,
-    description: 'Page size 1–200 (default: 50)',
+    description: 'Page size 1–100 (default: 50)',
   })
   async listAuditEntries(
-    @CurrentUser() _user: AuthenticatedIdentity,
+    @CurrentUser() user: AuthenticatedIdentity,
     @Query(new ZodValidationPipe(AuditEntriesQuerySchema)) query: unknown,
   ): Promise<AuditEntriesResult> {
-    const parsed = query as AuditEntriesQuery;
+    const parsed = AuditEntriesQuerySchema.parse(query);
     const where = {
       ...this.buildDateWindowFilter(parsed),
       ...this.buildExactFilters(parsed),
     };
 
-    const [items, total] = await Promise.all([
-      this.prisma.auditEntry.findMany({
-        where,
-        orderBy: { timestamp: 'desc' },
-        skip: parsed.skip,
-        take: parsed.take,
-        select: {
-          id: true,
-          timestamp: true,
-          actorId: true,
-          action: true,
-          entityType: true,
-          entityId: true,
-          reason: true,
-        },
-      }),
-      this.prisma.auditEntry.count({ where }),
-    ]);
-
-    return {
-      items: items.map((entry) => ({
-        ...entry,
-        timestamp: entry.timestamp.toISOString(),
-      })),
-      total,
-      skip: parsed.skip,
-      take: parsed.take,
-    };
+    const actor = await resolveAuthenticatedPerson(this.prisma, user);
+    const visibility = await nativeAuditVisibilityWhere(this.prisma, actor.id);
+    const rows = await this.prisma.auditEntry.findMany({
+      where: { AND: [where, visibility, cursorWhere('timestamp', parsed.cursor, 'desc')] },
+      orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
+      take: parsed.limit + 1,
+      select: {
+        id: true,
+        timestamp: true,
+        actorId: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        reason: true,
+      },
+    });
+    return cursorPage(
+      rows,
+      parsed.limit,
+      'timestamp',
+      (row) => row.timestamp,
+      (entry) => ({ ...entry, timestamp: entry.timestamp.toISOString() }),
+    );
   }
 }

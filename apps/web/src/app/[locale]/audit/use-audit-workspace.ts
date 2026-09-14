@@ -8,6 +8,8 @@ import {
   type AuditEntryItem,
   type AuditSummaryReport,
 } from '@cueq/contracts';
+import { mergePage } from '../../../shared/workspace/cursor-pages';
+import { useReadRequests } from '../../../shared/workspace/use-read-requests';
 import { useApiContext } from '../../../platform/http/api-context';
 import {
   getStoredPreference,
@@ -17,6 +19,7 @@ import {
 export function useAuditWorkspace() {
   const t = useTranslations('pages.audit');
   const { apiBaseUrl, token, apiRequest } = useApiContext();
+  const reads = useReadRequests(apiRequest);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState('2026-03-01');
@@ -30,8 +33,9 @@ export function useAuditWorkspace() {
   const [filterActorId, setFilterActorId] = useState('');
   const [filterEntityId, setFilterEntityId] = useState('');
   const [entries, setEntries] = useState<AuditEntryItem[]>([]);
-  const [entriesTotal, setEntriesTotal] = useState<number | null>(null);
-  const [entriesSkip, setEntriesSkip] = useState(0);
+  const [entriesCursor, setEntriesCursor] = useState<string | null>(null);
+  const [entriesLoaded, setEntriesLoaded] = useState(false);
+  const [loadedQuery, setLoadedQuery] = useState<string | null>(null);
 
   useEffect(() => {
     setPageSize(Number(getStoredPreference(PAGE_SIZE_PREFERENCE_SLOT, '20')) || 20);
@@ -41,11 +45,13 @@ export function useAuditWorkspace() {
     setSummary(null);
     setError(null);
     setEntries([]);
-    setEntriesTotal(null);
-    setEntriesSkip(0);
+    setEntriesCursor(null);
+    setEntriesLoaded(false);
   }, [apiBaseUrl, token]);
 
   async function loadSummary() {
+    const read = reads.begin('loadSummary');
+    const apiRequest = read.request;
     setLoading(true);
     setError(null);
     setSummary(null);
@@ -57,47 +63,66 @@ export function useAuditWorkspace() {
         `/v1/reports/audit-summary?${params.toString()}`,
         AuditSummaryReportSchema,
       );
+      if (!read.isCurrent()) return;
       setSummary(result);
     } catch (cause) {
+      if (!read.isCurrent()) return;
       setSummary(null);
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
-      setLoading(false);
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(false);
+      }
     }
   }
 
-  async function loadEntries(skip = 0) {
+  function entriesQuery() {
+    const params = new URLSearchParams();
+    if (from) params.set('from', `${from}T00:00:00.000Z`);
+    if (to) params.set('to', `${to}T23:59:59.999Z`);
+    if (filterAction) params.set('action', filterAction);
+    if (filterEntityType) params.set('entityType', filterEntityType);
+    if (filterActorId) params.set('actorId', filterActorId);
+    if (filterEntityId) params.set('entityId', filterEntityId);
+    params.set('limit', String(Math.min(100, Math.max(1, pageSize))));
+    return params.toString();
+  }
+
+  async function loadEntries(cursor?: string | null) {
+    const read = reads.begin('loadEntries');
+    const apiRequest = read.request;
     setEntriesLoading(true);
     setEntriesError(null);
     try {
-      const params = new URLSearchParams();
-      if (from) params.set('from', `${from}T00:00:00.000Z`);
-      if (to) params.set('to', `${to}T23:59:59.999Z`);
-      if (filterAction) params.set('action', filterAction);
-      if (filterEntityType) params.set('entityType', filterEntityType);
-      if (filterActorId) params.set('actorId', filterActorId);
-      if (filterEntityId) params.set('entityId', filterEntityId);
-      params.set('skip', String(skip));
-      params.set('take', String(pageSize));
+      const query = entriesQuery();
+      const params = new URLSearchParams(query);
+      if (cursor) params.set('cursor', cursor);
 
       const result = await apiRequest(
         `/v1/audit-entries?${params.toString()}`,
         AuditEntriesResultSchema,
       );
-      setEntries(skip === 0 ? result.items : (previous) => [...previous, ...result.items]);
-      setEntriesTotal(result.total);
-      setEntriesSkip(skip + result.items.length);
+      if (!read.isCurrent()) return;
+      setEntries((previous) => (cursor ? mergePage(previous, result.items) : result.items));
+      setEntriesCursor(result.nextCursor);
+      setEntriesLoaded(true);
+      setLoadedQuery(query);
     } catch (cause) {
+      if (!read.isCurrent()) return;
       setEntriesError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
-      setEntriesLoading(false);
+      if (read.isCurrent()) {
+        read.finish();
+        setEntriesLoading(false);
+      }
     }
   }
 
   function loadEntriesFromStart() {
     setEntries([]);
-    setEntriesSkip(0);
-    return loadEntries(0);
+    setEntriesCursor(null);
+    return loadEntries();
   }
 
   return {
@@ -120,10 +145,13 @@ export function useAuditWorkspace() {
     filterEntityId,
     setFilterEntityId,
     entries,
-    entriesTotal,
-    entriesSkip,
+    entriesCursor: loadedQuery === entriesQuery() ? entriesCursor : null,
+    entriesLoaded,
     loadSummary,
-    loadEntries,
+    loadMore: () =>
+      entriesCursor && loadedQuery === entriesQuery()
+        ? loadEntries(entriesCursor)
+        : Promise.resolve(),
     loadEntriesFromStart,
   };
 }

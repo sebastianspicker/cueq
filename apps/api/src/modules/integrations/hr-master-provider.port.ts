@@ -10,6 +10,8 @@ export type HrMasterRecord = {
   weeklyHours: string;
   dailyTargetHours: string;
   supervisorExternalId?: string;
+  employmentStartDate?: string;
+  employmentEndDate?: string;
 };
 
 /** Nest injection token for the configured HR master-data source. */

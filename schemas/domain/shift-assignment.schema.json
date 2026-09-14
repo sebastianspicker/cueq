@@ -4,7 +4,7 @@
   "title": "ShiftAssignment",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "shiftId", "personId", "createdAt", "updatedAt"],
+  "required": ["id", "shiftId", "personId", "createdAt", "updatedAt", "assignmentId"],
   "properties": {
     "id": {
       "$ref": "./_defs/common.schema.json#/$defs/id"
@@ -20,6 +20,9 @@
     },
     "updatedAt": {
       "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "assignmentId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
     }
   }
 }

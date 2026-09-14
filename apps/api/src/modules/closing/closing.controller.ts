@@ -106,6 +106,16 @@ export class ClosingController {
     return this.closingService.approveClosing(user, closingPeriodId);
   }
 
+  @Post(':id/prepare-accounts')
+  @Roles(Role.HR, Role.ADMIN)
+  @ApiOperation({ summary: 'Prepare and recalculate appointment time accounts' })
+  prepareAccounts(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id', ParseCuidPipe) closingPeriodId: string,
+  ) {
+    return this.closingService.prepareTimeAccounts(user, closingPeriodId);
+  }
+
   @Post(':id/export')
   @Roles(Role.HR, Role.ADMIN)
   @ApiOperation({ summary: 'Export closing period run with deterministic CSV checksum' })
@@ -113,7 +123,7 @@ export class ClosingController {
     schema: {
       type: 'object',
       properties: {
-        format: { type: 'string', enum: ['CSV_V1', 'XML_V1'] },
+        format: { type: 'string', enum: ['CSV_V2', 'XML_V2'] },
       },
     },
   })
@@ -181,6 +191,10 @@ export class ClosingController {
       properties: {
         workflowId: { type: 'string' },
         personId: { type: 'string' },
+        assignmentId: {
+          type: 'string',
+          description: 'Required when more than one appointment covers the correction interval.',
+        },
         timeTypeId: { type: 'string' },
         startTime: { type: 'string', format: 'date-time' },
         endTime: { type: 'string', format: 'date-time' },

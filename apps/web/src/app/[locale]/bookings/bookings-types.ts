@@ -1,4 +1,5 @@
 export interface Booking {
+  assignmentId: string;
   id: string;
   personId: string;
   timeTypeId: string;

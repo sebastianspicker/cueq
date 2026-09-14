@@ -1,64 +1,60 @@
 # Changelog
 
-All notable public changes will be recorded here. cueq has no versioned release
-or published package yet; do not interpret the `Unreleased` section as a tag or
-immutable release identity.
+Changes listed under Unreleased are still in development. They do not describe
+a published release. See [Release status](RELEASE_STATUS.md) for current
+limitations and the checks required before release.
 
 ## Unreleased
 
 ### Added
 
-- Source-only alpha evaluation, roadmap, quality-gate, support, conduct, and
-  release-status documentation.
-- A static GitHub Pages walkthrough built from six reviewed screenshots that
-  contain synthetic data.
-- GitHub dependency-update and generated-release-note configuration.
-- A documented source-alpha release process with tag identity, evidence gates,
-  privacy review, screenshot manifest, and explicit publication approval.
-- Modular-monolith boundary enforcement for workspace dependencies, API public
-  surfaces, feature-module cycles, and cross-feature aggregate writes.
+- Guides for development, testing, support, conduct, and releases.
+- A browser-only GitHub Pages demo for time recording, booking corrections, and
+  approval decisions, with invented data and no API connection.
+- A three-screen README tour and instructions for previewing the demo locally.
+- GitHub configuration for dependency updates and generated release notes.
+- Architecture checks for workspace dependencies, API feature imports, module
+  cycles, and writes that involve more than one feature.
 
 ### Changed
 
-- The historical `shared`, `core`, `common`, and `phase2` layout is replaced by
-  contracts, policy, pure domain, database, platform, and capability-owned API
-  modules.
-- Roster staffing now has one authority: `ShiftAssignment`. The deprecated
-  `Shift.personId` storage and response field is backfilled and removed by a
-  forward migration.
-- Dependency overrides now live in the workspace configuration consumed by pnpm,
-  and the lockfile is synchronized with the declared toolchain.
-- Docker-published services and local development servers default to loopback
-  interfaces. Non-loopback development binding requires `CUEQ_DEV_HOST`.
+- Reorganized the former `shared`, `core`, `common`, and `phase2` code into
+  contracts, policy, domain, database, platform, and API feature modules.
+- Roster staffing uses `ShiftAssignment`. A migration backfills assignments and
+  removes the deprecated `Shift.personId` database and response field.
+- Moved dependency overrides into the pnpm workspace configuration and aligned
+  the lockfile with the declared toolchain.
+- Local development servers and Docker ports bind to loopback by default.
+  Binding development servers to another interface requires `CUEQ_DEV_HOST`.
+- Replaced the Pages screenshot viewer with an interactive, responsive demo.
+- Simplified the GitHub issue and pull request templates.
 
 ### Fixed
 
-- API routes now fail closed unless explicitly public, role-restricted, or
-  marked for service-layer ownership/organization-unit authorization.
-- Person, calendar, and roster reads now use narrower role and data boundaries;
-  team leads cannot read draft roster detail.
-- HR HTTP imports validate transport configuration, reject redirects, cap
-  timeouts, and avoid leaking upstream network details.
-- Machine integration authentication is represented in the generated OpenAPI
-  contract.
-- Repository commands and database helpers consistently use the pinned pnpm
-  version.
-- OpenAPI and schema generation now builds the API's workspace dependencies, so
-  `make generate` and `make openapi-check` work without pre-existing `dist`
-  directories. CI checks the committed generated artifacts after generation.
-- Local development now loads the repository `.env` deterministically, while
-  production startup remains fail-closed.
-- Team-calendar authorization excludes Admin, and service-level mapping redacts
-  absence reasons for roles outside Team Lead and HR.
-- The static walkthrough reflects the current dashboard, absence, roster, and
-  workflow surfaces.
-- Approval detail identifiers wrap within their grid instead of overlapping
-  adjacent labels.
-- NestJS 11.1.18, `next-intl` 4.9.2, Vitest 3.2.6, Turbo 2.9.14, and compatible
-  transitive overrides close the advisories reported by the package-manager
-  audit.
-
-Current boundaries and local evidence are recorded in
-[RELEASE_STATUS.md](RELEASE_STATUS.md). Planned work is described in the
-[roadmap](docs/ROADMAP.md). Commit history uses
-[Conventional Commits](https://www.conventionalcommits.org/).
+- API routes reject access unless they declare public access, allowed roles, or
+  an ownership or organization check in the service.
+- Person, calendar, and roster reads enforce more specific access rules. Team
+  leads cannot read draft roster details.
+- Team-calendar access excludes Admin. Absence reasons are omitted for roles
+  other than Team Lead and HR.
+- HR HTTP imports validate transport settings, reject redirects, limit timeouts,
+  and keep upstream network details out of errors.
+- The OpenAPI document describes authentication for machine integrations.
+- Repository commands and database helpers use the pinned pnpm version.
+- OpenAPI and schema generation build the API's workspace dependencies first.
+  `make generate` and `make openapi-check` no longer need existing `dist`
+  directories. CI checks the generated files for drift.
+- Local development loads the repository `.env` consistently. Production
+  startup still rejects missing required configuration.
+- Approval identifiers wrap inside their columns instead of overlapping labels.
+- The Pages demo handles mobile navigation, keyboard controls, reset, empty
+  command searches, and zero open approvals. Time totals match the example
+  bookings.
+- Ignore rules cover nested database files and allow `RELEASE_STATUS.md` on
+  case-insensitive filesystems. The hygiene check rejects additional private
+  and generated files, including forced additions.
+- `.node-version` matches the Node.js version used in CI.
+- Updated NestJS to 11.1.18, `next-intl` to 4.9.2, Vitest to 3.2.6, Turbo to
+  2.9.14, and transitive overrides to address reported dependency advisories.
+- Updated Next.js and its ESLint plugin to 15.5.24, Sharp to 0.35.4, js-yaml
+  to 4.3.2, and Multer to 2.3.0 to address dependency security advisories.

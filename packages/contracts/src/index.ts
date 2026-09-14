@@ -19,3 +19,16 @@ export * from './schemas/reporting.js';
 export * from './schemas/time-engine.js';
 export * from './schemas/common.js';
 export * from './schemas/closing.js';
+export * from './schemas/dashboard.js';
+
+export * from './schemas/employment.js';
+
+export * from './schemas/personnel.js';
+
+export * from './schemas/projects.js';
+
+export * from './schemas/documents.js';
+
+export * from './schemas/lifecycle.js';
+
+export * from './schemas/time-accounts.js';

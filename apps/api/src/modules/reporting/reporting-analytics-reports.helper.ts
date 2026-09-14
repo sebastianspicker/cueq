@@ -1,6 +1,6 @@
 /** Executes role-scoped reporting queries with the provider's existing collaborators. */
-import { ForbiddenException } from '@nestjs/common';
-import { Role } from '@cueq/database';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { Role, type ClosingStatus } from '@cueq/database';
 import {
   ClosingCompletionQuerySchema,
   OeOvertimeQuerySchema,
@@ -10,10 +10,9 @@ import type { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import type { AuditHelper } from '../audit/public.js';
 import {
-  absenceTotals,
-  absenceTypeBuckets,
-  closingCompletionTotals,
-  overtimeTotals,
+  closingCompletionTotalsFromGroups,
+  databaseNumber,
+  overtimeTotalsFromAggregate,
 } from './reporting-analytics-aggregation.helper.js';
 import { HR_LIKE_ROLES, type PersonHelper } from '../people/public.js';
 import type { ReportingComplianceHelper } from './reporting-compliance.helper.js';
@@ -40,12 +39,23 @@ export async function reportTeamAbsence(
 
   const from = new Date(`${parsed.from}T00:00:00.000Z`);
   const to = new Date(`${parsed.to}T23:59:59.000Z`);
-  const population = await prisma.person.count({
-    where: {
-      organizationUnitId: targetOuId,
-      role: { in: [Role.EMPLOYEE, Role.TEAM_LEAD, Role.SHIFT_PLANNER] },
-    },
-  });
+  const [populationRow] = await prisma.$queryRaw<Array<{ people: number | bigint }>>`
+    SELECT COUNT(DISTINCT assignment."personId")::integer AS "people"
+    FROM "employment_assignments" AS assignment
+    INNER JOIN "persons" AS person ON person."id" = assignment."personId"
+    WHERE person."role"::text IN ('EMPLOYEE', 'TEAM_LEAD', 'SHIFT_PLANNER')
+      AND (assignment."employmentStartDate" IS NULL OR assignment."employmentStartDate" <= ${to})
+      AND (assignment."employmentEndDate" IS NULL OR assignment."employmentEndDate" >= ${from})
+      AND EXISTS (
+        SELECT 1
+        FROM "employment_terms" AS term
+        WHERE term."assignmentId" = assignment."id"
+          AND term."organizationUnitId" = ${targetOuId}
+          AND (term."effectiveFrom" IS NULL OR term."effectiveFrom" <= ${to})
+          AND (term."effectiveTo" IS NULL OR term."effectiveTo" > ${from})
+      )
+  `;
+  const population = databaseNumber(populationRow?.people);
   const minGroupSize = complianceHelper.minGroupSize();
   const suppressed = population < minGroupSize;
 
@@ -54,17 +64,46 @@ export async function reportTeamAbsence(
   const canViewAbsenceTypeBuckets = HR_LIKE_ROLES.has(user.role);
 
   if (!suppressed) {
-    const absences = await prisma.absence.findMany({
-      where: {
-        person: { organizationUnitId: targetOuId },
-        startDate: { lte: to },
-        endDate: { gte: from },
-      },
-    });
-
-    totals = absenceTotals(absences);
+    const absenceGroups = await prisma.$queryRaw<
+      Array<{ type: string; requests: number | bigint; days: unknown }>
+    >`
+      SELECT absence."type"::text AS "type",
+             COUNT(*)::integer AS "requests",
+             COALESCE(SUM(absence."days"), 0)::numeric AS "days"
+      FROM "absences" AS absence
+      WHERE absence."startDate" <= ${to}
+        AND absence."endDate" >= ${from}
+        AND EXISTS (
+          SELECT 1
+          FROM "employment_terms" AS term
+          WHERE term."assignmentId" = absence."assignmentId"
+            AND term."organizationUnitId" = ${targetOuId}
+            AND (term."effectiveFrom" IS NULL OR term."effectiveFrom" <= absence."startDate")
+            AND (term."effectiveTo" IS NULL OR term."effectiveTo" > absence."startDate")
+        )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM "employment_terms" AS other_term
+          WHERE other_term."assignmentId" = absence."assignmentId"
+            AND other_term."organizationUnitId" <> ${targetOuId}
+            AND (other_term."effectiveFrom" IS NULL OR other_term."effectiveFrom" < absence."endDate" + INTERVAL '1 day')
+            AND (other_term."effectiveTo" IS NULL OR other_term."effectiveTo" > absence."startDate")
+        )
+      GROUP BY absence."type"
+      ORDER BY MIN(absence."startDate") ASC, absence."type" ASC
+    `;
+    totals = {
+      requests: absenceGroups.reduce((sum, group) => sum + databaseNumber(group.requests), 0),
+      days: Number(
+        absenceGroups.reduce((sum, group) => sum + databaseNumber(group.days), 0).toFixed(2),
+      ),
+    };
     if (canViewAbsenceTypeBuckets) {
-      buckets = absenceTypeBuckets(absences);
+      buckets = absenceGroups.map((group) => ({
+        type: group.type,
+        requests: databaseNumber(group.requests),
+        days: Number(databaseNumber(group.days).toFixed(2)),
+      }));
     }
   }
 
@@ -107,18 +146,59 @@ export async function reportOeOvertime(
   const from = new Date(`${parsed.from}T00:00:00.000Z`);
   const to = new Date(`${parsed.to}T23:59:59.000Z`);
   const minGroupSize = complianceHelper.minGroupSize();
-  const accounts = await prisma.timeAccount.findMany({
-    where: {
-      person: { organizationUnitId: targetOuId },
-      periodStart: { lte: to },
-      periodEnd: { gte: from },
-    },
-    select: { personId: true, balance: true, overtimeHours: true },
-  });
-
-  const population = new Set(accounts.map((account) => account.personId)).size;
+  const [aggregate] = await prisma.$queryRaw<
+    Array<{
+      people: number | bigint;
+      totalBalanceHours: unknown;
+      totalOvertimeHours: unknown;
+      invalidAccounts: number | bigint;
+    }>
+  >`
+    WITH candidate_accounts AS (
+      SELECT account.*,
+             EXISTS (
+               SELECT 1
+               FROM "employment_terms" AS term
+               WHERE term."assignmentId" = account."assignmentId"
+                 AND term."organizationUnitId" = ${targetOuId}
+                 AND (term."effectiveFrom" IS NULL OR term."effectiveFrom" <= account."periodStart")
+                 AND (term."effectiveTo" IS NULL OR term."effectiveTo" >= account."periodEnd")
+             ) AS eligible
+      FROM "time_accounts" AS account
+      WHERE account."periodStart" <= ${to}
+        AND account."periodEnd" >= ${from}
+        AND EXISTS (
+          SELECT 1
+          FROM "employment_terms" AS term
+          WHERE term."assignmentId" = account."assignmentId"
+            AND term."organizationUnitId" = ${targetOuId}
+            AND (term."effectiveFrom" IS NULL OR term."effectiveFrom" <= account."periodEnd")
+            AND (term."effectiveTo" IS NULL OR term."effectiveTo" > account."periodStart")
+        )
+    )
+    SELECT COUNT(DISTINCT "personId") FILTER (WHERE eligible)::integer AS "people",
+           COALESCE(SUM("balance") FILTER (WHERE eligible), 0)::numeric AS "totalBalanceHours",
+           COALESCE(SUM("overtimeHours") FILTER (WHERE eligible), 0)::numeric AS "totalOvertimeHours",
+           COUNT(*) FILTER (WHERE NOT eligible)::integer AS "invalidAccounts"
+    FROM candidate_accounts
+  `;
+  if (databaseNumber(aggregate?.invalidAccounts) > 0) {
+    throw new ConflictException({
+      code: 'TIME_ACCOUNT_RECONCILIATION_REQUIRED',
+      message:
+        'An appointment account crosses an effective-term boundary; split or reconcile it before reporting.',
+    });
+  }
+  const population = databaseNumber(aggregate?.people);
   const suppressed = population < minGroupSize;
-  const totals = overtimeTotals(accounts, population, suppressed);
+  const totals = overtimeTotalsFromAggregate(
+    {
+      totalBalanceHours: aggregate?.totalBalanceHours ?? 0,
+      totalOvertimeHours: aggregate?.totalOvertimeHours ?? 0,
+    },
+    population,
+    suppressed,
+  );
 
   await auditHelper.appendAudit({
     actorId: actor.id,
@@ -160,15 +240,25 @@ export async function reportClosingCompletion(
   const organizationUnitId =
     user.role === Role.TEAM_LEAD ? actor.organizationUnitId : (parsed.organizationUnitId ?? null);
 
-  const periods = await prisma.closingPeriod.findMany({
-    where: {
-      organizationUnitId: organizationUnitId ?? undefined,
-      periodStart: { lte: to },
-      periodEnd: { gte: from },
-    },
-    select: { status: true, organizationUnitId: true },
-  });
-  const totals = closingCompletionTotals(periods);
+  const periods = organizationUnitId
+    ? await prisma.$queryRaw<Array<{ status: ClosingStatus; count: number | bigint }>>`
+        SELECT period."status"::text AS "status", COUNT(*)::integer AS "count"
+        FROM "closing_periods" AS period
+        WHERE period."organizationUnitId" = ${organizationUnitId}
+          AND period."periodStart" <= ${to}
+          AND period."periodEnd" >= ${from}
+        GROUP BY period."status"
+        ORDER BY period."status" ASC
+      `
+    : await prisma.$queryRaw<Array<{ status: ClosingStatus; count: number | bigint }>>`
+        SELECT period."status"::text AS "status", COUNT(*)::integer AS "count"
+        FROM "closing_periods" AS period
+        WHERE period."periodStart" <= ${to}
+          AND period."periodEnd" >= ${from}
+        GROUP BY period."status"
+        ORDER BY period."status" ASC
+      `;
+  const totals = closingCompletionTotalsFromGroups(periods);
 
   await auditHelper.appendAudit({
     actorId: actor.id,

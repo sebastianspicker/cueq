@@ -1,5 +1,6 @@
+import { CursorPagination } from '../../platform/http/cursor-pagination.decorator.js';
 /** Exposes authenticated employee booking endpoints. */
-import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
 import { CreateBookingSchema } from '@cueq/contracts';
@@ -22,10 +23,11 @@ export class BookingsController {
   ) {}
 
   @Get('me')
+  @CursorPagination()
   @Authenticated()
   @ApiOperation({ summary: 'List bookings for the authenticated user' })
-  listMine(@CurrentUser() user: AuthenticatedIdentity) {
-    return this.bookingService.listMyBookings(user);
+  listMine(@CurrentUser() user: AuthenticatedIdentity, @Query() query: unknown) {
+    return this.bookingService.listMyBookings(user, query);
   }
 
   @Get(':id')

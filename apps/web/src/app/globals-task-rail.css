@@ -1,17 +1,20 @@
 .cq-task-strip {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  gap: 0 1.5rem;
+  border-block: 1px solid var(--cq-border);
 }
 
 .cq-task-card {
   display: flex;
   flex-direction: column;
   gap: 0.625rem;
-  padding: 0.875rem 1rem;
-  border: 1px solid var(--cq-border);
-  border-radius: var(--cq-radius-lg);
-  background: var(--cq-surface);
+  padding: 1rem 0;
+}
+
+.cq-task-card + .cq-task-card {
+  border-left: 1px solid var(--cq-border);
+  padding-left: 1.5rem;
 }
 
 .cq-task-card h3 {
@@ -96,10 +99,8 @@
 
 .cq-dashboard-orientation {
   margin-top: 0.75rem;
-  padding: 1rem 1.15rem;
-  border: 1px solid var(--cq-border);
-  border-radius: var(--cq-radius-lg);
-  background: var(--cq-surface-subtle);
+  padding: 0.875rem 0;
+  border-block: 1px solid var(--cq-border);
 }
 
 .cq-dashboard-orientation h2 {
@@ -369,6 +370,191 @@
 
 .cq-data-table tbody tr:hover {
   background: var(--cq-accent-soft);
+}
+
+/* Ledger feature workspaces use record rows and hairlines rather than card stacks. */
+.cq-ledger-section {
+  border-block: 1px solid var(--cq-border);
+}
+
+.cq-ledger-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3rem;
+  border-bottom: 1px solid var(--cq-border);
+}
+
+.cq-ledger-section-head h2 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.cq-bookings-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.cq-booking-correction,
+.cq-bookings-register,
+.cq-approval-filters,
+.cq-approval-inbox,
+.cq-approval-detail {
+  margin-top: 1rem;
+}
+
+.cq-booking-correction-fields {
+  padding: 1rem 0;
+}
+
+.cq-booking-correction-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 1rem;
+}
+
+.cq-table-scroll {
+  overflow-x: auto;
+}
+
+.cq-bookings-table {
+  min-width: 44rem;
+}
+
+.cq-bookings-table tr[data-selected='true'] {
+  background: var(--cq-accent-soft);
+}
+
+.cq-bookings-table-action {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right !important;
+}
+
+.cq-approval-filters > .cq-grid-3 {
+  align-items: end;
+  padding: 1rem 0 0;
+}
+
+.cq-approval-filters > .cq-space-top-sm {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0.875rem 0;
+}
+
+.cq-workspace-split {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 1.2fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+.cq-approval-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cq-approval-list > li + li {
+  border-top: 1px solid var(--cq-border);
+}
+
+.cq-approval-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  gap: 0.35rem 1rem;
+  padding: 0.875rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--cq-text);
+  text-align: left;
+}
+
+.cq-approval-row:hover:not(:disabled),
+.cq-approval-row[data-selected='true'] {
+  background: var(--cq-accent-soft);
+}
+
+.cq-approval-row[data-selected='true'] {
+  box-shadow: inset 2px 0 0 var(--cq-accent);
+}
+
+.cq-approval-row-title {
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.cq-approval-row-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.cq-approval-row-detail,
+.cq-approval-row-footer {
+  color: var(--cq-text-muted);
+  font-size: 0.78rem;
+}
+
+.cq-approval-row-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cq-approval-row-footer {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.cq-approval-detail .cq-list-stack {
+  padding: 1rem 0;
+}
+
+.cq-approval-detail .cq-workflow-facts {
+  margin: 0;
+}
+
+.cq-approval-detail .cq-form-field + .cq-form-field {
+  margin-top: 0.75rem;
+}
+
+.cq-approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 48rem) {
+  .cq-task-strip,
+  .cq-workspace-split {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .cq-task-card + .cq-task-card {
+    border-top: 1px solid var(--cq-border);
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .cq-approval-row {
+    padding-inline: 0.5rem;
+  }
 }
 
 .cq-code-input,

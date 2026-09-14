@@ -105,3 +105,15 @@ export function useApiContext() {
   }
   return value;
 }
+
+export function ScopedApiProvider({
+  children,
+  apiRequest,
+}: {
+  children: React.ReactNode;
+  apiRequest: ApiRequest;
+}) {
+  const parent = useApiContext();
+  const value = useMemo(() => ({ ...parent, apiRequest }), [parent, apiRequest]);
+  return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;
+}

@@ -2,13 +2,15 @@
 import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
-import { TeamCalendarQuerySchema } from '@cueq/contracts';
+import { AssignmentContextSchema, TeamCalendarQuerySchema } from '@cueq/contracts';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import { CurrentUser } from '../../platform/auth/decorators/current-user.decorator.js';
 import { Roles } from '../../platform/auth/decorators/roles.decorator.js';
 import { ZodValidationPipe } from '../../platform/http/validation/zod-validation.pipe.js';
 import { AbsenceDomainService } from './absence-domain.service.js';
 import { TeamCalendarEntryDto } from './absence.dto.js';
+
+const TeamCalendarScopedQuerySchema = TeamCalendarQuerySchema.and(AssignmentContextSchema);
 
 /** Team-calendar read boundary; responses are scoped by the underlying absence visibility policy. */
 @ApiTags('calendar')
@@ -27,9 +29,9 @@ export class CalendarController {
   @ApiQuery({ name: 'end', required: false, type: String })
   teamCalendar(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Query(new ZodValidationPipe(TeamCalendarQuerySchema))
-    query: { start?: string; end?: string },
+    @Query(new ZodValidationPipe(TeamCalendarScopedQuerySchema))
+    query: { assignmentId?: string; start?: string; end?: string },
   ) {
-    return this.absenceService.teamCalendar(user, query.start, query.end);
+    return this.absenceService.teamCalendar(user, query);
   }
 }

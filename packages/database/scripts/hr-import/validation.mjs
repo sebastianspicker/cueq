@@ -7,6 +7,8 @@ function recordField(row, key, fallback) {
 
 function parsedRowFromRecord(row) {
   const supervisorExternalId = row.supervisorExternalId;
+  const employmentStartDate = row.employmentStartDate;
+  const employmentEndDate = row.employmentEndDate;
   return {
     externalId: recordField(row, 'externalId', ''),
     firstName: recordField(row, 'firstName', ''),
@@ -18,6 +20,8 @@ function parsedRowFromRecord(row) {
     weeklyHours: recordField(row, 'weeklyHours', '39.83'),
     dailyTargetHours: recordField(row, 'dailyTargetHours', '7.97'),
     supervisorExternalId: supervisorExternalId || undefined,
+    employmentStartDate: employmentStartDate || undefined,
+    employmentEndDate: employmentEndDate || undefined,
   };
 }
 
@@ -37,6 +41,15 @@ function toRole(input) {
   }
 
   throw new Error(`Unsupported HR role: ${input}`);
+}
+
+function parseEmploymentDate(value) {
+  if (value === undefined) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value
+    ? false
+    : parsed;
 }
 
 export function validateRows(rows) {
@@ -73,6 +86,27 @@ export function validateRows(rows) {
       return [];
     }
 
+    const parsedEmploymentStartDate = parseEmploymentDate(row.employmentStartDate);
+    const parsedEmploymentEndDate = parseEmploymentDate(row.employmentEndDate);
+    if (parsedEmploymentStartDate === false) {
+      errors.push(`Invalid employmentStartDate for externalId="${row.externalId}".`);
+      return [];
+    }
+    if (parsedEmploymentEndDate === false) {
+      errors.push(`Invalid employmentEndDate for externalId="${row.externalId}".`);
+      return [];
+    }
+    if (
+      parsedEmploymentStartDate &&
+      parsedEmploymentEndDate &&
+      parsedEmploymentEndDate < parsedEmploymentStartDate
+    ) {
+      errors.push(
+        `employmentEndDate precedes employmentStartDate for externalId="${row.externalId}".`,
+      );
+      return [];
+    }
+
     return [
       {
         ...row,
@@ -81,6 +115,8 @@ export function validateRows(rows) {
         parsedDailyTargetHours: dailyTargetHours,
         organizationUnitId: slug('ou', row.organizationUnit),
         workTimeModelId: slug('wtm', row.workTimeModel),
+        parsedEmploymentStartDate,
+        parsedEmploymentEndDate,
       },
     ];
   });

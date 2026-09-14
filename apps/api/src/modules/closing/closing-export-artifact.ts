@@ -2,12 +2,28 @@
 import { createHash } from 'node:crypto';
 import { escapeXml } from './closing-xml.js';
 
-type ClosingExportRow = {
+type ClosingExportValues = {
   personId: string;
   targetHours: number;
   actualHours: number;
   balance: number;
 };
+
+type ClosingExportRow = ClosingExportValues &
+  (
+    | {
+        assignmentId: string;
+        formatVersion: 2;
+        periodStart: string;
+        periodEnd: string;
+      }
+    | {
+        assignmentId?: never;
+        formatVersion?: never;
+        periodStart?: never;
+        periodEnd?: never;
+      }
+  );
 
 export type ClosingExportArtifact = {
   artifact: string;
@@ -27,6 +43,9 @@ export type ExistingClosingExportRun = {
 
 type TimeAccountExportSource = {
   personId: string;
+  assignmentId?: string;
+  periodStart?: Date;
+  periodEnd?: Date;
   targetHours: { toString(): string } | number;
   actualHours: { toString(): string } | number;
   balance: { toString(): string } | number;
@@ -49,6 +68,14 @@ function payrollRow(row: ClosingExportRow): string {
   return [
     '  <row',
     xmlAttribute('personId', row.personId),
+    ...(row.formatVersion === 2
+      ? [
+          xmlAttribute('formatVersion', '2'),
+          xmlAttribute('assignmentId', row.assignmentId),
+          xmlAttribute('periodStart', row.periodStart),
+          xmlAttribute('periodEnd', row.periodEnd),
+        ]
+      : []),
     xmlAttribute('targetHours', row.targetHours.toFixed(2)),
     xmlAttribute('actualHours', row.actualHours.toFixed(2)),
     xmlAttribute('balance', row.balance.toFixed(2)),
@@ -56,23 +83,41 @@ function payrollRow(row: ClosingExportRow): string {
   ].join('');
 }
 
-function normalizeClosingExportRow(account: TimeAccountExportSource): ClosingExportRow {
-  return {
+function normalizeClosingExportRow(
+  account: TimeAccountExportSource,
+  versionTwo: boolean,
+): ClosingExportRow {
+  if (versionTwo && (!account.assignmentId || !account.periodStart || !account.periodEnd)) {
+    throw new Error('Version 2 exports require appointment and account interval identifiers.');
+  }
+  const values: ClosingExportValues = {
     personId: account.personId,
     targetHours: Number(Number(account.targetHours).toFixed(2)),
     actualHours: Number(Number(account.actualHours).toFixed(2)),
     balance: Number(Number(account.balance).toFixed(2)),
   };
+  if (!versionTwo) return values;
+  const { assignmentId, periodStart, periodEnd } = account;
+  if (!assignmentId || !periodStart || !periodEnd) {
+    throw new Error('Version 2 exports require appointment and account interval identifiers.');
+  }
+  return {
+    ...values,
+    assignmentId,
+    formatVersion: 2,
+    periodStart: periodStart.toISOString(),
+    periodEnd: periodEnd.toISOString(),
+  };
 }
 
-function csvArtifact(rows: ClosingExportRow[]): string {
+function csvArtifact(rows: ClosingExportRow[], versionTwo: boolean): string {
   const body = rows
     .map(
       (row) =>
-        `${row.personId},${row.targetHours.toFixed(2)},${row.actualHours.toFixed(2)},${row.balance.toFixed(2)}`,
+        `${versionTwo ? `2,${row.assignmentId},${row.periodStart},${row.periodEnd},` : ''}${row.personId},${row.targetHours.toFixed(2)},${row.actualHours.toFixed(2)},${row.balance.toFixed(2)}`,
     )
     .join('\n');
-  return `personId,targetHours,actualHours,balance\n${body}\n`;
+  return `${versionTwo ? 'formatVersion,assignmentId,periodStart,periodEnd,' : ''}personId,targetHours,actualHours,balance\n${body}\n`;
 }
 
 function xmlArtifact(rows: ClosingExportRow[], format: string, closingPeriodId: string): string {
@@ -90,14 +135,15 @@ export function buildClosingExportArtifact(
   format: string,
   closingPeriodId: string,
 ): ClosingExportArtifact {
-  const rows = accounts.map(normalizeClosingExportRow);
-  const artifact =
-    format === 'CSV_V1' ? csvArtifact(rows) : xmlArtifact(rows, format, closingPeriodId);
+  const versionTwo = format.endsWith('_V2');
+  const csv = format.startsWith('CSV_');
+  const rows = accounts.map((account) => normalizeClosingExportRow(account, versionTwo));
+  const artifact = csv ? csvArtifact(rows, versionTwo) : xmlArtifact(rows, format, closingPeriodId);
 
   return {
     artifact,
     checksum: createHash('sha256').update(artifact).digest('hex'),
-    contentType: format === 'CSV_V1' ? 'text/csv' : 'application/xml',
+    contentType: csv ? 'text/csv' : 'application/xml',
     rows,
   };
 }
@@ -110,7 +156,7 @@ export function closingExportResponse(
   return {
     exportRun: run,
     checksum: run.checksum,
-    csv: run.format === 'CSV_V1' ? artifact : null,
+    csv: run.format.startsWith('CSV_') ? artifact : null,
     artifact,
     contentType: run.contentType ?? exportArtifact.contentType,
     rows: exportArtifact.rows,

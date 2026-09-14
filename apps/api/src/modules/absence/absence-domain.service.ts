@@ -1,9 +1,11 @@
+import { cursorPage, cursorWhere } from '../../persistence/queries/cursor-page.js';
 /** Owns absence, leave-adjustment, approval, and balance operations. */
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { AbsenceStatus, type AbsenceType } from '@cueq/database';
-import { calculateAbsenceWorkingDays } from '@cueq/domain';
+import { countAssignmentWorkingDays } from '@cueq/domain';
 import {
   CreateAbsenceSchema,
+  AbsenceQuerySchema,
   CreateLeaveAdjustmentSchema,
   LeaveAdjustmentQuerySchema,
 } from '@cueq/contracts';
@@ -16,13 +18,13 @@ import {
 import { AuditHelper } from '../audit/public.js';
 import {
   PersonHelper,
+  AssignmentHelper,
   ABSENCE_TYPES_WITH_APPROVAL,
   ABSENCE_TYPES_AUTO_APPROVED,
   assertHrLikeRole,
   assertCanActForPerson,
 } from '../people/public.js';
 import { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
-import { HolidayProvider } from './holiday.provider.js';
 import { LeaveBalanceHelper } from './leave-balance.helper.js';
 import { toAbsenceResponse } from './absence-response.mapper.js';
 import { writeAbsenceCreation } from './absence-create.writer.js';
@@ -30,6 +32,7 @@ import { writeAbsenceCancellation } from './absence-cancel.writer.js';
 import { writeLeaveAdjustment } from './absence-leave-adjustment.writer.js';
 import {
   mayReadAbsenceDetails,
+  absenceBelongsToOrganization,
   teamCalendarDateRange,
   teamCalendarStatuses,
   toTeamCalendarEntry,
@@ -44,9 +47,9 @@ export class AbsenceDomainService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper) private readonly assignmentHelper: AssignmentHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
     @Inject(ClosingLockHelper) private readonly closingLockHelper: ClosingLockHelper,
-    @Inject(HolidayProvider) private readonly holidayProvider: HolidayProvider,
     @Inject(WORKFLOW_RUNTIME_PORT) private readonly workflowRuntimeService: WorkflowRuntimePort,
     @Inject(LeaveBalanceHelper) private readonly leaveBalanceHelper: LeaveBalanceHelper,
   ) {}
@@ -57,23 +60,18 @@ export class AbsenceDomainService {
 
     assertCanActForPerson(user, actor.id, parsed.personId);
 
-    const targetPerson = await this.prisma.person.findUnique({
-      where: { id: parsed.personId },
-      select: {
-        id: true,
-        organizationUnitId: true,
-        supervisorId: true,
-      },
-    });
-    if (!targetPerson) {
-      throw new NotFoundException('Person not found.');
-    }
-
     const start = new Date(`${parsed.startDate}T00:00:00.000Z`);
     const end = new Date(`${parsed.endDate}T00:00:00.000Z`);
+    const endExclusive = new Date(end.getTime() + 86_400_000);
+    const resolved = await this.assignmentHelper.resolveInterval(
+      parsed.personId,
+      start,
+      endExclusive,
+      parsed.assignmentId,
+    );
     const closingAttempt = {
       actorId: actor.id,
-      organizationUnitId: targetPerson.organizationUnitId,
+      organizationUnitId: resolved.organizationUnitId,
       from: start,
       to: end,
       attemptedAction: 'ABSENCE_CREATE',
@@ -82,11 +80,11 @@ export class AbsenceDomainService {
     };
     await this.closingLockHelper.assertClosingPeriodUnlockedForRange(closingAttempt);
 
-    const holidayDates = this.holidayProvider.holidayDatesBetween(parsed.startDate, parsed.endDate);
-    const daySpan = calculateAbsenceWorkingDays({
+    const daySpan = countAssignmentWorkingDays({
       startDate: parsed.startDate,
       endDate: parsed.endDate,
-      holidayDates,
+      workingDays: resolved.term.workingDays,
+      holidayDates: resolved.term.holidayCalendar.holidayDates,
     });
     if (daySpan <= 0) {
       throw new BadRequestException('Absence range has no applicable working days.');
@@ -105,15 +103,17 @@ export class AbsenceDomainService {
         writeAbsenceCreation(tx, {
           actorId: actor.id,
           parsed,
-          targetPerson,
+          resolved,
           start,
           end,
+          endExclusive,
           daySpan,
           status,
           requiresApproval,
+          assignmentHelper: this.assignmentHelper,
           assertClosingUnlocked: (transaction) =>
             this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
-              { organizationUnitId: targetPerson.organizationUnitId, from: start, to: end },
+              { organizationUnitId: resolved.organizationUnitId, from: start, to: end },
               transaction,
             ),
           workflowRuntimeService: this.workflowRuntimeService,
@@ -127,14 +127,37 @@ export class AbsenceDomainService {
     return toAbsenceResponse(absence);
   }
 
-  async listMyAbsences(user: AuthenticatedIdentity): Promise<unknown> {
+  async listMyAbsences(user: AuthenticatedIdentity, query: unknown = {}): Promise<unknown> {
     const person = await this.personHelper.personForUser(user);
 
+    const parsed = AbsenceQuerySchema.parse(query);
+    const assignment = await this.assignmentHelper.selectAssignment(
+      person.id,
+      parsed.assignmentId,
+      undefined,
+      parsed.from ? new Date(`${parsed.from}T00:00:00.000Z`) : undefined,
+    );
     const absences = await this.prisma.absence.findMany({
-      where: { personId: person.id },
-      orderBy: { startDate: 'asc' },
+      where: {
+        personId: person.id,
+        assignmentId: assignment.id,
+        status: parsed.status,
+        startDate: {
+          ...(parsed.from ? { gte: new Date(parsed.from) } : {}),
+          ...(parsed.to ? { lte: new Date(parsed.to) } : {}),
+        },
+        AND: [cursorWhere('startDate', parsed.cursor)],
+      },
+      orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
+      take: parsed.limit + 1,
     });
-    return absences.map(toAbsenceResponse);
+    return cursorPage(
+      absences,
+      parsed.limit,
+      'startDate',
+      (row) => row.startDate,
+      toAbsenceResponse,
+    );
   }
 
   async getAbsenceById(user: AuthenticatedIdentity, absenceId: string): Promise<unknown> {
@@ -156,17 +179,16 @@ export class AbsenceDomainService {
 
     assertCanActForPerson(user, actor.id, absence.personId);
 
-    const targetPerson = await this.prisma.person.findUnique({
-      where: { id: absence.personId },
-      select: { organizationUnitId: true },
-    });
-    if (!targetPerson) {
-      throw new NotFoundException('Person not found.');
-    }
+    const resolved = await this.assignmentHelper.resolveInterval(
+      absence.personId,
+      absence.startDate,
+      new Date(absence.endDate.getTime() + 86_400_000),
+      absence.assignmentId,
+    );
 
     const closingAttempt = {
       actorId: actor.id,
-      organizationUnitId: targetPerson.organizationUnitId,
+      organizationUnitId: resolved.organizationUnitId,
       from: absence.startDate,
       to: absence.endDate,
       attemptedAction: 'ABSENCE_CANCEL',
@@ -184,11 +206,12 @@ export class AbsenceDomainService {
         writeAbsenceCancellation(tx, {
           actorId: actor.id,
           absence,
-          organizationUnitId: targetPerson.organizationUnitId,
+          resolved,
+          assignmentHelper: this.assignmentHelper,
           assertClosingUnlocked: (transaction) =>
             this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
               {
-                organizationUnitId: targetPerson.organizationUnitId,
+                organizationUnitId: resolved.organizationUnitId,
                 from: absence.startDate,
                 to: absence.endDate,
               },
@@ -203,8 +226,13 @@ export class AbsenceDomainService {
     return toAbsenceResponse(cancelled);
   }
 
-  async leaveBalance(user: AuthenticatedIdentity, year?: number, asOfDate?: string) {
-    return this.leaveBalanceHelper.leaveBalance(user, year, asOfDate);
+  async leaveBalance(
+    user: AuthenticatedIdentity,
+    year?: number,
+    asOfDate?: string,
+    assignmentId?: string,
+  ) {
+    return this.leaveBalanceHelper.leaveBalance(user, year, asOfDate, assignmentId);
   }
 
   async createLeaveAdjustment(user: AuthenticatedIdentity, payload: unknown) {
@@ -212,16 +240,34 @@ export class AbsenceDomainService {
     const actor = await this.personHelper.personForUser(user);
     const parsed = CreateLeaveAdjustmentSchema.parse(payload);
 
-    const person = await this.prisma.person.findUnique({ where: { id: parsed.personId } });
-    if (!person) {
-      throw new NotFoundException('Person not found.');
-    }
-
+    const assignment = await this.assignmentHelper.selectAssignment(
+      parsed.personId,
+      parsed.assignmentId,
+    );
+    const yearStart = new Date(Date.UTC(parsed.year, 0, 1));
+    const yearEndExclusive = new Date(Date.UTC(parsed.year + 1, 0, 1));
+    const from =
+      assignment.employmentStartDate && assignment.employmentStartDate > yearStart
+        ? assignment.employmentStartDate
+        : yearStart;
+    const employmentEndExclusive = assignment.employmentEndDate
+      ? new Date(Date.parse(assignment.employmentEndDate.toISOString().slice(0, 10)) + 86_400_000)
+      : yearEndExclusive;
+    const to =
+      employmentEndExclusive < yearEndExclusive ? employmentEndExclusive : yearEndExclusive;
+    if (from >= to)
+      throw new BadRequestException('Appointment does not overlap the adjustment year.');
+    const resolved = await this.assignmentHelper.resolveInterval(
+      parsed.personId,
+      from,
+      to,
+      assignment.id,
+    );
     const closingAttempt = {
       actorId: actor.id,
-      organizationUnitId: person.organizationUnitId,
-      from: new Date(Date.UTC(parsed.year, 0, 1, 0, 0, 0)),
-      to: new Date(Date.UTC(parsed.year, 11, 31, 23, 59, 59)),
+      organizationUnitId: resolved.organizationUnitId,
+      from,
+      to: new Date(to.getTime() - 1),
       attemptedAction: 'LEAVE_ADJUSTMENT_CREATE',
       entityType: 'LeaveAdjustment',
       entityId: `${parsed.personId}:${parsed.year}`,
@@ -233,11 +279,13 @@ export class AbsenceDomainService {
         writeLeaveAdjustment(tx, {
           actorId: actor.id,
           parsed,
-          organizationUnitId: person.organizationUnitId,
+          resolved,
+          interval: { from, to },
+          assignmentHelper: this.assignmentHelper,
           assertClosingUnlocked: (transaction) =>
             this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
               {
-                organizationUnitId: person.organizationUnitId,
+                organizationUnitId: resolved.organizationUnitId,
                 from: closingAttempt.from,
                 to: closingAttempt.to,
               },
@@ -259,10 +307,14 @@ export class AbsenceDomainService {
   async listLeaveAdjustments(user: AuthenticatedIdentity, query: unknown) {
     assertHrLikeRole(user);
     const parsed = LeaveAdjustmentQuerySchema.parse(query ?? {});
+    const assignmentId = parsed.personId
+      ? (await this.assignmentHelper.selectAssignment(parsed.personId, parsed.assignmentId)).id
+      : parsed.assignmentId;
 
     const adjustments = await this.prisma.leaveAdjustment.findMany({
       where: {
         personId: parsed.personId,
+        assignmentId,
         year: parsed.year,
       },
       orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
@@ -274,21 +326,42 @@ export class AbsenceDomainService {
     }));
   }
 
-  async teamCalendar(user: AuthenticatedIdentity, start?: string, end?: string) {
+  async teamCalendar(
+    user: AuthenticatedIdentity,
+    query: { assignmentId?: string; start?: string; end?: string },
+  ) {
     const person = await this.personHelper.personForUser(user);
-    const { startDate, endDate } = teamCalendarDateRange(start, end);
+    const { startDate, endDate } = teamCalendarDateRange(query.start, query.end);
+    const resolved = await this.assignmentHelper.resolveInterval(
+      person.id,
+      startDate,
+      new Date(endDate.getTime() + 1),
+      query.assignmentId,
+    );
     const canReadAbsenceDetails = mayReadAbsenceDetails(user.role);
     const absences = await this.prisma.absence.findMany({
       where: {
-        person: { organizationUnitId: person.organizationUnitId },
+        assignment: {
+          terms: {
+            some: {
+              organizationUnitId: resolved.organizationUnitId,
+              AND: [
+                { OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: endDate } }] },
+                { OR: [{ effectiveTo: null }, { effectiveTo: { gt: startDate } }] },
+              ],
+            },
+          },
+        },
         status: { in: teamCalendarStatuses(user.role) },
         startDate: { lte: endDate },
         endDate: { gte: startDate },
       },
-      include: { person: true },
+      include: { person: true, assignment: { include: { terms: true } } },
       orderBy: { startDate: 'asc' },
     });
 
-    return absences.map((absence) => toTeamCalendarEntry(absence, canReadAbsenceDetails));
+    return absences
+      .filter((absence) => absenceBelongsToOrganization(absence, resolved.organizationUnitId))
+      .map((absence) => toTeamCalendarEntry(absence, canReadAbsenceDetails));
   }
 }

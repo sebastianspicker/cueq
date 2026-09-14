@@ -1,56 +1,35 @@
-name: Feature Request
-description: Propose a new capability for cueq
+name: Feature request
+description: Suggest a change to cueq
 labels: ['type:feature']
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem Statement
-      description: Which user or operational problem are we solving?
-      placeholder: Describe the current gap and affected roles.
+      label: What are you trying to do?
+      description: Describe who needs this and what makes the current workflow difficult. Use invented examples.
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed Solution
-      description: What should be implemented?
-      placeholder: Describe behavior, domain constraints, and API/UI impact.
+      label: What would help?
+      description: Describe the behavior you would like. A technical design is welcome but not required.
     validations:
       required: true
   - type: textarea
-    id: acceptance
+    id: alternatives
     attributes:
-      label: Acceptance Criteria
-      description: List verifiable outcomes.
-      placeholder: |
-        - [ ]
-        - [ ]
-    validations:
-      required: true
+      label: Alternatives or workarounds
+      description: Have you tried another approach?
   - type: textarea
-    id: affected_contracts
+    id: context
     attributes:
-      label: Affected Contracts
-      description: List expected API, schema, role, audit, retention, or generated-artifact changes.
-      placeholder: |
-        API/OpenAPI:
-        Database/schema:
-        Roles/visibility:
-        Audit/retention:
-        Generated artifacts:
-    validations:
-      required: true
+      label: Additional context
+      description: Include relevant roles, policy requirements, or integration needs if you know them. Leave out private records and personal data.
   - type: checkboxes
     id: privacy
     attributes:
-      label: Privacy-by-Design Checks
+      label: Before submitting
       options:
-        - label: Personal data collection is minimized.
-          required: true
-        - label: Required roles/access scope are explicitly defined.
-          required: true
-        - label: Retention/deletion expectations are defined.
-          required: true
-        - label: Audit logging and works-council visibility impact are defined.
+        - label: This request contains no credentials, real personal data, or private operational records.
           required: true

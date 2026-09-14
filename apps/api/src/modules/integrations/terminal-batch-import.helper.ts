@@ -1,5 +1,5 @@
 /** Transaction-scoped terminal batch ingestion workflow. */
-import { BadRequestException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { BookingSource, type Prisma } from '@cueq/database';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import type { PrismaService } from '../../persistence/prisma.service.js';
@@ -25,11 +25,13 @@ import {
   createTerminalIngestionChecksum,
   normalizeTerminalRecords,
 } from './terminal-import-normalization.js';
+import type { AssignmentHelper, ResolvedEmployment } from '../people/public.js';
 
 export type TerminalBatchImportDependencies = {
   prisma: PrismaService;
   auditHelper: AuditHelper;
   closingLockHelper: ClosingLockHelper;
+  assignmentHelper: AssignmentHelper;
 };
 
 type ClosingAttemptState = { current?: ClosingBlockedAttemptInput };
@@ -65,6 +67,12 @@ type ExistingBookingLookup = ImportBookingLookup & { source: BookingSource };
 type KnownTerminalRecord = {
   record: TerminalRecord;
   lookup: ImportBookingLookup;
+};
+type ResolvedTerminalRecord = {
+  record: TerminalRecord;
+  employment: ResolvedEmployment;
+  from: Date;
+  to?: Date;
 };
 
 function importBookingKey(booking: ImportBookingLookup) {
@@ -133,35 +141,77 @@ function bookingPreloadWhere(knownRecords: KnownTerminalRecord[]): Prisma.Bookin
   return { OR: overlapWindows };
 }
 
-async function assertPeopleAndClosingPeriods(
+async function resolveTerminalAppointments(
+  tx: Prisma.TransactionClient,
+  canonicalRecords: TerminalRecord[],
+  assignmentHelper: AssignmentHelper,
+): Promise<ResolvedTerminalRecord[]> {
+  const resolved: ResolvedTerminalRecord[] = [];
+  for (const record of canonicalRecords) {
+    const from = new Date(record.startTime);
+    const to = record.endTime ? new Date(record.endTime) : undefined;
+    const employment = await assignmentHelper.resolveInterval(
+      record.personId,
+      from,
+      to,
+      record.assignmentId,
+      tx,
+    );
+    resolved.push({ record, employment, from, to });
+  }
+  return resolved;
+}
+
+async function recheckTerminalAppointments(
+  tx: Prisma.TransactionClient,
+  records: ResolvedTerminalRecord[],
+  assignmentHelper: AssignmentHelper,
+): Promise<ResolvedTerminalRecord[]> {
+  const rechecked: ResolvedTerminalRecord[] = [];
+  for (const resolved of records) {
+    if (!resolved.record.assignmentId) {
+      const inferred = await assignmentHelper.resolveInterval(
+        resolved.record.personId,
+        resolved.from,
+        resolved.to,
+        undefined,
+        tx,
+      );
+      if (inferred.assignment.id !== resolved.employment.assignment.id) {
+        throw new ConflictException({
+          code: 'ASSIGNMENT_CHANGED',
+          message: 'Terminal record appointment changed; retry the import.',
+          retryable: true,
+        });
+      }
+    }
+    const employment = await assignmentHelper.assertUnchanged(
+      tx,
+      resolved.employment,
+      resolved.from,
+      resolved.to,
+    );
+    rechecked.push({ ...resolved, employment });
+  }
+  return rechecked;
+}
+
+async function assertClosingPeriods(
   tx: Prisma.TransactionClient,
   parsed: TerminalSyncBatchInput,
-  canonicalRecords: TerminalRecord[],
+  resolvedRecords: ResolvedTerminalRecord[],
   actorId: string,
   ingestionChecksum: string,
   closingAttempt: ClosingAttemptState,
   closingLockHelper: ClosingLockHelper,
-): Promise<string[]> {
-  const personIds = [...new Set(canonicalRecords.map((record) => record.personId))];
-  const people = await tx.person.findMany({
-    where: { id: { in: personIds } },
-    select: { id: true, organizationUnitId: true },
-  });
-  const peopleById = new Map(people.map((person) => [person.id, person]));
-
+): Promise<void> {
   const closingAttempts: ClosingBlockedAttemptInput[] = [];
-  for (const record of canonicalRecords) {
-    const person = peopleById.get(record.personId);
-    if (!person) {
-      throw new BadRequestException(`Person not found for terminal record: ${record.personId}`);
-    }
-
-    const startTime = new Date(record.startTime);
+  for (const { employment, from, to } of resolvedRecords) {
     closingAttempts.push({
       actorId,
-      organizationUnitId: person.organizationUnitId,
-      from: startTime,
-      to: record.endTime ? new Date(record.endTime) : startTime,
+      organizationUnitId: employment.organizationUnitId,
+      from,
+      to: to ?? from,
       attemptedAction: 'TERMINAL_BATCH_IMPORT',
       entityType: 'TerminalSyncBatch',
       entityId: `${parsed.terminalId}:${ingestionChecksum}`,
@@ -174,8 +224,6 @@ async function assertPeopleAndClosingPeriods(
     closingAttempt.current = closingBlockedAttemptFromError(error);
     throw error;
   }
-
-  return personIds;
 }
 
 async function touchTerminalDevice(tx: Prisma.TransactionClient, terminalId: string) {
@@ -197,9 +245,13 @@ async function touchTerminalDevice(tx: Prisma.TransactionClient, terminalId: str
 
 async function ingestTerminalRecords(
   tx: Prisma.TransactionClient,
-  canonicalRecords: TerminalRecord[],
+  resolvedRecords: ResolvedTerminalRecord[],
   duplicateRecordsInPayload: number,
 ): Promise<BatchOutcomes> {
+  const canonicalRecords = resolvedRecords.map(({ record }) => record);
+  const employmentByRecord = new Map(
+    resolvedRecords.map(({ record, employment }) => [record, employment]),
+  );
   let duplicates = duplicateRecordsInPayload;
   const acceptedBookings: Prisma.BookingCreateManyInput[] = [];
   const conflictFlags: BatchOutcomes['conflictFlags'] = [];
@@ -311,8 +363,11 @@ async function ingestTerminalRecords(
       continue;
     }
 
+    const employment = employmentByRecord.get(record);
+    if (!employment) throw new Error('Resolved terminal appointment is missing.');
     acceptedBookings.push({
       personId: record.personId,
+      assignmentId: employment.assignment.id,
       timeTypeId: timeType.id,
       startTime: lookup.startTime,
       endTime: lookup.endTime,
@@ -418,19 +473,32 @@ export function importTerminalBatch(
         };
       }
 
-      const personIds = await assertPeopleAndClosingPeriods(
+      const resolvedRecords = await resolveTerminalAppointments(
+        tx,
+        canonicalRecords,
+        dependencies.assignmentHelper,
+      );
+      const personIds = [
+        ...new Set(resolvedRecords.map(({ employment }) => employment.assignment.personId)),
+      ];
+      await assertClosingPeriods(
         tx,
         parsed,
-        canonicalRecords,
+        resolvedRecords,
         actorId,
         ingestionChecksum,
         closingAttempt,
         dependencies.closingLockHelper,
       );
       await lockPersonWrites(tx, personIds);
+      const recheckedRecords = await recheckTerminalAppointments(
+        tx,
+        resolvedRecords,
+        dependencies.assignmentHelper,
+      );
 
       const terminalDevice = await touchTerminalDevice(tx, parsed.terminalId);
-      const outcomes = await ingestTerminalRecords(tx, canonicalRecords, duplicateRecordsInPayload);
+      const outcomes = await ingestTerminalRecords(tx, recheckedRecords, duplicateRecordsInPayload);
       return createBatchReceipt(
         tx,
         dependencies,

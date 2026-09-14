@@ -29,6 +29,7 @@ fi
 
 echo "Generating Prisma client..."
 run_pnpm db:generate
+run_pnpm --filter @cueq/database build
 
 echo "Applying migrations to database..."
 if ! run_pnpm --filter @cueq/database db:migrate:deploy; then

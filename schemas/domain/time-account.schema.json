@@ -11,7 +11,8 @@
     "periodEnd",
     "targetHours",
     "actualHours",
-    "balance"
+    "balance",
+    "assignmentId"
   ],
   "properties": {
     "id": {
@@ -43,6 +44,9 @@
     },
     "updatedAt": {
       "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "assignmentId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
     }
   }
 }

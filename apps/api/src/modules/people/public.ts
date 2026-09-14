@@ -1,5 +1,7 @@
 export { PeopleModule } from './people.module.js';
 export { PersonHelper } from './person.helper.js';
+export { AssignmentHelper, type ResolvedEmployment } from './assignment.helper.js';
+export { CapabilityHelper } from './capability.helper.js';
 export {
   HR_LIKE_ROLES,
   APPROVAL_ROLES,
@@ -13,3 +15,5 @@ export {
   assertHrLikeRole,
   assertCanActForPerson,
 } from './role-constants.js';
+
+export { assertPersonnelScope } from './personnel-scope.js';

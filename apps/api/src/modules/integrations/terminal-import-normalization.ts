@@ -11,6 +11,7 @@ function terminalRecordSortKey(record: TerminalRecord): string {
   return [
     record.startTime,
     record.personId,
+    record.assignmentId ?? '',
     record.timeTypeCode,
     record.endTime ?? '',
     record.note ?? '',

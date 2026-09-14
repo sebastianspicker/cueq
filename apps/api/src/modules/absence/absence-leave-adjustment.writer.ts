@@ -1,8 +1,8 @@
 /** Performs one transaction-local leave adjustment with locking, identity recheck, and audit. */
-import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@cueq/database';
 import type { CreateLeaveAdjustment } from '@cueq/contracts';
 import { lockPersonWrites } from '../../platform/transactions/transaction-lock.helper.js';
+import type { AssignmentHelper, ResolvedEmployment } from '../people/public.js';
 
 type AuditWriter = {
   appendAudit: (
@@ -23,32 +23,30 @@ export async function writeLeaveAdjustment(
   input: {
     actorId: string;
     parsed: CreateLeaveAdjustment;
-    organizationUnitId: string;
+    resolved: ResolvedEmployment;
+    interval: { from: Date; to: Date };
+    assignmentHelper: Pick<AssignmentHelper, 'assertUnchanged'>;
     assertClosingUnlocked: (tx: Prisma.TransactionClient) => Promise<void>;
     auditHelper: AuditWriter;
   },
 ) {
-  const { actorId, parsed, organizationUnitId, assertClosingUnlocked, auditHelper } = input;
+  const {
+    actorId,
+    parsed,
+    resolved,
+    interval,
+    assignmentHelper,
+    assertClosingUnlocked,
+    auditHelper,
+  } = input;
   await assertClosingUnlocked(tx);
   await lockPersonWrites(tx, [parsed.personId]);
-  const currentPerson = await tx.person.findUnique({
-    where: { id: parsed.personId },
-    select: { organizationUnitId: true },
-  });
-  if (!currentPerson) {
-    throw new NotFoundException('Person not found.');
-  }
-  if (currentPerson.organizationUnitId !== organizationUnitId) {
-    throw new ConflictException({
-      code: 'PERSON_IDENTITY_CHANGED',
-      message: 'Person organization assignment changed; retry the leave adjustment.',
-      retryable: true,
-    });
-  }
+  const current = await assignmentHelper.assertUnchanged(tx, resolved, interval.from, interval.to);
 
   const adjustment = await tx.leaveAdjustment.create({
     data: {
       personId: parsed.personId,
+      assignmentId: current.assignment.id,
       year: parsed.year,
       deltaDays: parsed.deltaDays,
       reason: parsed.reason,
@@ -63,6 +61,7 @@ export async function writeLeaveAdjustment(
       entityId: adjustment.id,
       after: {
         personId: adjustment.personId,
+        assignmentId: adjustment.assignmentId,
         year: adjustment.year,
         deltaDays: Number(adjustment.deltaDays),
       },

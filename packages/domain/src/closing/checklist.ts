@@ -27,13 +27,21 @@ function statusFor(count: number): ChecklistItem['status'] {
  * INFO, WARNING, or ERROR to guide the HR review process.
  */
 export function generateClosingChecklist(input: ClosingChecklistInput): ClosingChecklistResult {
+  const missingTimeAccounts = input.missingTimeAccounts ?? 0;
   const items: ChecklistItem[] = [
+    {
+      code: 'MISSING_TIME_ACCOUNTS',
+      label: 'Missing time accounts',
+      severity: severityFor(missingTimeAccounts, true),
+      status: statusFor(missingTimeAccounts),
+      details: `${missingTimeAccounts} appointments without a complete compatible time-account partition`,
+    },
     {
       code: 'MISSING_BOOKINGS',
       label: 'Missing bookings',
       severity: severityFor(input.missingBookings, true),
       status: statusFor(input.missingBookings),
-      details: `${input.missingBookings} days with no booking and no absence`,
+      details: `${input.missingBookings} appointments with no booking and no absence`,
     },
     {
       code: 'BOOKING_GAPS',

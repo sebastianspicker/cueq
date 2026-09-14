@@ -20,7 +20,9 @@ run_pnpm docs:links
 "${SCRIPT_DIR}/schemas.sh"
 run_pnpm --filter @cueq/database db:migrate:deploy
 run_pnpm --filter @cueq/database test:integration
+run_pnpm --filter @cueq/api test:integration
 run_pnpm test
+run_pnpm test:coverage
 # Keep an unthresholded whole-API coverage report visible alongside the focused gate.
 run_pnpm --filter @cueq/api test:coverage:all
 "${SCRIPT_DIR}/openapi-check.sh"

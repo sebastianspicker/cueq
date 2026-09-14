@@ -3,7 +3,6 @@
 import type { useTranslations } from 'next-intl';
 import { FormField } from '../../../components/FormField';
 import { LoadingSpinner } from '../../../components/LoadingSpinner';
-import { SectionCard } from '../../../components/SectionCard';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { StatusBanner } from '../../../components/StatusBanner';
 import type { Booking } from './bookings-types';
@@ -20,7 +19,7 @@ interface BookingsWorkspaceSectionsProps {
 export function BookingsWorkspaceSections({ t, workspace }: BookingsWorkspaceSectionsProps) {
   return (
     <>
-      <div>
+      <div className="cq-bookings-toolbar">
         <button
           type="button"
           disabled={workspace.loading}
@@ -53,7 +52,21 @@ export function BookingsWorkspaceSections({ t, workspace }: BookingsWorkspaceSec
         onRequestCorrection={() => void workspace.requestCorrection()}
       />
 
-      <BookingsTableSection t={t} bookings={workspace.bookings} />
+      <BookingsTableSection
+        t={t}
+        bookings={workspace.bookings}
+        selectedBookingId={workspace.bookingId}
+        onSelectBooking={workspace.updateBookingId}
+      />
+      {workspace.nextCursor ? (
+        <button
+          type="button"
+          disabled={workspace.loading}
+          onClick={() => void workspace.loadMore()}
+        >
+          {t('loadMore')}
+        </button>
+      ) : null}
     </>
   );
 }
@@ -93,9 +106,14 @@ function BookingCorrectionSection(props: BookingCorrectionSectionProps) {
     onRequestCorrection,
   } = props;
   return (
-    <SectionCard>
-      <h2>{t('correctionTitle')}</h2>
-      <div className="cq-grid-2">
+    <section
+      className="cq-booking-correction cq-ledger-section"
+      aria-labelledby="cq-correction-title"
+    >
+      <div className="cq-ledger-section-head">
+        <h2 id="cq-correction-title">{t('correctionTitle')}</h2>
+      </div>
+      <div className="cq-grid-2 cq-booking-correction-fields">
         <FormField label={t('bookingIdLabel')} required error={fieldErrors.bookingId}>
           <input
             value={bookingId}
@@ -116,50 +134,77 @@ function BookingCorrectionSection(props: BookingCorrectionSectionProps) {
           <input value={reason} onChange={(event) => onReasonChange(event.target.value)} required />
         </FormField>
       </div>
-      <div className="cq-space-top-sm">
+      <div className="cq-booking-correction-actions">
         <button type="button" disabled={loading} onClick={onRequestCorrection}>
           {loading ? t('loading') : t('submitCorrection')}
         </button>
       </div>
-    </SectionCard>
+    </section>
   );
 }
 
-function BookingsTableSection({ t, bookings }: { t: TranslationFn; bookings: Booking[] }) {
+function BookingsTableSection({
+  t,
+  bookings,
+  selectedBookingId,
+  onSelectBooking,
+}: {
+  t: TranslationFn;
+  bookings: Booking[];
+  selectedBookingId: string;
+  onSelectBooking: (bookingId: string) => void;
+}) {
   return (
-    <SectionCard>
-      <h2>{t('title')}</h2>
+    <section className="cq-bookings-register cq-ledger-section" aria-labelledby="cq-bookings-title">
+      <div className="cq-ledger-section-head">
+        <h2 id="cq-bookings-title">{t('registerTitle')}</h2>
+      </div>
       {bookings.length === 0 ? (
-        <p>{t('noBookings')}</p>
+        <p className="cq-ledger-empty">{t('noBookings')}</p>
       ) : (
-        <table className="cq-data-table" tabIndex={0}>
-          <caption className="cq-sr-only">{t('title')}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t('bookingIdLabel')}</th>
-              <th scope="col">{t('timeTypeIdLabel')}</th>
-              <th scope="col">{t('startTimeLabel')}</th>
-              <th scope="col">{t('endTimeLabel')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {bookings.map((booking) => (
-              <tr key={booking.id}>
-                <td className="cq-mono">{booking.id}</td>
-                <td>
-                  <StatusBadge
-                    status={booking.timeTypeCode}
-                    variant="info"
-                    label={booking.timeTypeCode}
-                  />
-                </td>
-                <td>{booking.startTime}</td>
-                <td>{booking.endTime ?? '-'}</td>
+        <div className="cq-table-scroll">
+          <table className="cq-data-table cq-bookings-table">
+            <caption className="cq-sr-only">{t('registerTitle')}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{t('bookingIdColumn')}</th>
+                <th scope="col">{t('timeTypeColumn')}</th>
+                <th scope="col">{t('startTimeColumn')}</th>
+                <th scope="col">{t('endTimeColumn')}</th>
+                <th scope="col">
+                  <span className="cq-sr-only">{t('actionColumn')}</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {bookings.map((booking) => (
+                <tr key={booking.id} data-selected={booking.id === selectedBookingId || undefined}>
+                  <td className="cq-mono">{booking.id}</td>
+                  <td>
+                    <StatusBadge
+                      status={booking.timeTypeCode}
+                      variant="info"
+                      label={booking.timeTypeCode}
+                    />
+                  </td>
+                  <td>{booking.startTime}</td>
+                  <td>{booking.endTime ?? '-'}</td>
+                  <td className="cq-bookings-table-action">
+                    <button
+                      type="button"
+                      className="cq-btn-ghost cq-btn-sm"
+                      aria-pressed={booking.id === selectedBookingId}
+                      onClick={() => onSelectBooking(booking.id)}
+                    >
+                      {t('correctionTitle')}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </SectionCard>
+    </section>
   );
 }

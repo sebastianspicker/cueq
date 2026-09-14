@@ -1,8 +1,5 @@
 .cq-dashboard-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 20rem;
-  align-items: start;
-  gap: 1.125rem;
+  display: block;
 }
 
 .cq-dashboard-main {
@@ -13,11 +10,11 @@
 }
 
 .cq-dashboard-rail {
-  position: sticky;
-  top: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border-block: 1px solid var(--cq-border);
 }
 
 .cq-dashboard-hero {
@@ -92,11 +89,8 @@
 }
 
 .cq-day-stage {
-  overflow: hidden;
   padding: 0;
-  border: 1px solid var(--cq-border);
-  border-radius: var(--cq-radius-lg);
-  background: var(--cq-surface);
+  border-block: 1px solid var(--cq-border);
 }
 
 .cq-day-title-sub {
@@ -249,6 +243,26 @@
   line-height: 1.35;
 }
 
+.cq-dashboard-rail .cq-rail-panel {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cq-dashboard-rail .cq-rail-panel + .cq-rail-panel {
+  border-left: 1px solid var(--cq-border);
+}
+
+.cq-dashboard-rail .cq-rail-panel-head {
+  padding: 0.875rem 1rem 0.5rem;
+  border: 0;
+  background: transparent;
+}
+
+.cq-dashboard-rail .cq-rail-panel-body {
+  padding: 0 1rem 1rem;
+}
+
 .cq-task-card-row {
   display: flex;
   align-items: center;
@@ -287,9 +301,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 0;
   border-bottom: 1px solid var(--cq-border);
-  background: var(--cq-surface-subtle);
+  background: transparent;
 }
 
 .cq-day-toolbar h2 {
@@ -304,4 +318,38 @@
   flex-shrink: 0;
   align-items: center;
   gap: 0.5rem;
+}
+
+.cq-day-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem 0.75rem;
+  padding: 1.25rem 0 0.875rem;
+}
+
+.cq-day-worked {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cq-day-worked strong {
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+.cq-day-worked span {
+  color: var(--cq-text-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.cq-day-status p {
+  margin: 0;
+  color: var(--cq-text-muted);
+  font-size: 0.8125rem;
 }

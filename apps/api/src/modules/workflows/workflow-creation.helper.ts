@@ -15,7 +15,7 @@ import {
 } from '@cueq/contracts';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
-import { PersonHelper, assertCanActForPerson } from '../people/public.js';
+import { AssignmentHelper, PersonHelper, assertCanActForPerson } from '../people/public.js';
 import { AuditHelper } from '../audit/public.js';
 import { WorkflowRuntimeService } from './workflow-runtime.service.js';
 import {
@@ -34,6 +34,7 @@ export class WorkflowCreationHelper {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper) private readonly assignmentHelper: AssignmentHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
     @Inject(WorkflowRuntimeService)
     private readonly workflowRuntimeService: WorkflowRuntimeService,
@@ -44,6 +45,7 @@ export class WorkflowCreationHelper {
     input: {
       type: WorkflowType;
       requesterId: string;
+      assignmentId: string;
       entityType: string;
       entityId: string;
       reason: string;
@@ -57,6 +59,7 @@ export class WorkflowCreationHelper {
         type: input.type,
         status: input.assignment.status,
         requesterId: input.requesterId,
+        assignmentId: input.assignmentId,
         approverId: input.assignment.approverId,
         entityType: input.entityType,
         entityId: input.entityId,
@@ -98,21 +101,19 @@ export class WorkflowCreationHelper {
       await lockPolicyWrites(tx, WORKFLOW_ROUTING_LOCK_SCOPE);
       const routingBooking = await tx.booking.findUnique({
         where: { id: parsed.bookingId },
-        select: { personId: true },
+        select: { personId: true, assignmentId: true, startTime: true, endTime: true },
       });
       if (!routingBooking) {
         throw new NotFoundException('Booking not found.');
       }
 
       assertCanActForPerson(user, requester.id, routingBooking.personId);
+      if (parsed.assignmentId && parsed.assignmentId !== routingBooking.assignmentId) {
+        throw new BadRequestException('Booking correction appointment does not match booking.');
+      }
       await lockPersonWrites(tx, [routingBooking.personId]);
       const booking = await tx.booking.findUnique({
         where: { id: parsed.bookingId },
-        include: {
-          person: {
-            select: { id: true, organizationUnitId: true, supervisorId: true },
-          },
-        },
       });
       if (!booking) {
         throw new NotFoundException('Booking not found.');
@@ -124,14 +125,31 @@ export class WorkflowCreationHelper {
           retryable: true,
         });
       }
+      if (booking.assignmentId !== routingBooking.assignmentId) {
+        throw new ConflictException({
+          code: 'BOOKING_ASSIGNMENT_CHANGED',
+          message: 'Booking appointment changed; retry the correction request.',
+          retryable: true,
+        });
+      }
+
+      const startTime = parsed.startTime ? new Date(parsed.startTime) : booking.startTime;
+      const endTime = parsed.endTime ? new Date(parsed.endTime) : booking.endTime;
+      const resolved = await this.assignmentHelper.resolveInterval(
+        booking.personId,
+        startTime,
+        endTime ?? undefined,
+        booking.assignmentId,
+        tx,
+      );
 
       const preferredApproverId =
-        booking.personId === requester.id ? (booking.person.supervisorId ?? undefined) : undefined;
+        booking.personId === requester.id ? (resolved.supervisorId ?? undefined) : undefined;
       const assignment = await this.workflowRuntimeService.buildWorkflowAssignment(
         {
           type: WorkflowType.BOOKING_CORRECTION,
           requesterId: requester.id,
-          requesterOrganizationUnitId: booking.person.organizationUnitId,
+          requesterOrganizationUnitId: resolved.organizationUnitId,
           preferredApproverId,
         },
         tx,
@@ -139,11 +157,13 @@ export class WorkflowCreationHelper {
       const created = await this.createWorkflowAndAppendCreationAudit(tx, {
         type: WorkflowType.BOOKING_CORRECTION,
         requesterId: requester.id,
+        assignmentId: booking.assignmentId,
         entityType: 'Booking',
         entityId: booking.id,
         reason: parsed.reason,
         requestPayload: {
           bookingId: parsed.bookingId,
+          assignmentId: booking.assignmentId,
           startTime: parsed.startTime,
           endTime: parsed.endTime,
           timeTypeId: parsed.timeTypeId,
@@ -181,19 +201,13 @@ export class WorkflowCreationHelper {
 
       await lockRosterWrites(tx, [routingShift.rosterId]);
       await lockPersonWrites(tx, [parsed.fromPersonId, parsed.toPersonId]);
-      const [shift, toPerson] = await Promise.all([
-        tx.shift.findUnique({
-          where: { id: parsed.shiftId },
-          include: {
-            assignments: true,
-            roster: { select: { organizationUnitId: true } },
-          },
-        }),
-        tx.person.findUnique({
-          where: { id: parsed.toPersonId },
-          select: { id: true, organizationUnitId: true },
-        }),
-      ]);
+      const shift = await tx.shift.findUnique({
+        where: { id: parsed.shiftId },
+        include: {
+          assignments: true,
+          roster: { select: { organizationUnitId: true } },
+        },
+      });
       if (!shift) {
         throw new NotFoundException('Shift not found.');
       }
@@ -204,16 +218,36 @@ export class WorkflowCreationHelper {
           retryable: true,
         });
       }
-      if (!toPerson) {
-        throw new NotFoundException('toPersonId person not found.');
-      }
-      if (toPerson.organizationUnitId !== shift.roster.organizationUnitId) {
-        throw new BadRequestException(
-          'toPersonId must belong to the shift roster organization unit.',
-        );
-      }
-      if (!shift.assignments.some((item) => item.personId === parsed.fromPersonId)) {
+      const sourceShiftAssignment = shift.assignments.find(
+        (item) => item.personId === parsed.fromPersonId,
+      );
+      if (!sourceShiftAssignment) {
         throw new BadRequestException('fromPersonId is not assigned to the shift.');
+      }
+      if (parsed.assignmentId && parsed.assignmentId !== sourceShiftAssignment.assignmentId) {
+        throw new BadRequestException('Source appointment does not match the shift assignment.');
+      }
+      const sourceEmployment = await this.assignmentHelper.resolveInterval(
+        parsed.fromPersonId,
+        shift.startTime,
+        shift.endTime,
+        sourceShiftAssignment.assignmentId,
+        tx,
+      );
+      const targetEmployment = await this.assignmentHelper.resolveInterval(
+        parsed.toPersonId,
+        shift.startTime,
+        shift.endTime,
+        parsed.toAssignmentId,
+        tx,
+      );
+      if (
+        sourceEmployment.organizationUnitId !== shift.roster.organizationUnitId ||
+        targetEmployment.organizationUnitId !== shift.roster.organizationUnitId
+      ) {
+        throw new BadRequestException(
+          'Shift-swap appointments must belong to the shift roster organization unit.',
+        );
       }
       if (shift.assignments.some((item) => item.personId === parsed.toPersonId)) {
         throw new BadRequestException('toPersonId is already assigned to the shift.');
@@ -230,10 +264,15 @@ export class WorkflowCreationHelper {
       const created = await this.createWorkflowAndAppendCreationAudit(tx, {
         type: WorkflowType.SHIFT_SWAP,
         requesterId: requester.id,
+        assignmentId: sourceShiftAssignment.assignmentId,
         entityType: 'Shift',
         entityId: shift.id,
         reason: parsed.reason,
-        requestPayload: parsed,
+        requestPayload: {
+          ...parsed,
+          assignmentId: sourceShiftAssignment.assignmentId,
+          toAssignmentId: targetEmployment.assignment.id,
+        },
         assignment,
         auditAfter: {
           shiftId: shift.id,
@@ -265,24 +304,23 @@ export class WorkflowCreationHelper {
     const workflow = await this.prisma.$transaction(async (tx) => {
       await lockPolicyWrites(tx, WORKFLOW_ROUTING_LOCK_SCOPE);
       await lockPersonWrites(tx, [parsed.personId]);
-      const [targetPerson, matchingAccount] = await Promise.all([
-        tx.person.findUnique({
-          where: { id: parsed.personId },
-          select: { id: true, organizationUnitId: true, supervisorId: true },
-        }),
-        tx.timeAccount.findFirst({
-          where: {
-            personId: parsed.personId,
-            periodStart: { lte: start },
-            periodEnd: { gte: end },
-          },
-          select: { id: true },
-          orderBy: { periodStart: 'desc' },
-        }),
-      ]);
-      if (!targetPerson) {
-        throw new NotFoundException('Person not found.');
-      }
+      const resolved = await this.assignmentHelper.resolveInterval(
+        parsed.personId,
+        start,
+        end,
+        parsed.assignmentId,
+        tx,
+      );
+      const matchingAccount = await tx.timeAccount.findFirst({
+        where: {
+          personId: parsed.personId,
+          assignmentId: resolved.assignment.id,
+          periodStart: { lte: start },
+          periodEnd: { gte: end },
+        },
+        select: { id: true },
+        orderBy: { periodStart: 'desc' },
+      });
       if (!matchingAccount) {
         throw new BadRequestException(
           'No matching time account exists for the requested overtime approval period.',
@@ -293,18 +331,19 @@ export class WorkflowCreationHelper {
         {
           type: WorkflowType.OVERTIME_APPROVAL,
           requesterId: requester.id,
-          requesterOrganizationUnitId: targetPerson.organizationUnitId,
-          preferredApproverId: targetPerson.supervisorId ?? undefined,
+          requesterOrganizationUnitId: resolved.organizationUnitId,
+          preferredApproverId: resolved.supervisorId ?? undefined,
         },
         tx,
       );
       const created = await this.createWorkflowAndAppendCreationAudit(tx, {
         type: WorkflowType.OVERTIME_APPROVAL,
         requesterId: requester.id,
+        assignmentId: resolved.assignment.id,
         entityType: 'TimeAccount',
         entityId: matchingAccount.id,
         reason: parsed.reason,
-        requestPayload: parsed,
+        requestPayload: { ...parsed, assignmentId: resolved.assignment.id },
         assignment,
         auditAfter: {
           personId: parsed.personId,

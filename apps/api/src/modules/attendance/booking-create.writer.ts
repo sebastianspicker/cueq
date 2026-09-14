@@ -1,9 +1,10 @@
 /** Performs one fully transaction-local booking creation in its established serial order. */
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { type BookingSource, type Prisma } from '@cueq/database';
 import type { CreateBooking } from '@cueq/contracts';
 import { bookingOverlapWhere } from '../../persistence/queries/booking-overlap.js';
 import { lockPersonWrites } from '../../platform/transactions/transaction-lock.helper.js';
+import type { AssignmentHelper, ResolvedEmployment } from '../people/public.js';
 
 type AuditWriter = {
   appendAudit: (
@@ -37,10 +38,11 @@ export async function writeBookingCreation(
   input: {
     actorId: string;
     parsed: CreateBooking;
-    targetPerson: { organizationUnitId: string | null };
+    resolved: ResolvedEmployment;
     startTime: Date;
     endTime: Date | null;
     from: Date;
+    assignmentHelper: Pick<AssignmentHelper, 'assertUnchanged'>;
     assertClosingUnlocked: (tx: Prisma.TransactionClient) => Promise<void>;
     auditHelper: AuditWriter;
     eventOutboxHelper: EventOutboxWriter;
@@ -49,10 +51,11 @@ export async function writeBookingCreation(
   const {
     actorId,
     parsed,
-    targetPerson,
+    resolved,
     startTime,
     endTime,
     from,
+    assignmentHelper,
     assertClosingUnlocked,
     auditHelper,
     eventOutboxHelper,
@@ -60,20 +63,12 @@ export async function writeBookingCreation(
 
   await assertClosingUnlocked(tx);
   await lockPersonWrites(tx, [parsed.personId]);
-  const currentTargetPerson = await tx.person.findUnique({
-    where: { id: parsed.personId },
-    select: { organizationUnitId: true },
-  });
-  if (!currentTargetPerson) {
-    throw new NotFoundException('Person not found.');
-  }
-  if (currentTargetPerson.organizationUnitId !== targetPerson.organizationUnitId) {
-    throw new ConflictException({
-      code: 'PERSON_IDENTITY_CHANGED',
-      message: 'Person organization assignment changed; retry the booking request.',
-      retryable: true,
-    });
-  }
+  const current = await assignmentHelper.assertUnchanged(
+    tx,
+    resolved,
+    startTime,
+    endTime ?? undefined,
+  );
 
   const overlap = await tx.booking.findFirst({
     where: bookingOverlapWhere({
@@ -86,9 +81,20 @@ export async function writeBookingCreation(
     throw new ConflictException('Booking overlaps with existing booking.');
   }
 
+  if (parsed.shiftId) {
+    const shiftAssignment = await tx.shiftAssignment.findUnique({
+      where: { shiftId_personId: { shiftId: parsed.shiftId, personId: parsed.personId } },
+      select: { assignmentId: true },
+    });
+    if (!shiftAssignment || shiftAssignment.assignmentId !== current.assignment.id) {
+      throw new ConflictException('Booking shift does not belong to the selected appointment.');
+    }
+  }
+
   const booking = await tx.booking.create({
     data: {
       personId: parsed.personId,
+      assignmentId: current.assignment.id,
       timeTypeId: parsed.timeTypeId,
       startTime,
       endTime,
@@ -107,6 +113,7 @@ export async function writeBookingCreation(
       entityId: booking.id,
       after: {
         personId: booking.personId,
+        assignmentId: booking.assignmentId,
         timeTypeId: booking.timeTypeId,
         startTime: booking.startTime.toISOString(),
         endTime: booking.endTime?.toISOString() ?? null,
@@ -123,6 +130,7 @@ export async function writeBookingCreation(
       aggregateId: booking.id,
       payload: {
         personId: booking.personId,
+        assignmentId: booking.assignmentId,
         timeTypeCode: booking.timeType.code,
         source: booking.source,
       },

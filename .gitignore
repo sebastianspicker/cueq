@@ -78,16 +78,16 @@ credentials.local.*
 .npmrc.local
 
 # Local database and operator output
-/*.dump
-/*.sqlite
-/*.sqlite3
-/*.db
-/*.db-shm
-/*.db-wal
-/*.sqlite-shm
-/*.sqlite-wal
-/*.sqlite3-shm
-/*.sqlite3-wal
+*.dump
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
 /artifacts/
 /backups/
 /exports/
@@ -166,3 +166,6 @@ CHATGPT_NOTES*
 /*_audit.md
 /*-status.md
 /*_status.md
+
+# Public release documentation (also on case-insensitive filesystems)
+!/RELEASE_STATUS.md

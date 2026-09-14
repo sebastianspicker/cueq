@@ -26,10 +26,10 @@ export function DayLedgerSection({
   formatHours: (value: number) => string;
   onClockIn: () => void;
 }) {
-  const worked = workedHours(summary, bookings);
-  const progress = progressPercent(summary, bookings);
+  const worked = workedHours(summary);
+  const progress = progressPercent(summary);
   const currentPosition = ledgerPosition(summary.now);
-  const target = targetInstant(summary, bookings);
+  const target = targetInstant(summary);
   const hours = ledgerHourMarks();
   const hourSpan = hours.length > 1 ? hours.length - 1 : 1;
 
@@ -61,7 +61,18 @@ export function DayLedgerSection({
         </div>
       </div>
 
-      <div className="cq-progress-strip">
+      <div className="cq-day-status">
+        <div className="cq-day-worked">
+          <strong>{formatHours(worked)}</strong>
+          <span>h</span>
+        </div>
+        <p>
+          {t('todayTargetHours')}: {formatHours(summary.todayTargetHours)} h ·{' '}
+          {t('timeStatus', { time: formatTime(summary.now, locale) })}
+        </p>
+      </div>
+
+      <div className="cq-progress-strip" aria-label={t('progressLabel')}>
         <div className="cq-progress-copy">
           <div className="cq-progress-label">
             <span>{t('progressLabel')}</span>
