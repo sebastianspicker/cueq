@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../platform/http/cursor-pagination.decorator.js';
 /** Exposes authorized on-call planning endpoints. */
 import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -9,6 +10,7 @@ import {
   CreateOnCallDeploymentSchema,
   ListOnCallDeploymentsQuerySchema,
   OnCallComplianceQuerySchema,
+  AssignmentContextSchema,
 } from '@cueq/contracts';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import { Authenticated } from '../../platform/auth/decorators/authenticated.decorator.js';
@@ -17,6 +19,8 @@ import { Roles } from '../../platform/auth/decorators/roles.decorator.js';
 import { ParseCuidPipe } from '../../platform/http/validation/parse-cuid.pipe.js';
 import { ZodValidationPipe } from '../../platform/http/validation/zod-validation.pipe.js';
 import { OncallDomainService } from './oncall-domain.service.js';
+
+const AppointmentComplianceQuerySchema = OnCallComplianceQuerySchema.and(AssignmentContextSchema);
 
 /** HTTP boundary for on-call planning; domain writes observe organization and closing constraints. */
 @ApiTags('oncall')
@@ -38,6 +42,7 @@ export class OncallController {
   }
 
   @Get('rotations')
+  @CursorPagination()
   @Authenticated()
   @ApiOperation({ summary: 'List on-call rotations' })
   listRotations(
@@ -70,6 +75,7 @@ export class OncallController {
   }
 
   @Get('deployments')
+  @CursorPagination()
   @Authenticated()
   @ApiOperation({ summary: 'List on-call deployments' })
   listDeployments(
@@ -85,9 +91,14 @@ export class OncallController {
   @ApiOperation({ summary: 'Evaluate on-call rest compliance' })
   compliance(
     @CurrentUser() user: AuthenticatedIdentity,
-    @Query(new ZodValidationPipe(OnCallComplianceQuerySchema))
-    query: { personId?: string; nextShiftStart?: string },
+    @Query(new ZodValidationPipe(AppointmentComplianceQuerySchema))
+    query: { personId?: string; nextShiftStart?: string; assignmentId?: string },
   ) {
-    return this.oncallDomainService.onCallCompliance(user, query.personId, query.nextShiftStart);
+    return this.oncallDomainService.onCallCompliance(
+      user,
+      query.personId,
+      query.nextShiftStart,
+      query.assignmentId,
+    );
   }
 }

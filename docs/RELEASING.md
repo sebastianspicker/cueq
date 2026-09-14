@@ -1,71 +1,72 @@
-# Public Alpha Release Process
+# Publishing an alpha release
 
-cueq publishes source evaluation snapshots, not npm packages, container images,
-hosted services, production deployments, or compliance certifications.
+A cueq release is a snapshot of the source tree. The project does not publish
+npm packages, application images, a hosted cueq instance, or production support.
 
-## Release identity
+## Choose the candidate
 
-- Public source tags use `vMAJOR.MINOR.PATCH-alpha.N`.
-- The first planned public tag is `v0.1.0-alpha.1`.
-- The GitHub Release must be marked as a prerelease.
-- The Git tag and GitHub Release are the public identity. Workspace packages
-  remain private and are not published from this repository.
-- CI validates source-alpha tag names directly against the required pattern.
-- A release is immutable evidence for one commit. Do not describe results from
-  another working tree, branch, or later local run as release evidence.
+Designate one commit and run every release check against that commit. Alpha tags
+use `vMAJOR.MINOR.PATCH-alpha.N` without leading zeroes; CI validates the name
+with `scripts/validate-release-tag.mjs`. Workspace packages remain private at
+version `0.0.0`.
 
-## Candidate checklist
+Before publishing, confirm that the candidate contains only the intended source,
+configuration, migrations, contracts, assets, and documentation. Seeds,
+screenshots, examples, and the Pages demo must use synthetic data. Credentials,
+database dumps, exports, production logs, personal data, and local tool state do
+not belong in the release.
 
-Complete every applicable item on the exact candidate commit:
+## Verify the candidate
 
-1. Confirm the worktree contains only the intended release changes and no
-   credentials, real personal data, local tool state, analyzer output, dumps,
-   exports, or local working files.
-2. Regenerate and commit a lockfile that matches `package.json`,
-   `pnpm-workspace.yaml`, all workspace manifests, catalogs, and overrides.
-   Verify a fresh `pnpm install --frozen-lockfile`.
-3. Run `make generate`, `make openapi-check`, `make schemas`, and
-   `make docs-check`; review every generated diff.
-4. Run `make quick`, `make knip`, and `make build`.
-5. With disposable PostgreSQL available, run `make check`.
-6. Review all six static images listed in the
-   [screenshot notes](assets/screenshots/README.md) for synthetic-only data,
-   role visibility, German labels, clipping, error states, and stale content.
-7. Review `README.md`, `CHANGELOG.md`, `RELEASE_STATUS.md`, `SECURITY.md`,
-   `SUPPORT.md`, and `docs/ALPHA.md` as a first-time evaluator.
-8. Confirm Dependency Review on the pull-request candidate and CI/CodeQL on the
-   final release commit. If that commit differs, treat it as a new candidate and
-   rerun every applicable gate.
+Use Node.js 22.13 or later and pnpm 11.24.0, then complete these checks:
 
-Any unavailable or failing gate keeps the candidate in draft status. Record the
-exact command, failure, and environment boundary in `RELEASE_STATUS.md`; do not
-convert partial evidence into a pass.
+1. Install with `./scripts/pnpm.sh install --frozen-lockfile`.
+2. Run `make generate` and review the generated diff. The committed OpenAPI,
+   database documentation, and schema-derived TypeScript must be current.
+3. Run `make docs-check`, `make schemas`, `make openapi-check`, `make quick`,
+   `make knip`, and `make build`.
+4. Against a migrated, disposable PostgreSQL database, run `make check`.
+5. Build and verify the static demo:
 
-## Release notes
+   ```bash
+   node scripts/build-pages-demo.mjs
+   node scripts/verify-pages-demo.mjs
+   ```
 
-Move the intended entries out of `Unreleased` only when the tag is approved.
-The release notes must:
+6. Review the demo and screenshots for synthetic data, accurate roles, German
+   copy, clipping, stale content, and a clear statement that the demo has no API.
+7. Read `README.md`, `CHANGELOG.md`, `RELEASE_STATUS.md`, `SECURITY.md`,
+   `SUPPORT.md`, and `docs/DEVELOPMENT.md` as a first-time evaluator.
+8. Confirm CI, Dependency Review, CodeQL, and Pages on the same commit.
 
-- lead with the synthetic-data, local-evaluation boundary;
-- summarize user-visible capability families without claiming deployment,
-  legal, privacy, security, accessibility, or works-council approval;
-- list the exact tag and commit;
-- name all unavailable service-backed or browser gates;
-- link the release status, alpha guide, security policy, and changelog; and
-- state that no npm package, image, hosted service, or production support is
-  included.
+A failure or unavailable check leaves the release as a draft. Record the commit,
+date, environment, commands, and results in `RELEASE_STATUS.md`. Any change to
+the commit creates a new candidate and requires fresh hosted results.
 
-## Publication sequence
+## Write the release notes
 
-After explicit maintainer approval:
+Move entries out of `Unreleased` only when the release is approved. Release
+notes should identify the tag and commit, summarize changes visible to users,
+and link to the release status, changelog, development guide, and security
+policy. State plainly that the release is for local evaluation with synthetic
+data and includes no package, image, hosted application, or production support.
+List checks that could not be run.
+
+Avoid claims of deployment readiness or legal, privacy, security, accessibility,
+employee-representation, payroll-provider, or operational approval. Those
+decisions depend on the target organization and deployment.
+
+## Publish
+
+Publication requires explicit maintainer approval. Once approved:
 
 1. Create the release commit.
-2. Push the approved branch and wait for required checks.
-3. Create the annotated `v0.1.0-alpha.N` tag on that verified commit.
-4. Push the tag and wait for tag-triggered CI and CodeQL.
-5. Create a GitHub prerelease using the reviewed changelog text.
-6. Verify the rendered README links, screenshot assets, release notes, and
-   downloadable source archives from a signed-out browser.
+2. Push the approved branch and wait for its required checks.
+3. Create an annotated alpha tag on that verified commit and push it.
+4. Wait for tag-triggered CI and CodeQL.
+5. Create a GitHub prerelease from the reviewed changelog text.
+6. From a signed-out browser, verify the rendered documentation, Pages demo,
+   release notes, and source archives.
 
-Do not commit, push, tag, or create a GitHub Release as part of preparation
-unless the maintainer explicitly authorizes that publication action.
+Preparing or verifying a candidate does not itself authorize a commit, push,
+tag, GitHub release, or deployment.

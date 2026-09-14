@@ -11,6 +11,7 @@ import {
   type WorkflowPolicyHistory,
 } from '@cueq/contracts';
 import type { useTranslations } from 'next-intl';
+import { useReadRequests } from '../../../shared/workspace/use-read-requests';
 import { useApiContext } from '../../../platform/http/api-context';
 
 const WORKFLOW_TYPES = [
@@ -25,6 +26,7 @@ type TranslationFn = ReturnType<typeof useTranslations>;
 
 export function usePolicyAdminWorkspace(t: TranslationFn) {
   const { apiBaseUrl, token, apiRequest } = useApiContext();
+  const reads = useReadRequests(apiRequest);
 
   const [asOf, setAsOf] = useState('2026-03-15');
   const [bundle, setBundle] = useState<PolicyBundle | null>(null);
@@ -46,34 +48,61 @@ export function usePolicyAdminWorkspace(t: TranslationFn) {
     setError(null);
   }, [apiBaseUrl, token]);
 
-  function withFeedback<T>(fn: () => Promise<T>): Promise<T> {
+  async function withFeedback(fn: (isCurrent: () => boolean) => Promise<void>) {
+    const operation = reads.begin('mutation');
     setLoading(true);
     setError(null);
     setMessage(null);
-    return fn().finally(() => {
-      setLoading(false);
-    });
+    try {
+      await fn(operation.isFeedbackCurrent);
+    } catch (cause) {
+      if (operation.isFeedbackCurrent())
+        setError(cause instanceof Error ? cause.message : t('requestFailed'));
+    } finally {
+      if (operation.isCurrent()) {
+        operation.finish();
+        setLoading(reads.pending);
+      }
+    }
   }
 
   async function loadBundle() {
-    await withFeedback(async () => {
+    const read = reads.begin('loadBundle');
+    const apiRequest = read.request;
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
       const query = new URLSearchParams();
       if (asOf) query.set('asOf', asOf);
       const data = await apiRequest(`/v1/policies?${query.toString()}`, PolicyBundleSchema);
+      if (!read.isCurrent()) return;
       setBundle(data);
       setMessage(t('bundleLoaded'));
-    }).catch((cause: unknown) => {
+    } catch (cause) {
+      if (!read.isCurrent()) return;
       setBundle(null);
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    });
+    } finally {
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(reads.pending);
+      }
+    }
   }
 
   async function loadWorkflowPolicy() {
-    await withFeedback(async () => {
+    const read = reads.begin('loadWorkflowPolicy');
+    const apiRequest = read.request;
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
       const data = await apiRequest(
         `/v1/workflows/policies/${wfType}`,
         NullableWorkflowPolicySchema,
       );
+      if (!read.isCurrent()) return;
       if (!data) {
         setMessage(t('workflowPolicyMissing'));
         return;
@@ -82,13 +111,19 @@ export function usePolicyAdminWorkspace(t: TranslationFn) {
       setWfEscRoles(data.escalationRoles.join(','));
       setWfMaxDepth(data.maxDelegationDepth);
       setMessage(t('workflowPolicyLoaded'));
-    }).catch((cause: unknown) => {
+    } catch (cause) {
+      if (!read.isCurrent()) return;
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    });
+    } finally {
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(reads.pending);
+      }
+    }
   }
 
   async function saveWorkflowPolicy() {
-    await withFeedback(async () => {
+    await withFeedback(async (isCurrent) => {
       await apiRequest(`/v1/workflows/policies/${wfType}`, WorkflowPolicySchema, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -101,47 +136,67 @@ export function usePolicyAdminWorkspace(t: TranslationFn) {
           maxDelegationDepth: wfMaxDepth,
         }),
       });
-      setMessage(t('workflowPolicySaved'));
-    }).catch((cause: unknown) => {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      if (isCurrent()) setMessage(t('workflowPolicySaved'));
     });
   }
 
   async function loadPolicyHistory() {
-    await withFeedback(async () => {
+    const read = reads.begin('loadPolicyHistory');
+    const apiRequest = read.request;
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
       const data = await apiRequest(
         `/v1/workflows/policies/${wfType}/history`,
         WorkflowPolicyHistorySchema,
       );
+      if (!read.isCurrent()) return;
       setWfHistory(data);
       setMessage(t('historyLoaded'));
-    }).catch((cause: unknown) => {
+    } catch (cause) {
+      if (!read.isCurrent()) return;
       setWfHistory(null);
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    });
+    } finally {
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(reads.pending);
+      }
+    }
   }
 
   async function loadTimeThresholds() {
-    await withFeedback(async () => {
+    const read = reads.begin('loadTimeThresholds');
+    const apiRequest = read.request;
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
       const data = await apiRequest('/v1/time-thresholds', TimeThresholdsResultSchema);
+      if (!read.isCurrent()) return;
       setDailyMax(data.dailyMaxMinutes);
       setMinRest(data.minRestMinutes);
       setMessage(t('timeThresholdsLoaded'));
-    }).catch((cause: unknown) => {
+    } catch (cause) {
+      if (!read.isCurrent()) return;
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
-    });
+    } finally {
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(reads.pending);
+      }
+    }
   }
 
   async function saveTimeThresholds() {
-    await withFeedback(async () => {
+    await withFeedback(async (isCurrent) => {
       await apiRequest('/v1/time-thresholds', TimeThresholdsResultSchema, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dailyMaxMinutes: dailyMax, minRestMinutes: minRest }),
       });
-      setMessage(t('timeThresholdsSaved'));
-    }).catch((cause: unknown) => {
-      setError(cause instanceof Error ? cause.message : t('requestFailed'));
+      if (isCurrent()) setMessage(t('timeThresholdsSaved'));
     });
   }
 

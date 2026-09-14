@@ -22,6 +22,7 @@ export type CoreClosingContract = {
     ruleViolations: number;
     rosterMismatches: number;
     balanceAnomalies: number;
+    missingTimeAccounts?: number;
   };
   checklistOutput: {
     items: Record<string, unknown>[];

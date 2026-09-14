@@ -1,6 +1,16 @@
 /** Exposes administration endpoints for integration configuration and delivery state. */
-import { Body, Controller, Get, Header, Inject, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  Inject,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { ApiAcceptedResponse, ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
 import {
   CreateWebhookEndpointSchema,
@@ -50,9 +60,28 @@ export class IntegrationsController {
   }
 
   @Post('webhooks/dispatch')
+  @Roles(Role.ADMIN)
+  @HttpCode(202)
+  @ApiAcceptedResponse({
+    schema: {
+      type: 'object',
+      required: ['jobId', 'status'],
+      properties: {
+        jobId: { type: 'string' },
+        status: { type: 'string', enum: ['PENDING', 'RUNNING', 'SUCCEEDED'] },
+      },
+    },
+  })
   @ApiOperation({ summary: 'Dispatch pending outbox events to subscribed endpoints' })
   dispatch(@CurrentUser() user: AuthenticatedIdentity) {
     return this.webhookService.dispatchWebhooks(user);
+  }
+
+  @Get('webhooks/dispatch-jobs/:id')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Read a durable dispatch job' })
+  dispatchJob(@CurrentUser() user: AuthenticatedIdentity, @Param('id') id: string) {
+    return this.webhookService.getDispatchJob(user, id);
   }
 
   @Get('webhooks/deliveries')

@@ -7,7 +7,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, resolve } from 'node:path';
+import { packageBinary } from './lib/package-binary.mjs';
 import nativePackageJson from '@typescript/native/package.json' with { type: 'json' };
 
 const EXPECTED_NATIVE_VERSION = '7.0.2';
@@ -38,15 +38,6 @@ const apiRequire = packageRequire('../apps/api/package.json');
 const webRequire = packageRequire('../apps/web/package.json');
 const nestRequire = createRequire(apiRequire.resolve('@nestjs/cli/package.json'));
 const parserRequire = createRequire(rootRequire.resolve('@typescript-eslint/parser/package.json'));
-
-function packageBinary(packageJsonPath, packageJson, binaryName) {
-  const binaryPath =
-    typeof packageJson.bin === 'string' ? packageJson.bin : packageJson.bin?.[binaryName];
-  if (typeof binaryPath !== 'string') {
-    throw new Error(`${packageName} does not expose the ${binaryName} binary.`);
-  }
-  return resolve(dirname(packageJsonPath), binaryPath);
-}
 
 assertVersion(
   'native tsc',

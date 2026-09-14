@@ -1,0 +1,23 @@
+.cq-native-form fieldset {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.cq-native-form fieldset > button {
+  justify-self: start;
+}
+.cq-native-panel {
+  overflow-wrap: anywhere;
+}
+.cq-native-panel details > summary {
+  padding: 0.75rem 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+.cq-native-panel details > summary:focus-visible {
+  outline: 2px solid var(--cq-accent);
+  outline-offset: 3px;
+}

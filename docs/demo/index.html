@@ -1,184 +1,300 @@
 <!doctype html>
-<html lang="en">
+<html lang="de" data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="A guided static demonstration of cueq using sanitized example data and captures of the product interface."
+      content="cueq ausprobieren: Arbeitszeit buchen, Buchungen korrigieren und Anträge prüfen. Alle Daten sind frei erfunden."
     />
-    <title>cueq guided static demo</title>
+    <title>cueq · Interaktive Demo</title>
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./app.css" />
     <link rel="stylesheet" href="./demo.css" />
     <script src="./demo.js" defer></script>
   </head>
   <body>
-    <a class="cq-skip-link" href="#demo-viewer">Skip to demo</a>
+    <a class="cq-skip-link" href="#demo-main">Zum Inhalt springen</a>
 
-    <header class="demo-header">
-      <a
-        class="demo-brand"
-        href="https://github.com/sebastianspicker/cueq"
-        aria-label="cueq repository"
-      >
-        <svg aria-hidden="true" viewBox="0 0 64 64">
-          <path
-            d="M27 13h-6C10 13 6 21 6 32s4 19 15 19h6M37 13h6c11 0 15 8 15 19s-4 19-15 19h-6M22 51l5 6M42 51l-5 6"
-          />
-        </svg>
-        <span>
-          <strong>cueq</strong>
-          <small>Guided static demo</small>
-        </span>
-      </a>
-      <a class="demo-source-link" href="https://github.com/sebastianspicker/cueq">View source</a>
-    </header>
-
-    <main id="demo-viewer" class="demo-main">
-      <section class="demo-intro" aria-labelledby="demo-title">
-        <div>
-          <p class="demo-context">Source alpha · German university context</p>
-          <h1 id="demo-title">A guided view of workforce operations</h1>
-          <p>
-            Six captures from the real cueq interface show time recording, leave, roster planning,
-            approvals, monthly closing, and reporting with deterministic synthetic data.
-          </p>
+    <div class="demo-app">
+      <div class="demo-scrim" data-demo-scrim hidden></div>
+      <aside id="demo-sidebar" class="demo-sidebar" data-demo-sidebar aria-label="Hauptnavigation">
+        <div class="demo-brand-row">
+          <a class="demo-brand" href="#heute" aria-label="cueq Demo Startseite">
+            <svg aria-hidden="true" viewBox="0 0 64 64">
+              <path
+                d="M27 13h-6C10 13 6 21 6 32s4 19 15 19h6M37 13h6c11 0 15 8 15 19s-4 19-15 19h-6M22 51l5 6M42 51l-5 6"
+              />
+            </svg>
+            <span><strong>cueq</strong><small>Arbeitszeit · Demo</small></span>
+          </a>
+          <button class="demo-icon-button demo-close-nav" type="button" data-demo-close-nav>
+            <span aria-hidden="true">×</span><span class="cq-sr-only">Navigation schließen</span>
+          </button>
         </div>
-        <aside class="demo-boundary" aria-label="Simulation boundary">
-          <strong>Static simulation</strong>
-          <p>
-            No API, database, identity provider, or command runs here. Controls inside each capture
-            are non-operative. Every command-capable action shown is named below and marked
-            <span class="demo-simulated-label">Simulated</span>.
-          </p>
-        </aside>
-      </section>
 
-      <section class="demo-workspace" aria-labelledby="screen-title">
-        <nav class="demo-step-nav" aria-label="Demo screens" role="tablist">
-          <button
-            id="screen-tab-1"
-            type="button"
-            role="tab"
-            data-screen="0"
-            aria-controls="demo-panel"
-            aria-selected="true"
-          >
-            01 Today
+        <p class="demo-boundary" data-demo-boundary="synthetic-local-data">
+          <span aria-hidden="true">◇</span>
+          <span><strong>Demo-Daten</strong><small>Frei erfunden · ohne Anmeldung</small></span>
+        </p>
+
+        <nav class="demo-nav" aria-label="Arbeitsbereiche">
+          <p>Persönlich</p>
+          <button type="button" data-demo-view="heute" aria-current="page">
+            <span aria-hidden="true">◷</span><span>Heute</span><kbd>1</kbd>
           </button>
-          <button
-            id="screen-tab-2"
-            type="button"
-            role="tab"
-            data-screen="1"
-            aria-controls="demo-panel"
-            aria-selected="false"
-          >
-            02 Leave
+          <button type="button" data-demo-view="buchungen">
+            <span aria-hidden="true">≡</span><span>Buchungen</span><kbd>2</kbd>
           </button>
-          <button
-            id="screen-tab-3"
-            type="button"
-            role="tab"
-            data-screen="2"
-            aria-controls="demo-panel"
-            aria-selected="false"
-          >
-            03 Roster
-          </button>
-          <button
-            id="screen-tab-4"
-            type="button"
-            role="tab"
-            data-screen="3"
-            aria-controls="demo-panel"
-            aria-selected="false"
-          >
-            04 Approvals
-          </button>
-          <button
-            id="screen-tab-5"
-            type="button"
-            role="tab"
-            data-screen="4"
-            aria-controls="demo-panel"
-            aria-selected="false"
-          >
-            05 Closing
-          </button>
-          <button
-            id="screen-tab-6"
-            type="button"
-            role="tab"
-            data-screen="5"
-            aria-controls="demo-panel"
-            aria-selected="false"
-          >
-            06 Reports
+          <p>Team</p>
+          <button type="button" data-demo-view="genehmigungen">
+            <span aria-hidden="true">✓</span><span>Genehmigungen</span
+            ><span class="demo-nav-count" data-approval-count>3</span>
           </button>
         </nav>
 
-        <div id="demo-panel" class="demo-stage" role="tabpanel" aria-labelledby="screen-tab-1">
-          <div class="demo-copy">
-            <p id="screen-meta" class="demo-screen-meta"></p>
-            <h2 id="screen-title"></h2>
-            <p id="screen-summary"></p>
-
-            <div class="demo-actions">
-              <h3>Command actions shown in this capture</h3>
-              <ul id="screen-actions"></ul>
-            </div>
-
-            <div class="demo-pager" aria-label="Demo navigation">
-              <button id="previous-screen" class="demo-secondary" type="button">
-                Previous screen
-              </button>
-              <span id="screen-position" aria-live="polite"></span>
-              <button id="next-screen" type="button">Next screen</button>
-            </div>
+        <div class="demo-sidebar-footer">
+          <div class="demo-profile">
+            <span class="demo-avatar" aria-hidden="true">MK</span>
+            <span><strong>Dr. Miriam König</strong><small>Teamleitung · Verwaltung</small></span>
           </div>
+          <button type="button" class="demo-reset" data-demo-reset>Demo zurücksetzen</button>
+          <a href="https://github.com/sebastianspicker/cueq">Quellcode &amp; Anleitung ↗</a>
+        </div>
+      </aside>
 
-          <figure class="demo-capture">
-            <div class="demo-capture-bar">
-              <span><span aria-hidden="true"></span> Synthetic interface capture</span>
-              <strong>All captured controls are non-operative</strong>
+      <main id="demo-main" class="demo-main">
+        <header class="demo-topbar">
+          <button
+            class="demo-icon-button demo-menu-button"
+            type="button"
+            aria-controls="demo-sidebar"
+            aria-expanded="false"
+            data-demo-open-nav
+          >
+            <span aria-hidden="true">☰</span><span class="cq-sr-only">Navigation öffnen</span>
+          </button>
+          <div class="demo-breadcrumb">
+            <span>cueq</span><span aria-hidden="true">/</span><strong data-view-label>Heute</strong>
+          </div>
+          <div class="demo-topbar-actions">
+            <button
+              class="demo-command-button"
+              type="button"
+              aria-label="Gehe zu …"
+              data-demo-command="open"
+            >
+              <span aria-hidden="true">⌕</span><span>Gehe zu …</span><kbd>⌘ K</kbd>
+            </button>
+            <button
+              class="demo-icon-button"
+              type="button"
+              data-demo-theme="toggle"
+              aria-pressed="false"
+            >
+              <span aria-hidden="true" data-theme-icon>☾</span
+              ><span class="cq-sr-only">Farbschema wechseln</span>
+            </button>
+          </div>
+        </header>
+
+        <div class="demo-content">
+          <p class="demo-intro">
+            Probieren Sie eine Buchung oder Genehmigung aus. Änderungen bleiben bis zum Neuladen in
+            diesem Tab.
+          </p>
+          <noscript><p>Bitte JavaScript aktivieren, um die Demo zu bedienen.</p></noscript>
+          <section class="demo-view" data-demo-panel="heute" aria-labelledby="today-title">
+            <div class="demo-page-heading">
+              <div>
+                <p class="demo-eyebrow">Montag · 31. August 2026</p>
+                <h1 tabindex="-1" id="today-title">Hallo, Miriam.</h1>
+                <p>Ihr Arbeitstag und die nächsten Aufgaben im Überblick.</p>
+              </div>
+              <button class="demo-primary-action" type="button" data-clock-action>
+                <span aria-hidden="true">■</span><span data-clock-label>Gehen buchen</span
+                ><strong data-clock-time>16:42</strong>
+              </button>
             </div>
-            <img id="screen-image" alt="" width="1440" height="937" />
-            <figcaption id="screen-caption"></figcaption>
-          </figure>
-        </div>
-      </section>
 
-      <section class="demo-notes" aria-labelledby="what-this-is">
-        <h2 id="what-this-is">What this demo is, and is not</h2>
-        <div>
-          <p>
-            This page is a documentation surface built from the repository's tracked screenshots. It
-            does not reproduce cueq's domain rules, persistence, authorization, or write workflows.
-          </p>
-          <p>
-            cueq remains a local evaluation source alpha, not a hosted service or an approved
-            institutional system. Do not use real employee, payroll, health, credential, or
-            operational data.
-          </p>
+            <section class="demo-ledger" aria-labelledby="ledger-title">
+              <div class="demo-section-heading">
+                <div>
+                  <p class="demo-eyebrow">Tagesjournal</p>
+                  <h2 id="ledger-title">Montag, 31. August</h2>
+                </div>
+                <p><strong data-worked-time>08:07</strong><span>von 08:00 Std.</span></p>
+              </div>
+              <div class="demo-timeline" aria-label="Arbeitszeit von 08:07 bis 16:42 Uhr">
+                <div class="demo-time-scale" aria-hidden="true">
+                  <span style="--position: 0%">06</span><span style="--position: 25%">09</span
+                  ><span style="--position: 50%">12</span><span style="--position: 75%">15</span
+                  ><span style="--position: 100%">18</span>
+                </div>
+                <div class="demo-track">
+                  <span class="demo-work-segment first"></span>
+                  <span class="demo-pause-segment"></span>
+                  <span class="demo-work-segment second" data-live-segment></span>
+                  <span class="demo-now-marker" data-now-marker><i></i><em>Jetzt · 16:42</em></span>
+                </div>
+                <div class="demo-ledger-events">
+                  <span><i class="ok"></i><strong>08:07</strong> Kommen · Campus</span>
+                  <span><i class="pause"></i><strong>12:14–12:42</strong> Pause</span>
+                  <span data-live-event
+                    ><i class="live"></i><strong>12:42</strong> Kommen · laufend</span
+                  >
+                </div>
+              </div>
+            </section>
+
+            <section class="demo-balance-register" aria-label="Zeitkonten">
+              <article>
+                <p>Heute</p>
+                <strong data-today-balance>+ 00:07</strong><span>zum Tagessoll</span>
+              </article>
+              <article>
+                <p>Gleitzeit</p>
+                <strong>+ 12:48</strong><span>Stand 31.08.</span>
+              </article>
+              <article>
+                <p>Urlaub</p>
+                <strong>18,0 T.</strong><span>noch verfügbar</span>
+              </article>
+              <article>
+                <p>Monat</p>
+                <strong>152:32</strong><span>von 160:00 Std.</span>
+              </article>
+            </section>
+
+            <section class="demo-task-register" aria-labelledby="tasks-title">
+              <div class="demo-section-heading compact">
+                <div>
+                  <p class="demo-eyebrow">Aufgaben</p>
+                  <h2 id="tasks-title">Was Aufmerksamkeit braucht</h2>
+                </div>
+                <span>2 Hinweise</span>
+              </div>
+              <button type="button" data-demo-view="genehmigungen">
+                <span class="demo-task-shape warn">!</span
+                ><span
+                  ><strong>Anträge prüfen</strong
+                  ><small><span data-approval-count>3</span> offene Anträge</small></span
+                ><b>Öffnen →</b>
+              </button>
+              <button type="button" data-demo-view="buchungen">
+                <span class="demo-task-shape">◇</span
+                ><span
+                  ><strong>Buchung vervollständigen</strong
+                  ><small>Freitag, 28. August · Gehen fehlt</small></span
+                ><b>Öffnen →</b>
+              </button>
+            </section>
+          </section>
+
+          <section
+            class="demo-view"
+            data-demo-panel="buchungen"
+            aria-labelledby="bookings-title"
+            hidden
+          >
+            <div class="demo-page-heading simple">
+              <div>
+                <p class="demo-eyebrow">Persönliches Journal</p>
+                <h1 tabindex="-1" id="bookings-title">Buchungen</h1>
+                <p>Nachvollziehbare Arbeitszeitaufzeichnungen für August 2026.</p>
+              </div>
+              <button class="demo-primary-action compact" type="button" data-add-booking>
+                + Buchung ergänzen
+              </button>
+            </div>
+            <div class="demo-table-wrap">
+              <table class="demo-table">
+                <caption class="cq-sr-only">
+                  Buchungsregister August 2026
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Datum</th>
+                    <th>Typ</th>
+                    <th>Zeit</th>
+                    <th>Quelle</th>
+                    <th>Status</th>
+                    <th><span class="cq-sr-only">Aktion</span></th>
+                  </tr>
+                </thead>
+                <tbody data-bookings-body></tbody>
+              </table>
+            </div>
+            <p class="demo-register-note">
+              <span aria-hidden="true">↳</span> Änderungen werden im Produkt als Korrekturantrag
+              protokolliert. Diese Demo verändert ausschließlich ihren lokalen Beispieldatensatz.
+            </p>
+          </section>
+
+          <section
+            class="demo-view"
+            data-demo-panel="genehmigungen"
+            aria-labelledby="approvals-title"
+            hidden
+          >
+            <div class="demo-page-heading simple">
+              <div>
+                <p class="demo-eyebrow">Team · Eingang</p>
+                <h1 tabindex="-1" id="approvals-title">Genehmigungen</h1>
+                <p>Anträge mit Zeitraum, Frist und Begründung prüfen.</p>
+              </div>
+              <p class="demo-shortcuts">
+                <kbd>j</kbd><kbd>k</kbd> auswählen · <kbd>a</kbd> genehmigen · <kbd>x</kbd> ablehnen
+              </p>
+            </div>
+            <div class="demo-inbox-layout">
+              <div class="demo-inbox" role="listbox" aria-label="Anträge" data-approval-list></div>
+              <article
+                class="demo-approval-detail"
+                data-approval-detail
+                aria-live="polite"
+              ></article>
+            </div>
+          </section>
         </div>
-        <p class="demo-reference-links">
-          <a href="https://github.com/sebastianspicker/cueq#readme">Repository overview</a>
-          <a href="https://github.com/sebastianspicker/cueq/blob/main/RELEASE_STATUS.md"
-            >Release evidence</a
-          >
-          <a
-            href="https://github.com/sebastianspicker/cueq/blob/main/docs/assets/screenshots/README.md"
-            >Screenshot notes</a
-          >
+      </main>
+    </div>
+
+    <dialog class="demo-command-dialog" data-command-dialog aria-labelledby="command-title">
+      <form method="dialog" class="demo-command-shell">
+        <label for="command-search"
+          ><span aria-hidden="true">⌕</span
+          ><span id="command-title" class="cq-sr-only">Navigation durchsuchen</span></label
+        >
+        <input
+          id="command-search"
+          type="search"
+          autocomplete="off"
+          placeholder="Navigation durchsuchen …"
+          data-command-search
+          role="combobox"
+          aria-expanded="true"
+          aria-controls="command-results"
+          aria-autocomplete="list"
+        />
+        <button class="demo-icon-button" value="cancel" aria-label="Schließen">×</button>
+        <div
+          id="command-results"
+          class="demo-command-results"
+          role="listbox"
+          aria-label="Ziele"
+          data-command-results
+        ></div>
+        <p class="demo-command-empty" role="status" data-command-empty hidden>
+          Keine passenden Ziele.
         </p>
-      </section>
-    </main>
+        <footer>
+          <span><kbd>↑</kbd><kbd>↓</kbd> wählen</span><span><kbd>↵</kbd> öffnen</span
+          ><span><kbd>esc</kbd> schließen</span>
+        </footer>
+      </form>
+    </dialog>
 
-    <footer class="demo-footer">
-      <span>cueq · synthetic example data</span>
-      <span>This static page sends no product commands.</span>
-    </footer>
+    <div class="demo-toast" role="status" aria-live="polite" data-demo-toast hidden></div>
   </body>
 </html>

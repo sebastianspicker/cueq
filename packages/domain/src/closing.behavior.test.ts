@@ -16,7 +16,7 @@ describe('monthly closing rules through the public domain API', () => {
     const checklist = generateClosingChecklist(greenChecklistInput);
 
     expect(checklist.hasErrors).toBe(false);
-    expect(checklist.items).toHaveLength(7);
+    expect(checklist.items).toHaveLength(8);
     expect(checklist.items).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: 'MISSING_BOOKINGS', severity: 'INFO', status: 'RESOLVED' }),
@@ -51,6 +51,14 @@ describe('monthly closing rules through the public domain API', () => {
           details: '1 unresolved policy violation',
         }),
       ]),
+    );
+  });
+
+  it('blocks closing when an appointment has missing account coverage', () => {
+    const checklist = generateClosingChecklist({ ...greenChecklistInput, missingTimeAccounts: 1 });
+    expect(checklist.hasErrors).toBe(true);
+    expect(checklist.items).toContainEqual(
+      expect.objectContaining({ code: 'MISSING_TIME_ACCOUNTS', severity: 'ERROR', status: 'OPEN' }),
     );
   });
 

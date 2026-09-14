@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const TerminalRecordSchema = z
   .object({
     personId: z.string().cuid(),
+    assignmentId: z.string().cuid().optional(),
     timeTypeCode: z.string().min(1),
     startTime: z.string().datetime(),
     endTime: z.string().datetime().optional(),

@@ -1,8 +1,13 @@
+import { cursorPage } from '../../persistence/queries/cursor-page.js';
+import { berlinDayBounds } from './berlin-day.js';
+import { toBookingDto } from './booking-response.mapper.js';
 /** Builds the authenticated caller's booking-focused dashboard data. */
 import { Inject, Injectable } from '@nestjs/common';
+import { AssignmentContextSchema } from '@cueq/contracts';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
-import { PersonHelper } from '../people/public.js';
+import { AssignmentHelper, PersonHelper } from '../people/public.js';
+import { targetHoursForBerlinDay } from './time-account-calculation.helper.js';
 
 /**
  * Builds the caller-scoped booking summary used by the operational dashboard.
@@ -12,6 +17,7 @@ export class DashboardBookingsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper) private readonly assignmentHelper: AssignmentHelper,
   ) {}
 
   async me(user: AuthenticatedIdentity): Promise<unknown> {
@@ -27,55 +33,76 @@ export class DashboardBookingsService {
     };
   }
 
-  async dashboard(user: AuthenticatedIdentity): Promise<unknown> {
+  async dashboard(user: AuthenticatedIdentity, query: unknown = {}): Promise<unknown> {
     const person = await this.personHelper.personForUser(user);
-
-    // Query workTimeModel separately – PersonHelper's generic include option
-    // does not propagate Prisma return types reliably through conditional spread.
-    const workTimeModel = person.workTimeModelId
-      ? await this.prisma.workTimeModel.findUnique({ where: { id: person.workTimeModelId } })
-      : null;
-
+    const parsed = AssignmentContextSchema.parse(query);
     const now = new Date();
-    const dayStart = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
+    const { dayStart, dayEnd } = berlinDayBounds(now);
+    const resolved = await this.assignmentHelper.resolveInterval(
+      person.id,
+      dayStart,
+      dayEnd,
+      parsed.assignmentId,
     );
-    const dayEnd = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999),
-    );
-
-    const [latestTimeAccount, todayBookingsCount, totalBookingsCount, clockInType] =
-      await Promise.all([
+    const assignmentId = resolved.assignment.id;
+    const bookingWhere = {
+      personId: person.id,
+      assignmentId,
+      startTime: { gte: dayStart, lt: dayEnd },
+    };
+    const [
+      latestTimeAccount,
+      todayBookingsCount,
+      firstBooking,
+      clockInType,
+      todayBookings,
+      worked,
+    ] = await this.prisma.$transaction(
+      [
         this.prisma.timeAccount.findFirst({
-          where: { personId: person.id },
+          where: { personId: person.id, assignmentId },
           orderBy: { periodStart: 'desc' },
         }),
-        this.prisma.booking.count({
-          where: {
-            personId: person.id,
-            startTime: { gte: dayStart, lte: dayEnd },
-          },
-        }),
-        this.prisma.booking.count({
-          where: { personId: person.id },
-        }),
-        this.prisma.timeType.findFirst({
-          where: { code: 'WORK' },
+        this.prisma.booking.count({ where: bookingWhere }),
+        this.prisma.booking.findFirst({
+          where: { personId: person.id, assignmentId },
           select: { id: true },
         }),
-      ]);
-
-    const dailyTarget = Number(
-      workTimeModel?.dailyTargetHours ?? Number(workTimeModel?.weeklyHours ?? 0) / 5,
+        this.prisma.timeType.findFirst({ where: { code: 'WORK' }, select: { id: true } }),
+        this.prisma.booking.findMany({
+          where: bookingWhere,
+          orderBy: [{ startTime: 'asc' }, { id: 'asc' }],
+          take: 51,
+          include: { timeType: true },
+        }),
+        this.prisma.$queryRaw<Array<{ milliseconds: number }>>`
+            SELECT COALESCE(SUM(GREATEST(0, EXTRACT(EPOCH FROM (COALESCE("endTime", ${now}) - "startTime")) * 1000)), 0)::double precision AS milliseconds
+            FROM "bookings" WHERE "personId" = ${person.id} AND "assignmentId" = ${assignmentId} AND "startTime" >= ${dayStart} AND "startTime" < ${dayEnd}
+          `,
+      ],
+      { isolationLevel: 'RepeatableRead' },
     );
-    const hasFirstBooking = totalBookingsCount > 0;
+
+    const dailyTarget = targetHoursForBerlinDay(resolved.term, now);
+    const hasFirstBooking = firstBooking !== null;
 
     return {
       personId: person.id,
-      modelName: workTimeModel?.name ?? 'N/A',
+      assignmentId,
+      modelName: resolved.term.workTimeModel?.name ?? 'N/A',
       todayTargetHours: Number(dailyTarget.toFixed(2)),
       currentBalanceHours: Number((latestTimeAccount?.balance ?? 0).toFixed(2)),
       todayBookingsCount,
+      todayWorkedMilliseconds: worked[0]?.milliseconds ?? 0,
+      dayStart: dayStart.toISOString(),
+      dayEnd: dayEnd.toISOString(),
+      todayBookings: cursorPage(
+        todayBookings,
+        50,
+        'startTime',
+        (row) => row.startTime,
+        toBookingDto,
+      ),
       hasFirstBooking,
       showOrientation: !hasFirstBooking,
       clockInTimeTypeId: clockInType?.id ?? null,

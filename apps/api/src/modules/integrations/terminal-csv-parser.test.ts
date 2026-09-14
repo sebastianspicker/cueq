@@ -20,4 +20,15 @@ describe('Honeywell terminal CSV protocol', () => {
       parseHoneywellCsv('personId,startTime\nc123456789012345678901234,2026-08-04T08:00:00.000Z'),
     ).toThrow(BadRequestException);
   });
+
+  it('accepts an optional appointment column', () => {
+    const csv = [
+      'personId,assignmentId,timeTypeCode,startTime',
+      'c123456789012345678901234,c123456789012345678901235,WORK,2026-08-04T08:00:00.000Z',
+    ].join('\n');
+
+    expect(parseHoneywellCsv(csv).records).toEqual([
+      expect.objectContaining({ assignmentId: 'c123456789012345678901235' }),
+    ]);
+  });
 });

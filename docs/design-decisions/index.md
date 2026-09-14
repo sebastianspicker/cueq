@@ -1,12 +1,13 @@
-# Architecture decision records
+# Architecture decisions
 
-| Record                                        | Decision                                           | Status                                   |
-| --------------------------------------------- | -------------------------------------------------- | ---------------------------------------- |
-| [ADR-001](001-tech-stack.md)                  | Current technology stack                           | Accepted                                 |
-| [ADR-002](002-deployment-strategy.md)         | Deployment boundary                                | Accepted boundary; implementation absent |
-| [ADR-003](003-monitoring-stack.md)            | Monitoring boundary                                | Open                                     |
-| [ADR-005](005-modular-monolith-boundaries.md) | Modular-monolith capability and package boundaries | Accepted                                 |
+Architecture decision records explain choices that are still relevant to how
+cueq is built and operated.
 
-Use [000-template.md](000-template.md) for a new decision record. Keep a record
-focused on one current architectural decision, its evidence, and its
-consequences.
+| Record                                        | Decision                                               | Status   |
+| --------------------------------------------- | ------------------------------------------------------ | -------- |
+| [ADR-002](002-deployment-strategy.md)         | Keep production deployment outside this repository     | Accepted |
+| [ADR-005](005-modular-monolith-boundaries.md) | Keep explicit feature and workspace package boundaries | Accepted |
+
+Use [the ADR template](000-template.md) for a new decision. Package versions and
+the current source inventory belong in manifests and architecture documentation,
+where contributors can verify them directly.

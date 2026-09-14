@@ -11,6 +11,7 @@ const ids = {
   timeType: 'c00000000000000000000004',
   workflow: 'c00000000000000000000005',
   account: 'c00000000000000000000006',
+  assignment: 'c00000000000000000000007',
 };
 const startTime = new Date('2026-08-20T08:00:00.000Z');
 const endTime = new Date('2026-08-20T12:00:00.000Z');
@@ -31,11 +32,13 @@ describe('WorkflowAttendanceEffectsService', () => {
     const booking = {
       id: ids.booking,
       personId: ids.person,
+      assignmentId: ids.assignment,
       timeTypeId: ids.timeType,
       startTime,
       endTime,
     };
     const tx = {
+      projectTimeAllocation: { aggregate: vi.fn().mockResolvedValue({ _sum: { minutes: 0 } }) },
       booking: {
         findUnique: vi.fn().mockResolvedValue(booking),
         findFirst: vi.fn().mockResolvedValue(null),
@@ -49,11 +52,13 @@ describe('WorkflowAttendanceEffectsService', () => {
     await service.applyWorkflowEffect(
       input(tx, {
         id: ids.workflow,
+        assignmentId: ids.assignment,
         type: WorkflowType.BOOKING_CORRECTION,
         entityType: 'Booking',
         entityId: ids.booking,
         requestPayload: {
           bookingId: ids.booking,
+          assignmentId: ids.assignment,
           endTime: '2026-08-20T13:00:00.000Z',
           reason: 'Forgot to record the final hour.',
         },
@@ -83,6 +88,7 @@ describe('WorkflowAttendanceEffectsService', () => {
       service.applyWorkflowEffect(
         input(tx, {
           id: ids.workflow,
+          assignmentId: ids.assignment,
           type: WorkflowType.BOOKING_CORRECTION,
           entityType: 'Booking',
           entityId: ids.booking,
@@ -110,11 +116,13 @@ describe('WorkflowAttendanceEffectsService', () => {
     await service.applyWorkflowEffect(
       input(tx, {
         id: ids.workflow,
+        assignmentId: ids.assignment,
         type: WorkflowType.OVERTIME_APPROVAL,
         entityType: 'TimeAccount',
         entityId: ids.account,
         requestPayload: {
           personId: ids.person,
+          assignmentId: ids.assignment,
           periodStart: '2026-08-01T00:00:00.000Z',
           periodEnd: '2026-08-31T23:59:59.000Z',
           overtimeHours: 2.25,

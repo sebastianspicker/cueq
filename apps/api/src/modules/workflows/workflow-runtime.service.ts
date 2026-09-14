@@ -46,7 +46,7 @@ export class WorkflowRuntimeService {
     return availableWorkflowActions(workflow, actor);
   }
 
-  async listInbox(actor: WorkflowActor, query: WorkflowInboxQuery): Promise<VisibleWorkflow[]> {
+  async listInbox(actor: WorkflowActor, query: WorkflowInboxQuery) {
     return listWorkflowInbox(this.prisma, actor, query);
   }
 

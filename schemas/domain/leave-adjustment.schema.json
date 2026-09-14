@@ -4,7 +4,16 @@
   "title": "LeaveAdjustment",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "personId", "year", "deltaDays", "reason", "createdBy", "createdAt"],
+  "required": [
+    "id",
+    "personId",
+    "year",
+    "deltaDays",
+    "reason",
+    "createdBy",
+    "createdAt",
+    "assignmentId"
+  ],
   "properties": {
     "id": {
       "$ref": "./_defs/common.schema.json#/$defs/id"
@@ -26,6 +35,9 @@
     },
     "createdAt": {
       "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "assignmentId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
     }
   }
 }

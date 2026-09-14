@@ -1,47 +1,42 @@
 # Documentation
 
-The root [README](../README.md) is the entry point for installation, local use,
-repository structure, testing, and operational limits.
+New to cueq? The [README](../README.md) introduces the project and includes a
+screenshot tour. The guides below cover setup, development, and operation in
+more detail.
 
-## Runtime and development
+## Try it and start developing
 
-- [Architecture](../ARCHITECTURE.md): applications, packages, contracts, data
-  flow, and deployment boundary
-- [Configuration](CONFIGURATION.md): environment variables, defaults, and
-  production requirements
-- [Frontend](FRONTEND.md): routes, shared UI structure, localization, and
-  browser data flow
-- [Engineering design](DESIGN.md): domain boundaries, patterns, errors, and
-  testing layers
-- [Brand](BRAND.md): current product name, visual vocabulary, and asset rules
-- [Quality gates](QUALITY_GATES.md): local and CI validation commands
-- [Operations runbook](OPERATIONS_RUNBOOK.md): migrations, health checks,
-  integration maintenance, and backup verification
-- [Reliability](RELIABILITY.md): runtime dependencies and recovery boundaries
-- [Security design](SECURITY.md): authentication, authorization, privacy, and
-  threat boundaries
+- [Browser demo](demo/README.md): preview the interactive demo without an API
+  or database.
+- [Development](DEVELOPMENT.md): configure the local environment, seed sample
+  records, and start the applications.
+- [Contributing](../CONTRIBUTING.md): prepare a change and open a pull request.
+- [Testing](TESTING.md): choose the right checks and understand their setup.
 
-## Evaluation and release
+## Understand the application
 
-- [Alpha evaluation](ALPHA.md): synthetic-data setup and mock-token walkthrough
-- [Release process](RELEASING.md): source-alpha tag checks and publication
-  sequence
-- [Release status](../RELEASE_STATUS.md): current candidate state and evidence
-  requirements
-- [Roadmap](ROADMAP.md): work required before a production assessment
-- [Screenshot review](assets/screenshots/README.md): expected static files and
-  publication review
+- [Product](../PRODUCT.md): who uses cueq and how the interface should work.
+- [Features](product-specs/README.md): available workflows and their limits.
+- [University HR](UNIVERSITY-HR.md): employment, personnel, projects, documents,
+  and lifecycle tasks.
+- [Architecture](../ARCHITECTURE.md): packages, API features, and data flow.
+- [Frontend](FRONTEND.md): routes, state, localization, and interface conventions.
+- [Architecture decisions](design-decisions/index.md): reasons behind major
+  design choices.
+- [Domain schema index](generated/db-schema.md): generated list of JSON Schemas.
 
-## Design and product behavior
+## Configure and operate
 
-- [Design documents](design-docs/index.md): cross-cutting engineering rules
-- [Architecture decisions](design-decisions/index.md): accepted technical
-  decisions and their current status
-- [Product specifications](product-specs/index.md): implemented capability
-  boundaries and source entry points
-- [Domain schema index](generated/db-schema.md): entity contracts derived from
-  the domain JSON Schemas
+- [Configuration](CONFIGURATION.md): environment variables and defaults.
+- [Operations](OPERATIONS.md): migrations, imports, webhook maintenance, health
+  checks, and recovery.
+- [Security design](SECURITY.md): authentication, authorization, and privacy.
+- [Release status](../RELEASE_STATUS.md): current maturity and known gaps.
+- [Releasing](RELEASING.md): check and publish a source release.
 
-When documentation conflicts with executable configuration or source, treat the
-source, tests, schema, and committed public contracts as authoritative and
-update the documentation in the same change.
+## Project information
+
+- [Changelog](../CHANGELOG.md)
+- [Support](../SUPPORT.md)
+- [Security reporting](../SECURITY.md)
+- [Code of conduct](../CODE_OF_CONDUCT.md)

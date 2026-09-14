@@ -1,3 +1,4 @@
+import type { Prisma } from '@cueq/database';
 import type { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuditHelper } from '../audit/public.js';
 import type { decryptWebhookSigningSecret } from './webhooks/webhook-secret-envelope.js';
@@ -30,6 +31,8 @@ type WebhookDispatchEventInput = {
   actorId: string;
   decrypt: typeof decryptWebhookSigningSecret;
   post: typeof postWebhook;
+  renewJob: () => Promise<void>;
+  finalize: (tx: Prisma.TransactionClient, outcome: WebhookDispatchOutcome) => Promise<void>;
 };
 
 /** Performs one serial, leased outbox dispatch without owning authorization or run-level accounting. */
@@ -42,25 +45,34 @@ export async function dispatchWebhookEvent(
 
   const endpoints = await activeEndpointsForEvent(prisma.webhookEndpoint, event.eventType);
   if (endpoints.length === 0) {
-    await finalizeSkippedWebhookEvent(prisma, event, claimUntil, now);
+    await prisma.$transaction(async (tx) => {
+      await input.finalize(tx, 'SKIPPED');
+      await finalizeSkippedWebhookEvent(tx, event, claimUntil as Date, now);
+    });
     return 'SKIPPED';
   }
 
   const targets = await deliveryTargets(prisma.webhookDelivery, event.id, endpoints);
   const signingSecrets = signingSecretsForTargets(targets, decrypt, WEBHOOK_CONFIGURATION_ERROR);
   if (!signingSecrets) {
-    await releaseWebhookClaimForConfigurationFault(
-      prisma,
-      event,
-      claimUntil,
-      WEBHOOK_CONFIGURATION_ERROR,
-    );
-    await auditHelper.appendAudit({
-      actorId,
-      action: 'WEBHOOK_DISPATCH_CONFIGURATION_FAULT',
-      entityType: 'DomainEventOutbox',
-      entityId: event.id,
-      after: { error: WEBHOOK_CONFIGURATION_ERROR, rescheduled: true },
+    await prisma.$transaction(async (tx) => {
+      await input.finalize(tx, 'CONFIGURATION_FAULT');
+      await releaseWebhookClaimForConfigurationFault(
+        tx,
+        event,
+        claimUntil as Date,
+        WEBHOOK_CONFIGURATION_ERROR,
+      );
+      await auditHelper.appendAudit(
+        {
+          actorId,
+          action: 'WEBHOOK_DISPATCH_CONFIGURATION_FAULT',
+          entityType: 'DomainEventOutbox',
+          entityId: event.id,
+          after: { error: WEBHOOK_CONFIGURATION_ERROR, rescheduled: true },
+        },
+        tx,
+      );
     });
     return 'CONFIGURATION_FAULT';
   }
@@ -72,11 +84,15 @@ export async function dispatchWebhookEvent(
     initialClaimUntil: claimUntil,
     timeoutMs: settings.timeoutMs,
     configurationError: WEBHOOK_CONFIGURATION_ERROR,
-    renewClaim: (currentLease) =>
-      renewWebhookClaim(prisma, event, currentLease, settings.claimLeaseMs),
+    renewClaim: async (currentLease) => {
+      await input.renewJob();
+      return renewWebhookClaim(prisma, event, currentLease, settings.claimLeaseMs);
+    },
     post,
   });
   claimUntil = delivery.claimUntil;
-  await finalizeWebhookDeliveries(prisma, event, claimUntil, delivery, settings.maxAttempts);
+  await finalizeWebhookDeliveries(prisma, event, claimUntil, delivery, settings.maxAttempts, (tx) =>
+    input.finalize(tx, delivery.eventFailed ? 'FAILED' : 'DELIVERED'),
+  );
   return delivery.eventFailed ? 'FAILED' : 'DELIVERED';
 }

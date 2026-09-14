@@ -10,7 +10,7 @@ import { Role, RosterStatus, type Prisma } from '@cueq/database';
 import { CreateRosterSchema } from '@cueq/contracts';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
-import { PersonHelper, HR_LIKE_ROLES } from '../people/public.js';
+import { AssignmentHelper, PersonHelper, HR_LIKE_ROLES } from '../people/public.js';
 import { AuditHelper } from '../audit/public.js';
 import { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
 import { RosterShiftHelper } from './roster-shift.helper.js';
@@ -18,6 +18,7 @@ import { RosterAssignmentHelper } from './roster-assignment.helper.js';
 import { RosterQueryHelper } from './roster-query.helper.js';
 import {
   lockOrganizationRosterWrites,
+  lockPersonWrites,
   lockRosterWrites,
 } from '../../platform/transactions/transaction-lock.helper.js';
 
@@ -45,6 +46,8 @@ export class RosterDomainService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper)
+    private readonly employmentAssignmentHelper: AssignmentHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
     @Inject(ClosingLockHelper) private readonly closingLockHelper: ClosingLockHelper,
     @Inject(RosterShiftHelper) private readonly shiftHelper: RosterShiftHelper,
@@ -175,13 +178,39 @@ export class RosterDomainService {
     return this.queryHelper.toRosterDetail(roster);
   }
 
+  async rosterMemberAssignmentOptions(
+    user: AuthenticatedIdentity,
+    rosterId: string,
+    personId: string,
+    query: unknown,
+  ) {
+    const actor = await this.personHelper.personForUser(user);
+    const roster = await this.prisma.roster.findUnique({
+      where: { id: rosterId },
+      select: {
+        organizationUnitId: true,
+        periodStart: true,
+        periodEnd: true,
+        status: true,
+      },
+    });
+    if (!roster) throw new NotFoundException('Roster not found.');
+    this.assertCanReadRoster(
+      user,
+      actor.organizationUnitId,
+      roster.organizationUnitId,
+      roster.status,
+    );
+    return this.queryHelper.memberAssignmentOptions(roster, personId, query);
+  }
+
   async publishRoster(user: AuthenticatedIdentity, rosterId: string) {
     const actor = await this.personHelper.personForUser(user);
     const roster = await this.prisma.roster.findUnique({
       where: { id: rosterId },
       include: {
         shifts: {
-          include: { assignments: { select: { personId: true } } },
+          include: { assignments: { select: { personId: true, assignmentId: true } } },
         },
       },
     });
@@ -222,7 +251,7 @@ export class RosterDomainService {
           where: { id: rosterId },
           include: {
             shifts: {
-              include: { assignments: { select: { personId: true } } },
+              include: { assignments: { select: { personId: true, assignmentId: true } } },
             },
           },
         });
@@ -237,6 +266,27 @@ export class RosterDomainService {
           current.organizationUnitId,
         );
         this.shiftHelper.assertRosterIsDraft(current.status);
+
+        const assignedPersonIds = current.shifts.flatMap((shift) =>
+          shift.assignments.map((assignment) => assignment.personId),
+        );
+        await lockPersonWrites(tx, assignedPersonIds);
+        for (const shift of current.shifts) {
+          for (const assignment of shift.assignments) {
+            const resolved = await this.employmentAssignmentHelper.resolveInterval(
+              assignment.personId,
+              shift.startTime,
+              shift.endTime,
+              assignment.assignmentId,
+              tx,
+            );
+            if (resolved.organizationUnitId !== current.organizationUnitId) {
+              throw new BadRequestException(
+                'Cannot publish roster with an appointment outside the roster unit.',
+              );
+            }
+          }
+        }
 
         const currentShortfalls = current.shifts
           .map((shift) => {
@@ -289,10 +339,11 @@ export class RosterDomainService {
   async currentRoster(user: AuthenticatedIdentity) {
     const person = await this.personHelper.personForUser(user);
     const now = new Date();
+    const employment = await this.employmentAssignmentHelper.resolveInterval(person.id, now);
 
     const roster = await this.prisma.roster.findFirst({
       where: {
-        organizationUnitId: person.organizationUnitId,
+        organizationUnitId: employment.organizationUnitId,
         status: 'PUBLISHED',
         periodStart: { lte: now },
         periodEnd: { gte: now },
@@ -370,7 +421,14 @@ export class RosterDomainService {
     rosterId: string,
     shiftId: string,
     assignmentId: string,
+    employmentAssignmentId?: string,
   ) {
-    return this.assignmentHelper.unassignRosterShift(user, rosterId, shiftId, assignmentId);
+    return this.assignmentHelper.unassignRosterShift(
+      user,
+      rosterId,
+      shiftId,
+      assignmentId,
+      employmentAssignmentId,
+    );
   }
 }

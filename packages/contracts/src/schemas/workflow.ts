@@ -1,3 +1,4 @@
+import { CursorQuerySchema, CursorPageSchema } from './common.js';
 /** Runtime contracts for workflow policy, delegation, actions, state, and audit trails. */
 import { z } from 'zod';
 import { DateTimeSchema, IdSchema, isDateTimeInstantBefore } from './common.js';
@@ -33,6 +34,7 @@ export const WorkflowInstanceSchema = z.object({
   type: WorkflowTypeSchema,
   status: WorkflowStatusSchema,
   requesterId: IdSchema,
+  assignmentId: IdSchema.nullable(),
   approverId: IdSchema.nullable(),
   entityType: z.string(),
   entityId: IdSchema,
@@ -53,6 +55,7 @@ export type WorkflowInstance = z.infer<typeof WorkflowInstanceSchema>;
 export const WorkflowDecisionCommandSchema = z
   .object({
     workflowId: IdSchema,
+    assignmentId: IdSchema.optional(),
     action: WorkflowActionSchema.optional(),
     decision: z.enum(['APPROVED', 'REJECTED']).optional(),
     reason: z.string().max(1000).optional(),
@@ -85,12 +88,14 @@ export const WorkflowDecisionCommandSchema = z
   });
 export type WorkflowDecisionCommand = z.infer<typeof WorkflowDecisionCommandSchema>;
 
-export const WorkflowInboxQuerySchema = z.object({
+export const WorkflowInboxQuerySchema = CursorQuerySchema.extend({
+  actorAssignmentId: IdSchema.optional(),
+  assignmentId: IdSchema.optional(),
   status: WorkflowStatusSchema.optional(),
   type: WorkflowTypeSchema.optional(),
   overdueOnly: z
-    .union([z.literal('true'), z.literal('false')])
-    .transform((value) => value === 'true')
+    .union([z.boolean(), z.literal('true'), z.literal('false')])
+    .transform((value) => value === true || value === 'true')
     .optional(),
 });
 export type WorkflowInboxQuery = z.infer<typeof WorkflowInboxQuerySchema>;
@@ -209,6 +214,7 @@ export type WorkflowDecision = WorkflowDecisionCommand;
 
 export const WorkflowDecisionBodySchema = z
   .object({
+    assignmentId: IdSchema.optional(),
     action: WorkflowActionSchema.optional(),
     decision: z.enum(['APPROVED', 'REJECTED']).optional(),
     reason: z.string().max(1000).optional(),
@@ -250,8 +256,10 @@ export type WorkflowDelegationQuery = z.infer<typeof WorkflowDelegationQuerySche
 export const ShiftSwapRequestSchema = z
   .object({
     shiftId: IdSchema,
+    assignmentId: IdSchema.optional(),
     fromPersonId: IdSchema,
     toPersonId: IdSchema,
+    toAssignmentId: IdSchema.optional(),
     reason: z.string().min(10).max(1000),
   })
   .superRefine((value, ctx) => {
@@ -268,6 +276,7 @@ export type ShiftSwapRequest = z.infer<typeof ShiftSwapRequestSchema>;
 export const OvertimeApprovalRequestSchema = z
   .object({
     personId: IdSchema,
+    assignmentId: IdSchema.optional(),
     periodStart: DateTimeSchema,
     periodEnd: DateTimeSchema,
     overtimeHours: z.number().positive(),
@@ -278,3 +287,5 @@ export const OvertimeApprovalRequestSchema = z
     path: ['periodEnd'],
   });
 export type OvertimeApprovalRequest = z.infer<typeof OvertimeApprovalRequestSchema>;
+
+export const WorkflowInboxItemPageSchema = CursorPageSchema(WorkflowInboxItemSchema);

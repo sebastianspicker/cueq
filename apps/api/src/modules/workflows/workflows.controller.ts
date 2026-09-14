@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../platform/http/cursor-pagination.decorator.js';
 /** Exposes workflow inbox, decision, delegation, and policy endpoints. */
 import {
   Body,
@@ -74,6 +75,7 @@ export class WorkflowsController {
   }
 
   @Get('inbox')
+  @CursorPagination()
   @Authenticated()
   @ApiOperation({ summary: 'List workflow inbox for authenticated approver/requester' })
   inbox(
@@ -170,8 +172,9 @@ export class WorkflowsController {
   detail(
     @CurrentUser() user: AuthenticatedIdentity,
     @Param('id', ParseCuidPipe) workflowId: string,
+    @Query('actorAssignmentId') actorAssignmentId?: string,
   ): Promise<unknown> {
-    return this.workflowsDomainService.workflowDetail(user, workflowId);
+    return this.workflowsDomainService.workflowDetail(user, workflowId, actorAssignmentId);
   }
 
   @Post(':id/decision')
@@ -181,7 +184,8 @@ export class WorkflowsController {
     @CurrentUser() user: AuthenticatedIdentity,
     @Param('id', ParseCuidPipe) workflowId: string,
     @Body(new ZodValidationPipe(WorkflowDecisionBodySchema)) payload: unknown,
+    @Query('actorAssignmentId') actorAssignmentId?: string,
   ): Promise<unknown> {
-    return this.workflowsDomainService.decideWorkflow(user, workflowId, payload);
+    return this.workflowsDomainService.decideWorkflow(user, workflowId, payload, actorAssignmentId);
   }
 }

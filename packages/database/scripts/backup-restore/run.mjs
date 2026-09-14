@@ -1,5 +1,6 @@
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { realpath } from 'node:fs/promises';
 import { createPgTools, parseDatabaseUrl, withDatabase, withSchema } from './pg-client.mjs';
 import { captureStableDump, snapshot } from './snapshot.mjs';
 import { createVerificationReport, shouldAppendSourceAudit } from './verify.mjs';
@@ -28,6 +29,7 @@ export async function runBackupRestoreVerification({
   });
   const tempDir = await makeTempDirectory(join(tmpdir(), 'cueq-backup-restore-'));
   const dumpPath = '/backup/backup.dump';
+  const documentCopyRoot = join(await realpath(tempDir), 'private-documents');
   const restoreDatabase = `cueq_restore_${createUuid().replace(/-/gu, '_')}`;
   const restoreUrl = withSchema(withDatabase(sourceUrl, restoreDatabase), connection.schema);
   const source = new PrismaClientClass({ datasources: { db: { url: sourceUrl } } });
@@ -40,6 +42,7 @@ export async function runBackupRestoreVerification({
       connection,
       tempDir,
       dumpPath,
+      documentCopyRoot,
     });
     runPsql(connection, 'postgres', `DROP DATABASE IF EXISTS "${restoreDatabase}"`, tempDir);
     runPsql(connection, 'postgres', `CREATE DATABASE "${restoreDatabase}"`, tempDir);
@@ -47,7 +50,9 @@ export async function runBackupRestoreVerification({
 
     const restored = new PrismaClientClass({ datasources: { db: { url: restoreUrl } } });
     try {
-      const restoredSnapshot = await snapshotSource(restored);
+      const restoredSnapshot = await snapshotSource(restored, undefined, {
+        environment: { ...process.env, DOCUMENT_STORAGE_ROOT: documentCopyRoot },
+      });
       const report = createVerificationReport({
         sourceSnapshot,
         restoredSnapshot,

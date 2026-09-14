@@ -1,10 +1,12 @@
+import { toBookingDto } from './booking-response.mapper.js';
+import { cursorPage, cursorWhere } from '../../persistence/queries/cursor-page.js';
 /** Owns employee booking reads and guarded booking mutations. */
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { BookingSource, type Prisma } from '@cueq/database';
-import { CreateBookingSchema } from '@cueq/contracts';
+import { BookingSource } from '@cueq/database';
+import { CreateBookingSchema, BookingQuerySchema } from '@cueq/contracts';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
-import { PersonHelper, assertCanActForPerson } from '../people/public.js';
+import { AssignmentHelper, PersonHelper, assertCanActForPerson } from '../people/public.js';
 import { AuditHelper, EventOutboxHelper } from '../audit/public.js';
 import { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
 import { writeBookingCreation } from './booking-create.writer.js';
@@ -18,21 +20,44 @@ export class BookingDomainService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper) private readonly assignmentHelper: AssignmentHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
     @Inject(ClosingLockHelper) private readonly closingLockHelper: ClosingLockHelper,
     @Inject(EventOutboxHelper) private readonly eventOutboxHelper: EventOutboxHelper,
   ) {}
 
-  async listMyBookings(user: AuthenticatedIdentity): Promise<unknown> {
+  async listMyBookings(user: AuthenticatedIdentity, query: unknown = {}): Promise<unknown> {
     const person = await this.personHelper.personForUser(user);
 
+    const parsed = BookingQuerySchema.parse(query);
+    const assignment = await this.assignmentHelper.selectAssignment(
+      person.id,
+      parsed.assignmentId,
+      undefined,
+      parsed.from ? new Date(parsed.from) : undefined,
+    );
     const bookings = await this.prisma.booking.findMany({
-      where: { personId: person.id },
+      where: {
+        personId: person.id,
+        assignmentId: assignment.id,
+        startTime: {
+          ...(parsed.from ? { gte: new Date(parsed.from) } : {}),
+          ...(parsed.to ? { lt: new Date(parsed.to) } : {}),
+        },
+        AND: [cursorWhere('startTime', parsed.cursor)],
+      },
       include: { timeType: true },
-      orderBy: { startTime: 'asc' },
+      orderBy: [{ startTime: 'asc' }, { id: 'asc' }],
+      take: parsed.limit + 1,
     });
 
-    return bookings.map((booking) => this.toBookingDto(booking));
+    return cursorPage(
+      bookings,
+      parsed.limit,
+      'startTime',
+      (row) => row.startTime,
+      (booking) => toBookingDto(booking),
+    );
   }
 
   async getBookingById(user: AuthenticatedIdentity, id: string): Promise<unknown> {
@@ -43,7 +68,7 @@ export class BookingDomainService {
     });
     if (!booking) throw new NotFoundException('Booking not found');
     assertCanActForPerson(user, actor.id, booking.personId);
-    return this.toBookingDto(booking);
+    return toBookingDto(booking);
   }
 
   async createBooking(user: AuthenticatedIdentity, payload: unknown): Promise<unknown> {
@@ -63,22 +88,20 @@ export class BookingDomainService {
       );
     }
 
-    const targetPerson = await this.prisma.person.findUnique({
-      where: { id: parsed.personId },
-      select: { id: true, organizationUnitId: true },
-    });
-    if (!targetPerson) {
-      throw new NotFoundException('Person not found.');
-    }
-
     const startTime = new Date(parsed.startTime);
     const endTime = parsed.endTime ? new Date(parsed.endTime) : null;
-    const from = endTime && startTime > endTime ? endTime : startTime;
-    const to = endTime && startTime > endTime ? startTime : (endTime ?? startTime);
+    const from = startTime;
+    const to = endTime ?? startTime;
+    const resolved = await this.assignmentHelper.resolveInterval(
+      parsed.personId,
+      startTime,
+      endTime ?? undefined,
+      parsed.assignmentId,
+    );
 
     const closingAttempt = {
       actorId: actor.id,
-      organizationUnitId: targetPerson.organizationUnitId,
+      organizationUnitId: resolved.organizationUnitId,
       from,
       to,
       attemptedAction: 'BOOKING_CREATE',
@@ -92,14 +115,15 @@ export class BookingDomainService {
         writeBookingCreation(tx, {
           actorId: actor.id,
           parsed,
-          targetPerson,
+          resolved,
           startTime,
           endTime,
           from,
+          assignmentHelper: this.assignmentHelper,
           assertClosingUnlocked: (transaction) =>
             this.closingLockHelper.assertClosingPeriodUnlockedForRangeInTransaction(
               {
-                organizationUnitId: targetPerson.organizationUnitId,
+                organizationUnitId: resolved.organizationUnitId,
                 from,
                 to,
               },
@@ -113,23 +137,6 @@ export class BookingDomainService {
         this.closingLockHelper.rethrowWithDurableClosingAudit(error, closingAttempt),
       );
 
-    return this.toBookingDto(booking);
-  }
-
-  private toBookingDto(booking: Prisma.BookingGetPayload<{ include: { timeType: true } }>) {
-    return {
-      id: booking.id,
-      personId: booking.personId,
-      timeTypeId: booking.timeTypeId,
-      timeTypeCode: booking.timeType.code,
-      timeTypeCategory: booking.timeType.category,
-      startTime: booking.startTime.toISOString(),
-      endTime: booking.endTime?.toISOString() ?? null,
-      source: booking.source,
-      note: booking.note,
-      shiftId: booking.shiftId,
-      createdAt: booking.createdAt.toISOString(),
-      updatedAt: booking.updatedAt.toISOString(),
-    };
+    return toBookingDto(booking);
   }
 }

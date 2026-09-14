@@ -12,9 +12,17 @@ import { ClosingDomainService } from './closing-domain.service.js';
 import { ClosingExportHelper } from './closing-export.helper.js';
 import { ClosingLifecycleHelper } from './closing-lifecycle.helper.js';
 import { ClosingController } from './closing.controller.js';
+import { AttendanceModule } from '../attendance/public.js';
 
 @Module({
-  imports: [AuditModule, PeopleModule, PolicyModule, TransactionsModule, WorkflowRuntimeModule],
+  imports: [
+    AttendanceModule,
+    AuditModule,
+    PeopleModule,
+    PolicyModule,
+    TransactionsModule,
+    WorkflowRuntimeModule,
+  ],
   controllers: [ClosingController],
   providers: [
     ClosingChecklistHelper,

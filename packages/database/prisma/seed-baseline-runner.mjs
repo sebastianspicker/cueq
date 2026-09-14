@@ -5,6 +5,7 @@ import { seedFoundation } from './seed-baseline/foundation.mjs';
 import { resetBaseline } from './seed-baseline/reset.mjs';
 import { seedTimeOperations } from './seed-baseline/time-operations.mjs';
 import { seedWorkflowClosing } from './seed-baseline/workflow-closing.mjs';
+import { seedEmployment } from './seed-baseline/employment.mjs';
 
 const prisma = new PrismaClient();
 
@@ -55,6 +56,7 @@ const IDs = {
 /** Creates the complete workforce baseline after reset; fixed identifiers make repeated runs reproducible. */
 async function seed() {
   await seedFoundation(prisma, IDs);
+  await seedEmployment(prisma);
   await seedTimeOperations(prisma, IDs);
   await seedWorkflowClosing(prisma, IDs);
 }

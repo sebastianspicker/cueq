@@ -33,9 +33,15 @@ export function ChecklistSection({
                 <span className="cq-closing-check-icon" aria-hidden="true">
                   {variant === 'ok' ? '✓' : variant === 'error' || variant === 'warn' ? '!' : '…'}
                 </span>
-                <strong data-index={`${index + 1}.`}>{item.label}</strong>
+                <strong data-index={`${index + 1}.`}>
+                  {item.code === 'MISSING_TIME_ACCOUNTS' ? t('missingTimeAccounts') : item.label}
+                </strong>
                 <StatusBadge status={item.status} variant={variant} label={statusLabel} />
-                <p>{item.details}</p>
+                <p>
+                  {item.code === 'MISSING_TIME_ACCOUNTS'
+                    ? t('missingTimeAccountsDetails')
+                    : item.details}
+                </p>
                 <span className="cq-closing-row-chevron" aria-hidden="true">
                   ›
                 </span>

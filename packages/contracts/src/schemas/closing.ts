@@ -39,6 +39,7 @@ export const ClosingBookingCorrectionSchema = z
   .object({
     workflowId: IdSchema,
     personId: IdSchema,
+    assignmentId: IdSchema.optional(),
     timeTypeId: IdSchema,
     startTime: DateTimeSchema,
     endTime: DateTimeSchema,
@@ -94,6 +95,10 @@ export const ClosingChecklistResponseSchema = z.object({
 
 export const PayrollExportRowSchema = z.object({
   personId: IdSchema,
+  assignmentId: IdSchema.optional(),
+  formatVersion: z.literal(2).optional(),
+  periodStart: DateTimeSchema.optional(),
+  periodEnd: DateTimeSchema.optional(),
   targetHours: z.number(),
   actualHours: z.number(),
   balance: z.number(),
@@ -118,6 +123,7 @@ export const ClosingBookingCorrectionResponseSchema = z.object({
   closingPeriodId: IdSchema,
   workflowId: IdSchema,
   personId: IdSchema,
+  assignmentId: IdSchema,
   timeTypeId: IdSchema,
   timeTypeCode: z.string(),
   timeTypeCategory: z.string(),
@@ -134,11 +140,11 @@ export const ClosingPeriodLockedErrorSchema = z.object({
 });
 export type ClosingPeriodLockedError = z.infer<typeof ClosingPeriodLockedErrorSchema>;
 
-export const ExportFormatSchema = z.enum(['CSV_V1', 'XML_V1']);
+export const ExportFormatSchema = z.enum(['CSV_V1', 'XML_V1', 'CSV_V2', 'XML_V2']);
 export type ExportFormat = z.infer<typeof ExportFormatSchema>;
 
 export const ClosingExportRequestSchema = z.object({
-  format: ExportFormatSchema.default('CSV_V1').optional(),
+  format: z.enum(['CSV_V2', 'XML_V2']).default('CSV_V2').optional(),
 });
 export type ClosingExportRequest = z.infer<typeof ClosingExportRequestSchema>;
 

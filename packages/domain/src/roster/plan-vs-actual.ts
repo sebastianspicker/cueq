@@ -75,17 +75,31 @@ export interface PlanVsActualCoverageResult extends PlanVsActualResult {
 
 type MinuteRange = { start: number; end: number };
 
-function overlapRange(
-  startA: string,
-  endA: string,
-  startB: string,
-  endB: string,
-): MinuteRange | null {
-  const aStart = new Date(startA).getTime();
-  const aEnd = new Date(endA).getTime();
-  const bStart = new Date(startB).getTime();
-  const bEnd = new Date(endB).getTime();
+type ParsedCoverageSlot = PlanVsActualCoverageSlot & {
+  startMs: number;
+  endMs: number;
+};
 
+type ParsedBooking = {
+  personId: string;
+  startMs: number;
+  endMs: number;
+  inputIndex: number;
+};
+
+type BookingIntervalIndex = {
+  eligibleBookings: ParsedBooking[];
+  indexedBookings: ParsedBooking[];
+  prefixMaximumEnd: number[];
+  nonIndexableBookings: ParsedBooking[];
+};
+
+function overlapRange(
+  aStart: number,
+  aEnd: number,
+  bStart: number,
+  bEnd: number,
+): MinuteRange | null {
   if (aStart >= bEnd || bStart >= aEnd) {
     return null;
   }
@@ -94,6 +108,119 @@ function overlapRange(
     start: Math.max(aStart, bStart),
     end: Math.min(aEnd, bEnd),
   };
+}
+
+function parseCoverageSlot(slot: PlanVsActualCoverageSlot): ParsedCoverageSlot {
+  return {
+    ...slot,
+    startMs: new Date(slot.startTime).getTime(),
+    endMs: new Date(slot.endTime).getTime(),
+  };
+}
+
+function buildBookingIntervalIndex(
+  bookings: PlanVsActualBooking[],
+  allowedCategories: ReadonlySet<string>,
+): BookingIntervalIndex {
+  const eligibleBookings: ParsedBooking[] = [];
+  const indexedBookings: ParsedBooking[] = [];
+  const nonIndexableBookings: ParsedBooking[] = [];
+
+  bookings.forEach((booking, inputIndex) => {
+    if (!allowedCategories.has(booking.timeTypeCategory)) {
+      return;
+    }
+
+    const parsedBooking = {
+      personId: booking.personId,
+      startMs: new Date(booking.startTime).getTime(),
+      endMs: new Date(booking.endTime).getTime(),
+      inputIndex,
+    };
+    eligibleBookings.push(parsedBooking);
+
+    if (
+      Number.isFinite(parsedBooking.startMs) &&
+      Number.isFinite(parsedBooking.endMs) &&
+      parsedBooking.startMs < parsedBooking.endMs
+    ) {
+      indexedBookings.push(parsedBooking);
+    } else {
+      nonIndexableBookings.push(parsedBooking);
+    }
+  });
+
+  indexedBookings.sort(
+    (left, right) => left.startMs - right.startMs || left.inputIndex - right.inputIndex,
+  );
+
+  const prefixMaximumEnd: number[] = [];
+  let maximumEnd = Number.NEGATIVE_INFINITY;
+  for (const booking of indexedBookings) {
+    maximumEnd = Math.max(maximumEnd, booking.endMs);
+    prefixMaximumEnd.push(maximumEnd);
+  }
+
+  return { eligibleBookings, indexedBookings, prefixMaximumEnd, nonIndexableBookings };
+}
+
+function firstBookingStartingAtOrAfter(bookings: ParsedBooking[], instant: number): number {
+  let low = 0;
+  let high = bookings.length;
+
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2);
+    const booking = bookings[middle];
+    if (booking && booking.startMs < instant) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+
+  return low;
+}
+
+function overlapsSlot(slot: ParsedCoverageSlot, booking: ParsedBooking): boolean {
+  return !(slot.startMs >= booking.endMs || booking.startMs >= slot.endMs);
+}
+
+function queryBookingIntervalIndex(
+  slot: ParsedCoverageSlot,
+  index: BookingIntervalIndex,
+): ParsedBooking[] {
+  if (
+    !Number.isFinite(slot.startMs) ||
+    !Number.isFinite(slot.endMs) ||
+    slot.startMs >= slot.endMs
+  ) {
+    return index.eligibleBookings.filter((booking) => overlapsSlot(slot, booking));
+  }
+
+  const matches: ParsedBooking[] = [];
+  let bookingIndex = firstBookingStartingAtOrAfter(index.indexedBookings, slot.endMs) - 1;
+
+  while (bookingIndex >= 0) {
+    const maximumEnd = index.prefixMaximumEnd[bookingIndex];
+    if (maximumEnd === undefined || maximumEnd <= slot.startMs) {
+      break;
+    }
+
+    const booking = index.indexedBookings[bookingIndex];
+    if (booking && booking.endMs > slot.startMs) {
+      matches.push(booking);
+    }
+    bookingIndex -= 1;
+  }
+
+  for (const booking of index.nonIndexableBookings) {
+    if (overlapsSlot(slot, booking)) {
+      matches.push(booking);
+    }
+  }
+
+  matches.sort((left, right) => left.inputIndex - right.inputIndex);
+  return matches;
 }
 
 function mergeMinuteRanges(ranges: MinuteRange[]): number {
@@ -128,8 +255,8 @@ function mergeMinuteRanges(ranges: MinuteRange[]): number {
   return total / 60_000;
 }
 
-function slotDurationMinutes(slot: PlanVsActualCoverageSlot): number {
-  return (new Date(slot.endTime).getTime() - new Date(slot.startTime).getTime()) / 60_000;
+function slotDurationMinutes(slot: ParsedCoverageSlot): number {
+  return (slot.endMs - slot.startMs) / 60_000;
 }
 
 function plannedHeadcount(slot: PlanVsActualCoverageSlot): {
@@ -146,32 +273,21 @@ function plannedHeadcount(slot: PlanVsActualCoverageSlot): {
 }
 
 function collectBookingRangesByPerson(
-  slot: PlanVsActualCoverageSlot,
-  bookings: PlanVsActualBooking[],
-  allowedCategories: ReadonlySet<string>,
+  slot: ParsedCoverageSlot,
+  bookingIndex: BookingIntervalIndex,
 ): Map<string, MinuteRange[]> {
-  const slotStartMs = new Date(slot.startTime).getTime();
   const bookingRangesByPerson = new Map<string, MinuteRange[]>();
 
-  for (const booking of bookings) {
-    if (!allowedCategories.has(booking.timeTypeCategory)) {
-      continue;
-    }
-
-    const coveredRange = overlapRange(
-      slot.startTime,
-      slot.endTime,
-      booking.startTime,
-      booking.endTime,
-    );
+  for (const booking of queryBookingIntervalIndex(slot, bookingIndex)) {
+    const coveredRange = overlapRange(slot.startMs, slot.endMs, booking.startMs, booking.endMs);
     if (!coveredRange) {
       continue;
     }
 
     const ranges = bookingRangesByPerson.get(booking.personId) ?? [];
     ranges.push({
-      start: coveredRange.start - slotStartMs,
-      end: coveredRange.end - slotStartMs,
+      start: coveredRange.start - slot.startMs,
+      end: coveredRange.end - slot.startMs,
     });
     bookingRangesByPerson.set(booking.personId, ranges);
   }
@@ -198,15 +314,14 @@ function summarizeCoveredPersons(
 }
 
 function evaluateCoverageSlot(
-  slot: PlanVsActualCoverageSlot,
-  bookings: PlanVsActualBooking[],
+  slot: ParsedCoverageSlot,
+  bookingIndex: BookingIntervalIndex,
   coverageThreshold: number,
-  allowedCategories: ReadonlySet<string>,
 ): PlanVsActualCoverageSlotResult {
   const { assignedHeadcount, plannedHeadcount: plannedSlotHeadcount } = plannedHeadcount(slot);
   const durationMinutes = slotDurationMinutes(slot);
   const minimumCoverageMinutes = durationMinutes * coverageThreshold;
-  const bookingRangesByPerson = collectBookingRangesByPerson(slot, bookings, allowedCategories);
+  const bookingRangesByPerson = collectBookingRangesByPerson(slot, bookingIndex);
   const { actualHeadcount, totalCoveredMinutes } = summarizeCoveredPersons(
     bookingRangesByPerson,
     minimumCoverageMinutes,
@@ -272,9 +387,10 @@ export function evaluatePlanVsActualCoverage(
   }
 
   const allowedCategories = WORK_INTERVAL_TYPES;
+  const bookingIndex = buildBookingIntervalIndex(bookings, allowedCategories);
 
   const slotResults = slots.map((slot) =>
-    evaluateCoverageSlot(slot, bookings, coverageThreshold, allowedCategories),
+    evaluateCoverageSlot(parseCoverageSlot(slot), bookingIndex, coverageThreshold),
   );
 
   const summary = comparePlanVsActual(

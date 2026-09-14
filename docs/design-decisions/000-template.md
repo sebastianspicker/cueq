@@ -1,35 +1,34 @@
-# Architecture Decision Record Format
+# ADR-NNN: Decision title
 
-Create each decision as `NNN-short-title.md`, using the next available number.
-Every record must include the sections below with concrete project information.
-Remove instructional boilerplate and empty sections before committing.
-
-## Required metadata
-
-Record the decision title, status, date, and accountable roles at the top of the
-file. Supported statuses are `Proposed`, `Accepted`, `Deprecated`, and
-`Superseded`. A superseded record must link to its replacement.
+- Status: Proposed
+- Date: YYYY-MM-DD
+- Deciders: People or roles responsible for the decision
 
 ## Context
 
-Describe the observed problem, constraints, and evidence that require a
-decision.
+Describe the problem that requires a durable architectural decision. Include
+the constraints and relevant current behavior, but leave out meeting history and
+temporary implementation notes.
 
 ## Decision
 
-State the selected approach and the boundary it changes.
+State what the project will do and where the decision applies.
 
 ## Consequences
 
-Record the expected benefits, costs, compatibility effects, and unresolved
-risks. Omit categories that do not apply.
+Explain what becomes easier, what becomes harder, and any compatibility or
+operational effects contributors need to understand.
 
 ## Alternatives considered
 
-List each credible alternative, its relevant tradeoffs, and why it was not
-selected.
+Name the credible alternatives and the reason each was rejected.
 
 ## References
 
-Link the source paths, contracts, tests, issues, or external standards needed to
-understand and verify the decision.
+Link to the source, contracts, tests, issues, or external standards needed to
+understand the decision.
+
+Save the record as `NNN-short-title.md` with the next available number. Replace
+all placeholder text before committing it. Supported statuses are `Proposed`,
+`Accepted`, `Deprecated`, and `Superseded`; a superseded record should link to
+its replacement.

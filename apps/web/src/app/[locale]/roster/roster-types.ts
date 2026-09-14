@@ -6,6 +6,7 @@ interface RosterMember {
 }
 
 interface RosterAssignment {
+  assignmentId: string;
   id: string;
   personId: string;
   firstName: string;

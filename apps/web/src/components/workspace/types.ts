@@ -22,6 +22,7 @@ export interface MeProfile {
 export type SessionPhase = 'loading' | 'ready' | 'error' | 'offline';
 
 export interface SessionState {
+  assignmentId: string | null;
   phase: SessionPhase;
   profile: MeProfile | null;
   lastSuccessfulAt: number | null;
@@ -29,6 +30,14 @@ export interface SessionState {
 }
 
 export interface WorkspaceMessages {
+  assignmentLabel: string;
+  assignmentRequired: string;
+  assignmentLegacy: string;
+  assignmentInactive: string;
+  assignmentLoading: string;
+  assignmentError: string;
+  assignmentEmpty: string;
+  assignmentMore: string;
   title: string;
   brandDescriptor: string;
   universityName: string;
@@ -53,6 +62,14 @@ export interface WorkspaceMessages {
   sessionError: string;
   sessionRetry: string;
   sessionSettings: string;
+  commandSearch: string;
+  commandPlaceholder: string;
+  commandNoResults: string;
+  commandOpen: string;
+  commandClose: string;
+  commandTheme: string;
+  themeToDark: string;
+  themeToLight: string;
   organizationUnit: string;
   nav: Record<string, string>;
   roles: Record<CueqRole, string>;
@@ -70,4 +87,10 @@ export interface NavItem {
   path: string;
   icon: WorkspaceIconName;
   roles?: readonly CueqRole[];
+}
+
+export interface NavGroup {
+  key: 'time' | 'planning' | 'decisions' | 'insights';
+  labelKey: 'timeSection' | 'planningSection' | 'decisionsSection' | 'insightsSection';
+  items: readonly NavItem[];
 }

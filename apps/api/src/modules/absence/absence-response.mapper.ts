@@ -6,6 +6,7 @@ export function toAbsenceResponse(absence: Absence): AbsenceResponse {
   return {
     id: absence.id,
     personId: absence.personId,
+    assignmentId: absence.assignmentId,
     type: absence.type,
     startDate: absence.startDate.toISOString().slice(0, 10),
     endDate: absence.endDate.toISOString().slice(0, 10),

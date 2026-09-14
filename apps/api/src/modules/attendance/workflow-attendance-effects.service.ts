@@ -8,7 +8,39 @@ import type {
   WorkflowPreApprovalInput,
 } from '../../application/ports/workflow-side-effects.port.js';
 import { bookingOverlapWhere } from '../../persistence/queries/booking-overlap.js';
+import { assertProjectAllocationsFit } from '../projects/public.js';
 import { AuditHelper } from '../audit/public.js';
+
+type BookingForCorrection = {
+  assignmentId: string;
+  startTime: Date;
+  endTime: Date | null;
+};
+
+function assertCorrectionAssignment(
+  workflowAssignmentId: string | null,
+  requestAssignmentId: string | undefined,
+  bookingAssignmentId: string,
+) {
+  if (!workflowAssignmentId || bookingAssignmentId !== workflowAssignmentId) {
+    throw new BadRequestException('Booking correction appointment does not match its workflow.');
+  }
+  if (requestAssignmentId && requestAssignmentId !== workflowAssignmentId) {
+    throw new BadRequestException('Booking correction appointment does not match its workflow.');
+  }
+}
+
+function correctedBookingRange(
+  correction: ReturnType<typeof BookingCorrectionSchema.parse>,
+  booking: BookingForCorrection,
+) {
+  const startTime = correction.startTime ? new Date(correction.startTime) : booking.startTime;
+  const endTime = correction.endTime ? new Date(correction.endTime) : booking.endTime;
+  if (endTime && startTime >= endTime) {
+    throw new BadRequestException('Corrected booking endTime must be after startTime.');
+  }
+  return { startTime, endTime };
+}
 
 @Injectable()
 export class WorkflowAttendanceEffectsService implements AttendanceWorkflowEffectsPort {
@@ -19,10 +51,17 @@ export class WorkflowAttendanceEffectsService implements AttendanceWorkflowEffec
       return;
     }
     const request = OvertimeApprovalRequestSchema.parse(decision.requestPayload ?? {});
+    if (
+      !decision.assignmentId ||
+      (request.assignmentId && request.assignmentId !== decision.assignmentId)
+    ) {
+      throw new BadRequestException('Overtime approval appointment does not match its workflow.');
+    }
     const account = await tx.timeAccount.findFirst({
       where: {
         id: decision.entityId,
         personId: request.personId,
+        assignmentId: decision.assignmentId,
         periodStart: { lte: new Date(request.periodStart) },
         periodEnd: { gte: new Date(request.periodEnd) },
       },
@@ -64,15 +103,22 @@ export class WorkflowAttendanceEffectsService implements AttendanceWorkflowEffec
     }
     const booking = await tx.booking.findUnique({
       where: { id: decision.entityId },
-      select: { id: true, personId: true, timeTypeId: true, startTime: true, endTime: true },
+      select: {
+        id: true,
+        personId: true,
+        assignmentId: true,
+        timeTypeId: true,
+        startTime: true,
+        endTime: true,
+      },
     });
     if (!booking) throw new NotFoundException('Booking not found for approved correction.');
-
-    const startTime = correction.startTime ? new Date(correction.startTime) : booking.startTime;
-    const endTime = correction.endTime ? new Date(correction.endTime) : booking.endTime;
-    if (endTime && startTime >= endTime) {
-      throw new BadRequestException('Corrected booking endTime must be after startTime.');
-    }
+    assertCorrectionAssignment(
+      decision.assignmentId,
+      correction.assignmentId,
+      booking.assignmentId,
+    );
+    const { startTime, endTime } = correctedBookingRange(correction, booking);
     const overlap = await tx.booking.findFirst({
       where: {
         AND: [
@@ -85,6 +131,7 @@ export class WorkflowAttendanceEffectsService implements AttendanceWorkflowEffec
     if (overlap)
       throw new BadRequestException('Corrected booking overlaps with an existing booking.');
 
+    await assertProjectAllocationsFit(tx, booking.id, startTime, endTime, correction.timeTypeId);
     const updated = await tx.booking.update({
       where: { id: booking.id },
       data: { startTime, endTime, timeTypeId: correction.timeTypeId ?? booking.timeTypeId },
@@ -102,6 +149,7 @@ export class WorkflowAttendanceEffectsService implements AttendanceWorkflowEffec
         },
         after: {
           timeTypeId: updated.timeTypeId,
+          assignmentId: booking.assignmentId,
           startTime: updated.startTime.toISOString(),
           endTime: updated.endTime?.toISOString() ?? null,
           workflowId: decision.id,
@@ -119,10 +167,17 @@ export class WorkflowAttendanceEffectsService implements AttendanceWorkflowEffec
     tx: WorkflowEffectInput['tx'],
   ) {
     const request = OvertimeApprovalRequestSchema.parse(decision.requestPayload ?? {});
+    if (
+      !decision.assignmentId ||
+      (request.assignmentId && request.assignmentId !== decision.assignmentId)
+    ) {
+      throw new BadRequestException('Overtime approval appointment does not match its workflow.');
+    }
     const account = await tx.timeAccount.findFirst({
       where: {
         id: decision.entityId,
         personId: request.personId,
+        assignmentId: decision.assignmentId,
         periodStart: { lte: new Date(request.periodStart) },
         periodEnd: { gte: new Date(request.periodEnd) },
       },

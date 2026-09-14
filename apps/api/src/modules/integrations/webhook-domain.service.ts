@@ -6,7 +6,7 @@ import { AuditHelper } from '../audit/public.js';
 import { PersonHelper } from '../people/public.js';
 import { createWebhookEndpoint, listWebhookEndpoints } from './webhook-endpoint-operations.js';
 import { listOutboxEvents, listWebhookDeliveries } from './webhook-dispatch-queries.js';
-import { dispatchWebhooks } from './webhook-dispatch-run.js';
+import { dispatchWebhooks, getWebhookDispatchJob } from './webhook-dispatch-run.js';
 
 @Injectable()
 export class WebhookDomainService {
@@ -34,6 +34,10 @@ export class WebhookDomainService {
 
   async dispatchWebhooks(user: AuthenticatedIdentity) {
     return dispatchWebhooks(this.dependencies(), user);
+  }
+
+  getDispatchJob(user: AuthenticatedIdentity, id: string) {
+    return getWebhookDispatchJob(this.prisma, user, id);
   }
 
   private dependencies() {

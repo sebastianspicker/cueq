@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { useTranslations } from 'next-intl';
 import { useSessionContext } from '../../../components/AppWorkspace';
+import { useReadRequests } from '../../../shared/workspace/use-read-requests';
 import { useApiContext } from '../../../platform/http/api-context';
 import type { RosterOperationContext } from './roster-operations';
 import type { PlanVsActual, RosterDetail } from './roster-types';
@@ -12,6 +13,7 @@ type TranslationFn = ReturnType<typeof useTranslations>;
 
 export function useRosterWorkspace(t: TranslationFn) {
   const { apiRequest } = useApiContext();
+  const reads = useReadRequests(apiRequest);
   const { profile } = useSessionContext();
   const [roster, setRoster] = useState<RosterDetail | null>(null);
   const [planVsActual, setPlanVsActual] = useState<PlanVsActual | null>(null);
@@ -34,6 +36,7 @@ export function useRosterWorkspace(t: TranslationFn) {
   const canEdit = canManage && roster?.status === 'DRAFT';
   const operations: RosterOperationContext = {
     apiRequest,
+    reads,
     t,
     roster,
     setRoster,

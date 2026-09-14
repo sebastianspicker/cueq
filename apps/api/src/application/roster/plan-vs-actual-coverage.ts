@@ -2,6 +2,7 @@
 import { TimeTypeCategory } from '@cueq/database';
 import { evaluatePlanVsActualCoverage } from '@cueq/domain';
 import type { PrismaService } from '../../persistence/prisma.service.js';
+import { appointmentCoversOrganizationUnit } from './appointment-eligibility.js';
 
 export type RosterWithPlanShifts = {
   id: string;
@@ -32,7 +33,17 @@ export async function buildRosterPlanVsActual(
 ) {
   const bookings = await db.booking.findMany({
     where: {
-      person: { organizationUnitId: roster.organizationUnitId },
+      assignment: {
+        terms: {
+          some: {
+            organizationUnitId: roster.organizationUnitId,
+            AND: [
+              { OR: [{ effectiveFrom: null }, { effectiveFrom: { lt: roster.periodEnd } }] },
+              { OR: [{ effectiveTo: null }, { effectiveTo: { gt: roster.periodStart } }] },
+            ],
+          },
+        },
+      },
       timeType: {
         category: {
           in: [TimeTypeCategory.WORK, TimeTypeCategory.DEPLOYMENT],
@@ -49,10 +60,43 @@ export async function buildRosterPlanVsActual(
       startTime: true,
       endTime: true,
       timeType: { select: { category: true } },
+      assignment: {
+        select: {
+          employmentStartDate: true,
+          employmentEndDate: true,
+          terms: {
+            where: {
+              AND: [
+                { OR: [{ effectiveFrom: null }, { effectiveFrom: { lt: roster.periodEnd } }] },
+                { OR: [{ effectiveTo: null }, { effectiveTo: { gt: roster.periodStart } }] },
+              ],
+            },
+            orderBy: [{ effectiveFrom: { sort: 'asc', nulls: 'first' } }, { id: 'asc' }],
+            take: 101,
+            select: {
+              id: true,
+              effectiveFrom: true,
+              effectiveTo: true,
+              organizationUnitId: true,
+            },
+          },
+        },
+      },
     },
   });
 
-  return buildRosterPlanVsActualFromBookings(roster, bookings);
+  const eligibleBookings = bookings.filter((booking) => {
+    if (booking.assignment.terms.length > 100) {
+      throw new RangeError('Booking appointment spans more than 100 term versions.');
+    }
+    return appointmentCoversOrganizationUnit(
+      booking.assignment,
+      roster.organizationUnitId,
+      booking.startTime,
+      booking.endTime ?? undefined,
+    );
+  });
+  return buildRosterPlanVsActualFromBookings(roster, eligibleBookings);
 }
 
 /** Evaluate roster coverage from a caller-provided eligible booking projection. */

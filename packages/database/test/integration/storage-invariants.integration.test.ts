@@ -36,6 +36,11 @@ describe('PostgreSQL storage invariants', () => {
         expect(before).toEqual([]);
         await tx.$executeRawUnsafe('ALTER TABLE "shifts" ADD COLUMN "personId" TEXT');
 
+        // Rehearse this historical migration against its pre-appointment nullability.
+        // Transaction rollback restores the current required column constraint.
+        await tx.$executeRawUnsafe(
+          'ALTER TABLE "shift_assignments" ALTER COLUMN "assignmentId" DROP NOT NULL',
+        );
         const suffix = randomUUID();
         const organizationUnit = await tx.organizationUnit.create({
           data: { name: `Shift storage test ${suffix}` },
@@ -60,6 +65,20 @@ describe('PostgreSQL storage invariants', () => {
             },
           }),
         ]);
+        const firstAppointment = await tx.employmentAssignment.create({
+          data: {
+            personId: firstPerson.id,
+            sourceSystem: 'SYNTHETIC',
+            label: 'Historical migration fixture',
+          },
+        });
+        const secondAppointment = await tx.employmentAssignment.create({
+          data: {
+            personId: secondPerson.id,
+            sourceSystem: 'SYNTHETIC',
+            label: 'Historical migration fixture',
+          },
+        });
         const roster = await tx.roster.create({
           data: {
             organizationUnitId: organizationUnit.id,
@@ -84,7 +103,12 @@ describe('PostgreSQL storage invariants', () => {
             endTime: new Date('2030-01-03T16:00:00.000Z'),
             shiftType: 'EARLY',
             minStaffing: 2,
-            assignments: { create: [{ personId: firstPerson.id }, { personId: secondPerson.id }] },
+            assignments: {
+              create: [
+                { personId: firstPerson.id, assignmentId: firstAppointment.id },
+                { personId: secondPerson.id, assignmentId: secondAppointment.id },
+              ],
+            },
           },
         });
         await tx.$executeRaw`

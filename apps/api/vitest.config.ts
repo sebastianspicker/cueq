@@ -26,6 +26,7 @@ export default defineConfig({
         'src/platform/auth/role-mapping.ts',
         'src/platform/auth/mock-identity-provider.adapter.ts',
         'src/modules/integrations/csv/**/*.ts',
+        'src/platform/serialization/csv/**/*.ts',
         'src/modules/integrations/credentials/**/*.ts',
         'src/modules/integrations/terminal-contracts.ts',
         'src/modules/integrations/terminal-csv-parser.ts',

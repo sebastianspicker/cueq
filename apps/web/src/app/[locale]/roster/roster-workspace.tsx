@@ -77,7 +77,9 @@ export function RosterWorkspace({
         onAssignSelectionChange={(shiftId, personId) =>
           workspace.setAssignSelection((current) => ({ ...current, [shiftId]: personId }))
         }
-        onAssignShift={(shiftId) => void assignShift(workspace.operations, shiftId)}
+        onAssignShift={(shiftId, assignmentId) =>
+          void assignShift(workspace.operations, shiftId, assignmentId)
+        }
         onUnassignShift={(shiftId, assignmentId) =>
           void unassignShift(workspace.operations, shiftId, assignmentId)
         }

@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { BookingSchema, WorkflowInstanceSchema } from '@cueq/contracts';
+import { BookingPageSchema, WorkflowInstanceSchema } from '@cueq/contracts';
 import type { useTranslations } from 'next-intl';
+import { mergePage, pagePath } from '../../../shared/workspace/cursor-pages';
+import { useReadRequests } from '../../../shared/workspace/use-read-requests';
 import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
@@ -15,9 +17,11 @@ type TranslationFn = ReturnType<typeof useTranslations>;
 
 export function useBookingsWorkspace(t: TranslationFn) {
   const { apiRequest } = useApiContext();
+  const reads = useReadRequests(apiRequest);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingId, setBookingId] = useState('');
   const [startTime, setStartTime] = useState('');
@@ -26,7 +30,12 @@ export function useBookingsWorkspace(t: TranslationFn) {
   const [reason, setReason] = useState('Please correct this booking due to timestamp mismatch.');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  async function loadBookings(preserveFeedback = false): Promise<RefreshResult> {
+  async function loadBookings(
+    preserveFeedback = false,
+    cursor?: string | null,
+  ): Promise<RefreshResult> {
+    const read = reads.begin('loadBookings', preserveFeedback);
+    const apiRequest = read.request;
     setLoading(true);
     if (!preserveFeedback) {
       setError(null);
@@ -34,15 +43,23 @@ export function useBookingsWorkspace(t: TranslationFn) {
     }
     try {
       const result = await loadAndApply(
-        () => apiRequest('/v1/bookings/me', BookingSchema.array()),
-        setBookings,
+        () => apiRequest(pagePath('/v1/bookings/me', cursor), BookingPageSchema),
+        (page) => {
+          setBookings((previous) => (cursor ? mergePage(previous, page.items) : page.items));
+          setNextCursor(page.nextCursor);
+        },
+        read.isCurrent,
       );
+      if (!read.isCurrent()) return result;
       if (!result.ok && !preserveFeedback) {
         setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
       }
       return result;
     } finally {
-      setLoading(false);
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
@@ -55,6 +72,7 @@ export function useBookingsWorkspace(t: TranslationFn) {
       return;
     }
     setFieldErrors({});
+    const operation = reads.begin('mutation');
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -65,6 +83,7 @@ export function useBookingsWorkspace(t: TranslationFn) {
             method: 'POST',
             body: JSON.stringify({
               bookingId,
+              assignmentId: bookings.find((booking) => booking.id === bookingId)?.assignmentId,
               startTime: startTime || undefined,
               endTime: endTime || undefined,
               timeTypeId: timeTypeId || undefined,
@@ -72,13 +91,19 @@ export function useBookingsWorkspace(t: TranslationFn) {
             }),
           }),
         () => loadBookings(true),
+        operation.isFeedbackCurrent,
       );
+      if (!operation.isFeedbackCurrent()) return;
       if (refresh.ok) setMessage(t('correctionCreated'));
       else setError(t('savedRefreshFailed'));
     } catch (cause) {
+      if (!operation.isFeedbackCurrent()) return;
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
-      setLoading(false);
+      if (operation.isCurrent()) {
+        operation.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
@@ -107,6 +132,8 @@ export function useBookingsWorkspace(t: TranslationFn) {
     setEndTime,
     setTimeTypeId,
     loadBookings,
+    nextCursor,
+    loadMore: () => (nextCursor ? loadBookings(false, nextCursor) : Promise.resolve()),
     requestCorrection,
     updateBookingId,
     updateReason,

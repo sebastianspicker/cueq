@@ -2,7 +2,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../persistence/prisma.service.js';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
-import { PersonHelper } from '../people/public.js';
+import { AssignmentHelper, PersonHelper } from '../people/public.js';
 import { AuditHelper } from '../audit/public.js';
 import { ClosingLockHelper } from '../../platform/transactions/closing-lock.helper.js';
 import {
@@ -20,6 +20,7 @@ export class OncallDomainService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper) private readonly assignmentHelper: AssignmentHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
     @Inject(ClosingLockHelper) private readonly closingLockHelper: ClosingLockHelper,
   ) {}
@@ -28,6 +29,7 @@ export class OncallDomainService {
     return {
       prisma: this.prisma,
       personHelper: this.personHelper,
+      assignmentHelper: this.assignmentHelper,
       auditHelper: this.auditHelper,
       closingLockHelper: this.closingLockHelper,
     };
@@ -39,12 +41,12 @@ export class OncallDomainService {
 
   async listOnCallRotations(user: AuthenticatedIdentity, query: unknown): Promise<unknown> {
     const actor = await this.personHelper.personForUser(user);
-    return listOnCallRotations(this.prisma, user, actor, query);
+    return listOnCallRotations(this.prisma, this.assignmentHelper, user, actor, query);
   }
 
   async listOnCallDeployments(user: AuthenticatedIdentity, query: unknown): Promise<unknown> {
     const actor = await this.personHelper.personForUser(user);
-    return listOnCallDeployments(this.prisma, user, actor, query);
+    return listOnCallDeployments(this.prisma, this.assignmentHelper, user, actor, query);
   }
 
   async updateOnCallRotation(
@@ -63,8 +65,17 @@ export class OncallDomainService {
     user: AuthenticatedIdentity,
     personId?: string,
     nextShiftStart?: string,
+    assignmentId?: string,
   ): Promise<unknown> {
     const actor = await this.personHelper.personForUser(user);
-    return onCallCompliance(this.prisma, user, actor, personId, nextShiftStart);
+    return onCallCompliance(
+      this.prisma,
+      this.assignmentHelper,
+      user,
+      actor,
+      personId,
+      nextShiftStart,
+      assignmentId,
+    );
   }
 }

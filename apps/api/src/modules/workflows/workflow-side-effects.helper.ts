@@ -26,7 +26,14 @@ export class WorkflowSideEffectsHelper {
   async validatePreApproval(workflowId: string, tx: Prisma.TransactionClient) {
     const workflow = await tx.workflowInstance.findUnique({
       where: { id: workflowId },
-      select: { id: true, type: true, entityType: true, entityId: true, requestPayload: true },
+      select: {
+        id: true,
+        assignmentId: true,
+        type: true,
+        entityType: true,
+        entityId: true,
+        requestPayload: true,
+      },
     });
     if (!workflow) throw new NotFoundException('Workflow not found.');
     await this.schedulingEffects.validateWorkflowPreApproval({ decision: workflow, tx });

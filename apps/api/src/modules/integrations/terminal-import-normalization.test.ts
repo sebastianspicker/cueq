@@ -26,4 +26,21 @@ describe('terminal import normalization', () => {
       createTerminalIngestionChecksum('terminal-1', [earlyRecord, lateRecord]),
     );
   });
+
+  it('keeps payload deduplication person-wide across explicit appointments', () => {
+    const baseRecord = {
+      personId: 'c00000000000000000000001',
+      timeTypeCode: 'WORK',
+      startTime: '2026-08-04T08:00:00.000Z',
+      endTime: '2026-08-04T09:00:00.000Z',
+    };
+    const records = [
+      { ...baseRecord, assignmentId: 'c00000000000000000000011' },
+      { ...baseRecord, assignmentId: 'c00000000000000000000012' },
+    ];
+
+    const normalized = normalizeTerminalRecords(records);
+    expect(normalized.duplicateRecordsInPayload).toBe(1);
+    expect(normalized.canonicalRecords).toHaveLength(1);
+  });
 });

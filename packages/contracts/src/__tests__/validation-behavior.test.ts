@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AbsencePageSchema,
+  AbsenceQuerySchema,
+  BookingPageSchema,
   BookingCorrectionSchema,
+  BookingQuerySchema,
   ClosingPeriodMonthQuerySchema,
   CreateOnCallDeploymentSchema,
   CreateOnCallRotationSchema,
@@ -27,6 +31,7 @@ const IDS = {
 
 const EARLIER = '2026-08-01T08:00:00.000Z';
 const LATER = '2026-08-01T10:00:00.000Z';
+const VALID_CUID = 'c123456789012345678901234';
 
 describe('cross-feature validation behavior', () => {
   it('compares timestamps by instant and rejects reverse booking, deployment, and shift ranges', () => {
@@ -68,6 +73,41 @@ describe('cross-feature validation behavior', () => {
     ).toBe(false);
   });
 
+  it('bounds cursor-based booking and absence pages while rejecting reversed filters', () => {
+    expect(
+      BookingQuerySchema.parse({
+        limit: '2',
+        cursor: 'opaque-continuation',
+        from: EARLIER,
+        to: LATER,
+      }),
+    ).toMatchObject({ limit: 2, cursor: 'opaque-continuation', from: EARLIER, to: LATER });
+    expect(BookingQuerySchema.safeParse({ from: LATER, to: EARLIER }).success).toBe(false);
+
+    expect(
+      AbsenceQuerySchema.parse({
+        limit: '3',
+        cursor: 'opaque-continuation',
+        from: '2026-08-01',
+        to: '2026-08-31',
+        status: 'APPROVED',
+      }),
+    ).toMatchObject({
+      limit: 3,
+      cursor: 'opaque-continuation',
+      status: 'APPROVED',
+    });
+    expect(AbsenceQuerySchema.safeParse({ from: '2026-08-31', to: '2026-08-01' }).success).toBe(
+      false,
+    );
+
+    expect(BookingPageSchema.parse({ items: [], nextCursor: null })).toEqual({
+      items: [],
+      nextCursor: null,
+    });
+    expect(AbsencePageSchema.safeParse({ items: [], nextCursor: undefined }).success).toBe(false);
+  });
+
   it('keeps workflow action and delegation commands internally coherent', () => {
     expect(WorkflowDecisionCommandSchema.safeParse({ workflowId: IDS.rotation }).success).toBe(
       false,
@@ -99,10 +139,34 @@ describe('cross-feature validation behavior', () => {
     ).toBe(false);
   });
 
-  it('normalizes inbox query booleans at the browser/API boundary', () => {
-    expect(WorkflowInboxQuerySchema.parse({ overdueOnly: 'true' })).toEqual({ overdueOnly: true });
+  it('rejects conflicting workflow decisions and incomplete delegations after ID validation', () => {
+    expect(
+      WorkflowDecisionCommandSchema.safeParse({
+        workflowId: VALID_CUID,
+        action: 'APPROVE',
+        decision: 'APPROVED',
+      }).success,
+    ).toBe(false);
+    expect(
+      WorkflowDecisionCommandSchema.safeParse({ workflowId: VALID_CUID, action: 'DELEGATE' })
+        .success,
+    ).toBe(false);
+    expect(
+      WorkflowDecisionCommandSchema.parse({ workflowId: VALID_CUID, action: 'APPROVE' }),
+    ).toMatchObject({ action: 'APPROVE' });
+  });
+
+  it('normalizes inbox query booleans idempotently across controller and service', () => {
+    const once = WorkflowInboxQuerySchema.parse({ overdueOnly: 'true', limit: '20' });
+    expect(WorkflowInboxQuerySchema.parse(once)).toEqual(once);
+    expect(WorkflowInboxQuerySchema.safeParse({ overdueOnly: 'yes' }).success).toBe(false);
+    expect(WorkflowInboxQuerySchema.parse({ overdueOnly: 'true' })).toEqual({
+      overdueOnly: true,
+      limit: 50,
+    });
     expect(WorkflowInboxQuerySchema.parse({ overdueOnly: 'false' })).toEqual({
       overdueOnly: false,
+      limit: 50,
     });
   });
 

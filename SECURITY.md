@@ -1,24 +1,25 @@
-# Security Policy
+# Security policy
 
-cueq is a source-only alpha evaluation workspace. Do not use it with real
-employment, payroll, health, or other personal data.
-
-## Supported versions
-
-There is no production-supported version or security-maintenance commitment.
-Reports should identify the exact commit or tag they concern.
+cueq is under development and has no production-supported release or guaranteed
+security maintenance period. Use invented data for local evaluation; do not
+load real employment, payroll, health, or other personal records.
 
 ## Reporting a vulnerability
 
-Do not open a public issue for a suspected vulnerability. Use the repository's
-[private vulnerability report](https://github.com/sebastianspicker/cueq/security/advisories/new).
-If GitHub does not expose that form, do not disclose the report in a public
-issue. Include a minimal reproduction, the affected source path or commit,
-impact, and any safe mitigation you identified.
+Use GitHub's [private vulnerability report](https://github.com/sebastianspicker/cueq/security/advisories/new).
+Do not report suspected vulnerabilities in public issues. If the private form
+is unavailable, keep the details private until a reporting channel is available.
 
-Do not include credentials, tokens, real personal data, or production logs in
-the report.
+Include the affected commit or tag, steps to reproduce the problem, and its
+likely impact. A small test case and a suggested mitigation are useful if you
+have them. Leave out credentials, tokens, real personal data, and production
+logs.
 
-The detailed security, authorization, and privacy design is in
-[docs/SECURITY.md](docs/SECURITY.md). This policy does not promise response
-times, supported versions, or production security certification.
+Reports are welcome, but the project cannot promise a response or fix within a
+specific time.
+
+## Security design
+
+[docs/SECURITY.md](docs/SECURITY.md) explains authentication, access controls,
+privacy protections, and known limitations. It describes the implementation;
+it is not a security certification.

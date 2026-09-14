@@ -1,5 +1,6 @@
+import { CursorPagination } from '../../platform/http/cursor-pagination.decorator.js';
 /** Exposes authenticated absence request and approval endpoints. */
-import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -51,11 +52,11 @@ export class AbsencesController {
   }
 
   @Get('me')
+  @CursorPagination()
   @Authenticated()
   @ApiOperation({ summary: 'List authenticated user absences' })
-  @ApiOkResponse({ type: AbsenceDto, isArray: true })
-  listMine(@CurrentUser() user: AuthenticatedIdentity): Promise<unknown> {
-    return this.absenceService.listMyAbsences(user);
+  listMine(@CurrentUser() user: AuthenticatedIdentity, @Query() query: unknown): Promise<unknown> {
+    return this.absenceService.listMyAbsences(user, query);
   }
 
   @Get(':id')

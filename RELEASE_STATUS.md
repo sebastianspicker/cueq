@@ -1,49 +1,36 @@
 # Release status
 
-Status: no public release candidate is currently designated.
+No public release candidate is currently designated.
 
-The repository is a source alpha for local evaluation with synthetic data. The
-workspace packages remain private at version `0.0.0`; public release identity
-would use a prerelease Git tag.
+cueq is available as pre-release source for local evaluation with synthetic
+data. Workspace packages are private at version `0.0.0`. There is no published
+npm package, application image, hosted cueq instance, or production support
+offering.
 
-## Current boundary
+The GitHub Pages workflow builds and publishes a static interactive demo from
+deterministic browser data. The demo has no API or database connection and is
+not a cueq deployment.
 
-No candidate commit or tag is designated. Local checks can guide development,
-but they do not establish release readiness until they are run against the
-exact reviewed candidate revision.
+## Designating a candidate
 
-No hosted application deployment, npm package, application container image, or
-production support offering is part of the current release scope. The GitHub
-Pages workflow publishes only the sanitized static walkthrough.
+Follow the complete checklist in [docs/RELEASING.md](docs/RELEASING.md). When a
+candidate is chosen, record its exact commit or tag, the verification date and
+environment, every command and hosted check result, and any check that failed or
+could not run. A failed or unavailable required check keeps the candidate in
+draft status.
 
-## Required candidate evidence
+## Known limits
 
-Before designating a candidate:
+- The browser has no complete SSO redirect, refresh-token, or session lifecycle.
+- Retention, erasure, personal-data export, and pseudonymization are not
+  automated.
+- Machine integrations use shared tokens and do not provide physical device
+  controls.
+- Audit rows reject updates and deletes, but the audit trail is not
+  cryptographically tamper-evident and does not prevent `TRUNCATE`.
+- The repository does not provide packaged deployment, metrics, alerts, traces,
+  or log shipping.
+- A release does not establish legal, security, accessibility, data-protection,
+  works-council, payroll-provider, or operational approval.
 
-1. review the complete diff and confirm that only intended source,
-   configuration, migration, contract, asset, and documentation files
-   are included;
-2. confirm that all screenshots contain synthetic data;
-3. install the frozen dependency graph with Node.js 20.19.0 and pnpm 11.24.0;
-4. run `make generate` and verify that committed derived artifacts are current;
-5. run `make check` and `make build` with PostgreSQL available;
-6. review all six tracked screenshots;
-7. run CI, dependency review, and CodeQL on the exact candidate commit;
-8. verify the rendered GitHub documentation and source archive.
-
-Any failed or unavailable gate keeps the candidate in draft status. Record
-evidence against the exact commit, command, environment, and date.
-
-## Accepted alpha limitations
-
-- no complete browser SSO, refresh-token, or session lifecycle;
-- no automated retention, erasure, personal-data export, or pseudonymization;
-- shared-token machine integrations without physical device controls;
-- audit protection against row updates and deletes without cryptographic
-  tamper evidence or `TRUNCATE` protection;
-- no packaged deployment, metrics, alert delivery, tracing, or log shipping;
-  and
-- no legal, security, accessibility, data-protection, works-council, or
-  operational approval.
-
-The release checklist is in [docs/RELEASING.md](docs/RELEASING.md).
+See [docs/RELEASING.md](docs/RELEASING.md) for the publication process.

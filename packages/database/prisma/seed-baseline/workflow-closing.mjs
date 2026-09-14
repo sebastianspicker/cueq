@@ -1,3 +1,4 @@
+import { legacyAssignmentId } from './employment.mjs';
 /** Seeds workflow-routing, time-account, closing, and audit data after time operations. */
 import { ClosingStatus, WorkflowStatus, WorkflowType } from '@prisma/client';
 
@@ -51,6 +52,7 @@ export async function seedWorkflowClosing(prisma, IDs) {
       type: WorkflowType.BOOKING_CORRECTION,
       status: WorkflowStatus.PENDING,
       requesterId: IDs.personEmployee,
+      assignmentId: legacyAssignmentId(IDs.personEmployee),
       approverId: IDs.personLead,
       entityType: 'Booking',
       entityId: IDs.bookingEmployeeIn,
@@ -67,6 +69,8 @@ export async function seedWorkflowClosing(prisma, IDs) {
     data: {
       id: IDs.timeAccountEmployee,
       personId: IDs.personEmployee,
+
+      assignmentId: legacyAssignmentId(IDs.personEmployee),
       periodStart: new Date('2026-03-01T00:00:00.000Z'),
       periodEnd: new Date('2026-03-31T23:59:59.000Z'),
       targetHours: 159.2,

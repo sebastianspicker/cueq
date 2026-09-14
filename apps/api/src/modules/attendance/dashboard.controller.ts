@@ -1,5 +1,5 @@
 /** Exposes the authenticated caller's operational dashboard summary. */
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import { Authenticated } from '../../platform/auth/decorators/authenticated.decorator.js';
@@ -19,7 +19,7 @@ export class DashboardController {
   @Get('me')
   @Authenticated()
   @ApiOperation({ summary: 'Get dashboard summary for the authenticated employee' })
-  getDashboard(@CurrentUser() user: AuthenticatedIdentity) {
-    return this.dashboardBookingsService.dashboard(user);
+  getDashboard(@CurrentUser() user: AuthenticatedIdentity, @Query() query: unknown) {
+    return this.dashboardBookingsService.dashboard(user, query);
   }
 }

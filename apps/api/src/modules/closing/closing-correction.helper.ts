@@ -25,7 +25,7 @@ import type { Prisma } from '@cueq/database';
 import type { AuthenticatedIdentity } from '../../platform/auth/auth.types.js';
 import { AuditHelper } from '../audit/public.js';
 import { toCoreClosingStatus } from '../../platform/transactions/closing-lock.helper.js';
-import { HR_LIKE_ROLES, PersonHelper } from '../people/public.js';
+import { HR_LIKE_ROLES, PersonHelper, AssignmentHelper } from '../people/public.js';
 import { toClosingActorRole, toPersistenceClosingStatus } from './closing-mapping.js';
 import { bookingOverlapWhere } from '../../persistence/queries/booking-overlap.js';
 import {
@@ -42,6 +42,7 @@ export class ClosingCorrectionHelper {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(PersonHelper) private readonly personHelper: PersonHelper,
+    @Inject(AssignmentHelper) private readonly assignmentHelper: AssignmentHelper,
     @Inject(AuditHelper) private readonly auditHelper: AuditHelper,
     @Inject(WORKFLOW_RUNTIME_PORT)
     private readonly workflowRuntimeService: WorkflowRuntimePort,
@@ -181,7 +182,7 @@ export class ClosingCorrectionHelper {
   ) {
     await lockClosingPeriodWrites(tx, closingPeriodId);
     await lockPersonWrites(tx, [parsed.personId]);
-    const { period, workflow, timeType } = await this.validateCorrectionRequest(
+    const { workflow, timeType, employment } = await this.validateCorrectionRequest(
       tx,
       closingPeriodId,
       parsed,
@@ -192,6 +193,7 @@ export class ClosingCorrectionHelper {
     const booking = await tx.booking.create({
       data: {
         personId: parsed.personId,
+        assignmentId: employment.assignment.id,
         timeTypeId: parsed.timeTypeId,
         startTime,
         endTime,
@@ -205,7 +207,9 @@ export class ClosingCorrectionHelper {
     await this.updateTimeAccountForCorrection(
       tx,
       parsed.personId,
-      period,
+      employment.assignment.id,
+      startTime,
+      endTime,
       timeType.category,
       durationHours,
     );
@@ -224,6 +228,7 @@ export class ClosingCorrectionHelper {
       closingPeriodId,
       workflowId: workflow.id,
       personId: booking.personId,
+      assignmentId: booking.assignmentId,
       timeTypeId: booking.timeTypeId,
       timeTypeCode: timeType.code,
       timeTypeCategory: timeType.category,
@@ -254,12 +259,15 @@ export class ClosingCorrectionHelper {
         'Correction booking interval must be inside the closing period time range.',
       );
     }
-    const [workflow, person, timeType] = await Promise.all([
+    const [workflow, employment, timeType] = await Promise.all([
       tx.workflowInstance.findUnique({ where: { id: parsed.workflowId } }),
-      tx.person.findUnique({
-        where: { id: parsed.personId },
-        select: { organizationUnitId: true },
-      }),
+      this.assignmentHelper.resolveInterval(
+        parsed.personId,
+        startTime,
+        endTime,
+        (parsed as { assignmentId?: string }).assignmentId,
+        tx,
+      ),
       tx.timeType.findUnique({
         where: { id: parsed.timeTypeId },
         select: { code: true, category: true },
@@ -271,14 +279,13 @@ export class ClosingCorrectionHelper {
         'workflowId must reference an APPROVED POST_CLOSE_CORRECTION workflow for this period.',
       );
     }
-    if (!person) throw new NotFoundException('Person not found.');
-    if (period.organizationUnitId && person.organizationUnitId !== period.organizationUnitId) {
+    if (period.organizationUnitId && employment.organizationUnitId !== period.organizationUnitId) {
       throw new BadRequestException(
         'Correction booking person must belong to the closing period organization unit.',
       );
     }
     if (!timeType) throw new NotFoundException('Time type not found.');
-    return { period, workflow, timeType };
+    return { period, workflow, timeType, employment };
   }
 
   private isApprovedCorrectionWorkflow(
@@ -310,19 +317,33 @@ export class ClosingCorrectionHelper {
   private async updateTimeAccountForCorrection(
     tx: Prisma.TransactionClient,
     personId: string,
-    period: { periodStart: Date; periodEnd: Date },
+    assignmentId: string,
+    from: Date,
+    to: Date,
     category: TimeTypeCategory,
     durationHours: number,
   ) {
     if (category !== TimeTypeCategory.WORK && category !== TimeTypeCategory.DEPLOYMENT) {
       return;
     }
-    await tx.timeAccount.updateMany({
+    const accounts = await tx.timeAccount.findMany({
       where: {
         personId,
-        periodStart: { gte: period.periodStart },
-        periodEnd: { lte: period.periodEnd },
+        assignmentId,
+        periodStart: { lte: from },
+        periodEnd: { gte: to },
       },
+      select: { id: true },
+      take: 2,
+    });
+    const account = accounts[0];
+    if (!account || accounts.length !== 1) {
+      throw new BadRequestException(
+        'Correction requires one appointment account covering its interval; split or reconcile the accounts first.',
+      );
+    }
+    await tx.timeAccount.update({
+      where: { id: account.id },
       data: { actualHours: { increment: durationHours }, balance: { increment: durationHours } },
     });
   }
@@ -335,6 +356,7 @@ export class ClosingCorrectionHelper {
     booking: {
       id: string;
       personId: string;
+      assignmentId: string;
       timeTypeId: string;
       startTime: Date;
       endTime: Date | null;
@@ -353,6 +375,7 @@ export class ClosingCorrectionHelper {
           closingPeriodId,
           workflowId,
           personId: booking.personId,
+          assignmentId: booking.assignmentId,
           timeTypeId: booking.timeTypeId,
           timeTypeCode,
           startTime: booking.startTime.toISOString(),

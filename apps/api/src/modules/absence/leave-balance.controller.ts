@@ -26,10 +26,12 @@ export class LeaveBalanceController {
   @ApiOkResponse({ type: LeaveBalanceDto })
   @ApiQuery({ name: 'year', required: false, type: String })
   @ApiQuery({ name: 'asOfDate', required: false, type: String })
+  @ApiQuery({ name: 'assignmentId', required: false, type: String })
   getMe(
     @CurrentUser() user: AuthenticatedIdentity,
     @Query('year') year?: string,
     @Query('asOfDate') asOfDate?: unknown,
+    @Query('assignmentId') assignmentId?: string,
   ) {
     if (year !== undefined && !YEAR_PATTERN.test(year)) {
       throw new BadRequestException('year must be a 4-digit year (e.g. 2025).');
@@ -51,6 +53,6 @@ export class LeaveBalanceController {
     if (parsedYear !== undefined && (parsedYear < 1970 || parsedYear > 2200)) {
       throw new BadRequestException('year must be between 1970 and 2200.');
     }
-    return this.absenceService.leaveBalance(user, parsedYear, asOfDate);
+    return this.absenceService.leaveBalance(user, parsedYear, asOfDate, assignmentId);
   }
 }

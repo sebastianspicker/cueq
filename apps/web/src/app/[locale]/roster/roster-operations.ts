@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { useTranslations } from 'next-intl';
+import type { WorkspaceReadRequests } from '../../../shared/workspace/read-requests';
 import type { ApiRequest } from '../../../platform/http/api-client';
 import {
   PlanVsActualResponseSchema,
@@ -17,6 +18,7 @@ type TranslationFn = ReturnType<typeof useTranslations>;
 
 export interface RosterOperationContext {
   apiRequest: ApiRequest;
+  reads: WorkspaceReadRequests;
   t: TranslationFn;
   roster: RosterDetail | null;
   setRoster: Dispatch<SetStateAction<RosterDetail | null>>;
@@ -51,21 +53,42 @@ async function refreshRoster(context: RosterOperationContext, targetRosterId?: s
   return detail;
 }
 
-async function runRosterOperation(context: RosterOperationContext, operation: () => Promise<void>) {
+async function runRosterOperation(
+  context: RosterOperationContext,
+  operation: (context: RosterOperationContext) => Promise<void>,
+) {
+  const read = context.reads.begin('roster');
+  const guarded = { ...context, apiRequest: read.request };
+  guarded.setRoster = (value) => {
+    if (read.isCurrent()) context.setRoster(value);
+  };
+  guarded.setPlanVsActual = (value) => {
+    if (read.isCurrent()) context.setPlanVsActual(value);
+  };
+  guarded.setMessage = (value) => {
+    if (read.isCurrent()) context.setMessage(value);
+  };
+  guarded.setDraftOrganizationUnitId = (value) => {
+    if (read.isCurrent()) context.setDraftOrganizationUnitId(value);
+  };
   context.setLoading(true);
   context.setError(null);
   context.setMessage(null);
   try {
-    await operation();
+    await operation(guarded);
   } catch (cause) {
+    if (!read.isCurrent()) return;
     context.setError(cause instanceof Error ? cause.message : context.t('requestFailed'));
   } finally {
-    context.setLoading(false);
+    if (read.isCurrent()) {
+      read.finish();
+      context.setLoading(false);
+    }
   }
 }
 
 export function loadCurrentRoster(context: RosterOperationContext) {
-  return runRosterOperation(context, async () => {
+  return runRosterOperation(context, async (context) => {
     const detail = await refreshRoster(context);
     if (!context.draftOrganizationUnitId) {
       context.setDraftOrganizationUnitId(detail.organizationUnitId);
@@ -86,7 +109,7 @@ export function createDraftRoster(context: RosterOperationContext) {
     context.setError(context.t('invalidDateTime'));
     return Promise.resolve();
   }
-  return runRosterOperation(context, async () => {
+  return runRosterOperation(context, async (context) => {
     const created = await context.apiRequest('/v1/rosters', RosterDetailSchema, {
       method: 'POST',
       body: JSON.stringify({
@@ -108,7 +131,7 @@ export function createShift(context: RosterOperationContext) {
     context.setError(context.t('invalidDateTime'));
     return Promise.resolve();
   }
-  return runRosterOperation(context, async () => {
+  return runRosterOperation(context, async (context) => {
     await context.apiRequest(`/v1/rosters/${context.roster?.id}/shifts`, RosterShiftDetailSchema, {
       method: 'POST',
       body: JSON.stringify({
@@ -123,16 +146,20 @@ export function createShift(context: RosterOperationContext) {
   });
 }
 
-export function assignShift(context: RosterOperationContext, shiftId: string) {
+export function assignShift(
+  context: RosterOperationContext,
+  shiftId: string,
+  assignmentId: string,
+) {
   const personId = context.assignSelection[shiftId] ?? context.roster?.members[0]?.id;
   if (!context.roster || !personId) return Promise.resolve();
-  return runRosterOperation(context, async () => {
+  return runRosterOperation(context, async (context) => {
     await context.apiRequest(
       `/v1/rosters/${context.roster?.id}/shifts/${shiftId}/assignments`,
       ShiftAssignmentSchema,
       {
         method: 'POST',
-        body: JSON.stringify({ personId }),
+        body: JSON.stringify({ personId, assignmentId }),
       },
     );
     await refreshRoster(context, context.roster?.id);
@@ -143,12 +170,15 @@ export function assignShift(context: RosterOperationContext, shiftId: string) {
 export function unassignShift(
   context: RosterOperationContext,
   shiftId: string,
-  assignmentId: string,
+  shiftAssignmentId: string,
 ) {
-  if (!context.roster) return Promise.resolve();
-  return runRosterOperation(context, async () => {
+  const record = context.roster?.shifts
+    .find((shift) => shift.id === shiftId)
+    ?.assignments.find((item) => item.id === shiftAssignmentId);
+  if (!context.roster || !record) return Promise.resolve();
+  return runRosterOperation(context, async (context) => {
     await context.apiRequest(
-      `/v1/rosters/${context.roster?.id}/shifts/${shiftId}/assignments/${assignmentId}`,
+      `/v1/rosters/${context.roster?.id}/shifts/${shiftId}/assignments/${shiftAssignmentId}?assignmentId=${encodeURIComponent(record.assignmentId)}`,
       RosterUnassignResponseSchema,
       { method: 'DELETE' },
     );
@@ -159,7 +189,7 @@ export function unassignShift(
 
 export function publishRoster(context: RosterOperationContext) {
   if (!context.roster) return Promise.resolve();
-  return runRosterOperation(context, async () => {
+  return runRosterOperation(context, async (context) => {
     await context.apiRequest(
       `/v1/rosters/${context.roster?.id}/publish`,
       RosterPublishResponseSchema,
@@ -179,11 +209,12 @@ export function requestShiftSwap(context: RosterOperationContext) {
     context.setError(context.t('swapMissingFields'));
     return Promise.resolve();
   }
-  return runRosterOperation(context, async () => {
+  return runRosterOperation(context, async (context) => {
     await context.apiRequest('/v1/workflows/shift-swaps', WorkflowInstanceSchema, {
       method: 'POST',
       body: JSON.stringify({
         shiftId: context.swapShiftId,
+        assignmentId: sourceAssignmentId(context),
         fromPersonId: context.swapFromPersonId,
         toPersonId: context.swapToPersonId,
         reason: context.swapReason,
@@ -192,4 +223,12 @@ export function requestShiftSwap(context: RosterOperationContext) {
     await refreshRoster(context, context.roster?.id);
     context.setMessage(context.t('swapRequested'));
   });
+}
+
+function sourceAssignmentId(context: RosterOperationContext): string | undefined {
+  const records =
+    context.roster?.shifts
+      .find((shift) => shift.id === context.swapShiftId)
+      ?.assignments.filter((item) => item.personId === context.swapFromPersonId) ?? [];
+  return records.length === 1 ? records[0]?.assignmentId : undefined;
 }

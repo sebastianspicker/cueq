@@ -1,21 +1,21 @@
-# Code of Conduct
+# Code of conduct
 
-## Our standard
+Everyone participating in cueq is expected to treat others with respect.
+Disagree with ideas and code without attacking the person behind them.
+Harassment, discrimination, intimidation, and sharing someone else's private
+information are not acceptable.
 
-Contributors, maintainers, and participants are expected to be respectful,
-professional, and privacy-conscious. Harassment, discrimination, intimidation,
-or disclosure of another person's private information is not acceptable.
+## Protect people's information
 
-## Sensitive context
+Workforce software involves sensitive records. Use invented examples in
+issues, pull requests, screenshots, and documentation. Do not share real
+employee, payroll, health, or private operational data.
 
-cueq concerns university workforce workflows. Do not share real employee,
-payroll, health, or operational data in issues, pull requests, screenshots, or
-examples. Use synthetic data and private channels for sensitive matters.
+## Report a concern
 
-## Reporting concerns
+Use a private contact link on the
+[maintainer's GitHub profile](https://github.com/sebastianspicker). Ask for a
+private channel before sending sensitive details. Reports will be handled with
+discretion and without retaliation.
 
-Report conduct concerns through a private contact link on the
-[maintainer's GitHub profile](https://github.com/sebastianspicker). Request a
-private channel without including sensitive details in the first message.
-Reports will be handled with discretion and without retaliation. For security
-concerns, use the process in [SECURITY.md](SECURITY.md), not public issues.
+For suspected security vulnerabilities, follow [SECURITY.md](SECURITY.md).

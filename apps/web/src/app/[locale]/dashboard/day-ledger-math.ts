@@ -1,4 +1,4 @@
-import type { DashboardBooking, DashboardSummary } from './types';
+import type { DashboardSummary } from './types';
 
 const LEDGER_START_MINUTE = 8 * 60;
 const LEDGER_END_MINUTE = 17 * 60;
@@ -30,33 +30,24 @@ export function ledgerPosition(value: string): number {
   return Math.min(100, Math.max(0, ((minuteOfDay(value) - LEDGER_START_MINUTE) / span) * 100));
 }
 
-function workedMilliseconds(summary: DashboardSummary, bookings: DashboardBooking[]): number {
-  const now = new Date(summary.now).getTime();
-  return bookings.reduce((total, booking) => {
-    const start = new Date(booking.startTime).getTime();
-    const end = booking.endTime ? new Date(booking.endTime).getTime() : now;
-    return total + Math.max(0, end - start);
-  }, 0);
+export function workedHours(summary: DashboardSummary): number {
+  return summary.todayWorkedMilliseconds / (60 * 60 * 1000);
 }
 
-export function workedHours(summary: DashboardSummary, bookings: DashboardBooking[]): number {
-  return workedMilliseconds(summary, bookings) / (60 * 60 * 1000);
-}
-
-export function targetInstant(summary: DashboardSummary, bookings: DashboardBooking[]): string {
+export function targetInstant(summary: DashboardSummary): string {
   const now = new Date(summary.now).getTime();
   const remainingMilliseconds = Math.max(
     0,
-    summary.todayTargetHours * 60 * 60 * 1000 - workedMilliseconds(summary, bookings),
+    summary.todayTargetHours * 60 * 60 * 1000 - summary.todayWorkedMilliseconds,
   );
   return new Date(now + remainingMilliseconds).toISOString();
 }
 
-export function progressPercent(summary: DashboardSummary, bookings: DashboardBooking[]): number {
+export function progressPercent(summary: DashboardSummary): number {
   if (summary.todayTargetHours <= 0) {
     return 0;
   }
-  return Math.min(100, (workedHours(summary, bookings) / summary.todayTargetHours) * 100);
+  return Math.min(100, (workedHours(summary) / summary.todayTargetHours) * 100);
 }
 
 export function ledgerHourMarks(): number[] {

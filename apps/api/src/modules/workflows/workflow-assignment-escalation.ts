@@ -15,10 +15,12 @@ import { toIso } from './workflow-time.js';
 
 type EscalationPrisma = Pick<PrismaService, '$transaction' | 'workflowInstance'>;
 type EscalationAudit = Pick<AuditHelper, 'appendAudit'>;
+type EscalationCandidate = Pick<WorkflowInstance, 'id' | 'dueAt' | 'escalationLevel'>;
+const ESCALATION_SCAN_BATCH_SIZE = 100;
 
 function isFreshPendingCandidate(
   workflow: WorkflowInstance | null,
-  candidate: Pick<WorkflowInstance, 'escalationLevel'>,
+  candidate: EscalationCandidate,
   now: Date,
 ): workflow is WorkflowInstance {
   return Boolean(
@@ -132,7 +134,7 @@ async function appendEscalationAudit(
 async function escalatePendingCandidate(
   prisma: EscalationPrisma,
   auditHelper: EscalationAudit,
-  candidate: WorkflowInstance,
+  candidate: EscalationCandidate,
   now: Date,
 ): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
@@ -173,19 +175,39 @@ export async function escalateOverdueWorkflows(
   auditHelper: EscalationAudit,
   now = new Date(),
 ) {
-  const pending = await prisma.workflowInstance.findMany({
-    where: {
-      status: WorkflowStatus.PENDING,
-      dueAt: { not: null, lte: now },
-    },
-    orderBy: { dueAt: 'asc' },
-  });
-
   let escalated = 0;
-  for (const candidate of pending) {
-    if (await escalatePendingCandidate(prisma, auditHelper, candidate, now)) {
-      escalated += 1;
+  let cursor: { dueAt: Date; id: string } | undefined;
+
+  while (true) {
+    const pending = await prisma.workflowInstance.findMany({
+      where: {
+        status: WorkflowStatus.PENDING,
+        dueAt: { not: null, lte: now },
+        ...(cursor
+          ? {
+              OR: [
+                { dueAt: { gt: cursor.dueAt, lte: now } },
+                { dueAt: cursor.dueAt, id: { gt: cursor.id } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ dueAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, dueAt: true, escalationLevel: true },
+      take: ESCALATION_SCAN_BATCH_SIZE,
+    });
+
+    for (const candidate of pending) {
+      if (await escalatePendingCandidate(prisma, auditHelper, candidate, now)) {
+        escalated += 1;
+      }
     }
+
+    const last = pending.at(-1);
+    if (pending.length < ESCALATION_SCAN_BATCH_SIZE || !last?.dueAt) {
+      break;
+    }
+    cursor = { dueAt: last.dueAt, id: last.id };
   }
 
   return { escalated };

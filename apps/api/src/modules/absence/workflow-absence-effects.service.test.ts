@@ -7,6 +7,7 @@ const ids = {
   actor: 'c00000000000000000000001',
   absence: 'c00000000000000000000002',
   workflow: 'c00000000000000000000003',
+  assignment: 'c00000000000000000000004',
 };
 
 function input(tx: object, action: WorkflowEffectInput['action'] = 'APPROVE'): WorkflowEffectInput {
@@ -15,6 +16,7 @@ function input(tx: object, action: WorkflowEffectInput['action'] = 'APPROVE'): W
     action,
     decision: {
       id: ids.workflow,
+      assignmentId: ids.assignment,
       type: WorkflowType.LEAVE_REQUEST,
       entityType: 'Absence',
       entityId: ids.absence,
@@ -30,7 +32,10 @@ describe('WorkflowAbsenceEffectsService', () => {
     const audit = { appendAudit: vi.fn().mockResolvedValue(undefined) };
     const tx = {
       absence: {
-        findUnique: vi.fn().mockResolvedValue({ status: AbsenceStatus.REQUESTED }),
+        findUnique: vi.fn().mockResolvedValue({
+          status: AbsenceStatus.REQUESTED,
+          assignmentId: ids.assignment,
+        }),
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
@@ -39,7 +44,11 @@ describe('WorkflowAbsenceEffectsService', () => {
     await service.applyWorkflowEffect(input(tx));
 
     expect(tx.absence.updateMany).toHaveBeenCalledWith({
-      where: { id: ids.absence, status: AbsenceStatus.REQUESTED },
+      where: {
+        id: ids.absence,
+        assignmentId: ids.assignment,
+        status: AbsenceStatus.REQUESTED,
+      },
       data: { status: AbsenceStatus.APPROVED },
     });
     expect(audit.appendAudit).toHaveBeenCalledWith(
@@ -56,7 +65,10 @@ describe('WorkflowAbsenceEffectsService', () => {
     const audit = { appendAudit: vi.fn() };
     const tx = {
       absence: {
-        findUnique: vi.fn().mockResolvedValue({ status: AbsenceStatus.APPROVED }),
+        findUnique: vi.fn().mockResolvedValue({
+          status: AbsenceStatus.APPROVED,
+          assignmentId: ids.assignment,
+        }),
         updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
     };
@@ -65,7 +77,11 @@ describe('WorkflowAbsenceEffectsService', () => {
     await service.applyWorkflowEffect(input(tx, 'REJECT'));
 
     expect(tx.absence.updateMany).toHaveBeenCalledWith({
-      where: { id: ids.absence, status: AbsenceStatus.REQUESTED },
+      where: {
+        id: ids.absence,
+        assignmentId: ids.assignment,
+        status: AbsenceStatus.REQUESTED,
+      },
       data: { status: AbsenceStatus.REJECTED },
     });
     expect(audit.appendAudit).not.toHaveBeenCalled();

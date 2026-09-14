@@ -1,14 +1,17 @@
-# Support
+# Getting help
 
-cueq is a source-only alpha evaluation workspace. Support is limited to public
-repository setup, development, and synthetic-data evaluation questions.
+For setup questions, start with [Development](docs/DEVELOPMENT.md) and
+[Configuration](docs/CONFIGURATION.md). Search the
+[existing issues](https://github.com/sebastianspicker/cueq/issues) before opening
+a new one.
 
-- Search existing issues and documentation first.
-- For a reproducible public problem, open an issue with the command, expected
-  result, actual result, platform, and a synthetic minimal example.
-- Do not post credentials, real employee data, payroll exports, or production
-  logs.
-- Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+If you are stuck, open an issue with your operating system, commit or release,
+the command or action you tried, and what happened. A small example using
+invented data helps others reproduce the problem. Remove credentials,
+personnel records, payroll exports, and production logs before posting.
 
-There is no production support commitment, service-level agreement, or hosted
-deployment offering.
+Report suspected vulnerabilities privately through the process in
+[SECURITY.md](SECURITY.md).
+
+Support covers development and local evaluation. The project does not offer
+production support, an SLA, or a hosted service.

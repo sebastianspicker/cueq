@@ -4,6 +4,7 @@ import { type useTranslations } from 'next-intl';
 import { type CueqRole } from '../../../components/AppWorkspace';
 import { PageShell } from '../../../components/PageShell';
 import { StatusBanner } from '../../../components/StatusBanner';
+import { PrepareClosingAccounts } from './closing-prepare-accounts';
 import { ActionsSection, CorrectionSection } from './closing-action-sections';
 import { ApprovalChainSection, ChecklistSection } from './closing-checklist-sections';
 import { ExportsSection } from './closing-export-sections';
@@ -79,6 +80,15 @@ export function ClosingWorkspace({
       {periods.period ? (
         <div className="cq-closing-workspace">
           <div className="cq-closing-main-column">
+            {role === 'HR' || role === 'ADMIN' ? (
+              <PrepareClosingAccounts
+                key={periods.period.id}
+                period={periods.period}
+                disabled={loading}
+                onPrepare={() => void actions.prepareAccounts()}
+                result={actions.preparedAccounts}
+              />
+            ) : null}
             <ChecklistSection t={t} checklist={periods.checklist} />
             <div className="cq-closing-evidence-grid">
               <ApprovalChainSection t={t} locale={locale} period={periods.period} />

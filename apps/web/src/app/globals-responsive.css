@@ -4,6 +4,71 @@
   }
 }
 
+/* Shared feedback stays explicit in language and adds a shape cue to color. */
+.cq-status-stack {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.cq-status-ok,
+.cq-status-error {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius-md);
+  font-size: 0.8125rem;
+}
+
+.cq-status-ok::before,
+.cq-status-error::before {
+  width: 0.55rem;
+  height: 0.55rem;
+  flex: 0 0 auto;
+  margin-top: 0.32rem;
+  background: currentColor;
+  content: '';
+}
+
+.cq-status-ok {
+  border-color: var(--cq-ok-border);
+  background: var(--cq-ok-soft);
+  color: var(--cq-ok);
+}
+.cq-status-ok::before {
+  border-radius: 2px;
+}
+.cq-status-error {
+  border-color: var(--cq-error-border);
+  background: var(--cq-error-soft);
+  color: var(--cq-error);
+}
+.cq-status-error::before {
+  border-radius: 50%;
+}
+
+.cq-loading {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0;
+  color: var(--cq-text-muted);
+  font-size: 0.8125rem;
+}
+
+.cq-loading-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--cq-border-strong);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: cq-spin 0.8s linear infinite;
+}
+
 @media (width <= 68rem) {
   .cq-chrome-top,
   .cq-app-sidebar {
@@ -31,14 +96,9 @@
   }
 
   .cq-dashboard-rail {
-    position: static;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
-
-  .cq-dashboard-rail > .cq-panel:last-child {
-    grid-column: 1 / -1;
+    gap: 0;
   }
 
   .cq-grid-3 {
@@ -98,6 +158,12 @@
     gap: 0.1rem;
   }
 
+  .cq-mobile-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
   .cq-mobile-brand > span {
     padding-left: 0;
     color: var(--cq-text-muted);
@@ -130,6 +196,10 @@
   .cq-app-shell {
     display: block;
     min-height: calc(100vh - 3.5rem);
+  }
+
+  .cq-topbar {
+    display: none;
   }
 
   /* Mobile off-canvas drawer (single chrome header; not nested chrome-top) */
@@ -211,6 +281,10 @@
 
   .cq-app-main {
     padding: 1rem 1rem 2rem;
+  }
+
+  .cq-command-trigger {
+    min-width: 0;
   }
 
   .cq-brand {
@@ -314,8 +388,9 @@
     grid-template-columns: 1fr;
   }
 
-  .cq-dashboard-rail > .cq-panel:last-child {
-    grid-column: auto;
+  .cq-dashboard-rail .cq-rail-panel + .cq-rail-panel {
+    border-top: 1px solid var(--cq-border);
+    border-left: 0;
   }
 
   .cq-day-ledger {
@@ -402,7 +477,7 @@
   }
 
   .cq-section-card {
-    padding: 1rem;
+    padding: 1rem 0;
   }
 
   .cq-data-table {

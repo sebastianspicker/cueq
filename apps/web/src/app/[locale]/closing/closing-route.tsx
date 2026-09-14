@@ -17,7 +17,13 @@ export default function ClosingPage() {
   const { apiFetch, apiRequest } = useApiContext();
   const { profile } = useSessionContext();
   const periods = useClosingPeriods(t, apiRequest);
-  const actions = useClosingActions(t, apiRequest, periods.period, periods.loadPeriods);
+  const actions = useClosingActions(
+    t,
+    apiRequest,
+    periods.period,
+    periods.loadPeriods,
+    periods.reads,
+  );
   const download = useArtifactDownload(t, apiFetch, periods.period);
   useOrganizationUnitScope(
     profile?.role,

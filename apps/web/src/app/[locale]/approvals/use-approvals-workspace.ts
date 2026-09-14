@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { WorkflowInboxItemSchema, WorkflowInstanceSchema } from '@cueq/contracts';
+import {
+  WorkflowInboxItemPageSchema,
+  WorkflowInboxItemSchema,
+  WorkflowInstanceSchema,
+} from '@cueq/contracts';
+import { mergePage, pagePath } from '../../../shared/workspace/cursor-pages';
+import { useReadRequests } from '../../../shared/workspace/use-read-requests';
 import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
@@ -19,9 +25,12 @@ import {
 export function useApprovalsWorkspace() {
   const t = useTranslations('pages.approvals');
   const { apiRequest } = useApiContext();
+  const reads = useReadRequests(apiRequest);
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('ALL');
   const [typeFilter, setTypeFilter] = useState<(typeof TYPE_FILTERS)[number]>('ALL');
   const [overdueOnly, setOverdueOnly] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadedQuery, setLoadedQuery] = useState<string | null>(null);
   const [items, setItems] = useState<WorkflowInboxItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<WorkflowInboxItem | null>(null);
@@ -46,7 +55,12 @@ export function useApprovalsWorkspace() {
     return params.toString();
   }
 
-  async function loadInbox(preserveFeedback = false): Promise<RefreshResult> {
+  async function loadInbox(
+    preserveFeedback = false,
+    cursor?: string | null,
+  ): Promise<RefreshResult> {
+    const read = reads.begin('loadInbox', preserveFeedback);
+    const apiRequest = read.request;
     if (!preserveFeedback) setLoading(true);
     if (!preserveFeedback) {
       setError(null);
@@ -57,27 +71,37 @@ export function useApprovalsWorkspace() {
       const result = await loadAndApply(
         () =>
           apiRequest(
-            `/v1/workflows/inbox${query ? `?${query}` : ''}`,
-            WorkflowInboxItemSchema.array(),
+            pagePath(`/v1/workflows/inbox${query ? `?${query}` : ''}`, cursor),
+            WorkflowInboxItemPageSchema,
           ),
-        (data) => {
-          setItems(data);
-          if (selectedId && !data.some((entry) => entry.id === selectedId)) {
+        (page) => {
+          const data = page.items;
+          setItems((previous) => (cursor ? mergePage(previous, data) : data));
+          setNextCursor(page.nextCursor);
+          setLoadedQuery(query);
+          if (!cursor && selectedId && !data.some((entry) => entry.id === selectedId)) {
             setSelectedId(null);
             setDetail(null);
           }
         },
+        read.isCurrent,
       );
+      if (!read.isCurrent()) return result;
       if (!result.ok && !preserveFeedback) {
         setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
       }
       return result;
     } finally {
-      if (!preserveFeedback) setLoading(false);
+      if (read.isCurrent()) {
+        read.finish();
+        if (!preserveFeedback) setLoading(reads.pending);
+      }
     }
   }
 
   async function loadDetail(workflowId: string, preserveFeedback = false): Promise<RefreshResult> {
+    const read = reads.begin('loadDetail', preserveFeedback);
+    const apiRequest = read.request;
     if (!preserveFeedback) setLoading(true);
     if (!preserveFeedback) {
       setError(null);
@@ -93,7 +117,9 @@ export function useApprovalsWorkspace() {
             setAction(data.availableActions[0] as WorkflowAction);
           }
         },
+        read.isCurrent,
       );
+      if (!read.isCurrent()) return result;
       if (!result.ok && preserveFeedback) {
         setSelectedId(null);
         setDetail(null);
@@ -102,16 +128,26 @@ export function useApprovalsWorkspace() {
       }
       return result;
     } finally {
-      if (!preserveFeedback) setLoading(false);
+      if (read.isCurrent()) {
+        read.finish();
+        if (!preserveFeedback) setLoading(reads.pending);
+      }
     }
   }
 
-  async function applyAction() {
+  async function applyAction(actionOverride?: WorkflowAction) {
     if (!detail) {
       setError(t('selectWorkflow'));
       return;
     }
 
+    const nextAction = actionOverride ?? action;
+    if (!detail.availableActions.includes(nextAction)) {
+      setError(t('noAvailableAction'));
+      return;
+    }
+
+    const operation = reads.begin('mutation');
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -121,9 +157,10 @@ export function useApprovalsWorkspace() {
           apiRequest(`/v1/workflows/${detail.id}/decision`, WorkflowInstanceSchema, {
             method: 'POST',
             body: JSON.stringify({
-              action,
+              assignmentId: detail.assignmentId ?? undefined,
+              action: nextAction,
               reason: reason || undefined,
-              delegateToId: action === 'DELEGATE' ? delegateToId : undefined,
+              delegateToId: nextAction === 'DELEGATE' ? delegateToId : undefined,
             }),
           }),
         async () => {
@@ -131,16 +168,22 @@ export function useApprovalsWorkspace() {
           const failed = results.find((result) => !result.ok);
           return failed ?? { ok: true };
         },
+        operation.isFeedbackCurrent,
       );
+      if (!operation.isFeedbackCurrent()) return;
       if (refresh.ok) {
         setMessage(t('actionApplied'));
       } else {
         setError(t('savedRefreshFailed'));
       }
     } catch (cause) {
+      if (!operation.isFeedbackCurrent()) return;
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
-      setLoading(false);
+      if (operation.isCurrent()) {
+        operation.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
@@ -164,6 +207,9 @@ export function useApprovalsWorkspace() {
     message,
     error,
     loadInbox,
+    nextCursor: loadedQuery === inboxQuery() ? nextCursor : null,
+    loadMore: () =>
+      nextCursor && loadedQuery === inboxQuery() ? loadInbox(false, nextCursor) : Promise.resolve(),
     loadDetail,
     applyAction,
   };

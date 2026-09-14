@@ -1,8 +1,13 @@
-import type { MeProfile, NavItem, WorkspaceMessages } from './types';
+import type { MeProfile, NavGroup, NavItem, WorkspaceMessages } from './types';
 
 const TODAY_ITEM: NavItem = { key: 'dashboard', path: 'dashboard', icon: 'dashboard' };
 
 const TIME_ITEMS: readonly NavItem[] = [
+  { key: 'tasks', path: 'tasks', icon: 'approvals' },
+  { key: 'inbox', path: 'inbox', icon: 'audit' },
+  { key: 'personnel', path: 'personnel', icon: 'settings' },
+  { key: 'documents', path: 'documents', icon: 'reports' },
+  { key: 'employment', path: 'employment', icon: 'roster' },
   { key: 'bookings', path: 'bookings', icon: 'bookings' },
   { key: 'leave', path: 'leave', icon: 'leave' },
   {
@@ -14,11 +19,14 @@ const TIME_ITEMS: readonly NavItem[] = [
 ];
 
 const PLANNING_ITEMS: readonly NavItem[] = [
+  { key: 'lifecycle', path: 'lifecycle', icon: 'roster' },
+  { key: 'projects', path: 'projects', icon: 'roster' },
   { key: 'roster', path: 'roster', icon: 'roster' },
   { key: 'oncall', path: 'oncall', icon: 'oncall' },
 ];
 
 const DECISION_ITEMS: readonly NavItem[] = [
+  { key: 'hrAdmin', path: 'hr-admin', icon: 'settings' },
   {
     key: 'approvals',
     path: 'approvals',
@@ -48,12 +56,19 @@ const INSIGHT_ITEMS: readonly NavItem[] = [
 export const SETTINGS_ITEM: NavItem = { key: 'settings', path: 'settings', icon: 'settings' };
 
 /** Flat task-nav order: all primary destinations except settings (chrome action). */
-export const TASK_NAV_ITEMS: readonly NavItem[] = [
+const TASK_NAV_ITEMS: readonly NavItem[] = [
   TODAY_ITEM,
   ...TIME_ITEMS,
   ...PLANNING_ITEMS,
   ...DECISION_ITEMS,
   ...INSIGHT_ITEMS,
+];
+
+const NAVIGATION_GROUPS: readonly NavGroup[] = [
+  { key: 'time', labelKey: 'timeSection', items: [TODAY_ITEM, ...TIME_ITEMS] },
+  { key: 'planning', labelKey: 'planningSection', items: PLANNING_ITEMS },
+  { key: 'decisions', labelKey: 'decisionsSection', items: DECISION_ITEMS },
+  { key: 'insights', labelKey: 'insightsSection', items: INSIGHT_ITEMS },
 ];
 
 function canView(item: NavItem, profile: MeProfile | null): boolean {
@@ -69,11 +84,15 @@ export function isNavItemActive(pathname: string, locale: string, item: NavItem)
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function getVisibleNavItems(
-  items: readonly NavItem[],
-  profile: MeProfile | null,
-): NavItem[] {
+function getVisibleNavItems(items: readonly NavItem[], profile: MeProfile | null): NavItem[] {
   return items.filter((item) => canView(item, profile));
+}
+
+export function getVisibleNavGroups(profile: MeProfile | null): NavGroup[] {
+  return NAVIGATION_GROUPS.flatMap((group) => {
+    const items = getVisibleNavItems(group.items, profile);
+    return items.length > 0 ? [{ ...group, items }] : [];
+  });
 }
 
 export function navItemLabel(item: NavItem, messages: WorkspaceMessages): string {

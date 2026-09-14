@@ -130,22 +130,11 @@ export const UserProfileSchema = UserIdentitySchema.extend({
 });
 export type UserProfile = z.infer<typeof UserProfileSchema>;
 
-export const DashboardSummarySchema = z.object({
-  personId: IdSchema,
-  modelName: z.string(),
-  todayTargetHours: z.number(),
-  currentBalanceHours: z.number(),
-  todayBookingsCount: z.number().int().nonnegative(),
-  hasFirstBooking: z.boolean(),
-  showOrientation: z.boolean(),
-  clockInTimeTypeId: IdSchema.nullable(),
-  period: z
-    .object({
-      start: DateTimeSchema,
-      end: DateTimeSchema,
-    })
-    .nullable(),
-  quickActions: z.array(z.string()),
-  now: DateTimeSchema,
+export const CursorQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().min(1).max(1000).optional(),
 });
-export type DashboardSummary = z.infer<typeof DashboardSummarySchema>;
+
+export function CursorPageSchema<T extends z.ZodTypeAny>(item: T) {
+  return z.object({ items: z.array(item), nextCursor: z.string().nullable() });
+}

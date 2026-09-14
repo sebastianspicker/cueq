@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="cq-section-card" role="alert">
+        <div className="cq-section-card cq-error-boundary" role="alert">
           <h2>{this.props.fallbackTitle ?? 'Something went wrong'}</h2>
           <button type="button" onClick={() => this.setState({ error: null })}>
             {this.props.fallbackAction ?? 'Try again'}

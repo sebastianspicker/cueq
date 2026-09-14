@@ -1,45 +1,62 @@
-# ADR-005: Modular-monolith capability boundaries
+# ADR-005: Use modular-monolith boundaries
 
 - Status: Accepted
-- Scope: API feature modules and workspace package dependencies
+- Scope: API features and workspace package dependencies
 
 ## Context
 
-cueq runs as one deployable application but contains distinct workforce
-capabilities. A shared aggregate implementation makes feature ownership and
-dependency direction unclear, while splitting into independently deployed
-services would add operational coupling without a demonstrated need.
+cueq has separate web and API processes but remains one application backed by a
+shared database. Its attendance, absence, scheduling, workflow, closing,
+reporting, and HR features need clear ownership. A single collection of shared
+services would obscure that ownership. Splitting the same features into
+separately deployed services would add network and operational coordination
+without a demonstrated need.
 
 ## Decision
 
-Use a modular monolith. API capabilities live in `apps/api/src/modules/` as
-`audit`, `people`, `session`, `attendance`, `absence`, `scheduling`,
-`workflows`, `closing`, `policy`, `reporting`, and `integrations`.
+Keep the application as a modular monolith. API features live under
+`apps/api/src/modules`:
 
-Feature internals are private and cross-feature imports use explicit
-`public.ts` surfaces. Cross-feature aggregate mutations use narrow application
-ports implemented by the owning capability. `workflows` and `closing`
-coordinate those ports; `reporting` and `integrations` adapt external
-boundaries.
+```text
+absence       attendance    audit          closing       documents
+integrations  lifecycle     people         policy        projects
+reporting     scheduling    session        workflows
+```
 
-Workflow runtime and workflow decision orchestration are separate Nest module
-boundaries. Absence and closing may depend on runtime assignment/query
-capabilities; the decisions module may depend on feature-owned effect ports.
-This direction avoids a bidirectional feature-module dependency.
+Each feature keeps its internals private and exposes deliberate cross-feature
+APIs through `public.ts`. A feature that needs to change records owned elsewhere
+uses an application port implemented by the owning feature.
 
-Workspace dependencies point inward: contracts and policy depend only on Zod;
-domain depends on policy and stays pure; database owns Prisma; API and web are
-edge consumers.
+The workflows feature coordinates decisions through these ports. Absence and
+closing may use the narrower `workflow-runtime.public.ts` surface for workflow
+assignments and queries. Reporting and integrations adapt outward-facing reads
+and protocols without taking ownership of the underlying records. These rules
+keep the NestJS module graph acyclic.
+
+Workspace dependencies also point inward: contracts and policy depend only on
+Zod, domain depends on policy and stays free of runtime frameworks, database
+owns Prisma, and the API and web applications consume the shared packages.
 
 ## Consequences
 
-- Features can be understood, tested, and changed without deep imports into
-  another feature.
-- Pure domain behavior remains independent of NestJS, Prisma, browser, HTTP,
-  and filesystem APIs.
-- A future service split must start from explicit ports and operational need,
-  not directory naming alone.
+- Contributors can locate a behavior and its data owner without following deep
+  imports across features.
+- Pure domain code remains independent of NestJS, Prisma, HTTP, browser, and
+  filesystem APIs.
+- Cross-feature changes may require a small public interface or application
+  port instead of a direct call.
+- A future service split should begin with an operational requirement and the
+  existing explicit boundary, not the directory structure alone.
+
+## Alternatives considered
+
+A broadly shared application layer would require fewer interfaces initially,
+but would make ownership and dependency cycles difficult to control. Separate
+services would create stronger runtime isolation, but also require distributed
+transactions, service deployment, and network failure handling that the current
+system does not need.
 
 ## References
 
 - [Architecture](../../ARCHITECTURE.md)
+- [`scripts/check-architecture.mjs`](../../scripts/check-architecture.mjs)

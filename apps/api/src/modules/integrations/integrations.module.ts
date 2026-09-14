@@ -1,4 +1,5 @@
 /** Webhook, terminal, and HR-master integration API surface. */
+import { WebhookJobWorker } from './webhook-job-worker.service.js';
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/public.js';
 import { PeopleModule } from '../people/public.js';
@@ -31,6 +32,7 @@ function createHrMasterProvider() {
     TerminalGatewayService,
     HrImportService,
     WebhookDomainService,
+    WebhookJobWorker,
     { provide: HR_MASTER_PROVIDER, useFactory: createHrMasterProvider },
   ],
   exports: [TerminalGatewayService, HrImportService, WebhookDomainService],

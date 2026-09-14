@@ -4,7 +4,7 @@
   "title": "Absence",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "personId", "type", "startDate", "endDate", "days", "status"],
+  "required": ["id", "personId", "type", "startDate", "endDate", "days", "status", "assignmentId"],
   "properties": {
     "id": {
       "$ref": "./_defs/common.schema.json#/$defs/id"
@@ -45,6 +45,9 @@
     },
     "updatedAt": {
       "$ref": "./_defs/common.schema.json#/$defs/dateTime"
+    },
+    "assignmentId": {
+      "$ref": "./_defs/common.schema.json#/$defs/id"
     }
   }
 }

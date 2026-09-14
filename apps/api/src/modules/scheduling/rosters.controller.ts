@@ -1,5 +1,5 @@
 /** Exposes authorized roster and shift-planning endpoints. */
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@cueq/database';
 import {
@@ -44,6 +44,18 @@ export class RostersController {
   @ApiOperation({ summary: 'Get roster detail with shifts and assignments' })
   byId(@CurrentUser() user: AuthenticatedIdentity, @Param('id', ParseCuidPipe) rosterId: string) {
     return this.rosterService.rosterById(user, rosterId);
+  }
+
+  @Get(':id/members/:personId/assignments')
+  @Roles(Role.TEAM_LEAD, Role.SHIFT_PLANNER, Role.HR, Role.ADMIN)
+  @ApiOperation({ summary: 'List eligible appointments for one roster member and interval' })
+  memberAssignments(
+    @CurrentUser() user: AuthenticatedIdentity,
+    @Param('id', ParseCuidPipe) rosterId: string,
+    @Param('personId', ParseCuidPipe) personId: string,
+    @Query() query: unknown,
+  ) {
+    return this.rosterService.rosterMemberAssignmentOptions(user, rosterId, personId, query);
   }
 
   @Post(':id/shifts')
@@ -100,8 +112,15 @@ export class RostersController {
     @Param('id', ParseCuidPipe) rosterId: string,
     @Param('shiftId', ParseCuidPipe) shiftId: string,
     @Param('assignmentId', ParseCuidPipe) assignmentId: string,
+    @Query('assignmentId') employmentAssignmentId?: string,
   ) {
-    return this.rosterService.unassignRosterShift(user, rosterId, shiftId, assignmentId);
+    return this.rosterService.unassignRosterShift(
+      user,
+      rosterId,
+      shiftId,
+      assignmentId,
+      employmentAssignmentId,
+    );
   }
 
   @Post(':id/publish')

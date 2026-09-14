@@ -10,22 +10,32 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+import { AssignmentSelector } from './AssignmentSelector';
+import type { AssignmentContextState } from './use-assignment-context';
 import { BrandMark } from '../BrandMark';
 import { LocaleSwitchLink } from '../LocaleSwitchLink';
 import { WorkspaceIcon } from '../WorkspaceIcon';
 import {
-  getVisibleNavItems,
+  getStoredPreference,
+  THEME_PREFERENCE_SLOT,
+  toggleThemePreference,
+  type ThemePreference,
+} from '../../platform/browser/preferences';
+import { ChromeGlyph } from './ChromeGlyph';
+import { CommandPalette } from './CommandPalette';
+import {
+  activeSectionLabel,
+  getVisibleNavGroups,
   isNavItemActive,
   navItemHref,
   navItemLabel,
   SETTINGS_ITEM,
-  TASK_NAV_ITEMS,
 } from './nav-items';
 import type { MeProfile, NavItem, SessionPhase, WorkspaceMessages } from './types';
 import { sessionLabelFor } from './use-current-session';
-import { WorkspaceStatusMast } from './WorkspaceStatusMast';
 
 interface WorkspaceChromeProps {
+  assignment: AssignmentContextState;
   children: ReactNode;
   locale: string;
   altLocale: string;
@@ -50,23 +60,19 @@ function TaskNavLink({
   messages: WorkspaceMessages;
   onNavigate?: () => void;
 }) {
-  const href = navItemHref(locale, item);
   const active = isNavItemActive(pathname, locale, item);
   const label = navItemLabel(item, messages);
-  // Keep the dashboard's accessible name distinct from its shorter visible label.
-  const accessibleName = item.key === 'dashboard' ? messages.nav.dashboard : undefined;
-
   return (
     <Link
       className="cq-task-link"
       data-active={active || undefined}
       aria-current={active ? 'page' : undefined}
-      aria-label={accessibleName}
-      href={href}
+      aria-label={item.key === 'dashboard' ? messages.nav.dashboard : undefined}
+      href={navItemHref(locale, item)}
       onClick={onNavigate}
     >
       <WorkspaceIcon name={item.icon} />
-      {label}
+      <span>{label}</span>
     </Link>
   );
 }
@@ -98,6 +104,8 @@ function WorkspaceMobileHeader({
   sessionLabel,
   homeHref,
   navigationOpen,
+  theme,
+  onToggleTheme,
   onToggleNavigation,
   toggleRef,
 }: {
@@ -106,6 +114,8 @@ function WorkspaceMobileHeader({
   sessionLabel: string;
   homeHref: string;
   navigationOpen: boolean;
+  theme: ThemePreference;
+  onToggleTheme: () => void;
   onToggleNavigation: () => void;
   toggleRef: RefObject<HTMLButtonElement | null>;
 }) {
@@ -115,18 +125,29 @@ function WorkspaceMobileHeader({
         <BrandMark href={homeHref} variant="compact" />
         <span>{profile ? messages.roles[profile.role] : sessionLabel}</span>
       </div>
-      <button
-        ref={toggleRef}
-        type="button"
-        className="cq-nav-toggle"
-        aria-expanded={navigationOpen}
-        aria-controls="workspace-navigation"
-        onClick={onToggleNavigation}
-        aria-label={navigationOpen ? messages.closeNavigation : messages.openNavigation}
-      >
-        <WorkspaceIcon name="menu" />
-        <span>{navigationOpen ? messages.closeNavigation : messages.navigationMenu}</span>
-      </button>
+      <div className="cq-mobile-tools">
+        <button
+          type="button"
+          className="cq-chrome-icon-button"
+          onClick={onToggleTheme}
+          aria-label={theme === 'dark' ? messages.themeToLight : messages.themeToDark}
+          title={theme === 'dark' ? messages.themeToLight : messages.themeToDark}
+        >
+          <ChromeGlyph name={theme === 'dark' ? 'sun' : 'moon'} />
+        </button>
+        <button
+          ref={toggleRef}
+          type="button"
+          className="cq-nav-toggle"
+          aria-expanded={navigationOpen}
+          aria-controls="workspace-navigation"
+          onClick={onToggleNavigation}
+          aria-label={navigationOpen ? messages.closeNavigation : messages.openNavigation}
+        >
+          <WorkspaceIcon name="menu" />
+          <span>{navigationOpen ? messages.closeNavigation : messages.navigationMenu}</span>
+        </button>
+      </div>
     </header>
   );
 }
@@ -170,7 +191,16 @@ function SessionPanel({
   );
 }
 
+function formatFreshness(lastSuccessfulAt: number, locale: string): string {
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'de-DE', {
+    timeZone: 'Europe/Berlin',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(lastSuccessfulAt));
+}
+
 export function WorkspaceChrome({
+  assignment,
   children,
   locale,
   altLocale,
@@ -182,51 +212,68 @@ export function WorkspaceChrome({
   refresh,
 }: WorkspaceChromeProps) {
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [theme, setTheme] = useState<ThemePreference>('system');
+  const [shortcut, setShortcut] = useState('Ctrl K');
   const navigationToggleRef = useRef<HTMLButtonElement>(null);
+  const commandTriggerRef = useRef<HTMLButtonElement>(null);
   const navigationPanelRef = useRef<HTMLElement>(null);
   const homeHref = `/${locale}/dashboard`;
   const sessionLabel = sessionLabelFor(phase, messages);
-  const visibleTasks = getVisibleNavItems(TASK_NAV_ITEMS, profile);
-  const settingsActive = isNavItemActive(pathname, locale, SETTINGS_ITEM);
+  const groups = getVisibleNavGroups(profile);
+  const commandItems = [...groups.flatMap((group) => group.items), SETTINGS_ITEM];
+  const section = activeSectionLabel(pathname, locale, profile, messages);
 
   const closeNavigation = useCallback(() => {
     setNavigationOpen((wasOpen) => {
-      if (wasOpen) {
-        navigationToggleRef.current?.focus();
-      }
+      if (wasOpen) navigationToggleRef.current?.focus();
       return false;
     });
   }, []);
+  const closeCommand = useCallback(() => {
+    setCommandOpen(false);
+    commandTriggerRef.current?.focus();
+  }, []);
+  const toggleTheme = useCallback(() => {
+    setTheme(toggleThemePreference());
+  }, []);
 
   useEffect(() => {
-    if (!navigationOpen) {
-      return undefined;
-    }
-    const navigationPanel = navigationPanelRef.current;
-    const focusableSelector = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    const focusableElements = Array.from(
-      navigationPanel?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
+    const storedTheme = getStoredPreference(THEME_PREFERENCE_SLOT, 'system') as ThemePreference;
+    setTheme(
+      storedTheme === 'system'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+        : storedTheme,
     );
-    const initialFocus = navigationPanel?.querySelector<HTMLElement>(
-      '.cq-task-link[data-active], .cq-task-link',
-    );
-    (initialFocus ?? focusableElements[0])?.focus();
+    if (/Mac|iPhone|iPad/.test(navigator.platform)) setShortcut('⌘ K');
+  }, []);
 
+  useEffect(() => {
+    if (!navigationOpen) return undefined;
+    const panel = navigationPanelRef.current;
+    const focusable = Array.from(
+      panel?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    );
+    (
+      panel?.querySelector<HTMLElement>('.cq-task-link[data-active], .cq-task-link') ?? focusable[0]
+    )?.focus();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closeNavigation();
         return;
       }
-      if (event.key !== 'Tab' || focusableElements.length === 0) {
-        return;
-      }
-
-      const first = focusableElements[0];
-      const last = focusableElements.at(-1);
+      if (event.key !== 'Tab' || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable.at(-1);
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      }
+      if (!event.shiftKey && document.activeElement === last) {
         event.preventDefault();
         first?.focus();
       }
@@ -234,6 +281,18 @@ export function WorkspaceChrome({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [navigationOpen, closeNavigation]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        if (commandOpen) closeCommand();
+        else setCommandOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [commandOpen, closeCommand]);
 
   return (
     <>
@@ -243,34 +302,48 @@ export function WorkspaceChrome({
         sessionLabel={sessionLabel}
         homeHref={homeHref}
         navigationOpen={navigationOpen}
+        theme={theme}
+        onToggleTheme={toggleTheme}
         onToggleNavigation={() => setNavigationOpen((value) => !value)}
         toggleRef={navigationToggleRef}
       />
-
       <div className="cq-app-shell" data-navigation-open={navigationOpen || undefined}>
-        <header
+        <aside
           ref={navigationPanelRef}
           id="workspace-navigation"
           className="cq-chrome cq-app-sidebar"
           aria-label={messages.title}
         >
-          <div className="cq-chrome-top">
+          <div className="cq-sidebar-brand">
             <BrandMark href={homeHref} descriptor={messages.brandDescriptor} />
-
-            <nav className="cq-task-nav" aria-label={messages.title}>
-              {visibleTasks.map((item) => (
-                <TaskNavLink
-                  key={item.path}
-                  item={item}
-                  locale={locale}
-                  pathname={pathname}
-                  messages={messages}
-                  onNavigate={closeNavigation}
-                />
-              ))}
-            </nav>
-
-            <div className="cq-chrome-actions">
+          </div>
+          <nav className="cq-task-nav" aria-label={messages.title}>
+            {groups.map((group) => (
+              <div className="cq-nav-group" key={group.key}>
+                <p className="cq-nav-group-label">{messages[group.labelKey]}</p>
+                {group.items.map((item) => (
+                  <TaskNavLink
+                    key={item.path}
+                    item={item}
+                    locale={locale}
+                    pathname={pathname}
+                    messages={messages}
+                    onNavigate={closeNavigation}
+                  />
+                ))}
+              </div>
+            ))}
+          </nav>
+          <div className="cq-sidebar-foot">
+            {profile ? <AssignmentSelector context={assignment} messages={messages} /> : null}
+            <SessionPanel
+              phase={phase}
+              profile={profile}
+              messages={messages}
+              locale={locale}
+              refresh={refresh}
+            />
+            <div className="cq-sidebar-tools">
               <Suspense
                 fallback={<span className="cq-locale-switch">{altLocale.toUpperCase()}</span>}
               >
@@ -280,60 +353,56 @@ export function WorkspaceChrome({
                   label={altLocale.toUpperCase()}
                 />
               </Suspense>
-              <SessionChip phase={phase} profile={profile} messages={messages} />
               <Link
                 className="cq-session-settings"
                 href={navItemHref(locale, SETTINGS_ITEM)}
-                data-active={settingsActive || undefined}
-                aria-current={settingsActive ? 'page' : undefined}
-                aria-label={messages.nav.settings}
+                data-active={isNavItemActive(pathname, locale, SETTINGS_ITEM) || undefined}
+                aria-current={isNavItemActive(pathname, locale, SETTINGS_ITEM) ? 'page' : undefined}
                 onClick={closeNavigation}
               >
                 <WorkspaceIcon name="settings" />
+                <span>{messages.nav.settings}</span>
               </Link>
             </div>
           </div>
-
-          <div className="cq-brand">
-            <p className="cq-brand-institution">{messages.universityName}</p>
-          </div>
-
-          <SessionPanel
-            phase={phase}
-            profile={profile}
-            messages={messages}
-            locale={locale}
-            refresh={refresh}
-          />
-
-          <div className="cq-locale-panel">
-            <span>{messages.localeSwitch}</span>
-            <Suspense
-              fallback={<span className="cq-locale-switch">{altLocale.toUpperCase()}</span>}
+        </aside>
+        <div className="cq-shell-content">
+          <header className="cq-topbar">
+            <p className="cq-topbar-context">
+              <span>{messages.universityName}</span>
+              <strong>{section}</strong>
+            </p>
+            <button
+              ref={commandTriggerRef}
+              type="button"
+              className="cq-command-trigger"
+              onClick={() => setCommandOpen(true)}
+              aria-haspopup="dialog"
             >
-              <LocaleSwitchLink
-                locale={locale}
-                targetLocale={altLocale}
-                label={altLocale.toUpperCase()}
-              />
-            </Suspense>
-          </div>
-        </header>
-
-        <WorkspaceStatusMast
-          locale={locale}
-          pathname={pathname}
-          messages={messages}
-          phase={phase}
-          profile={profile}
-          lastSuccessfulAt={lastSuccessfulAt}
-        />
-
-        <main id="main-content" className="cq-app-main" inert={navigationOpen || undefined}>
-          {children}
-        </main>
+              <ChromeGlyph name="search" />
+              <span>{messages.commandOpen}</span>
+              <kbd>{shortcut}</kbd>
+            </button>
+            <button
+              type="button"
+              className="cq-chrome-icon-button"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? messages.themeToLight : messages.themeToDark}
+              title={theme === 'dark' ? messages.themeToLight : messages.themeToDark}
+            >
+              <ChromeGlyph name={theme === 'dark' ? 'sun' : 'moon'} />
+            </button>
+            <SessionChip phase={phase} profile={profile} messages={messages} />
+            <span className="cq-topbar-meta">
+              Europe/Berlin
+              {lastSuccessfulAt != null ? ` · ${formatFreshness(lastSuccessfulAt, locale)}` : ''}
+            </span>
+          </header>
+          <main id="main-content" className="cq-app-main" inert={navigationOpen || undefined}>
+            {children}
+          </main>
+        </div>
       </div>
-
       {navigationOpen ? (
         <button
           type="button"
@@ -342,6 +411,14 @@ export function WorkspaceChrome({
           onClick={closeNavigation}
         />
       ) : null}
+      <CommandPalette
+        locale={locale}
+        messages={messages}
+        items={commandItems}
+        open={commandOpen}
+        onClose={closeCommand}
+        onToggleTheme={toggleTheme}
+      />
     </>
   );
 }

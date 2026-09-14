@@ -10,6 +10,7 @@ import { WorkflowSideEffectsHelper } from './workflow-side-effects.helper.js';
 
 const decision: WorkflowEffectInput['decision'] = {
   id: 'c00000000000000000000001',
+  assignmentId: 'c00000000000000000000003',
   type: WorkflowType.LEAVE_REQUEST,
   entityType: 'Absence',
   entityId: 'c00000000000000000000002',
@@ -74,7 +75,14 @@ describe('WorkflowSideEffectsHelper', () => {
 
     expect(tx.workflowInstance.findUnique).toHaveBeenCalledWith({
       where: { id: decision.id },
-      select: { id: true, type: true, entityType: true, entityId: true, requestPayload: true },
+      select: {
+        id: true,
+        assignmentId: true,
+        type: true,
+        entityType: true,
+        entityId: true,
+        requestPayload: true,
+      },
     });
     expect(scheduling.validateWorkflowPreApproval).toHaveBeenCalledWith({ decision, tx });
     expect(attendance.validateWorkflowPreApproval).toHaveBeenCalledWith({ decision, tx });

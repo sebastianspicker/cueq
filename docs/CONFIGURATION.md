@@ -1,115 +1,176 @@
 # Configuration
 
-cueq reads runtime configuration from environment variables. `make dev` loads
-the repository-root `.env` with Node's environment-file parser. Set
-`CUEQ_ENV_FILE` to use another readable file. Production start commands do not
-load an environment file.
+cueq reads runtime settings from environment variables. `make dev` explicitly
+loads the repository-root `.env` with Node's environment-file parser. The API's
+production command starts Node without an environment-file flag, so its
+supervisor or platform must inject the environment. Next.js may load its own
+standard environment files when the web application starts.
 
-The committed `.env.example` is the local template. Do not commit populated
-environment files, credentials, tokens, or encryption keys.
+Copy `.env.example` for local development. Never commit a populated environment
+file, token, credential, or encryption key.
 
-## Core runtime
+## API and browser access
 
-| Variable                 | Default                                                                                          | Use                                                                                                                                                |
-| ------------------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`               | unset                                                                                            | Selects development, test, or production behavior. Production disables mock authentication, local integration-token fallbacks, and the OpenAPI UI. |
-| `DATABASE_URL`           | local scripts default to `postgresql://cueq:cueq_dev_password@localhost:5433/cueq?schema=public` | Prisma connection URL. Application start commands require a reachable PostgreSQL database.                                                         |
-| `PORT`                   | `3001`                                                                                           | API listen port.                                                                                                                                   |
-| `CUEQ_DEV_HOST`          | `127.0.0.1` outside production                                                                   | API and web development bind host. It does not change CORS policy.                                                                                 |
-| `CUEQ_ENV_FILE`          | `.env`                                                                                           | Environment file selected by `make dev`.                                                                                                           |
-| `CORS_ORIGINS`           | local origins outside production; empty in production                                            | Comma-separated browser origin allowlist. `*` enables all origins.                                                                                 |
-| `CORS_ALLOW_CREDENTIALS` | `false`                                                                                          | Enables credentialed CORS requests when set to `true`. It cannot be combined with `CORS_ORIGINS=*`.                                                |
+| Variable                 | Default                                              | Description                                                                                             |
+| ------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`               | unset                                                | Selects development, test, or production behavior. Production disables mock authentication and Swagger. |
+| `DATABASE_URL`           | local scripts use PostgreSQL on `localhost:5433`     | Prisma connection URL                                                                                   |
+| `PORT`                   | `3001`                                               | API port                                                                                                |
+| `CUEQ_DEV_HOST`          | `127.0.0.1` outside production                       | Development bind address for the API and web app                                                        |
+| `CUEQ_ENV_FILE`          | `.env`                                               | Environment file read by `make dev`                                                                     |
+| `CORS_ORIGINS`           | local origins outside production; none in production | Comma-separated browser origins; `*` permits any origin                                                 |
+| `CORS_ALLOW_CREDENTIALS` | `false`                                              | Enables credentialed CORS                                                                               |
+
+Changing `CUEQ_DEV_HOST` does not change CORS. A production browser deployment
+should list its exact origins. The API rejects `CORS_ORIGINS=*` together with
+`CORS_ALLOW_CREDENTIALS=true`.
 
 ## Authentication
 
-| Variable          | Default                                  | Use                                                                                                          |
-| ----------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `AUTH_PROVIDER`   | compatibility selection described below  | Preferred provider selector: `mock`, `oidc`, or `saml`. Production rejects `mock`.                           |
-| `AUTH_MODE`       | mock unless an OIDC issuer is configured | Compatibility selector supporting `mock` or `oidc` when `AUTH_PROVIDER` is unset.                            |
-| `OIDC_ISSUER_URL` | unset                                    | Separately configured OIDC issuer. The API reads signing keys from `<issuer>/protocol/openid-connect/certs`. |
-| `OIDC_CLIENT_ID`  | unset                                    | Required OIDC audience.                                                                                      |
-| `SAML_ISSUER`     | unset                                    | Required issuer for the SAML bridge JWT.                                                                     |
-| `SAML_AUDIENCE`   | unset                                    | Required audience for the SAML bridge JWT.                                                                   |
-| `SAML_JWT_SECRET` | unset                                    | Shared secret used to verify HS256, HS384, or HS512 bridge JWTs.                                             |
+Set `AUTH_PROVIDER` to `mock`, `oidc`, or `saml`. Mock authentication is rejected
+in production. If `AUTH_PROVIDER` is absent, the legacy `AUTH_MODE` setting is
+used; it accepts `mock` or `oidc` and otherwise selects OIDC when an issuer URL
+is present.
 
-The local Compose stack provides PostgreSQL only. It does not configure an
-OIDC issuer, realm, client, or users. Leave the OIDC variables unset with
-`AUTH_PROVIDER=mock` for local evaluation. To use OIDC, configure an issuer
-separately and set `AUTH_PROVIDER=oidc`, `OIDC_ISSUER_URL`, and
-`OIDC_CLIENT_ID` for that deployment.
+OIDC requires:
 
-The current SAML adapter verifies a JWT produced by an external SAML bridge. It
-does not implement the SAML protocol in the API.
+- `OIDC_ISSUER_URL`, the issuer whose JWKS verifies tokens;
+- `OIDC_CLIENT_ID`, the required audience.
 
-## Machine integrations
+The SAML option expects a JWT from an external SAML bridge. cueq does not speak
+the SAML protocol directly. Configure:
 
-| Variable                   | Default                                          | Use                                                                                                    |
-| -------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `TERMINAL_GATEWAY_TOKEN`   | `dev-terminal-token` only in development or test | Shared token for terminal heartbeat and sync routes. Required outside development and test.            |
-| `HR_IMPORT_TOKEN`          | `dev-hr-token` only in development or test       | Shared token for HR import routes. Required outside development and test.                              |
-| `HR_PROVIDER_MODE`         | `stub`                                           | HR master-data provider. Set to `http` to enable the HTTP adapter. Other values use the stub provider. |
-| `HR_MASTER_API_URL`        | unset                                            | HTTP provider URL. Production requires HTTPS. Credentials in the URL are rejected.                     |
-| `HR_MASTER_API_TOKEN`      | unset                                            | Optional bearer token sent to the HR master-data service.                                              |
-| `HR_MASTER_API_TIMEOUT_MS` | `10000`                                          | HTTP request timeout, clamped to 100 through 60000 milliseconds.                                       |
+- `SAML_ISSUER`;
+- `SAML_AUDIENCE`; and
+- `SAML_JWT_SECRET`, the shared secret for HS256, HS384, or HS512 verification.
+
+Local Compose has no identity provider. Use `AUTH_PROVIDER=mock` for local
+evaluation or connect a separately managed issuer.
+
+## HR and terminal integrations
+
+| Variable                   | Default                                      | Description                                                  |
+| -------------------------- | -------------------------------------------- | ------------------------------------------------------------ |
+| `TERMINAL_GATEWAY_TOKEN`   | `dev-terminal-token` in development and test | Token for terminal heartbeat and synchronization routes      |
+| `HR_IMPORT_TOKEN`          | `dev-hr-token` in development and test       | Token for HR import routes                                   |
+| `HR_PROVIDER_MODE`         | `stub`                                       | Selects the stub or `http` HR provider                       |
+| `HR_MASTER_API_URL`        | unset                                        | URL for the HTTP HR provider                                 |
+| `HR_MASTER_API_TOKEN`      | unset                                        | Optional bearer token sent to the provider                   |
+| `HR_MASTER_API_TIMEOUT_MS` | `10000`                                      | Provider timeout, limited to 100 through 60,000 milliseconds |
+
+Production has no fallback integration tokens. An HTTP provider URL may not
+contain credentials and must use HTTPS in production.
+
+`HONEYWELL_PROTOCOL` remains in the local template for compatibility, but the
+application does not use it to select a protocol. Terminal CSV imports currently
+use `HONEYWELL_CSV_V1`.
 
 ## Webhooks
 
-| Variable                                 | Default          | Use                                                                                                                |
-| ---------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `WEBHOOK_SECRET_ENCRYPTION_KEY`          | none             | Required base64 encoding of exactly 32 bytes. The API validates it before startup.                                 |
-| `WEBHOOK_SECRET_PREVIOUS_ENCRYPTION_KEY` | unset            | Previous key used only by the webhook-secret migration during key rotation.                                        |
-| `WEBHOOK_ALLOW_PRIVATE_TARGETS`          | `false`          | Allows loopback, link-local, or private webhook targets when set to `true`. Keep disabled outside isolated tests.  |
-| `WEBHOOK_DISPATCH_BATCH_SIZE`            | `50`             | Maximum events claimed per dispatch run. Invalid or non-positive values use the default.                           |
-| `WEBHOOK_MAX_ATTEMPTS`                   | `5`              | Delivery attempt limit. Invalid or non-positive values use the default.                                            |
-| `WEBHOOK_REQUEST_TIMEOUT_MS`             | `5000`           | Per-request timeout in milliseconds.                                                                               |
-| `WEBHOOK_CLAIM_LEASE_MS`                 | internal minimum | Dispatcher claim lease. The effective value is never lower than the internal minimum or twice the request timeout. |
+Generate a local encryption key with `openssl rand -base64 32`. The result is
+the canonical base64 form of the required 32-byte key.
 
-Create a local encryption key with:
+| Variable                                 | Default           | Description                                                                     |
+| ---------------------------------------- | ----------------- | ------------------------------------------------------------------------------- |
+| `WEBHOOK_SECRET_ENCRYPTION_KEY`          | none              | Active key used to encrypt signing secrets                                      |
+| `WEBHOOK_SECRET_PREVIOUS_ENCRYPTION_KEY` | unset             | Old key available only during migration or rotation                             |
+| `WEBHOOK_ALLOW_PRIVATE_TARGETS`          | `false`           | Allows loopback, link-local, and private targets                                |
+| `WEBHOOK_DISPATCH_BATCH_SIZE`            | `50`              | Most events claimed by one authorized dispatch                                  |
+| `WEBHOOK_MAX_ATTEMPTS`                   | `5`               | Delivery attempt limit                                                          |
+| `WEBHOOK_REQUEST_TIMEOUT_MS`             | `5000`            | Per-request timeout in milliseconds                                             |
+| `WEBHOOK_CLAIM_LEASE_MS`                 | 15-minute minimum | Worker lease; never less than the internal minimum or twice the request timeout |
 
-```bash
-openssl rand -base64 32
-```
-
-Webhook key rotation requires a maintenance window and the commands documented
-in [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md).
+Keep private-target access disabled except in isolated test environments. Use
+the key-rotation procedure in [Operations](OPERATIONS.md).
 
 ## Closing and reporting
 
-| Variable                            | Default         | Use                                                                                              |
-| ----------------------------------- | --------------- | ------------------------------------------------------------------------------------------------ |
-| `CLOSING_AUTO_CUTOFF_ENABLED`       | `true`          | Enables automatic transition into the cutoff workflow. `0`, `false`, `no`, and `off` disable it. |
-| `CLOSING_ALLOW_MANUAL_REVIEW_START` | `false`         | Enables manual review start for accepted true-like values.                                       |
-| `CLOSING_CUTOFF_DAY`                | `3`             | Day of the following month, clamped to 1 through 28.                                             |
-| `CLOSING_CUTOFF_HOUR`               | `12`            | Local cutoff hour, clamped to 0 through 23.                                                      |
-| `CLOSING_TIMEZONE`                  | `Europe/Berlin` | IANA time zone for cutoff calculations. Invalid values fall back to `Europe/Berlin`.             |
-| `CLOSING_BOOKING_GAP_MINUTES`       | `240`           | Booking-gap warning threshold. Values below 30 use the default.                                  |
-| `CLOSING_BALANCE_ANOMALY_HOURS`     | `40`            | Absolute balance warning threshold. Non-positive values use the default.                         |
-| `REPORT_MIN_GROUP_SIZE`             | `5`             | Minimum aggregate-report group size. Values below 5 use 5.                                       |
+| Variable                            | Default         | Description                                                             |
+| ----------------------------------- | --------------- | ----------------------------------------------------------------------- |
+| `CLOSING_AUTO_CUTOFF_ENABLED`       | `true`          | Enables the automatic cut-off transition                                |
+| `CLOSING_ALLOW_MANUAL_REVIEW_START` | `false`         | Allows an emergency manual start of review                              |
+| `CLOSING_CUTOFF_DAY`                | `3`             | Day of the next month, limited to 1 through 28                          |
+| `CLOSING_CUTOFF_HOUR`               | `12`            | Local hour, limited to 0 through 23                                     |
+| `CLOSING_TIMEZONE`                  | `Europe/Berlin` | IANA time zone; invalid values fall back to `Europe/Berlin`             |
+| `CLOSING_BOOKING_GAP_MINUTES`       | `240`           | Booking-gap warning threshold; values below 30 use the default          |
+| `CLOSING_BALANCE_ANOMALY_HOURS`     | `40`            | Absolute balance warning threshold; non-positive values use the default |
+| `REPORT_MIN_GROUP_SIZE`             | `5`             | Minimum aggregate report group; values below 5 use 5                    |
 
-## Verification and maintenance
+## Private document storage
 
-These variables control repository tooling rather than normal application
-behavior:
+Document storage remains disabled until all required settings are present:
 
-| Variable                               | Default              | Use                                                                                       |
-| -------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
-| `SKIP_DOCKER`                          | `0`                  | Prevents `make setup` from starting the local PostgreSQL Compose service when set to `1`. |
-| `SKIP_INSTALL`                         | `0`                  | Skips setup's frozen install after CI has installed dependencies explicitly.              |
-| `POSTGRES_CLIENT_IMAGE`                | `postgres:16-alpine` | PostgreSQL client image used by the backup and restore verifier.                          |
-| `WEBHOOK_SECRET_MAINTENANCE_CONFIRMED` | unset                | Required as `1` by the Make target that applies webhook-secret migration.                 |
+| Variable                   | Description                                                    |
+| -------------------------- | -------------------------------------------------------------- |
+| `DOCUMENT_STORAGE_ROOT`    | Absolute private directory outside public or static assets     |
+| `DOCUMENT_ENCRYPTION_KEYS` | JSON object mapping key IDs to base64-encoded 32-byte AES keys |
+| `DOCUMENT_ACTIVE_KEY_ID`   | Key ID used for new objects                                    |
+| `DOCUMENT_REMINDER_DAYS`   | Expiry reminder horizon from 1 to 365 days; default `7`        |
 
-## Production requirements
+Provide the directory and keys through protected deployment configuration. Do
+not store keys beside objects, exports, public assets, or source code. When
+rotating the active key, retain every older key still referenced by an object.
 
-At minimum, a production-mode API process requires:
+Uploads accept PDF, PNG, and JPEG files up to 10 MiB and compare the declared
+MIME type with the file signature. An acknowledgement records a version, actor,
+and timestamp; it is not a signature. Retention dates are metadata and do not
+delete files.
 
-- `NODE_ENV=production`;
-- a reachable `DATABASE_URL`;
-- `WEBHOOK_SECRET_ENCRYPTION_KEY`;
-- `AUTH_PROVIDER=oidc` with OIDC settings, or `AUTH_PROVIDER=saml` with bridge
-  settings;
-- `TERMINAL_GATEWAY_TOKEN` and `HR_IMPORT_TOKEN` when their routes are used; and
-- an explicit `CORS_ORIGINS` allowlist for browser access.
+## Personnel and reconciliation policy
 
-The repository does not supply secret storage, TLS termination, database
-encryption, backup retention, log redaction infrastructure, or deployment
-access controls. Those must be provided and reviewed by the operator.
+Native HR access uses explicit capability grants created through
+`/v1/hr/capability-grants`. Existing roles continue to govern time, leave,
+roster, and closing features. Membership or a functional relationship does not
+grant personnel access. The global `hr.reconcile` capability authorizes every
+configured HR source and its outbound changes. Viewing native HR audit records
+through the legacy audit browser also requires the corresponding global read
+capability.
+
+Employment groups and holiday calendars are immutable versions. Appointments
+refer to those versions and snapshot their working schedule. The migrated TV-L
+and NRW values are legacy reference configuration. Different leave terms need
+an explicit `termChanges` calculation policy; cueq does not choose an
+organization-specific policy automatically.
+
+Generic reconciliation accepts at most 500 records per batch. Its CSV endpoint
+accepts 65,536 characters and requires `personId`, `externalRecordId`,
+`expectedSourceRevision`, and `revision`; supported personnel fields may appear
+as optional columns. Blank field values are omitted, while a blank expected
+revision means first import. Source identity and revision checks run in one
+transaction, so a conflict rolls back the batch. An import cannot replace a
+field owned by cueq or another source.
+
+Legacy HR CSV and HTTP records may include `employmentStartDate` and
+`employmentEndDate` in `YYYY-MM-DD` form. They initialize a newly imported
+person and legacy appointment. Omitted dates remain unknown; dates supplied for
+an existing person must match stored history. A new appointment cannot overlap a
+locked closing period, but a start date after that period can add a later hire
+without rewriting history.
+
+Time-account preparation uses UTC accounting periods. Whole UTC days use the
+configured daily schedule and holiday dates. A partial-day appointment boundary
+requires `timeAccountTargetProration: "UTC_DAY_FRACTION"` in the term policy;
+without it, preparation returns a policy-required conflict. The dashboard uses
+Berlin dates, weekdays, and holidays independently of stored accounting periods.
+
+## Command-line settings
+
+| Variable                               | Default              | Description                                                          |
+| -------------------------------------- | -------------------- | -------------------------------------------------------------------- |
+| `SKIP_DOCKER`                          | `0`                  | Set to `1` to keep `make setup` from starting Compose                |
+| `SKIP_INSTALL`                         | `0`                  | Set to `1` to skip the frozen install in setup                       |
+| `POSTGRES_CLIENT_IMAGE`                | `postgres:16-alpine` | Client image for backup and restore verification                     |
+| `WEBHOOK_SECRET_MAINTENANCE_CONFIRMED` | unset                | Must be `1` before applying webhook secret migration                 |
+| `CUEQ_INCLUDE_SPECIALIZED_TESTS`       | unset                | Set to `1` to include specialized contract, policy, and domain tests |
+
+## Production baseline
+
+At minimum, the API needs `NODE_ENV=production`, a reachable `DATABASE_URL`, a
+valid `WEBHOOK_SECRET_ENCRYPTION_KEY`, an OIDC or SAML-bridge provider, explicit
+tokens for every machine integration in use, and exact CORS origins for browser
+access.
+
+The repository does not supply TLS termination, secret management, database or
+backup encryption, retention automation, process supervision, monitoring, log
+shipping, or deployment access control. These belong to the operator and target
+platform.

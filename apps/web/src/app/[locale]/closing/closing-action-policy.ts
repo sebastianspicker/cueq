@@ -27,7 +27,7 @@ interface ClosingActionPolicyInput {
   role: CueqRole | null;
   period: ClosingPeriod | null;
   checklist: ClosingChecklistResponse | null;
-  exportFormat: 'CSV_V1' | 'XML_V1';
+  exportFormat: 'CSV_V2' | 'XML_V2';
   workflowReason: string;
 }
 

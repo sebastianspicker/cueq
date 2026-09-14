@@ -1,6 +1,7 @@
 export type WorkflowAction = 'SUBMIT' | 'APPROVE' | 'REJECT' | 'DELEGATE' | 'CANCEL';
 
 export interface WorkflowInboxItem {
+  assignmentId: string | null;
   id: string;
   type: string;
   status: string;

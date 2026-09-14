@@ -1,59 +1,61 @@
 # Contributing
 
-cueq is source-alpha software for synthetic local evaluation. Keep changes
-reviewable and never add real personal data, secrets, telemetry, or unapproved
-production dependencies.
+Bug reports, documentation fixes, tests, and code contributions are welcome.
+Use invented data in examples, screenshots, and test cases. Keep credentials,
+real personnel records, and production logs out of issues and pull requests.
 
-## Before changing code
+## Getting started
 
-- Read affected source, contracts, migrations, and existing tests.
-- Preserve package dependency direction: contracts and policy are leaf
-  packages; domain is pure and depends only on policy; API and web sit at the
-  edges; database owns Prisma.
-- Keep API feature internals private and import another feature only through
-  its `public.ts`. Use narrow ports for cross-feature aggregate mutation,
-  especially around workflows and closing.
-- Do not hand-edit generated OpenAPI or database documentation.
+Follow [Development](docs/DEVELOPMENT.md) to install dependencies and start the
+application. You will need Node.js 22.13 or later, Docker with Compose, GNU
+Make, and OpenSSL. The repository wrapper uses pnpm 11.24.0.
 
-## Local setup
+An issue is a useful place to discuss a larger feature or behavior change
+before implementation. Check existing issues before starting work so
+others can coordinate with you.
 
-```bash
-cp .env.example .env
-openssl rand -base64 32
-# Set WEBHOOK_SECRET_ENCRYPTION_KEY in .env.
-make setup
-pnpm --filter @cueq/database db:seed:demo
-```
+## Making a change
 
-The local database is disposable. Read [docs/ALPHA.md](docs/ALPHA.md) before
-running setup, reset, cleanup, or database commands against anything you need
-to retain.
+Read the affected code and tests before editing. Keep each pull request focused
+on one problem, and preserve unrelated changes in your checkout.
 
-## Verification
+Shared packages and API features have dependency rules described in
+[Architecture](ARCHITECTURE.md). When changing an API, event, or database
+contract, check its callers as well as its tests. Prisma schema changes need a
+migration. Change the source of generated files, then run `make generate` and
+review the output.
 
-Run the narrowest relevant command while editing, then the broadest practical
-gate:
+Keep German and English interface text in sync. Update the relevant guide when
+a change affects a command, configuration setting, or documented behavior.
+Do not introduce telemetry or production dependencies without discussing them
+with the maintainers.
 
-```bash
-make quick
-make docs-check
-make schemas
-make openapi-check
-make build
-```
+## Checking your work
 
-`make check` needs PostgreSQL and the installed project toolchain. Add focused
-tests for changed behavior, including invalid input and role boundaries where
-appropriate. Database-backed transaction, migration, and concurrency behavior
-needs a real PostgreSQL lane; visible browser behavior needs a browser lane.
-Do not claim either lane passed when it was not run.
+Run the affected tests while editing, then `make quick`. For documentation-only
+changes, run `make docs-check` and Prettier on the edited files.
 
-## Contracts, documentation, and pull requests
+Other checks depend on the change:
 
-For API, contract, or Prisma changes, run `make generate`, `make schemas`, and
-`make openapi-check`; review derived artifacts rather than editing them by
-hand. Update documentation whenever paths, commands, environment variables,
-routes, or behavior change.
+| Change                                     | Checks                                                                                       |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| API, Zod, JSON Schema, or Prisma contracts | `make generate`, `make schemas`, `make openapi-check`; review generated files and migrations |
+| Database or API behavior                   | `make check` against a disposable PostgreSQL database                                        |
+| Build or packaging                         | `make build`                                                                                 |
+| Browser behavior                           | Exercise the changed flow in the browser, including relevant error and permission states     |
 
-Pull requests should explain the behavior or contract change, affected modules
-and artifacts, checks run, unavailable checks, and remaining uncertainty.
+Add tests for changed behavior, including invalid input and access restrictions
+where relevant. [Testing](docs/TESTING.md) explains the suites and their
+requirements.
+
+## Opening a pull request
+
+Describe the problem, what changes for the user or caller, and how you checked
+it. Include screenshots for visible interface changes and explain any new
+migration or configuration requirement. If you could not run a relevant
+check, say which one and why.
+
+Use a Conventional Commit subject, such as `fix: preserve booking filters` or
+`docs: clarify local setup`. Add user-visible changes to
+[CHANGELOG.md](CHANGELOG.md). Maintainers preparing a release should follow the
+[release guide](docs/RELEASING.md).

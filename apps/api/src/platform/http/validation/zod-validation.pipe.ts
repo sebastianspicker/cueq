@@ -34,3 +34,8 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
     });
   }
 }
+
+/** Validate service entrypoints that are also called outside HTTP controllers. */
+export function parseRequest<T>(schema: ZodType<T, ZodTypeDef, unknown>, input: unknown): T {
+  return new ZodValidationPipe(schema).transform(input);
+}

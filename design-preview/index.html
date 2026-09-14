@@ -1,0 +1,1956 @@
+<!doctype html>
+<html lang="de" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cueq — Design-Preview 2026</title>
+    <style>
+      /* ================================================================
+   cueq · 2026 design direction — "Ledger"
+   Präzise · ruhig · archivarisch. Ein Akzent, Haarlinien statt Karten.
+   ================================================================ */
+
+      :root {
+        --bg: #eef1f0;
+        --bg-raise: #f7f9f8;
+        --surface: #fdfefe;
+        --surface-hover: #f3f6f5;
+        --hairline: rgba(16, 24, 31, 0.1);
+        --hairline-soft: rgba(16, 24, 31, 0.055);
+        --text: #131c24;
+        --text-2: #55636d;
+        --text-3: #84919a;
+        --accent: #0a6b71;
+        --accent-hover: #085a5f;
+        --accent-ink: #084f54;
+        --accent-soft: rgba(10, 107, 113, 0.085);
+        --focus: #0e7fa6;
+        --ok: #1d7a53;
+        --ok-soft: rgba(29, 122, 83, 0.1);
+        --warn: #92610b;
+        --warn-soft: rgba(146, 97, 11, 0.11);
+        --err: #b03a32;
+        --err-soft: rgba(176, 58, 50, 0.09);
+        --work: rgba(10, 107, 113, 0.82);
+        --pause: #d9c9a6;
+        --now: #b03a32;
+
+        --r-sm: 7px;
+        --r-md: 10px;
+        --r-lg: 14px;
+        --shadow-pop: 0 1px 2px rgba(16, 24, 31, 0.06), 0 8px 28px rgba(16, 24, 31, 0.13);
+        --shadow-menu: 0 1px 2px rgba(16, 24, 31, 0.05), 0 12px 40px rgba(16, 24, 31, 0.16);
+        --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+        --t-fast: 140ms;
+        --t-med: 220ms;
+
+        --s-1: 4px;
+        --s-2: 8px;
+        --s-3: 12px;
+        --s-4: 16px;
+        --s-5: 24px;
+        --s-6: 32px;
+        --s-7: 48px;
+      }
+
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+        --bg: #131a1c;
+        --bg-raise: #182123;
+        --surface: #1c2629;
+        --surface-hover: #222d30;
+        --hairline: rgba(238, 243, 243, 0.11);
+        --hairline-soft: rgba(238, 243, 243, 0.06);
+        --text: #ebf1f2;
+        --text-2: #a3b2b7;
+        --text-3: #6e8087;
+        --accent: #6fbecb;
+        --accent-hover: #8ccfd9;
+        --accent-ink: #9ed7e0;
+        --accent-soft: rgba(111, 190, 203, 0.13);
+        --focus: #7cc6de;
+        --ok: #7cc6a2;
+        --ok-soft: rgba(124, 198, 162, 0.13);
+        --warn: #ddbb77;
+        --warn-soft: rgba(221, 187, 119, 0.13);
+        --err: #eb9a92;
+        --err-soft: rgba(235, 154, 146, 0.12);
+        --work: rgba(111, 190, 203, 0.85);
+        --pause: #4a4636;
+        --now: #eb9a92;
+        --shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 32px rgba(0, 0, 0, 0.45);
+        --shadow-menu: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 44px rgba(0, 0, 0, 0.55);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        font-size: 16px;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      button {
+        font: inherit;
+        cursor: pointer;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+        border-radius: var(--r-sm);
+      }
+
+      .tnum {
+        font-feature-settings: 'tnum' 1;
+        font-variant-numeric: tabular-nums;
+      }
+      .mono {
+        font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, monospace;
+        font-size: 0.8125em;
+      }
+
+      /* ---------- App shell ---------- */
+
+      .app {
+        display: grid;
+        grid-template-columns: 232px 1fr;
+        min-height: 100vh;
+      }
+
+      /* ---------- Sidebar ---------- */
+
+      .side {
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-raise);
+        border-right: 1px solid var(--hairline-soft);
+        padding: var(--s-4) var(--s-3);
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+
+      .brand {
+        display: flex;
+        align-items: baseline;
+        gap: 7px;
+        padding: 2px var(--s-2) var(--s-4);
+      }
+      .brand-mark {
+        width: 20px;
+        height: 20px;
+        align-self: center;
+        color: var(--accent);
+      }
+      .brand-word {
+        font-weight: 680;
+        font-size: 1.0625rem;
+        letter-spacing: -0.02em;
+      }
+      .brand-sub {
+        font-size: 0.6875rem;
+        color: var(--text-3);
+        letter-spacing: 0.01em;
+      }
+
+      .nav-group {
+        margin-top: var(--s-3);
+      }
+      .nav-label {
+        padding: 0 var(--s-2) var(--s-1);
+        font-size: 0.6563rem;
+        font-weight: 640;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--text-3);
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 7px var(--s-2);
+        border: 0;
+        border-radius: var(--r-sm);
+        background: transparent;
+        color: var(--text-2);
+        font-size: 0.8438rem;
+        font-weight: 520;
+        text-align: left;
+        transition:
+          background var(--t-fast) var(--ease),
+          color var(--t-fast) var(--ease);
+      }
+      .nav-item svg {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        opacity: 0.78;
+      }
+      .nav-item:hover {
+        background: var(--surface-hover);
+        color: var(--text);
+      }
+      .nav-item[aria-current='page'] {
+        background: var(--accent-soft);
+        color: var(--accent-ink);
+        font-weight: 620;
+      }
+      .nav-item[aria-current='page'] svg {
+        opacity: 1;
+      }
+      .nav-item .badge {
+        margin-left: auto;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.6875rem;
+        font-weight: 650;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      :root[data-theme='dark'] .nav-item .badge {
+        color: #10252a;
+      }
+
+      .side-foot {
+        margin-top: auto;
+        padding: var(--s-3) var(--s-2) 2px;
+        border-top: 1px solid var(--hairline-soft);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #0a6b71, #0e8a83);
+        color: #fff;
+        font-size: 0.6875rem;
+        font-weight: 650;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+      }
+      .side-foot .who {
+        min-width: 0;
+      }
+      .side-foot .who b {
+        display: block;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .side-foot .who span {
+        font-size: 0.6875rem;
+        color: var(--text-3);
+      }
+
+      /* ---------- Top bar ---------- */
+
+      .main {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: var(--s-4);
+        padding: 0 var(--s-6);
+        height: 56px;
+        background: color-mix(in srgb, var(--bg) 82%, transparent);
+        backdrop-filter: saturate(1.4) blur(12px);
+        border-bottom: 1px solid var(--hairline-soft);
+      }
+      .crumbs {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        font-size: 0.8438rem;
+        min-width: 0;
+      }
+      .crumbs .crumb-root {
+        color: var(--text-3);
+      }
+      .crumbs .sep {
+        color: var(--text-3);
+      }
+      .crumbs .crumb-cur {
+        font-weight: 640;
+      }
+
+      .cmdk {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 230px;
+        padding: 6px 10px;
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-md);
+        background: var(--surface);
+        color: var(--text-3);
+        font-size: 0.8125rem;
+        transition:
+          border-color var(--t-fast) var(--ease),
+          box-shadow var(--t-fast) var(--ease);
+      }
+      .cmdk:hover {
+        border-color: var(--text-3);
+      }
+      .cmdk svg {
+        width: 14px;
+        height: 14px;
+      }
+      .cmdk kbd {
+        margin-left: auto;
+        font-family: inherit;
+        font-size: 0.6563rem;
+        color: var(--text-3);
+        border: 1px solid var(--hairline);
+        border-radius: 5px;
+        padding: 1px 5px;
+        background: var(--bg-raise);
+      }
+
+      .env-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.7188rem;
+        font-weight: 600;
+        color: var(--warn);
+        background: var(--warn-soft);
+        padding: 4px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+      }
+      .env-chip .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .icon-btn {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        border-radius: var(--r-md);
+        background: transparent;
+        color: var(--text-2);
+        transition:
+          background var(--t-fast) var(--ease),
+          color var(--t-fast) var(--ease);
+      }
+      .icon-btn:hover {
+        background: var(--surface-hover);
+        color: var(--text);
+      }
+      .icon-btn svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      /* ---------- Content ---------- */
+
+      .content {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: var(--s-6) var(--s-6) 96px;
+      }
+
+      .page-head {
+        margin-bottom: var(--s-6);
+      }
+      .page-kicker {
+        font-size: 0.6875rem;
+        font-weight: 640;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--accent-ink);
+        margin: 0 0 6px;
+      }
+      .page-title {
+        margin: 0;
+        font-size: 1.625rem;
+        line-height: 1.2;
+        letter-spacing: -0.022em;
+        font-weight: 690;
+        text-wrap: balance;
+      }
+      .page-desc {
+        margin: 6px 0 0;
+        color: var(--text-2);
+        font-size: 0.875rem;
+        max-width: 62ch;
+      }
+
+      /* ---------- Buttons ---------- */
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 34px;
+        padding: 0 14px;
+        border-radius: var(--r-md);
+        border: 1px solid transparent;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        transition:
+          background var(--t-fast) var(--ease),
+          border-color var(--t-fast) var(--ease),
+          color var(--t-fast) var(--ease),
+          transform var(--t-fast) var(--ease);
+      }
+      .btn:active {
+        transform: translateY(1px);
+      }
+      .btn svg {
+        width: 15px;
+        height: 15px;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+      }
+      :root[data-theme='dark'] .btn-primary {
+        color: #10252a;
+      }
+      .btn-primary:hover {
+        background: var(--accent-hover);
+      }
+      .btn-quiet {
+        background: transparent;
+        border-color: var(--hairline);
+        color: var(--text);
+      }
+      .btn-quiet:hover {
+        background: var(--surface-hover);
+        border-color: var(--text-3);
+      }
+      .btn-danger-quiet {
+        background: transparent;
+        border-color: var(--hairline);
+        color: var(--err);
+      }
+      .btn-danger-quiet:hover {
+        background: var(--err-soft);
+        border-color: var(--err);
+      }
+      .btn-sm {
+        min-height: 29px;
+        padding: 0 11px;
+        font-size: 0.75rem;
+        border-radius: var(--r-sm);
+      }
+
+      /* ---------- Section & hairline layout ---------- */
+
+      .section {
+        margin-top: var(--s-7);
+      }
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        gap: var(--s-3);
+        padding-bottom: var(--s-2);
+        border-bottom: 1px solid var(--hairline);
+        margin-bottom: 0;
+      }
+      .section-head h2 {
+        margin: 0;
+        font-size: 0.9375rem;
+        font-weight: 650;
+        letter-spacing: -0.008em;
+      }
+      .section-head .meta {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--text-3);
+      }
+
+      /* ---------- Heute: day status ---------- */
+
+      .day-status {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: var(--s-5);
+        align-items: end;
+        padding: var(--s-5) 0 var(--s-4);
+      }
+      .day-big {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+      }
+      .day-big .val {
+        font-size: 2.625rem;
+        line-height: 1;
+        font-weight: 690;
+        letter-spacing: -0.03em;
+      }
+      .day-big .unit {
+        font-size: 1rem;
+        color: var(--text-2);
+        font-weight: 560;
+      }
+      .day-target {
+        color: var(--text-3);
+        font-size: 0.8125rem;
+      }
+      .day-actions {
+        display: flex;
+        gap: var(--s-2);
+      }
+
+      /* Timeline */
+      .timeline {
+        margin-top: var(--s-4);
+      }
+      .tl-track {
+        position: relative;
+        height: 26px;
+        border-radius: var(--r-sm);
+        background: var(--surface-hover);
+        border: 1px solid var(--hairline-soft);
+        overflow: hidden;
+        display: flex;
+      }
+      .tl-seg {
+        height: 100%;
+        position: relative;
+      }
+      .tl-seg.work {
+        background: var(--work);
+      }
+      .tl-seg.pause {
+        background: repeating-linear-gradient(-45deg, var(--pause) 0 5px, transparent 5px 10px);
+      }
+      .tl-now {
+        position: absolute;
+        top: -3px;
+        bottom: -3px;
+        width: 2px;
+        background: var(--now);
+      }
+      .tl-now::after {
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--now);
+        border: 2px solid var(--bg);
+      }
+      .tl-scale {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 6px;
+        font-size: 0.6875rem;
+        color: var(--text-3);
+      }
+      .tl-legend {
+        display: flex;
+        gap: var(--s-4);
+        margin-top: var(--s-2);
+        font-size: 0.75rem;
+        color: var(--text-2);
+      }
+      .tl-legend .key {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .tl-legend .swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+      }
+
+      /* Salden — quiet metric row, no cards */
+      .salden {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--s-5);
+        padding: var(--s-4) 0;
+      }
+      .saldo {
+        min-width: 0;
+      }
+      .saldo + .saldo {
+        border-left: 1px solid var(--hairline-soft);
+        padding-left: var(--s-5);
+      }
+      .saldo .k {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.6875rem;
+        font-weight: 620;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 6px;
+      }
+      .saldo .v {
+        font-size: 1.375rem;
+        font-weight: 660;
+        letter-spacing: -0.02em;
+      }
+      .saldo .v .unit {
+        font-size: 0.8125rem;
+        color: var(--text-3);
+        font-weight: 540;
+        margin-left: 3px;
+      }
+      .saldo .hint {
+        font-size: 0.75rem;
+        color: var(--text-2);
+        margin-top: 3px;
+      }
+      .saldo .hint.pos {
+        color: var(--ok);
+      }
+
+      /* Inline notice — icon + label, never color alone */
+      .notice {
+        display: flex;
+        gap: var(--s-3);
+        padding: var(--s-3) var(--s-4);
+        border-radius: var(--r-md);
+        font-size: 0.8125rem;
+        align-items: flex-start;
+      }
+      .notice svg {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        margin-top: 2px;
+      }
+      .notice-warn {
+        background: var(--warn-soft);
+        color: var(--text);
+      }
+      .notice-warn svg,
+      .notice-warn .tag {
+        color: var(--warn);
+      }
+      .notice .tag {
+        font-weight: 680;
+        margin-right: 2px;
+      }
+      .notice .act {
+        margin-left: auto;
+        flex: none;
+      }
+
+      /* Records list — the core "ledger" pattern */
+      .record {
+        display: grid;
+        grid-template-columns: 92px 1fr auto auto;
+        align-items: center;
+        gap: var(--s-4);
+        padding: 11px var(--s-2);
+        border-bottom: 1px solid var(--hairline-soft);
+        border-radius: var(--r-sm);
+        transition: background var(--t-fast) var(--ease);
+      }
+      .record:hover {
+        background: var(--surface-hover);
+      }
+      .record .time {
+        font-size: 0.8125rem;
+        color: var(--text-2);
+      }
+      .record .what {
+        font-weight: 560;
+      }
+      .record .what .sub {
+        display: block;
+        font-weight: 460;
+        font-size: 0.75rem;
+        color: var(--text-3);
+      }
+
+      /* Status chips — shape + icon + text, never color alone */
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 23px;
+        padding: 0 9px;
+        border-radius: 6px;
+        font-size: 0.6875rem;
+        font-weight: 640;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+      }
+      .chip::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 2px;
+        background: currentColor;
+      }
+      .chip-ok {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .chip-warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .chip-err {
+        background: var(--err-soft);
+        color: var(--err);
+      }
+      .chip-info {
+        background: var(--accent-soft);
+        color: var(--accent-ink);
+      }
+      .chip-neutral {
+        background: var(--surface-hover);
+        color: var(--text-2);
+        border: 1px solid var(--hairline-soft);
+      }
+      .chip-err::before {
+        border-radius: 50%;
+      } /* error = round */
+      .chip-warn::before {
+        clip-path: polygon(50% 0, 100% 100%, 0 100%);
+        border-radius: 0;
+      } /* warn = triangle */
+
+      /* ---------- Buchungen table ---------- */
+
+      .tablewrap {
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        overflow: hidden;
+      }
+      table.grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8125rem;
+      }
+      table.grid th {
+        text-align: left;
+        font-size: 0.6563rem;
+        font-weight: 640;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        padding: 10px var(--s-4);
+        border-bottom: 1px solid var(--hairline);
+        background: var(--bg-raise);
+      }
+      table.grid td {
+        padding: 10px var(--s-4);
+        border-bottom: 1px solid var(--hairline-soft);
+        vertical-align: middle;
+      }
+      table.grid tr:last-child td {
+        border-bottom: 0;
+      }
+      table.grid tbody tr {
+        transition: background var(--t-fast) var(--ease);
+      }
+      table.grid tbody tr:hover {
+        background: var(--surface-hover);
+      }
+      td.right,
+      th.right {
+        text-align: right;
+      }
+      .rowlink {
+        color: var(--accent-ink);
+        font-weight: 600;
+        background: none;
+        border: 0;
+        padding: 0;
+      }
+      .rowlink:hover {
+        text-decoration: underline;
+      }
+
+      /* ---------- Genehmigungen inbox ---------- */
+
+      .inbox {
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        overflow: hidden;
+      }
+      .inbox-item {
+        display: grid;
+        grid-template-columns: 38px 1fr auto;
+        gap: var(--s-4);
+        padding: var(--s-4);
+        border-bottom: 1px solid var(--hairline-soft);
+        align-items: center;
+        transition: background var(--t-fast) var(--ease);
+      }
+      .inbox-item:last-child {
+        border-bottom: 0;
+      }
+      .inbox-item:hover,
+      .inbox-item.selected {
+        background: var(--surface-hover);
+      }
+      .inbox-item .body b {
+        font-weight: 620;
+      }
+      .inbox-item .body .line2 {
+        font-size: 0.7813rem;
+        color: var(--text-2);
+        margin-top: 1px;
+      }
+      .inbox-item .body .line3 {
+        font-size: 0.7188rem;
+        color: var(--text-3);
+        margin-top: 3px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .inbox-item .acts {
+        display: flex;
+        gap: var(--s-2);
+      }
+      .inbox-item.done .body {
+        opacity: 0.55;
+      }
+
+      .kbd-hint {
+        font-size: 0.7188rem;
+        color: var(--text-3);
+        display: flex;
+        gap: var(--s-4);
+      }
+      .kbd-hint kbd {
+        font-family: inherit;
+        border: 1px solid var(--hairline);
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        padding: 0 5px;
+        font-size: 0.6563rem;
+        background: var(--surface);
+      }
+
+      /* ---------- Zustände (states) ---------- */
+
+      .state-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--s-5);
+      }
+      .state-demo {
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        padding: var(--s-5);
+        min-height: 150px;
+      }
+      .state-demo h3 {
+        margin: 0 0 var(--s-3);
+        font-size: 0.75rem;
+        font-weight: 640;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-3);
+      }
+
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: var(--s-5) var(--s-4);
+      }
+      .empty .glyph {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        border: 1.5px dashed var(--text-3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-3);
+        margin-bottom: var(--s-3);
+      }
+      .empty b {
+        font-weight: 630;
+        font-size: 0.875rem;
+      }
+      .empty p {
+        margin: 4px 0 var(--s-3);
+        color: var(--text-2);
+        font-size: 0.8125rem;
+        max-width: 34ch;
+      }
+
+      .skel {
+        display: grid;
+        gap: 10px;
+      }
+      .skel .bar {
+        height: 13px;
+        border-radius: 6px;
+        background: linear-gradient(
+          90deg,
+          var(--surface-hover) 25%,
+          var(--hairline-soft) 50%,
+          var(--surface-hover) 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.4s infinite linear;
+      }
+      @keyframes shimmer {
+        to {
+          background-position: -200% 0;
+        }
+      }
+
+      .errstate {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--s-2);
+      }
+      .errstate .msg {
+        display: flex;
+        gap: 8px;
+        color: var(--err);
+        font-size: 0.8125rem;
+        font-weight: 600;
+        align-items: center;
+      }
+      .errstate .msg svg {
+        width: 15px;
+        height: 15px;
+      }
+      .errstate .detail {
+        font-size: 0.75rem;
+        color: var(--text-2);
+      }
+
+      /* ---------- Command palette ---------- */
+
+      .scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        background: rgba(10, 18, 22, 0.38);
+        backdrop-filter: blur(3px);
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 14vh;
+      }
+      .scrim.open {
+        display: flex;
+      }
+      .palette {
+        width: 560px;
+        max-width: calc(100vw - 32px);
+        background: var(--surface);
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-menu);
+        overflow: hidden;
+        animation: pop var(--t-med) var(--ease);
+      }
+      @keyframes pop {
+        from {
+          opacity: 0;
+          transform: translateY(-6px) scale(0.985);
+        }
+      }
+      .palette input {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        padding: 15px var(--s-4);
+        font-size: 0.9375rem;
+        color: var(--text);
+        border-bottom: 1px solid var(--hairline-soft);
+        outline: none;
+      }
+      .palette .plist {
+        padding: var(--s-2);
+        max-height: 320px;
+        overflow: auto;
+      }
+      .pitem {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border-radius: var(--r-sm);
+        font-size: 0.8438rem;
+        color: var(--text);
+        cursor: pointer;
+      }
+      .pitem svg {
+        width: 15px;
+        height: 15px;
+        color: var(--text-3);
+      }
+      .pitem .k {
+        margin-left: auto;
+        font-size: 0.6875rem;
+        color: var(--text-3);
+      }
+      .pitem:hover,
+      .pitem.active {
+        background: var(--accent-soft);
+        color: var(--accent-ink);
+      }
+      .pitem:hover svg,
+      .pitem.active svg {
+        color: var(--accent-ink);
+      }
+
+      /* ---------- Toast ---------- */
+
+      .toast {
+        position: fixed;
+        bottom: 22px;
+        left: 50%;
+        transform: translate(-50%, 12px);
+        z-index: 80;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        background: var(--text);
+        color: var(--bg);
+        padding: 10px 16px;
+        border-radius: var(--r-md);
+        font-size: 0.8125rem;
+        font-weight: 560;
+        box-shadow: var(--shadow-pop);
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity var(--t-med) var(--ease),
+          transform var(--t-med) var(--ease);
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+      .toast svg {
+        width: 15px;
+        height: 15px;
+        color: var(--ok);
+      }
+
+      /* ---------- Views ---------- */
+
+      .view {
+        display: none;
+      }
+      .view.active {
+        display: block;
+        animation: fadein var(--t-med) var(--ease);
+      }
+      @keyframes fadein {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      /* ---------- Responsive ---------- */
+
+      @media (max-width: 900px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          position: fixed;
+          z-index: 50;
+          inset: 0 auto 0 0;
+          width: 264px;
+          transform: translateX(-100%);
+          transition: transform var(--t-med) var(--ease);
+          box-shadow: var(--shadow-menu);
+          background: var(--bg-raise);
+        }
+        .side.open {
+          transform: translateX(0);
+        }
+        .menu-btn {
+          display: inline-flex !important;
+        }
+        .salden {
+          grid-template-columns: 1fr 1fr;
+          gap: var(--s-4) var(--s-5);
+        }
+        .saldo + .saldo {
+          border-left: 0;
+          padding-left: 0;
+        }
+        .day-status {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+        .state-grid {
+          grid-template-columns: 1fr;
+        }
+        .content {
+          padding: var(--s-5) var(--s-4) 80px;
+        }
+        .cmdk {
+          min-width: 0;
+        }
+        .cmdk span.lbl {
+          display: none;
+        }
+        .record {
+          grid-template-columns: 80px 1fr auto;
+        }
+        .record .rec-act {
+          display: none;
+        }
+        .inbox-item {
+          grid-template-columns: 1fr;
+        }
+        .inbox-item .acts {
+          justify-content: flex-start;
+        }
+      }
+      .menu-btn {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- ================= Sidebar ================= -->
+      <aside class="side" id="side" aria-label="Hauptnavigation">
+        <div class="brand">
+          <svg
+            class="brand-mark"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M14 5a7 7 0 1 0 0 14" />
+            <path d="M10 5a7 7 0 1 1 0 14" opacity=".45" />
+          </svg>
+          <span class="brand-word">cueq</span>
+          <span class="brand-sub">Hochschulen</span>
+        </div>
+
+        <nav>
+          <div class="nav-group">
+            <div class="nav-label">Arbeitstag</div>
+            <button class="nav-item" data-view="heute" aria-current="page">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="8" cy="8" r="6" />
+                <path d="M8 4.5V8l2.5 1.5" />
+              </svg>
+              Heute
+            </button>
+            <button class="nav-item" data-view="buchungen">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 2.5h10v11H3z" />
+                <path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" />
+              </svg>
+              Buchungen
+            </button>
+            <button class="nav-item" data-view="genehmigungen">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2.5 4.5l5.5 3.5 5.5-3.5" />
+                <path d="M2.5 3.5h11v9h-11z" />
+              </svg>
+              Genehmigungen
+              <span class="badge" id="nav-badge">4</span>
+            </button>
+          </div>
+
+          <div class="nav-group">
+            <div class="nav-label">Planung</div>
+            <button class="nav-item" data-view="heute">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+                <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" />
+              </svg>
+              Urlaub &amp; Abwesenheit
+            </button>
+            <button class="nav-item" data-view="heute">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M2.5 5.5h4v4h-4zM9.5 5.5h4v4h-4zM6 9.5h4v4H6z" />
+              </svg>
+              Dienstplan
+            </button>
+            <button class="nav-item" data-view="heute">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="5.5" cy="6" r="2" />
+                <circle cx="10.5" cy="6" r="2" />
+                <path d="M2 13c.5-2 2-3 3.5-3s3 1 3.5 3M7 13c.5-2 2-3 3.5-3s3 1 3.5 3" />
+              </svg>
+              Team-Kalender
+            </button>
+          </div>
+
+          <div class="nav-group">
+            <div class="nav-label">Verwaltung</div>
+            <button class="nav-item" data-view="heute">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 13.5h10M4 13.5v-8M8 13.5v-5M12 13.5v-10" />
+              </svg>
+              Monatsabschluss
+            </button>
+            <button class="nav-item" data-view="heute">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M8 2.5v11M4 5.5l4-3 4 3M3 13.5h10" />
+              </svg>
+              Berichte
+            </button>
+            <button class="nav-item" data-view="zustaende">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 2.5h5l3 3v8H4z" />
+                <path d="M6 8h4M6 10.5h4" />
+              </svg>
+              Zustände
+              <span class="k" style="margin-left: auto; font-size: 0.6563rem; color: var(--text-3)"
+                >Demo</span
+              >
+            </button>
+            <button class="nav-item" data-view="heute">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="8" cy="8" r="2.2" />
+                <path
+                  d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2"
+                />
+              </svg>
+              Einstellungen
+            </button>
+          </div>
+        </nav>
+
+        <div class="side-foot">
+          <span class="avatar" aria-hidden="true">MB</span>
+          <span class="who">
+            <b>Mara Berger</b>
+            <span>Sachbearbeitung · Inst. f. Informatik</span>
+          </span>
+        </div>
+      </aside>
+
+      <!-- ================= Main ================= -->
+      <div class="main">
+        <header class="topbar">
+          <button class="icon-btn menu-btn" id="menu-btn" aria-label="Navigation öffnen">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
+            </svg>
+          </button>
+          <nav class="crumbs" aria-label="Brotkrumen">
+            <span class="crumb-root" id="crumb-root">Arbeitstag</span>
+            <span class="sep" aria-hidden="true">/</span>
+            <span class="crumb-cur" id="crumb-cur">Heute</span>
+          </nav>
+
+          <button class="cmdk" id="cmdk-open" aria-label="Befehlspalette öffnen">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+              <circle cx="7" cy="7" r="4.5" />
+              <path d="M10.5 10.5L14 14" />
+            </svg>
+            <span class="lbl">Suchen oder handeln …</span>
+            <kbd>⌘K</kbd>
+          </button>
+
+          <span
+            class="env-chip"
+            title="Lokale Auswertung mit Mock-Anmeldung und synthetischen Daten"
+          >
+            <span class="dot" aria-hidden="true"></span>Lokale Auswertung
+          </span>
+
+          <button class="icon-btn" id="theme-btn" aria-label="Farbschema wechseln">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M13.5 9.5A5.8 5.8 0 0 1 6.5 2.5a5.8 5.8 0 1 0 7 7z" />
+            </svg>
+          </button>
+        </header>
+
+        <main class="content" id="main">
+          <!-- ============ View: Heute ============ -->
+          <section class="view active" id="view-heute" aria-labelledby="heute-title">
+            <div class="page-head">
+              <p class="page-kicker">Dienstag, 31. August 2026</p>
+              <h1 class="page-title" id="heute-title">Guten Tag, Mara.</h1>
+            </div>
+
+            <div class="notice notice-warn" role="status">
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                aria-hidden="true"
+              >
+                <path d="M8 2.5L14.5 13h-13z" />
+                <path d="M8 6.5v3M8 11h.01" />
+              </svg>
+              <span
+                ><span class="tag">Ruhezeit-Hinweis.</span> Die gestrige Arbeitszeit endete um 21:47
+                Uhr. Nach § 5 ArbZG ist ein Beginn vor 06:47 Uhr nicht zulässig — erfüllt.</span
+              >
+              <span class="act"><button class="btn btn-quiet btn-sm">Details</button></span>
+            </div>
+
+            <div class="day-status">
+              <div>
+                <div class="day-big">
+                  <span class="val tnum" id="day-val">6:12</span>
+                  <span class="unit">h gearbeitet</span>
+                </div>
+                <div class="day-target">
+                  Soll heute: 7:48 h · Seit 07:34 Uhr gebucht · Gleitzeit +12:34 h
+                </div>
+              </div>
+              <div class="day-actions">
+                <button class="btn btn-quiet">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <path d="M8 3v10M3 8h10" />
+                  </svg>
+                  Korrektur anfragen
+                </button>
+                <button class="btn btn-primary" id="go-btn">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7">
+                    <path d="M6 2.5H3.5v11H6M10.5 5l3 3-3 3M13 8H6.5" />
+                  </svg>
+                  Gehen buchen
+                </button>
+              </div>
+            </div>
+
+            <div class="timeline" aria-label="Zeitleiste des heutigen Tages">
+              <div
+                class="tl-track"
+                role="img"
+                aria-label="Arbeitszeit 07:34 bis 12:02, Pause bis 12:38, danach Arbeitszeit bis jetzt, 13:52 Uhr"
+              >
+                <div class="tl-seg work" style="flex: 0 0 44.8%"></div>
+                <div class="tl-seg pause" style="flex: 0 0 6.3%"></div>
+                <div class="tl-seg work" style="flex: 0 0 12.9%"></div>
+                <div class="tl-now" style="left: 64%" title="Jetzt: 13:52"></div>
+              </div>
+              <div class="tl-scale tnum" aria-hidden="true">
+                <span>06:00</span><span>09:00</span><span>12:00</span><span>15:00</span
+                ><span>18:00</span><span>21:00</span>
+              </div>
+              <div class="tl-legend">
+                <span class="key"
+                  ><span class="swatch" style="background: var(--work)"></span>Arbeitszeit</span
+                >
+                <span class="key"
+                  ><span
+                    class="swatch"
+                    style="
+                      background: repeating-linear-gradient(
+                        -45deg,
+                        var(--pause) 0 3px,
+                        transparent 3px 6px
+                      );
+                      border: 1px solid var(--hairline);
+                    "
+                  ></span
+                  >Pause</span
+                >
+                <span class="key"
+                  ><span
+                    class="swatch"
+                    style="background: var(--now); width: 2px; height: 14px; border-radius: 1px"
+                  ></span
+                  >Jetzt 13:52</span
+                >
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">
+                <h2>Salden</h2>
+                <span class="meta">Stand: heute, 13:52 Uhr</span>
+              </div>
+              <div class="salden">
+                <div class="saldo">
+                  <div class="k">Gleitzeit</div>
+                  <div class="v tnum">+12:34 <span class="unit">h</span></div>
+                  <div class="hint pos">im zulässigen Rahmen</div>
+                </div>
+                <div class="saldo">
+                  <div class="k">Urlaub 2026</div>
+                  <div class="v tnum">21,5 <span class="unit">Tage</span></div>
+                  <div class="hint">von 30 Tagen</div>
+                </div>
+                <div class="saldo">
+                  <div class="k">Resturlaub 2025</div>
+                  <div class="v tnum">3,0 <span class="unit">Tage</span></div>
+                  <div class="hint">verfällt 30.09.2026</div>
+                </div>
+                <div class="saldo">
+                  <div class="k">Langzeitkonto</div>
+                  <div class="v tnum">41:10 <span class="unit">h</span></div>
+                  <div class="hint">Obergrenze 120 h</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-head">
+                <h2>Buchungen heute</h2>
+                <span class="meta"
+                  ><button class="rowlink" data-goto="buchungen">Alle Buchungen →</button></span
+                >
+              </div>
+              <div class="records">
+                <div class="record">
+                  <span class="time tnum">07:34</span>
+                  <span class="what"
+                    >Kommen<span class="sub">Web-Erfassung · Institut, Geb. E2</span></span
+                  >
+                  <span class="chip chip-ok">Geprüft</span>
+                  <span class="rec-act"
+                    ><button class="btn btn-quiet btn-sm">Korrektur</button></span
+                  >
+                </div>
+                <div class="record">
+                  <span class="time tnum">12:02</span>
+                  <span class="what"
+                    >Pause Beginn<span class="sub">Automatisch vorgeschlagen: 36 Min.</span></span
+                  >
+                  <span class="chip chip-ok">Geprüft</span>
+                  <span class="rec-act"
+                    ><button class="btn btn-quiet btn-sm">Korrektur</button></span
+                  >
+                </div>
+                <div class="record">
+                  <span class="time tnum">12:38</span>
+                  <span class="what"
+                    >Pause Ende · Kommen<span class="sub">Web-Erfassung</span></span
+                  >
+                  <span class="chip chip-ok">Geprüft</span>
+                  <span class="rec-act"
+                    ><button class="btn btn-quiet btn-sm">Korrektur</button></span
+                  >
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ View: Buchungen ============ -->
+          <section class="view" id="view-buchungen" aria-labelledby="buchungen-title">
+            <div class="page-head" style="display: flex; align-items: flex-end; gap: var(--s-4)">
+              <div style="flex: 1; min-width: 0">
+                <p class="page-kicker">Arbeitstag</p>
+                <h1 class="page-title" id="buchungen-title">Buchungen</h1>
+                <p class="page-desc">
+                  August 2026 · 21 Arbeitstage · Korrekturanträge laufen über den
+                  Genehmigungsworkflow.
+                </p>
+              </div>
+              <button class="btn btn-primary">+ Buchung nachtragen</button>
+            </div>
+
+            <div class="tablewrap">
+              <table class="grid">
+                <thead>
+                  <tr>
+                    <th scope="col">Datum</th>
+                    <th scope="col">Von–Bis</th>
+                    <th scope="col" class="right">Arbeitszeit</th>
+                    <th scope="col">Regelprüfung</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="right">Aktion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="tnum">Mo 31.08.</td>
+                    <td class="tnum">07:34 – <span style="color: var(--text-3)">läuft</span></td>
+                    <td class="right tnum">6:12 h</td>
+                    <td><span class="chip chip-ok">Ohne Befund</span></td>
+                    <td><span class="chip chip-info">Heute</span></td>
+                    <td class="right"><button class="btn btn-quiet btn-sm">Details</button></td>
+                  </tr>
+                  <tr>
+                    <td class="tnum">So 30.08.</td>
+                    <td class="tnum">18:12 – 21:47</td>
+                    <td class="right tnum">3:35 h</td>
+                    <td><span class="chip chip-warn">Ruhezeit beachten</span></td>
+                    <td><span class="chip chip-neutral">Gebucht</span></td>
+                    <td class="right"><button class="btn btn-quiet btn-sm">Korrektur</button></td>
+                  </tr>
+                  <tr>
+                    <td class="tnum">Fr 28.08.</td>
+                    <td class="tnum">08:03 – 16:41</td>
+                    <td class="right tnum">8:08 h</td>
+                    <td><span class="chip chip-ok">Ohne Befund</span></td>
+                    <td><span class="chip chip-neutral">Gebucht</span></td>
+                    <td class="right"><button class="btn btn-quiet btn-sm">Korrektur</button></td>
+                  </tr>
+                  <tr>
+                    <td class="tnum">Do 27.08.</td>
+                    <td class="tnum">—</td>
+                    <td class="right tnum">—</td>
+                    <td><span class="chip chip-neutral">Abwesenheit</span></td>
+                    <td><span class="chip chip-info">Urlaub</span></td>
+                    <td class="right"><button class="btn btn-quiet btn-sm">Anzeigen</button></td>
+                  </tr>
+                  <tr>
+                    <td class="tnum">Mi 26.08.</td>
+                    <td class="tnum">07:58 – 17:22</td>
+                    <td class="right tnum">8:44 h</td>
+                    <td><span class="chip chip-err">Pause &lt; 30 Min.</span></td>
+                    <td><span class="chip chip-warn">Korrektur ausstehend</span></td>
+                    <td class="right">
+                      <button class="btn btn-quiet btn-sm">Antrag ansehen</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- ============ View: Genehmigungen ============ -->
+          <section class="view" id="view-genehmigungen" aria-labelledby="gen-title">
+            <div class="page-head" style="display: flex; align-items: flex-end; gap: var(--s-4)">
+              <div style="flex: 1; min-width: 0">
+                <p class="page-kicker">Posteingang</p>
+                <h1 class="page-title" id="gen-title">Genehmigungen</h1>
+                <p class="page-desc">
+                  4 offene Anträge Ihres Teams. Entscheidungen werden revisionssicher protokolliert.
+                </p>
+              </div>
+              <span class="kbd-hint" aria-hidden="true">
+                <span><kbd>j</kbd>/<kbd>k</kbd> auswählen</span>
+                <span><kbd>a</kbd> genehmigen</span>
+                <span><kbd>x</kbd> ablehnen</span>
+              </span>
+            </div>
+
+            <div class="inbox" id="inbox">
+              <div class="inbox-item selected">
+                <span class="avatar" style="background: linear-gradient(135deg, #7a5aa8, #a37fd1)"
+                  >LK</span
+                >
+                <div class="body">
+                  <b>Urlaubsantrag — Lena Krüger</b>
+                  <div class="line2 tnum">Mo 14.09. – Fr 18.09.2026 · 5 Tage · Erholungsurlaub</div>
+                  <div class="line3">
+                    <span class="chip chip-ok">Vertretung geklärt</span>
+                    <span>eingereicht vor 2 Std.</span>
+                  </div>
+                </div>
+                <div class="acts">
+                  <button class="btn btn-danger-quiet btn-sm act-x">Ablehnen</button>
+                  <button class="btn btn-primary btn-sm act-a">Genehmigen</button>
+                </div>
+              </div>
+              <div class="inbox-item">
+                <span class="avatar" style="background: linear-gradient(135deg, #0e8a83, #3fb3a6)"
+                  >TS</span
+                >
+                <div class="body">
+                  <b>Korrekturantrag — Tarek Said</b>
+                  <div class="line2 tnum">
+                    Mi 26.08. · Gehen 17:22 → 18:05 Uhr · „Terminal-Erfassung vergessen“
+                  </div>
+                  <div class="line3">
+                    <span class="chip chip-warn">Pause &lt; 30 Min. bleibt bestehen</span>
+                    <span>eingereicht gestern, 16:02</span>
+                  </div>
+                </div>
+                <div class="acts">
+                  <button class="btn btn-danger-quiet btn-sm act-x">Ablehnen</button>
+                  <button class="btn btn-primary btn-sm act-a">Genehmigen</button>
+                </div>
+              </div>
+              <div class="inbox-item">
+                <span class="avatar" style="background: linear-gradient(135deg, #b4722e, #d9a05b)"
+                  >AH</span
+                >
+                <div class="body">
+                  <b>Dienstplan-Tausch — Aylin Hwang</b>
+                  <div class="line2 tnum">
+                    Fr 04.09. Frühdienst ↔ Mi 09.09. Spätdienst · mit P. Neumann
+                  </div>
+                  <div class="line3">
+                    <span class="chip chip-info">Tauschpartner hat zugestimmt</span>
+                    <span>eingereicht gestern, 09:14</span>
+                  </div>
+                </div>
+                <div class="acts">
+                  <button class="btn btn-danger-quiet btn-sm act-x">Ablehnen</button>
+                  <button class="btn btn-primary btn-sm act-a">Genehmigen</button>
+                </div>
+              </div>
+              <div class="inbox-item">
+                <span class="avatar" style="background: linear-gradient(135deg, #4a6fa0, #7fa0ce)"
+                  >PN</span
+                >
+                <div class="body">
+                  <b>Gleitzeitabbau — Paul Neumann</b>
+                  <div class="line2 tnum">Do 10.09. · 1 Tag · Saldo danach +4:50 h</div>
+                  <div class="line3">
+                    <span class="chip chip-ok">Deckung im Plan vorhanden</span>
+                    <span>eingereicht Mo, 11:38</span>
+                  </div>
+                </div>
+                <div class="acts">
+                  <button class="btn btn-danger-quiet btn-sm act-x">Ablehnen</button>
+                  <button class="btn btn-primary btn-sm act-a">Genehmigen</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============ View: Zustände ============ -->
+          <section class="view" id="view-zustaende" aria-labelledby="states-title">
+            <div class="page-head">
+              <p class="page-kicker">Designsystem</p>
+              <h1 class="page-title" id="states-title">Zustände</h1>
+              <p class="page-desc">
+                Leere, ladende und fehlerhafte Zustände sind Teil des Systems — keine Improvisation
+                pro Seite.
+              </p>
+            </div>
+            <div class="state-grid">
+              <div class="state-demo">
+                <h3>Leer</h3>
+                <div class="empty">
+                  <span class="glyph" aria-hidden="true">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                    >
+                      <path d="M2.5 4.5l5.5 3.5 5.5-3.5" />
+                      <path d="M2.5 3.5h11v9h-11z" />
+                    </svg>
+                  </span>
+                  <b>Alles erledigt</b>
+                  <p>
+                    Es liegen keine offenen Anträge vor. Neue Anträge Ihres Teams erscheinen hier.
+                  </p>
+                  <button class="btn btn-quiet btn-sm">Filter zurücksetzen</button>
+                </div>
+              </div>
+              <div class="state-demo">
+                <h3>Laden</h3>
+                <div class="skel" role="status" aria-label="Inhalte werden geladen">
+                  <div class="bar" style="width: 42%"></div>
+                  <div class="bar" style="width: 88%"></div>
+                  <div class="bar" style="width: 76%"></div>
+                  <div class="bar" style="width: 64%"></div>
+                  <div class="bar" style="width: 81%"></div>
+                </div>
+              </div>
+              <div class="state-demo">
+                <h3>Fehler</h3>
+                <div class="errstate">
+                  <span class="msg">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                      <circle cx="8" cy="8" r="6" />
+                      <path d="M8 5v3.5M8 11h.01" />
+                    </svg>
+                    Berichte konnten nicht geladen werden
+                  </span>
+                  <span class="detail"
+                    >Der API-Server antwortet nicht (localhost:3001). Ihre Eingaben bleiben
+                    erhalten.</span
+                  >
+                  <button class="btn btn-quiet btn-sm">Erneut versuchen</button>
+                </div>
+              </div>
+              <div class="state-demo">
+                <h3>Zweifelsfrei zerstörerisch</h3>
+                <div class="errstate">
+                  <span class="msg" style="color: var(--text)">Antrag endgültig zurückziehen?</span>
+                  <span class="detail"
+                    >Der Antrag wird aus dem Workflow entfernt und im Audit-Protokoll vermerkt. Dies
+                    kann nicht rückgängig gemacht werden.</span
+                  >
+                  <span style="display: flex; gap: 8px; margin-top: 4px">
+                    <button class="btn btn-quiet btn-sm">Abbrechen</button>
+                    <button
+                      class="btn btn-sm"
+                      style="background: var(--err); color: #fff; border-color: transparent"
+                    >
+                      Endgültig zurückziehen
+                    </button>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- ============ Command palette ============ -->
+    <div class="scrim" id="scrim" role="dialog" aria-modal="true" aria-label="Befehlspalette">
+      <div class="palette">
+        <input
+          type="text"
+          id="pal-input"
+          placeholder="Suchen, springen, handeln …"
+          aria-label="Befehl eingeben"
+        />
+        <div class="plist" id="plist" role="listbox">
+          <div class="pitem active" data-goto="heute">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="8" cy="8" r="6" />
+              <path d="M8 4.5V8l2.5 1.5" /></svg
+            >Heute öffnen<span class="k">Gehe zu</span>
+          </div>
+          <div class="pitem" data-goto="buchungen">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 2.5h10v11H3z" />
+              <path d="M5.5 5.5h5M5.5 8h5" /></svg
+            >Buchungen August 2026<span class="k">Gehe zu</span>
+          </div>
+          <div class="pitem" data-goto="genehmigungen">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M2.5 4.5l5.5 3.5 5.5-3.5" />
+              <path d="M2.5 3.5h11v9h-11z" /></svg
+            >Genehmigungen (4 offen)<span class="k">Gehe zu</span>
+          </div>
+          <div class="pitem" id="pal-gehen">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M6 2.5H3.5v11H6M10.5 5l3 3-3 3M13 8H6.5" /></svg
+            >Gehen buchen<span class="k">Aktion</span>
+          </div>
+          <div class="pitem" data-goto="zustaende">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 2.5h5l3 3v8H4z" /></svg
+            >Urlaubsantrag stellen<span class="k">Aktion</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Toast ============ -->
+    <div class="toast" id="toast" role="status">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M3 8.5l3.5 3.5L13 5" />
+      </svg>
+      <span id="toast-msg">Gebucht.</span>
+    </div>
+
+    <script>
+      const $ = (s, el = document) => el.querySelector(s);
+      const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+
+      /* ---------- Theme ---------- */
+      const themeBtn = $('#theme-btn');
+      function setTheme(t) {
+        document.documentElement.dataset.theme = t;
+      }
+      themeBtn.addEventListener('click', () => {
+        setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+      });
+      if (matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+
+      /* ---------- Views ---------- */
+      const titles = {
+        heute: ['Arbeitstag', 'Heute'],
+        buchungen: ['Arbeitstag', 'Buchungen'],
+        genehmigungen: ['Posteingang', 'Genehmigungen'],
+        zustaende: ['Designsystem', 'Zustände'],
+      };
+      function show(name) {
+        $$('.view').forEach((v) => v.classList.toggle('active', v.id === 'view-' + name));
+        $$('.nav-item[data-view]').forEach((n) =>
+          n.getAttribute('data-view') === name
+            ? n.setAttribute('aria-current', 'page')
+            : n.removeAttribute('aria-current'),
+        );
+        const [root, cur] = titles[name] || ['cueq', name];
+        $('#crumb-root').textContent = root;
+        $('#crumb-cur').textContent = cur;
+        $('#side').classList.remove('open');
+      }
+      $$('.nav-item[data-view]').forEach((n) =>
+        n.addEventListener('click', () => show(n.dataset.view)),
+      );
+      $$('[data-goto]').forEach((el) =>
+        el.addEventListener('click', () => {
+          show(el.dataset.goto);
+          closePal();
+        }),
+      );
+      $('#menu-btn').addEventListener('click', () => $('#side').classList.toggle('open'));
+
+      /* ---------- Toast ---------- */
+      let toastTimer;
+      function toast(msg) {
+        $('#toast-msg').textContent = msg;
+        const t = $('#toast');
+        t.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+      }
+
+      /* ---------- Primary action ---------- */
+      $('#go-btn').addEventListener('click', () => toast('Gehen um 13:52 Uhr gebucht.'));
+
+      /* ---------- Inbox decisions ---------- */
+      let remaining = 4;
+      function decide(item, ok) {
+        item.classList.add('done');
+        item.querySelector('.acts').innerHTML =
+          `<span class="chip ${ok ? 'chip-ok' : 'chip-err'}">${ok ? 'Genehmigt' : 'Abgelehnt'}</span>`;
+        remaining--;
+        const badge = $('#nav-badge');
+        if (remaining <= 0) badge.remove();
+        else badge.textContent = remaining;
+        toast(
+          ok
+            ? 'Genehmigt und im Audit-Protokoll vermerkt.'
+            : 'Abgelehnt und im Audit-Protokoll vermerkt.',
+        );
+      }
+      $$('#inbox .inbox-item').forEach((item) => {
+        item.querySelector('.act-a').addEventListener('click', () => decide(item, true));
+        item.querySelector('.act-x').addEventListener('click', () => decide(item, false));
+      });
+
+      /* j/k/a/x keyboard on inbox */
+      let sel = 0;
+      function paintSel() {
+        $$('#inbox .inbox-item').forEach((it, i) => it.classList.toggle('selected', i === sel));
+      }
+      document.addEventListener('keydown', (e) => {
+        if (!$('#view-genehmigungen').classList.contains('active')) return;
+        if (e.target.matches('input')) return;
+        if (e.key === 'j') {
+          sel = Math.min(sel + 1, $$('#inbox .inbox-item').length - 1);
+          paintSel();
+        }
+        if (e.key === 'k') {
+          sel = Math.max(sel - 1, 0);
+          paintSel();
+        }
+        const cur = $$('#inbox .inbox-item')[sel];
+        if (cur && !cur.classList.contains('done')) {
+          if (e.key === 'a') decide(cur, true);
+          if (e.key === 'x') decide(cur, false);
+        }
+      });
+
+      /* ---------- Command palette ---------- */
+      const scrim = $('#scrim'),
+        palInput = $('#pal-input');
+      function openPal() {
+        scrim.classList.add('open');
+        palInput.value = '';
+        palInput.focus();
+        filterPal('');
+      }
+      function closePal() {
+        scrim.classList.remove('open');
+      }
+      $('#cmdk-open').addEventListener('click', openPal);
+      scrim.addEventListener('click', (e) => {
+        if (e.target === scrim) closePal();
+      });
+      document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          openPal();
+        }
+        if (e.key === 'Escape') closePal();
+      });
+      function filterPal(q) {
+        $$('#plist .pitem').forEach(
+          (p) =>
+            (p.style.display = p.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none'),
+        );
+      }
+      palInput.addEventListener('input', () => filterPal(palInput.value));
+      palInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const first = $$('#plist .pitem').find((p) => p.style.display !== 'none');
+          if (first) first.click();
+        }
+      });
+      $('#pal-gehen').addEventListener('click', () => {
+        toast('Gehen um 13:52 Uhr gebucht.');
+        closePal();
+      });
+      $$('#plist .pitem').forEach((p) =>
+        p.addEventListener('click', () => {
+          if (p.dataset.goto) show(p.dataset.goto);
+          closePal();
+        }),
+      );
+    </script>
+  </body>
+</html>

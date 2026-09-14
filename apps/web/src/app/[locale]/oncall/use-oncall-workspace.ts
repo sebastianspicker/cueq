@@ -3,11 +3,16 @@
 import { useEffect, useState } from 'react';
 import {
   OnCallComplianceCheckSchema,
+  OnCallRotationPageSchema,
+  OnCallDeploymentPageSchema,
   OnCallDeploymentSchema,
   OnCallRotationSchema,
   UserProfileSchema,
 } from '@cueq/contracts';
 import type { useTranslations } from 'next-intl';
+import { mergePage, pagePath } from '../../../shared/workspace/cursor-pages';
+import { useReadRequests } from '../../../shared/workspace/use-read-requests';
+import type { ApiRequest } from '../../../platform/http/api-client';
 import { useApiContext } from '../../../platform/http/api-context';
 import {
   loadAndApply,
@@ -27,12 +32,15 @@ type TranslationFn = ReturnType<typeof useTranslations>;
 
 export function useOnCallWorkspace(t: TranslationFn) {
   const { token, apiRequest } = useApiContext();
+  const reads = useReadRequests(apiRequest);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [rotationsCursor, setRotationsCursor] = useState<string | null>(null);
+  const [deploymentsCursor, setDeploymentsCursor] = useState<string | null>(null);
   const [rotations, setRotations] = useState<OnCallRotation[]>([]);
   const [deployments, setDeployments] = useState<OnCallDeployment[]>([]);
   const [compliance, setCompliance] = useState<ComplianceResult | null>(null);
@@ -51,13 +59,12 @@ export function useOnCallWorkspace(t: TranslationFn) {
   const [nextShiftStart, setNextShiftStart] = useState('2026-03-10T09:00:00.000Z');
   const [updateRotationId, setUpdateRotationId] = useState('');
 
-  async function resolveMe() {
+  async function resolveMe(request: ApiRequest) {
     if (me) {
       return me;
     }
 
-    const next = await apiRequest('/v1/me', UserProfileSchema);
-    setMe(next);
+    const next = await request('/v1/me', UserProfileSchema);
     return next;
   }
 
@@ -67,8 +74,9 @@ export function useOnCallWorkspace(t: TranslationFn) {
       return;
     }
 
+    const controller = new AbortController();
     let active = true;
-    void apiRequest('/v1/me', UserProfileSchema)
+    void apiRequest('/v1/me', UserProfileSchema, { signal: controller.signal })
       .then((next) => {
         if (active) {
           setMe(next);
@@ -82,62 +90,91 @@ export function useOnCallWorkspace(t: TranslationFn) {
 
     return () => {
       active = false;
+      controller.abort();
     };
   }, [apiRequest, token]);
 
   async function loadOnCallData<T>(
-    request: () => Promise<T>,
+    resource: string,
+    request: (apiRequest: ApiRequest) => Promise<T>,
     apply: (data: T) => void,
     preserveFeedback = false,
   ): Promise<RefreshResult> {
+    const read = reads.begin(resource, preserveFeedback);
     setLoading(true);
     if (!preserveFeedback) {
       setError(null);
       setMessage(null);
     }
     try {
-      const result = await loadAndApply(request, apply);
+      const result = await loadAndApply(() => request(read.request), apply, read.isCurrent);
+      if (!read.isCurrent()) return result;
       if (!result.ok && !preserveFeedback) {
         setError(result.cause instanceof Error ? result.cause.message : t('requestFailed'));
       }
       return result;
     } finally {
-      setLoading(false);
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
-  async function loadRotations(preserveFeedback = false): Promise<RefreshResult> {
+  async function loadRotations(
+    preserveFeedback = false,
+    cursor?: string | null,
+  ): Promise<RefreshResult> {
     return loadOnCallData(
-      () => apiRequest('/v1/oncall/rotations', OnCallRotationSchema.array()),
-      setRotations,
+      'rotations',
+      (apiRequest) =>
+        apiRequest(pagePath('/v1/oncall/rotations', cursor), OnCallRotationPageSchema),
+      (page) => {
+        setRotations((previous) => (cursor ? mergePage(previous, page.items) : page.items));
+        setRotationsCursor(page.nextCursor);
+      },
       preserveFeedback,
     );
   }
 
-  async function loadDeployments(preserveFeedback = false): Promise<RefreshResult> {
+  async function loadDeployments(
+    preserveFeedback = false,
+    cursor?: string | null,
+  ): Promise<RefreshResult> {
     return loadOnCallData(
-      () => apiRequest('/v1/oncall/deployments', OnCallDeploymentSchema.array()),
-      setDeployments,
+      'deployments',
+      (apiRequest) =>
+        apiRequest(pagePath('/v1/oncall/deployments', cursor), OnCallDeploymentPageSchema),
+      (page) => {
+        setDeployments((previous) => (cursor ? mergePage(previous, page.items) : page.items));
+        setDeploymentsCursor(page.nextCursor);
+      },
       preserveFeedback,
     );
   }
 
   async function runCompliance() {
+    const read = reads.begin('compliance');
+    const apiRequest = read.request;
     setLoading(true);
     setError(null);
     setMessage(null);
     try {
-      const current = await resolveMe();
+      const current = await resolveMe(apiRequest);
       const targetPersonId = personId || current.id;
       const data = await apiRequest(
         `/v1/oncall/compliance?personId=${encodeURIComponent(targetPersonId)}&nextShiftStart=${encodeURIComponent(nextShiftStart)}`,
         OnCallComplianceCheckSchema,
       );
-      setCompliance(data);
+      if (read.isCurrent()) setCompliance(data);
     } catch (cause) {
+      if (!read.isCurrent()) return;
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
-      setLoading(false);
+      if (read.isCurrent()) {
+        read.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
@@ -146,20 +183,26 @@ export function useOnCallWorkspace(t: TranslationFn) {
     refresh: () => Promise<RefreshResult>,
     successMessage: string,
   ) {
+    const operation = reads.begin('mutation');
     setLoading(true);
     setError(null);
     setMessage(null);
     try {
-      const result = await refreshAfterMutation(mutate, refresh);
+      const result = await refreshAfterMutation(mutate, refresh, operation.isFeedbackCurrent);
+      if (!operation.isFeedbackCurrent()) return;
       if (result.ok) {
         setMessage(successMessage);
       } else {
         setError(t('savedRefreshFailed'));
       }
     } catch (cause) {
+      if (!operation.isFeedbackCurrent()) return;
       setError(cause instanceof Error ? cause.message : t('requestFailed'));
     } finally {
-      setLoading(false);
+      if (operation.isCurrent()) {
+        operation.finish();
+        setLoading(reads.pending);
+      }
     }
   }
 
@@ -197,7 +240,14 @@ export function useOnCallWorkspace(t: TranslationFn) {
       () =>
         apiRequest(`/v1/oncall/rotations/${updateRotationId}`, OnCallRotationSchema, {
           method: 'PATCH',
-          body: JSON.stringify({ startTime, endTime, rotationType, note: note || undefined }),
+          body: JSON.stringify({
+            assignmentId: rotations.find((rotation) => rotation.id === updateRotationId)
+              ?.assignmentId,
+            startTime,
+            endTime,
+            rotationType,
+            note: note || undefined,
+          }),
         }),
       () => loadRotations(true),
       t('rotationUpdated'),
@@ -265,7 +315,13 @@ export function useOnCallWorkspace(t: TranslationFn) {
     setNextShiftStart,
     setUpdateRotationId,
     loadRotations,
+    rotationsCursor,
+    loadMoreRotations: () =>
+      rotationsCursor ? loadRotations(false, rotationsCursor) : Promise.resolve(),
     loadDeployments,
+    deploymentsCursor,
+    loadMoreDeployments: () =>
+      deploymentsCursor ? loadDeployments(false, deploymentsCursor) : Promise.resolve(),
     runCompliance,
     createRotation,
     updateRotation,

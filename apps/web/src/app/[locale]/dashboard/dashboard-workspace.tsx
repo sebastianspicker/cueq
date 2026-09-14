@@ -46,6 +46,21 @@ export function DashboardWorkspace({
               formatHours={workspace.formatHours}
               onClockIn={() => void workspace.clockIn()}
             />
+            {workspace.nextCursor ? (
+              <button
+                type="button"
+                disabled={workspace.loading}
+                onClick={() => void workspace.loadMoreBookings()}
+              >
+                {t('loadMoreBookings')}
+              </button>
+            ) : null}
+            <DashboardContextRail
+              t={t}
+              locale={locale}
+              summary={workspace.summary}
+              formatHours={workspace.formatHours}
+            />
             <OrientationSection t={t} summary={workspace.summary} />
             <DashboardTasks
               t={t}
@@ -63,12 +78,6 @@ export function DashboardWorkspace({
               onRequestOvertimeApproval={() => void workspace.requestOvertimeApproval()}
             />
           </div>
-          <DashboardContextRail
-            t={t}
-            locale={locale}
-            summary={workspace.summary}
-            formatHours={workspace.formatHours}
-          />
         </div>
       ) : null}
     </section>
