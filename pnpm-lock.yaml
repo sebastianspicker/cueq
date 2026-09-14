@@ -64,8 +64,8 @@ importers:
   .:
     devDependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.5.24
-        version: 15.5.24
+        specifier: 16.3.4
+        version: 16.3.4(eslint@9.39.3(jiti@2.7.0)(supports-color@8.1.1))
       '@typescript-eslint/eslint-plugin':
         specifier: 'catalog:'
         version: 8.64.0(@typescript-eslint/parser@8.64.0(@typescript/typescript6@6.0.2)(eslint@9.39.3(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1))(@typescript/typescript6@6.0.2)(eslint@9.39.3(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)
@@ -1114,8 +1114,8 @@ packages:
   '@next/env@15.5.24':
     resolution: {integrity: sha512-mBDF7T0XKZjs9SpUAl0buizVO+O02ULjOvWX8o/AZo/5AGw/UAS1Zzcylmd4pqbftzmKQi+L/nB4jgBYKEAl5Q==}
 
-  '@next/eslint-plugin-next@15.5.24':
-    resolution: {integrity: sha512-K6jcYhwMY73qpeJ5SP+rrXs7Fuvv94HEvOCEen/zjwG7aq83utZY8n+8YdKHZR1lv0n5cB4z9C6QqwpE9acN+A==}
+  '@next/eslint-plugin-next@16.3.4':
+    resolution: {integrity: sha512-szW9y2Aumu4z88YXfTzcFsgUAg2k64uzbtcO5L9f1AKS4w/GUKJcbFllRflROVyNPgJtGOnvNxiyp3v6b+prIA==}
 
   '@next/swc-darwin-arm64@15.5.24':
     resolution: {integrity: sha512-AGdNLvxZNY6eR2iSnV+6wUa8CiHTMr4F7g3uHH7fT4ICIJBE00R9u4tzN/Vuwsw0cOi8MTD2HJcTCb6siMH88Q==}
@@ -4763,9 +4763,12 @@ snapshots:
 
   '@next/env@15.5.24': {}
 
-  '@next/eslint-plugin-next@15.5.24':
+  '@next/eslint-plugin-next@16.3.4(eslint@9.39.3(jiti@2.7.0)(supports-color@8.1.1))':
     dependencies:
+      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.7.0)(supports-color@8.1.1))
       fast-glob: 3.3.1
+    transitivePeerDependencies:
+      - eslint
 
   '@next/swc-darwin-arm64@15.5.24':
     optional: true
